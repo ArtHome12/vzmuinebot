@@ -82,6 +82,7 @@ async fn run() {
         .messages_handler(|rx: DispatcherHandlerRx<Message>| {
             rx.for_each(|message| async move {
                 message.answer("pong").send().await.log_on_error().await;
+                log::info!("Pong!");
             })
         })
         .dispatch_with_listener(
