@@ -1,5 +1,6 @@
 // The version of ping-pong-bot, which uses a webhook to receive updates from
 // Telegram, instead of long polling.
+// STarting
 
 use teloxide::{dispatching::update_listeners, prelude::*};
 
