@@ -32,15 +32,11 @@ pub async fn webhook<'a>(bot: Arc<Bot>) -> impl update_listeners::UpdateListener
     let path = format!("bot{}", teloxide_token);
     let url = format!("https://{}/{}", host, path);
 
-    let res1 = bot.set_webhook(url)
+    bot.set_webhook(url)
         .send()
         .await
         .expect("Cannot setup a webhook");
     
-    let url2 = format!("https://{}/{}", host, path);
-    log::info!("{}", url2);
-
-
     let (tx, rx) = mpsc::unbounded_channel();
 
     let server = warp::post()
