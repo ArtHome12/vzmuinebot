@@ -57,11 +57,11 @@ enum FoodCategory {
 impl FoodCategory {
     fn markup() -> ReplyKeyboardMarkup {
         ReplyKeyboardMarkup::default().append_row(vec![
-            KeyboardButton::new("Завтрак"),
-            KeyboardButton::new("Обед"),
-            KeyboardButton::new("Ужин"),
-            KeyboardButton::new("Десерты"),
-            KeyboardButton::new("Другое"),
+            KeyboardButton::new("Breakfast"),
+            KeyboardButton::new("Lunch"),
+            KeyboardButton::new("Dinner"),
+            KeyboardButton::new("Dessert"),
+            KeyboardButton::new("Other"),
         ])
     }
 }
