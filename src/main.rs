@@ -33,12 +33,13 @@ use parse_display::{Display, FromStr};
 // ============================================================================
 // [Main menu]
 // ============================================================================
-/*fn main_menu_markup() -> ReplyKeyboardMarkup {
+fn main_menu_markup() -> ReplyKeyboardMarkup {
     ReplyKeyboardMarkup::default().append_row(vec![
         KeyboardButton::new("Добавить блюдо"),
-        KeyboardButton::new("Список блюд"),
+        //KeyboardButton::new("Список блюд"),
     ])
-}*/
+    .one_time_keyboard(true)
+}
 
 
 // ============================================================================
@@ -157,6 +158,7 @@ async fn food_category(cx: Cx<ReceiveFoodCategoryState>) -> Res {
                     food_category
                 }
             ))
+            .reply_markup(main_menu_markup())
             .send()
             .await?;
             exit()
