@@ -63,6 +63,7 @@ impl FoodCategory {
             KeyboardButton::new("Dessert"),
             KeyboardButton::new("Other"),
         ])
+        .one_time_keyboard(true)
     }
 }
 
