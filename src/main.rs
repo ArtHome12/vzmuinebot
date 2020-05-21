@@ -31,24 +31,37 @@ use parse_display::{Display, FromStr};
 
 
 // ============================================================================
+// [Main menu]
+// ============================================================================
+/*fn main_menu_markup() -> ReplyKeyboardMarkup {
+    ReplyKeyboardMarkup::default().append_row(vec![
+        KeyboardButton::new("Добавить блюдо"),
+        KeyboardButton::new("Список блюд"),
+    ])
+}*/
+
+
+// ============================================================================
 // [Favourite music kinds]
 // ============================================================================
 
 #[derive(Copy, Clone, Display, FromStr)]
-enum FavouriteMusic {
-    Rock,
-    Metal,
-    Pop,
+enum FoodCategory {
+    Breakfast, 
+    Lunch, 
+    Dinner, 
+    Dessert,
     Other,
 }
 
-impl FavouriteMusic {
+impl FoodCategory {
     fn markup() -> ReplyKeyboardMarkup {
         ReplyKeyboardMarkup::default().append_row(vec![
-            KeyboardButton::new("Rock"),
-            KeyboardButton::new("Metal"),
-            KeyboardButton::new("Pop"),
-            KeyboardButton::new("Other"),
+            KeyboardButton::new("Завтрак"),
+            KeyboardButton::new("Обед"),
+            KeyboardButton::new("Ужин"),
+            KeyboardButton::new("Десерты"),
+            KeyboardButton::new("Другое"),
         ])
     }
 }
@@ -58,33 +71,33 @@ impl FavouriteMusic {
 // ============================================================================
 
 #[derive(Clone)]
-struct ReceiveAgeState {
-    full_name: String,
+struct ReceivePriceState {
+    food_name: String,
 }
 
 #[derive(Clone)]
-struct ReceiveFavouriteMusicState {
-    data: ReceiveAgeState,
-    age: u8,
+struct ReceiveFoodCategoryState {
+    data: ReceivePriceState,
+    food_price: u8,
 }
 
 #[derive(Display)]
 #[display(
-    "Your full name: {data.data.full_name}, your age: {data.age}, your \
-     favourite music: {favourite_music}"
+    "Название блюда: {data.data.food_name}, цена: {data.food_price} тыс. донгов, категория \
+     : {food_category}"
 )]
 struct ExitState {
-    data: ReceiveFavouriteMusicState,
-    favourite_music: FavouriteMusic,
+    data: ReceiveFoodCategoryState,
+    food_category: FoodCategory,
 }
 
 #[derive(SmartDefault)]
 enum Dialogue {
     #[default]
     Start,
-    ReceiveFullName,
-    ReceiveAge(ReceiveAgeState),
-    ReceiveFavouriteMusic(ReceiveFavouriteMusicState),
+    ReceiveFoodName,
+    ReceiveFoodPrice(ReceivePriceState),
+    ReceiveFoodCategory(ReceiveFoodCategoryState),
 }
 
 // ============================================================================
@@ -95,52 +108,52 @@ type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
 type Res = ResponseResult<DialogueStage<Dialogue>>;
 
 async fn start(cx: Cx<()>) -> Res {
-    cx.answer("Let's start! First, what's your full name?").send().await?;
-    next(Dialogue::ReceiveFullName)
+    cx.answer("Ввод нового блюда. Как оно будет называться?").send().await?;
+    next(Dialogue::ReceiveFoodName)
 }
 
-async fn full_name(cx: Cx<()>) -> Res {
+async fn food_name(cx: Cx<()>) -> Res {
     match cx.update.text() {
         None => {
-            cx.answer("Please, send me a text message!").send().await?;
-            next(Dialogue::ReceiveFullName)
+            cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
+            next(Dialogue::ReceiveFoodName)
         }
-        Some(full_name) => {
-            cx.answer("What a wonderful name! Your age?").send().await?;
-            next(Dialogue::ReceiveAge(ReceiveAgeState {
-                full_name: full_name.to_owned(),
+        Some(food_name) => {
+            cx.answer("Чудесное название! Какова цена в тыс. донгов?").send().await?;
+            next(Dialogue::ReceiveFoodPrice(ReceivePriceState {
+                food_name: food_name.to_owned(),
             }))
         }
     }
 }
 
-async fn age(cx: Cx<ReceiveAgeState>) -> Res {
+async fn food_price(cx: Cx<ReceivePriceState>) -> Res {
     match cx.update.text().unwrap().parse() {
-        Ok(age) => {
-            cx.answer("Good. Now choose your favourite music:")
-                .reply_markup(FavouriteMusic::markup())
+        Ok(food_price) => {
+            cx.answer("Хорошо. К какой категории оно относится:")
+                .reply_markup(FoodCategory::markup())
                 .send()
                 .await?;
-            next(Dialogue::ReceiveFavouriteMusic(ReceiveFavouriteMusicState {
+            next(Dialogue::ReceiveFoodCategory(ReceiveFoodCategoryState {
                 data: cx.dialogue,
-                age,
+                food_price,
             }))
         }
         Err(_) => {
-            cx.answer("Oh, please, enter a number!").send().await?;
-            next(Dialogue::ReceiveAge(cx.dialogue))
+            cx.answer("Число, пожалуйста!").send().await?;
+            next(Dialogue::ReceiveFoodPrice(cx.dialogue))
         }
     }
 }
 
-async fn favourite_music(cx: Cx<ReceiveFavouriteMusicState>) -> Res {
+async fn food_category(cx: Cx<ReceiveFoodCategoryState>) -> Res {
     match cx.update.text().unwrap().parse() {
-        Ok(favourite_music) => {
+        Ok(food_category) => {
             cx.answer(format!(
-                "Fine. {}",
+                "Отлично. {}",
                 ExitState {
                     data: cx.dialogue.clone(),
-                    favourite_music
+                    food_category
                 }
             ))
             .send()
@@ -148,8 +161,8 @@ async fn favourite_music(cx: Cx<ReceiveFavouriteMusicState>) -> Res {
             exit()
         }
         Err(_) => {
-            cx.answer("Oh, please, enter from the keyboard!").send().await?;
-            next(Dialogue::ReceiveFavouriteMusic(cx.dialogue))
+            cx.answer("Пожалуйста, выберите вариант с кнопки!").send().await?;
+            next(Dialogue::ReceiveFoodCategory(cx.dialogue))
         }
     }
 }
@@ -163,14 +176,14 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
         Dialogue::Start => {
             start(DialogueDispatcherHandlerCx::new(bot, update, ())).await
         }
-        Dialogue::ReceiveFullName => {
-            full_name(DialogueDispatcherHandlerCx::new(bot, update, ())).await
+        Dialogue::ReceiveFoodName => {
+            food_name(DialogueDispatcherHandlerCx::new(bot, update, ())).await
         }
-        Dialogue::ReceiveAge(s) => {
-            age(DialogueDispatcherHandlerCx::new(bot, update, s)).await
+        Dialogue::ReceiveFoodPrice(s) => {
+            food_price(DialogueDispatcherHandlerCx::new(bot, update, s)).await
         }
-        Dialogue::ReceiveFavouriteMusic(s) => {
-            favourite_music(DialogueDispatcherHandlerCx::new(bot, update, s))
+        Dialogue::ReceiveFoodCategory(s) => {
+            food_category(DialogueDispatcherHandlerCx::new(bot, update, s))
                 .await
         }
     }
