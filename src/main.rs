@@ -36,7 +36,6 @@ use parse_display::{Display, FromStr};
 fn main_menu_markup() -> ReplyKeyboardMarkup {
     ReplyKeyboardMarkup::default().append_row(vec![
         KeyboardButton::new("Добавить блюдо"),
-        //KeyboardButton::new("Список блюд"),
     ])
     .one_time_keyboard(true)
 }
