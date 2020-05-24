@@ -27,8 +27,8 @@ use reqwest::StatusCode;
 
 use parse_display::{Display, FromStr};
 
-use vzmuinebot::models::*;
-use self::diesel::prelude::*;
+//use vzmuinebot::models::*;
+//use self::diesel::prelude::*;
 
 
 // ============================================================================
@@ -39,6 +39,7 @@ fn main_menu_markup() -> ReplyKeyboardMarkup {
         KeyboardButton::new("Добавить блюдо"),
     ])
     .one_time_keyboard(true)
+    .resize_keyboard(true)
 }
 
 
@@ -65,6 +66,7 @@ impl FoodCategory {
             KeyboardButton::new("Other"),
         ])
         .one_time_keyboard(true)
+        .resize_keyboard(true)
     }
 }
 
