@@ -1,6 +1,6 @@
 /* ===============================================================================
 Бот для сбора меню у рестораторов и выдача их желающим покушать.
-21 May 2020.
+Главный модуль. 21 May 2020.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
@@ -11,6 +11,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 #[macro_use]
 extern crate smart_default;
+extern crate diesel;
 
 
 use teloxide::{
@@ -24,10 +25,10 @@ use tokio::sync::mpsc;
 use warp::Filter;
 use reqwest::StatusCode;
 
-
 use parse_display::{Display, FromStr};
 
-
+use vzmuinebot::models::*;
+use self::diesel::prelude::*;
 
 
 // ============================================================================

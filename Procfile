@@ -1,2 +1,2 @@
 web: ./target/release/vzmuinebot
-release: ./target/release/diesel setup
+release: ./target/release/diesel migration run
