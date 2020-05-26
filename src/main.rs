@@ -154,8 +154,8 @@ enum Dialogue {
     #[default]
     Start,
     ReceiveMainMenu,
-//    ReceiveReastaurantByCategory(ReceiveRestaurantByCategoryState),
-//    ReceiveReastaurantByNow(ReceiveRestaurantByNowState),
+    ReceiveReastaurantByCategory(ReceiveRestaurantByCategoryState),
+    ReceiveReastaurantByNow(ReceiveRestaurantByNowState),
 //    ReceiveRestauratorName(ReceiveRestauratorNameState),
     /*ReceiveFoodName,
     ReceiveFoodPrice(ReceivePriceState),
@@ -178,9 +178,17 @@ async fn start(cx: Cx<()>) -> Res {
 }
 
 async fn main_menu(cx: Cx<()>) -> Res {
-    match cx.update.text().unwrap().parse() {
+    match cx.update.text().unwrap().parse::<MainMenu>() {
         Ok(main_menu_state) => {
-            cx.answer(format!(
+            match main_menu_state {
+                MainMenu::Breakfast => {
+                    next(Dialogue::ReceiveReastaurantByCategory(ReceiveFoodCategoryState {
+                        data: cx.dialogue,
+                        food_price,
+                    }
+                },
+            }
+/*            cx.answer(format!(
                 "Отлично. {}",
                 ExitState {
                     main_menu_state
@@ -189,7 +197,7 @@ async fn main_menu(cx: Cx<()>) -> Res {
             //.reply_markup(main_menu_markup())
             .send()
             .await?;
-            exit()
+            exit()*/
         }
         Err(_) => {
             cx.answer("Пожалуйста, выберите вариант с кнопки!").send().await?;
