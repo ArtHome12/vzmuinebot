@@ -22,6 +22,7 @@ use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
 use tokio::sync::mpsc;
 use warp::Filter;
 use reqwest::StatusCode;
+use enum_utils;
 
 use parse_display::{Display, FromStr};
 
@@ -29,25 +30,34 @@ use parse_display::{Display, FromStr};
 // ============================================================================
 // [Main menu]
 // ============================================================================
-#[derive(Copy, Clone, Display, FromStr)]
+#[derive(Copy, Clone, Display, enum_utils::FromStr)]
 enum MainMenu {
+    #[enumeration(rename = "Завтрак")]
     Breakfast, 
+    #[enumeration(rename = "Обед")]
     Lunch, 
+    #[enumeration(rename = "Ужин")]
     Dinner, 
+    #[enumeration(rename = "Кофе/десерты")]
     Dessert,
+    #[enumeration(rename = "Работает сейчас")]
     OpenedNow,
+    #[enumeration(rename = "/addOwnMenu")]
     RestoratorMode,
 }
 
 impl MainMenu {
     fn markup() -> ReplyKeyboardMarkup {
-        ReplyKeyboardMarkup::default().append_row(vec![
-            KeyboardButton::new("Завтрак"),
-            KeyboardButton::new("Обед"),
-            KeyboardButton::new("Ужин"),
-            KeyboardButton::new("Кофе/десерты"),
-            KeyboardButton::new("Работает сейчас"),
-        ])
+        ReplyKeyboardMarkup::default()
+            .append_row(vec![
+                KeyboardButton::new("Завтрак"),
+                KeyboardButton::new("Обед"),
+                KeyboardButton::new("Ужин"),
+            ])
+            .append_row(vec![
+                KeyboardButton::new("Кофе/десерты"),
+                KeyboardButton::new("Работает сейчас"),
+            ])
         .one_time_keyboard(true)
         .resize_keyboard(true)
     }
