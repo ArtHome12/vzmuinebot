@@ -11,8 +11,6 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 #[macro_use]
 extern crate smart_default;
-extern crate diesel;
-
 
 use teloxide::{
     dispatching::update_listeners, 
@@ -26,9 +24,6 @@ use warp::Filter;
 use reqwest::StatusCode;
 
 use parse_display::{Display, FromStr};
-
-//use vzmuinebot::models::*;
-//use self::diesel::prelude::*;
 
 
 // ============================================================================
