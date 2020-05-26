@@ -24,7 +24,7 @@ use warp::Filter;
 use reqwest::StatusCode;
 use enum_utils;
 
-use parse_display::{Display, FromStr};
+use parse_display::{Display};
 
 
 // ============================================================================
@@ -68,7 +68,7 @@ impl MainMenu {
 // [Favourite music kinds]
 // ============================================================================
 
-#[derive(Copy, Clone, Display, FromStr)]
+/*#[derive(Copy, Clone, Display, FromStr)]
 enum FoodCategory {
     Breakfast, 
     Lunch, 
@@ -90,11 +90,39 @@ impl FoodCategory {
         .resize_keyboard(true)
     }
 }
-
+*/
 // ============================================================================
 // [A type-safe finite automaton]
 // ============================================================================
 
+// Выбираем категорию еды, либо "Работающие сейчас" либо "Режим для ресторатора"
+/*#[derive(Clone)]
+struct ReceiveMainMenuState {
+    main_menu_state: FoodCategory,
+}*/
+
+// Если выбрана категория еды, то надо показать список ресторанов, в которых есть
+// еда данной категории
+#[derive(Clone)]
+struct ReceiveRestaurantByCategoryState {
+    main_menu_state: MainMenu,
+}
+
+// Если выбрана категория "Работающие сейчас", то надо показать список ресторанов,
+// работающих в текущее время.
+#[derive(Clone)]
+struct ReceiveRestaurantByNowState {
+    main_menu_state: MainMenu,
+}
+
+// Если выбрана категория "Режим для рестораторов", то переходим в него.
+#[derive(Clone)]
+struct ReceiveRestauratorNameState {
+    main_menu_state: MainMenu,
+}
+
+
+/*
 #[derive(Clone)]
 struct ReceivePriceState {
     food_name: String,
@@ -111,18 +139,27 @@ struct ReceiveFoodCategoryState {
     "Название блюда: {data.data.food_name}, цена: {data.food_price} тыс. донгов, категория \
      : {food_category}"
 )]
+*/
+#[derive(Display)]
+#[display(
+    "В главном меню выбрано: {main_menu_state}"
+)]
 struct ExitState {
-    data: ReceiveFoodCategoryState,
-    food_category: FoodCategory,
+    main_menu_state: MainMenu,
 }
+
 
 #[derive(SmartDefault)]
 enum Dialogue {
     #[default]
     Start,
-    ReceiveFoodName,
+    ReceiveMainMenu,
+//    ReceiveReastaurantByCategory(ReceiveRestaurantByCategoryState),
+//    ReceiveReastaurantByNow(ReceiveRestaurantByNowState),
+//    ReceiveRestauratorName(ReceiveRestauratorNameState),
+    /*ReceiveFoodName,
     ReceiveFoodPrice(ReceivePriceState),
-    ReceiveFoodCategory(ReceiveFoodCategoryState),
+    ReceiveFoodCategory(ReceiveFoodCategoryState),*/
 }
 
 // ============================================================================
@@ -137,9 +174,33 @@ async fn start(cx: Cx<()>) -> Res {
         .reply_markup(MainMenu::markup())
         .send()
         .await?;
-    next(Dialogue::ReceiveFoodName)
+    next(Dialogue::ReceiveMainMenu)
 }
 
+async fn main_menu(cx: Cx<()>) -> Res {
+    match cx.update.text().unwrap().parse() {
+        Ok(main_menu_state) => {
+            cx.answer(format!(
+                "Отлично. {}",
+                ExitState {
+                    main_menu_state
+                }
+            ))
+            //.reply_markup(main_menu_markup())
+            .send()
+            .await?;
+            exit()
+        }
+        Err(_) => {
+            cx.answer("Пожалуйста, выберите вариант с кнопки!").send().await?;
+            next(Dialogue::ReceiveMainMenu)
+        }
+    }
+}
+
+
+
+/*
 async fn food_name(cx: Cx<()>) -> Res {
     match cx.update.text() {
         None => {
@@ -194,7 +255,7 @@ async fn food_category(cx: Cx<ReceiveFoodCategoryState>) -> Res {
             next(Dialogue::ReceiveFoodCategory(cx.dialogue))
         }
     }
-}
+}*/
 
 async fn handle_message(cx: Cx<Dialogue>) -> Res {
     let DialogueDispatcherHandlerCx { bot, update, dialogue } = cx;
@@ -205,7 +266,11 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
         Dialogue::Start => {
             start(DialogueDispatcherHandlerCx::new(bot, update, ())).await
         }
-        Dialogue::ReceiveFoodName => {
+        Dialogue::ReceiveMainMenu => {
+            main_menu(DialogueDispatcherHandlerCx::new(bot, update, ()))
+                .await
+        }
+ /*       Dialogue::ReceiveFoodName => {
             food_name(DialogueDispatcherHandlerCx::new(bot, update, ())).await
         }
         Dialogue::ReceiveFoodPrice(s) => {
@@ -214,7 +279,7 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
         Dialogue::ReceiveFoodCategory(s) => {
             food_category(DialogueDispatcherHandlerCx::new(bot, update, s))
                 .await
-        }
+        }*/
     }
 }
 
