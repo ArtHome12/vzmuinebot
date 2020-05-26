@@ -29,12 +29,28 @@ use parse_display::{Display, FromStr};
 // ============================================================================
 // [Main menu]
 // ============================================================================
-fn main_menu_markup() -> ReplyKeyboardMarkup {
-    ReplyKeyboardMarkup::default().append_row(vec![
-        KeyboardButton::new("Добавить блюдо"),
-    ])
-    .one_time_keyboard(true)
-    .resize_keyboard(true)
+#[derive(Copy, Clone, Display, FromStr)]
+enum MainMenu {
+    Breakfast, 
+    Lunch, 
+    Dinner, 
+    Dessert,
+    OpenedNow,
+    RestoratorMode,
+}
+
+impl MainMenu {
+    fn markup() -> ReplyKeyboardMarkup {
+        ReplyKeyboardMarkup::default().append_row(vec![
+            KeyboardButton::new("Завтрак"),
+            KeyboardButton::new("Обед"),
+            KeyboardButton::new("Ужин"),
+            KeyboardButton::new("Кофе/десерты"),
+            KeyboardButton::new("Работает сейчас"),
+        ])
+        .one_time_keyboard(true)
+        .resize_keyboard(true)
+    }
 }
 
 
@@ -107,7 +123,10 @@ type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
 type Res = ResponseResult<DialogueStage<Dialogue>>;
 
 async fn start(cx: Cx<()>) -> Res {
-    cx.answer("Ввод нового блюда. Как оно будет называться?").send().await?;
+    cx.answer("Пожалуйста, выберите, какие заведения показать. Если вы ресторатор, то жмите /addOwnMenu")
+        .reply_markup(MainMenu::markup())
+        .send()
+        .await?;
     next(Dialogue::ReceiveFoodName)
 }
 
@@ -155,7 +174,7 @@ async fn food_category(cx: Cx<ReceiveFoodCategoryState>) -> Res {
                     food_category
                 }
             ))
-            .reply_markup(main_menu_markup())
+            //.reply_markup(main_menu_markup())
             .send()
             .await?;
             exit()
