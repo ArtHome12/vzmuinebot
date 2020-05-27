@@ -190,7 +190,7 @@ async fn restaurant_by_category(cx: Cx<ReceiveRestaurantByCategoryState>) -> Res
         }
         Some(rest_name) => {
             match rest_name {
-                "/main" => next(Dialogue::Start)
+                "/main" => next(Dialogue::Start),
 /*                "/main" => {
                     // Отобразим кнопку для возврата.
                     cx.answer("В начало")
