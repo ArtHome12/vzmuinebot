@@ -44,8 +44,6 @@ enum MainMenu {
     OpenedNow,
     #[enumeration(rename = "/addOwnMenu")]
     RestoratorMode,
-    #[enumeration(rename = "/start")]
-    Start,
 }
 
 impl MainMenu {
@@ -60,8 +58,15 @@ impl MainMenu {
                 KeyboardButton::new("Кофе/десерты"),
                 KeyboardButton::new("Работают сейчас"),
             ])
-        .one_time_keyboard(true)
-        .resize_keyboard(true)
+            .one_time_keyboard(true)
+            .resize_keyboard(true)
+    }
+
+    fn exit_markup() -> ReplyKeyboardMarkup {
+        ReplyKeyboardMarkup::default()
+            .append_row(vec![KeyboardButton::new("Продолжить")])
+            .one_time_keyboard(true)
+            .resize_keyboard(true)
     }
 }
 
@@ -122,32 +127,39 @@ type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
 type Res = ResponseResult<DialogueStage<Dialogue>>;
 
 async fn start(cx: Cx<()>) -> Res {
+    // Отображаем приветственное сообщение и меню с кнопками.
     cx.answer("Пожалуйста, выберите, какие заведения показать. Если вы ресторатор, то жмите /addOwnMenu")
         .reply_markup(MainMenu::markup())
         .send()
         .await?;
+    
+    // Переходим в режим получения выбранного пункта в главном меню.
     next(Dialogue::ReceiveMainMenu)
 }
 
 async fn main_menu(cx: Cx<()>) -> Res {
+    // Преобразовываем выбор пользователя в элемент MainMenu.
     match cx.update.text().unwrap().parse::<MainMenu>() {
         Ok(main_menu_state) => {
             match main_menu_state {
+                // Если пользователь выбрал вариант с указанием категории меню (завтрак, обед и т.д.).
                 MainMenu::Breakfast | 
                 MainMenu::Lunch | 
                 MainMenu::Dinner |
                 MainMenu::Dessert => {
-                    // Отобразим все рестораны в выбранной категории.
+                    // Отобразим все рестораны, у которых есть в меню выбранная категория.
                     let rest_list = String::from(restaurant_by_category_from_db().await);
                     cx.answer(format!("Список ресторанов с блюдами выбранной категории{}\n\
-                    Возврат в главное меню /start", rest_list)).send().await?;
+                    Возврат в главное меню /main", rest_list)).send().await?;
 
                     next(Dialogue::ReceiveReastaurantByCategory(ReceiveRestaurantByCategoryState {
                         main_menu_state : main_menu_state.to_owned(),
                     }))
                 }
+
+                // Если пользователь хочет увидеть рестораны, работающие сейчас.
                 MainMenu::OpenedNow => {
-                    let rest_list = String::from(restaurant_by_category_from_db().await);
+                    let rest_list = String::from(restaurant_opened_now_from_db().await);
                     cx.answer(format!("Список ресторанов, работающих сейчас{}\n\
                     Возврат в главное меню /main", rest_list)).send().await?;
 
@@ -155,11 +167,12 @@ async fn main_menu(cx: Cx<()>) -> Res {
                         main_menu_state : main_menu_state.to_owned(),
                     }))
                 }
+
+                // Если пользователь хочет перейти в режим управления меню.
                 MainMenu::RestoratorMode => {
                     cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova")).send().await?;
                     next(Dialogue::RestoratorMode)
                 }
-                MainMenu::Start => exit(),
             }
         }
         Err(_) => {
@@ -177,7 +190,14 @@ async fn restaurant_by_category(cx: Cx<ReceiveRestaurantByCategoryState>) -> Res
         }
         Some(rest_name) => {
             match rest_name {
-                "/main" => exit(),
+                "/main" => {
+                    // Отобразим кнопку для возврата.
+                    cx.answer("")
+                        .reply_markup(MainMenu::exit_markup())
+                        .send()
+                        .await?;
+                     exit()
+                }
                 _ => {
                     // Отобразим меню выбранного ресторана
                     let dishes_list = String::from(dishes_by_restaurant_and_category_from_db().await);
@@ -250,6 +270,13 @@ async fn restaurant_by_category_from_db() -> String {
         Плакучая ива /rest03
         Националь /rest04
         Хинкал /rest05"
+    )
+}
+
+async fn restaurant_opened_now_from_db() -> String {
+    String::from("
+        Ёлки-палки /rest01
+        Крошка-картошка /rest02"
     )
 }
 
