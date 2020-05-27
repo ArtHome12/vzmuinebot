@@ -137,7 +137,7 @@ async fn main_menu(cx: Cx<()>) -> Res {
                 MainMenu::Dessert => {
                     // Отобразим все рестораны в выбранной категории.
                     let rest_list = String::from(restaurant_by_category_from_db().await);
-                    cx.answer(format!("Список ресторанов с блюдами выбранной категории\n{}\
+                    cx.answer(format!("Список ресторанов с блюдами выбранной категории{}\n\
                     Возврат в главное меню /start", rest_list)).send().await?;
 
                     next(Dialogue::ReceiveReastaurantByCategory(ReceiveRestaurantByCategoryState {
@@ -146,7 +146,7 @@ async fn main_menu(cx: Cx<()>) -> Res {
                 }
                 MainMenu::OpenedNow => {
                     let rest_list = String::from(restaurant_by_category_from_db().await);
-                    cx.answer(format!("Список ресторанов, работающих сейчас\n{}\
+                    cx.answer(format!("Список ресторанов, работающих сейчас{}\n\
                     Возврат в главное меню /main", rest_list)).send().await?;
 
                     next(Dialogue::ReceiveReastaurantByNow(ReceiveRestaurantByNowState {
@@ -178,9 +178,10 @@ async fn restaurant_by_category(cx: Cx<ReceiveRestaurantByCategoryState>) -> Res
                 _ => {
                     // Отобразим меню выбранного ресторана
                     let dishes_list = String::from(dishes_by_restaurant_and_category_from_db().await);
-                    cx.answer(format!("Меню ресторана с блюдами выбранной категории\n{}\
+                    cx.answer(format!("Меню ресторана с блюдами выбранной категории{}\n\
                     Возврат в главное меню /start", dishes_list)).send().await?;
-                    next(Dialogue::ReceiveMainMenu)
+                    //next(Dialogue::ReceiveMainMenu)
+                    exit()
                 }
             }
         }
