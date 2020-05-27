@@ -62,12 +62,12 @@ impl MainMenu {
             .resize_keyboard(true)
     }
 
-    fn exit_markup() -> ReplyKeyboardMarkup {
+/*    fn exit_markup() -> ReplyKeyboardMarkup {
         ReplyKeyboardMarkup::default()
             .append_row(vec![KeyboardButton::new("Продолжить")])
             .one_time_keyboard(true)
             .resize_keyboard(true)
-    }
+    }*/
 }
 
 
@@ -190,14 +190,15 @@ async fn restaurant_by_category(cx: Cx<ReceiveRestaurantByCategoryState>) -> Res
         }
         Some(rest_name) => {
             match rest_name {
-                "/main" => {
+                "/main" => next(Dialogue::Start)
+/*                "/main" => {
                     // Отобразим кнопку для возврата.
                     cx.answer("В начало")
                         .reply_markup(MainMenu::exit_markup())
                         .send()
                         .await?;
                      exit()
-                }
+                }*/
                 _ => {
                     // Отобразим меню выбранного ресторана
                     let dishes_list = String::from(dishes_by_restaurant_and_category_from_db().await);
