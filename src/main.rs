@@ -40,7 +40,7 @@ enum MainMenu {
     Dinner, 
     #[enumeration(rename = "Кофе/десерты")]
     Dessert,
-    #[enumeration(rename = "Работает сейчас")]
+    #[enumeration(rename = "Работают сейчас")]
     OpenedNow,
     #[enumeration(rename = "/addOwnMenu")]
     RestoratorMode,
@@ -65,41 +65,8 @@ impl MainMenu {
 
 
 // ============================================================================
-// [Favourite music kinds]
-// ============================================================================
-
-/*#[derive(Copy, Clone, Display, FromStr)]
-enum FoodCategory {
-    Breakfast, 
-    Lunch, 
-    Dinner, 
-    Dessert,
-    Other,
-}
-
-impl FoodCategory {
-    fn markup() -> ReplyKeyboardMarkup {
-        ReplyKeyboardMarkup::default().append_row(vec![
-            KeyboardButton::new("Breakfast"),
-            KeyboardButton::new("Lunch"),
-            KeyboardButton::new("Dinner"),
-            KeyboardButton::new("Dessert"),
-            KeyboardButton::new("Other"),
-        ])
-        .one_time_keyboard(true)
-        .resize_keyboard(true)
-    }
-}
-*/
-// ============================================================================
 // [A type-safe finite automaton]
 // ============================================================================
-
-// Выбираем категорию еды, либо "Работающие сейчас" либо "Режим для ресторатора"
-/*#[derive(Clone)]
-struct ReceiveMainMenuState {
-    main_menu_state: FoodCategory,
-}*/
 
 // Если выбрана категория еды, то надо показать список ресторанов, в которых есть
 // еда данной категории
@@ -122,24 +89,6 @@ struct ReceiveRestauratorNameState {
 }
 
 
-/*
-#[derive(Clone)]
-struct ReceivePriceState {
-    food_name: String,
-}
-
-#[derive(Clone)]
-struct ReceiveFoodCategoryState {
-    data: ReceivePriceState,
-    food_price: u8,
-}
-
-#[derive(Display)]
-#[display(
-    "Название блюда: {data.data.food_name}, цена: {data.food_price} тыс. донгов, категория \
-     : {food_category}"
-)]
-*/
 #[derive(Display)]
 #[display(
     "В главном меню выбрано: {main_menu_state}, {some_text}"
@@ -186,6 +135,14 @@ async fn main_menu(cx: Cx<()>) -> Res {
                 MainMenu::Lunch | 
                 MainMenu::Dinner |
                 MainMenu::Dessert => {
+                    // Отобразим все рестораны в выбранной категории.
+                    cx.answer(format!("Список ресторанов с блюдами категории {}", main_menu_state)).send().await?;
+                    cx.answer(format!("Ёлки-палки /rest01")).send().await?;
+                    cx.answer(format!("Крошка-картошка /rest02")).send().await?;
+                    cx.answer(format!("Плакучая ива /rest03")).send().await?;
+                    cx.answer(format!("Националь /rest04")).send().await?;
+                    cx.answer(format!("Хинкал /rest05")).send().await?;
+
                     next(Dialogue::ReceiveReastaurantByCategory(ReceiveRestaurantByCategoryState {
                         main_menu_state : main_menu_state.to_owned(),
                     }))
@@ -274,18 +231,15 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
             main_menu(DialogueDispatcherHandlerCx::new(bot, update, ()))
                 .await
         }
- /*       Dialogue::ReceiveFoodName => {
-            food_name(DialogueDispatcherHandlerCx::new(bot, update, ())).await
-        }
-        Dialogue::ReceiveFoodPrice(s) => {
-            food_price(DialogueDispatcherHandlerCx::new(bot, update, s)).await
-        }
-        Dialogue::ReceiveFoodCategory(s) => {
-            food_category(DialogueDispatcherHandlerCx::new(bot, update, s))
-                .await
-        }*/
     }
 }
+
+// ============================================================================
+// [Database routines!]
+// ============================================================================
+/*async fn restaurant_by_category_from_DB() -> Vec<&'static str> {
+    vec!["1", "2", "3", "4", "5"]
+}*/
 
 // ============================================================================
 // [Run!]
