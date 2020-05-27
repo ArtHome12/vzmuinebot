@@ -174,7 +174,7 @@ async fn restaurant_by_category(cx: Cx<ReceiveRestaurantByCategoryState>) -> Res
         }
         Some(rest_name) => {
             match rest_name {
-                "/main" => next(Dialogue::ReceiveMainMenu),
+                "/main" => exit(),
                 _ => {
                     // Отобразим меню выбранного ресторана
                     let dishes_list = String::from(dishes_by_restaurant_and_category_from_db().await);
