@@ -136,23 +136,23 @@ async fn main_menu(cx: Cx<()>) -> Res {
                 MainMenu::Dinner |
                 MainMenu::Dessert => {
                     // Отобразим все рестораны в выбранной категории.
-                    cx.answer(format!("Список ресторанов \nс блюдами категории {}", main_menu_state)).send().await?;
-                    cx.answer(format!("Ёлки-палки /rest01")).send().await?;
-                    cx.answer(format!("Крошка-картошка /rest02")).send().await?;
-                    cx.answer(format!("Плакучая ива /rest03")).send().await?;
-                    cx.answer(format!("Националь /rest04")).send().await?;
-                    cx.answer(format!("Хинкал /rest05")).send().await?;
+                    let rest_list = String::from(restaurant_by_category_from_db().await);
+                    cx.answer(format!("Список ресторанов с блюдами выбранной категории\n{}", rest_list)).send().await?;
 
                     next(Dialogue::ReceiveReastaurantByCategory(ReceiveRestaurantByCategoryState {
                         main_menu_state : main_menu_state.to_owned(),
                     }))
                 }
                 MainMenu::OpenedNow => {
+                    let rest_list = String::from(restaurant_by_category_from_db().await);
+                    cx.answer(format!("Список ресторанов, работающих сейчас\n{}", rest_list)).send().await?;
+
                     next(Dialogue::ReceiveReastaurantByNow(ReceiveRestaurantByNowState {
                         main_menu_state : main_menu_state.to_owned(),
                     }))
                 }
                 MainMenu::RestoratorMode => {
+                    cx.answer(format!("Для доступа в режим ретораторов обратитесь к @vzbalmashova")).send().await?;
                     next(Dialogue::RestoratorMode)
                 }
             }
@@ -237,9 +237,14 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
 // ============================================================================
 // [Database routines!]
 // ============================================================================
-/*async fn restaurant_by_category_from_DB() -> Vec<&'static str> {
-    vec!["1", "2", "3", "4", "5"]
-}*/
+async fn restaurant_by_category_from_db() -> String {
+    String::from("Ёлки-палки /rest01
+        Крошка-картошка /rest02
+        Плакучая ива /rest03
+        Националь /rest04
+        Хинкал /rest05"
+    )
+}
 
 // ============================================================================
 // [Run!]
