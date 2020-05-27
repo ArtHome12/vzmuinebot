@@ -142,10 +142,11 @@ struct ReceiveFoodCategoryState {
 */
 #[derive(Display)]
 #[display(
-    "В главном меню выбрано: {main_menu_state}"
+    "В главном меню выбрано: {main_menu_state}, {some_text}"
 )]
 struct ExitState {
     main_menu_state: MainMenu,
+    some_text: String,
 }
 
 
@@ -156,7 +157,7 @@ enum Dialogue {
     ReceiveMainMenu,
     ReceiveReastaurantByCategory(ReceiveRestaurantByCategoryState),
     ReceiveReastaurantByNow(ReceiveRestaurantByNowState),
-//    ReceiveRestauratorName(ReceiveRestauratorNameState),
+    RestoratorMode,
     /*ReceiveFoodName,
     ReceiveFoodPrice(ReceivePriceState),
     ReceiveFoodCategory(ReceiveFoodCategoryState),*/
@@ -181,23 +182,23 @@ async fn main_menu(cx: Cx<()>) -> Res {
     match cx.update.text().unwrap().parse::<MainMenu>() {
         Ok(main_menu_state) => {
             match main_menu_state {
-                MainMenu::Breakfast => {
-                    next(Dialogue::ReceiveReastaurantByCategory(ReceiveFoodCategoryState {
-                        data: cx.dialogue,
-                        food_price,
-                    }
-                },
-            }
-/*            cx.answer(format!(
-                "Отлично. {}",
-                ExitState {
-                    main_menu_state
+                MainMenu::Breakfast | 
+                MainMenu::Lunch | 
+                MainMenu::Dinner |
+                MainMenu::Dessert => {
+                    next(Dialogue::ReceiveReastaurantByCategory(ReceiveRestaurantByCategoryState {
+                        main_menu_state : main_menu_state.to_owned(),
+                    }))
                 }
-            ))
-            //.reply_markup(main_menu_markup())
-            .send()
-            .await?;
-            exit()*/
+                MainMenu::OpenedNow => {
+                    next(Dialogue::ReceiveReastaurantByNow(ReceiveRestaurantByNowState {
+                        main_menu_state : main_menu_state.to_owned(),
+                    }))
+                }
+                MainMenu::RestoratorMode => {
+                    next(Dialogue::RestoratorMode)
+                }
+            }
         }
         Err(_) => {
             cx.answer("Пожалуйста, выберите вариант с кнопки!").send().await?;
@@ -206,64 +207,47 @@ async fn main_menu(cx: Cx<()>) -> Res {
     }
 }
 
-
-
-/*
-async fn food_name(cx: Cx<()>) -> Res {
+async fn restaurant_by_category(cx: Cx<ReceiveRestaurantByCategoryState>) -> Res {
     match cx.update.text() {
         None => {
-            cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
-            next(Dialogue::ReceiveFoodName)
+            cx.answer("Название ресторана, пожалуйста!").send().await?;
+            next(Dialogue::ReceiveReastaurantByCategory(cx.dialogue))
         }
-        Some(food_name) => {
-            cx.answer("Чудесное название! Какова цена в тыс. донгов?").send().await?;
-            next(Dialogue::ReceiveFoodPrice(ReceivePriceState {
-                food_name: food_name.to_owned(),
-            }))
-        }
-    }
-}
-
-async fn food_price(cx: Cx<ReceivePriceState>) -> Res {
-    match cx.update.text().unwrap().parse() {
-        Ok(food_price) => {
-            cx.answer("Хорошо. К какой категории оно относится:")
-                .reply_markup(FoodCategory::markup())
-                .send()
-                .await?;
-            next(Dialogue::ReceiveFoodCategory(ReceiveFoodCategoryState {
-                data: cx.dialogue,
-                food_price,
-            }))
-        }
-        Err(_) => {
-            cx.answer("Число, пожалуйста!").send().await?;
-            next(Dialogue::ReceiveFoodPrice(cx.dialogue))
-        }
-    }
-}
-
-async fn food_category(cx: Cx<ReceiveFoodCategoryState>) -> Res {
-    match cx.update.text().unwrap().parse() {
-        Ok(food_category) => {
+        Some(full_name) => {
             cx.answer(format!(
                 "Отлично. {}",
                 ExitState {
-                    data: cx.dialogue.clone(),
-                    food_category
+                    main_menu_state: cx.dialogue.main_menu_state.clone(),
+                    some_text: full_name.to_string(),
                 }
             ))
-            //.reply_markup(main_menu_markup())
             .send()
             .await?;
             exit()
         }
-        Err(_) => {
-            cx.answer("Пожалуйста, выберите вариант с кнопки!").send().await?;
-            next(Dialogue::ReceiveFoodCategory(cx.dialogue))
+    }
+}
+
+async fn restaurant_by_now(cx: Cx<ReceiveRestaurantByNowState>) -> Res {
+    match cx.update.text() {
+        None => {
+            cx.answer("Название категории, пожалуйста!").send().await?;
+            next(Dialogue::ReceiveReastaurantByNow(cx.dialogue))
+        }
+        Some(full_name) => {
+            cx.answer(format!(
+                "Отлично. {}",
+                ExitState {
+                    main_menu_state: cx.dialogue.main_menu_state.clone(),
+                    some_text: full_name.to_string(),
+                }
+            ))
+            .send()
+            .await?;
+            exit()
         }
     }
-}*/
+}
 
 async fn handle_message(cx: Cx<Dialogue>) -> Res {
     let DialogueDispatcherHandlerCx { bot, update, dialogue } = cx;
@@ -275,6 +259,18 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
             start(DialogueDispatcherHandlerCx::new(bot, update, ())).await
         }
         Dialogue::ReceiveMainMenu => {
+            main_menu(DialogueDispatcherHandlerCx::new(bot, update, ()))
+                .await
+        }
+        Dialogue::ReceiveReastaurantByCategory(s) => {
+            restaurant_by_category(DialogueDispatcherHandlerCx::new(bot, update, s))
+                .await
+        }
+        Dialogue::ReceiveReastaurantByNow(s) => {
+            restaurant_by_now(DialogueDispatcherHandlerCx::new(bot, update, s))
+                .await
+        }
+        Dialogue::RestoratorMode => {
             main_menu(DialogueDispatcherHandlerCx::new(bot, update, ()))
                 .await
         }
