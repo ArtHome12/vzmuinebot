@@ -44,6 +44,8 @@ enum MainMenu {
     OpenedNow,
     #[enumeration(rename = "/addOwnMenu")]
     RestoratorMode,
+    #[enumeration(rename = "/start")]
+    Start,
 }
 
 impl MainMenu {
@@ -157,6 +159,7 @@ async fn main_menu(cx: Cx<()>) -> Res {
                     cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova")).send().await?;
                     next(Dialogue::RestoratorMode)
                 }
+                MainMenu::Start => exit(),
             }
         }
         Err(_) => {
