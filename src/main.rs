@@ -56,7 +56,7 @@ impl MainMenu {
             ])
             .append_row(vec![
                 KeyboardButton::new("Кофе/десерты"),
-                KeyboardButton::new("Работает сейчас"),
+                KeyboardButton::new("Работают сейчас"),
             ])
         .one_time_keyboard(true)
         .resize_keyboard(true)
@@ -136,7 +136,7 @@ async fn main_menu(cx: Cx<()>) -> Res {
                 MainMenu::Dinner |
                 MainMenu::Dessert => {
                     // Отобразим все рестораны в выбранной категории.
-                    cx.answer(format!("Список ресторанов с блюдами категории {}", main_menu_state)).send().await?;
+                    cx.answer(format!("Список ресторанов \nс блюдами категории {}", main_menu_state)).send().await?;
                     cx.answer(format!("Ёлки-палки /rest01")).send().await?;
                     cx.answer(format!("Крошка-картошка /rest02")).send().await?;
                     cx.answer(format!("Плакучая ива /rest03")).send().await?;
