@@ -192,7 +192,7 @@ async fn restaurant_by_category(cx: Cx<ReceiveRestaurantByCategoryState>) -> Res
             match rest_name {
                 "/main" => {
                     // Отобразим кнопку для возврата.
-                    cx.answer("")
+                    cx.answer("В начало")
                         .reply_markup(MainMenu::exit_markup())
                         .send()
                         .await?;
