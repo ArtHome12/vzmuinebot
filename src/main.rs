@@ -150,8 +150,8 @@ async fn main_menu(cx: Cx<()>) -> Res {
                 MainMenu::Dessert => {
                     // Отобразим все рестораны, у которых есть в меню выбранная категория.
                     let rest_list = database::restaurant_by_category_from_db(main_menu_state.to_string()).await;
-                    cx.answer(format!("Список ресторанов с блюдами выбранной категории{}\n\
-                    Возврат в главное меню /main", rest_list)).send().await?;
+                    cx.answer(format!("Список ресторанов с блюдами категории{}{}\n\
+                    Возврат в главное меню /main", main_menu_state, rest_list)).send().await?;
 
                     next(Dialogue::ReceiveReastaurantByCategory(ReceiveRestaurantByCategoryState {
                         main_menu_state : main_menu_state.to_owned(),
