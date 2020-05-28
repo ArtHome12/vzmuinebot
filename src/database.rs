@@ -12,17 +12,7 @@ extern crate once_cell;
 use once_cell::sync::{OnceCell};
 use std::collections::HashMap;
 
-/*static RESTAURANTS: Lazy<HashMap<u32, String>> = Lazy::new(|| {
-    let mut m = HashMap::new();
-    m.insert(1, "Ёлки-палки".to_string());
-    m.insert(2, "Крошка-картошка".to_string());
-    m.insert(3, "Плакучая ива".to_string());
-    m.insert(4, "Националь".to_string());
-    m.insert(5, "Му-му".to_string());
-    m
-});*/
-
-fn hashmap() -> &'static HashMap<u32, &'static str> {
+fn restaurants() -> &'static HashMap<u32, &'static str> {
     static INSTANCE: OnceCell<HashMap<u32, &'static str>> = OnceCell::new();
     INSTANCE.get_or_init(|| {
         let mut m = HashMap::new();
@@ -35,24 +25,39 @@ fn hashmap() -> &'static HashMap<u32, &'static str> {
     })
 }
 
+fn dishes() -> &'static HashMap<u32, &'static str> {
+    static INSTANCE: OnceCell<HashMap<u32, &'static str>> = OnceCell::new();
+    INSTANCE.get_or_init(|| {
+        let mut m = HashMap::new();
+        m.insert(1, "Борщ");
+        m.insert(2, "Картофельное пюре");
+        m.insert(3, "Мясо по-французски");
+        m.insert(4, "Шарлотка");
+        m.insert(5, "Чай");
+        m
+    })
+}
+
 
 
 
 pub async fn restaurant_by_category_from_db(_category: String) -> String {
-    /*    String::from("
-            Ёлки-палки /rest01
-            Крошка-картошка /rest02
-            Плакучая ива /rest03
-            Националь /rest04
-            Хинкал /rest05"
-    )*/
-
     let mut res = String::default();
-    let hash = hashmap();
+    let hash = restaurants();
     for (key, value) in hash {
-        let res1 = format!("{}: {}\n", key, value);
+        let res1 = format!("\t{} /rest0{}\n", value, key);
         res.push_str(&res1);
     }
     res
 }
     
+pub async fn dishes_by_restaurant_and_category_from_db(_restaurant: String, _category: String) -> String {
+    let mut res = String::default();
+    let hash = dishes();
+    for (key, value) in hash {
+        let res1 = format!("\t{} /dish010{}\n", value, key);
+        res.push_str(&res1);
+    }
+    res
+}
+

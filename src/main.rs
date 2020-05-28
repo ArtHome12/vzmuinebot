@@ -196,7 +196,7 @@ async fn restaurant_by_category(cx: Cx<ReceiveRestaurantByCategoryState>) -> Res
                 }
                 _ => {
                     // Отобразим меню выбранного ресторана
-                    let dishes_list = dishes_by_restaurant_and_category_from_db().await;
+                    let dishes_list = database::dishes_by_restaurant_and_category_from_db(rest_name.to_string(), String::default()).await;
                     cx.answer(format!("Меню ресторана с блюдами выбранной категории{}\n\
                     Возврат в главное меню /main", dishes_list)).send().await?;
                     //next(Dialogue::ReceiveMainMenu)
@@ -265,17 +265,6 @@ async fn restaurant_opened_now_from_db() -> String {
         Ёлки-палки /rest01
         Крошка-картошка /rest02"
     )
-}
-
-async fn dishes_by_restaurant_and_category_from_db() -> String {
-    /*String::from("
-        Борщ /rest0101
-        Картофельное пюре /rest0102
-        Мясо по-французски /rest0103
-        Шарлотка /rest0104
-        Чай /rest0105"
-    )*/
-    String::from("two")
 }
 
 // ============================================================================
