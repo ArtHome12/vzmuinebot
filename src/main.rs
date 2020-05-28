@@ -26,6 +26,7 @@ use enum_utils;
 
 use parse_display::{Display};
 
+mod database;
 
 // ============================================================================
 // [Main menu]
@@ -148,7 +149,7 @@ async fn main_menu(cx: Cx<()>) -> Res {
                 MainMenu::Dinner |
                 MainMenu::Dessert => {
                     // Отобразим все рестораны, у которых есть в меню выбранная категория.
-                    let rest_list = String::from(restaurant_by_category_from_db().await);
+                    let rest_list = database::restaurant_by_category_from_db(main_menu_state.to_string()).await;
                     cx.answer(format!("Список ресторанов с блюдами выбранной категории{}\n\
                     Возврат в главное меню /main", rest_list)).send().await?;
 
@@ -195,9 +196,9 @@ async fn restaurant_by_category(cx: Cx<ReceiveRestaurantByCategoryState>) -> Res
                 }
                 _ => {
                     // Отобразим меню выбранного ресторана
-                    let dishes_list = String::from(dishes_by_restaurant_and_category_from_db().await);
+                    let dishes_list = dishes_by_restaurant_and_category_from_db().await;
                     cx.answer(format!("Меню ресторана с блюдами выбранной категории{}\n\
-                    Возврат в главное меню /start", dishes_list)).send().await?;
+                    Возврат в главное меню /main", dishes_list)).send().await?;
                     //next(Dialogue::ReceiveMainMenu)
                     exit()
                 }
@@ -258,15 +259,6 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
 // ============================================================================
 // [Database routines!]
 // ============================================================================
-async fn restaurant_by_category_from_db() -> String {
-    String::from("
-        Ёлки-палки /rest01
-        Крошка-картошка /rest02
-        Плакучая ива /rest03
-        Националь /rest04
-        Хинкал /rest05"
-    )
-}
 
 async fn restaurant_opened_now_from_db() -> String {
     String::from("
@@ -276,13 +268,14 @@ async fn restaurant_opened_now_from_db() -> String {
 }
 
 async fn dishes_by_restaurant_and_category_from_db() -> String {
-    String::from("
+    /*String::from("
         Борщ /rest0101
         Картофельное пюре /rest0102
         Мясо по-французски /rest0103
         Шарлотка /rest0104
         Чай /rest0105"
-    )
+    )*/
+    String::from("two")
 }
 
 // ============================================================================
@@ -354,6 +347,8 @@ async fn run() {
     teloxide::enable_logging!();
     log::info!("Starting vzmuinebot!");
 
+    log::info!("Database connected");
+    
     let bot = Bot::from_env();
 
     Dispatcher::new(Arc::clone(&bot))
