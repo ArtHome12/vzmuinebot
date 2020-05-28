@@ -45,7 +45,7 @@ pub async fn restaurant_by_category_from_db(_category: String) -> String {
     let mut res = String::default();
     let hash = restaurants();
     for (key, value) in hash {
-        let res1 = format!("\t{} /rest0{}\n", value, key);
+        let res1 = format!("\n   {} /rest0{}", value, key);
         res.push_str(&res1);
     }
     res
@@ -55,7 +55,7 @@ pub async fn dishes_by_restaurant_and_category_from_db(_restaurant: String, _cat
     let mut res = String::default();
     let hash = dishes();
     for (key, value) in hash {
-        let res1 = format!("\t{} /dish010{}\n", value, key);
+        let res1 = format!("\n   {} /dish010{}", value, key);
         res.push_str(&res1);
     }
     res
