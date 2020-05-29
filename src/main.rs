@@ -22,33 +22,55 @@ use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
 use tokio::sync::mpsc;
 use warp::Filter;
 use reqwest::StatusCode;
-use enum_utils;
-
-use parse_display::{Display};
 
 mod database;
 
 // ============================================================================
 // [Main menu]
 // ============================================================================
-#[derive(Copy, Clone, Display, enum_utils::FromStr)]
-enum MainMenu {
-    #[enumeration(rename = "Завтрак")]
+#[derive(Copy, Clone)]
+enum Commands {
+    // Команды главного меню
     Breakfast, 
-    #[enumeration(rename = "Обед")]
     Lunch, 
-    #[enumeration(rename = "Ужин")]
     Dinner, 
-    #[enumeration(rename = "Кофе/десерты")]
     Dessert,
-    #[enumeration(rename = "Работают сейчас")]
     OpenedNow,
-    #[enumeration(rename = "/addOwnMenu")]
     RestoratorMode,
+    UnknownCommand,
+    // Показать список блюд в указанной категории ресторана /rest#___ rest_id, cat_id
+    RestaurantMenuInCategory(u32, u32),
+    // Показать информацию о блюде /dish___ dish_id
+    DishInfo(u32),
+    // Показать список доступных сейчас категорий меню ресторана /menu___ rest_id
+    RestaurantOpenedCategories(u32),
 }
 
-impl MainMenu {
-    fn markup() -> ReplyKeyboardMarkup {
+impl Commands {
+    fn from(input: &str) -> Commands {
+        match input {
+            // Сначала проверим на цельные команды.
+            "Завтрак" => Commands::Breakfast,
+            "Обед" => Commands::Lunch,
+            "Ужин" => Commands::Dinner,
+            "Кофе/десерты" => Commands::Dessert,
+            "Работают сейчас" => Commands::OpenedNow,
+            "/addOwnMenu" => Commands::RestoratorMode,
+            _ => {
+                // Ищем среди команд с цифровыми суффиксами.
+                let left_part = &input[..5];
+                match left_part {
+                    "/rest" => Commands::RestaurantMenuInCategory((&input[5..6]).parse().unwrap(), (&input[6..]).parse().unwrap()),
+                    "/dish" => Commands::DishInfo((&input[5..]).parse().unwrap()),
+                    "/menu" => Commands::RestaurantOpenedCategories((&input[5..]).parse().unwrap()),
+                    _ => Commands::UnknownCommand,
+                }
+            }
+        }
+    }
+
+
+    fn main_menu_markup() -> ReplyKeyboardMarkup {
         ReplyKeyboardMarkup::default()
             .append_row(vec![
                 KeyboardButton::new("Завтрак"),
@@ -59,7 +81,6 @@ impl MainMenu {
                 KeyboardButton::new("Кофе/десерты"),
                 KeyboardButton::new("Работают сейчас"),
             ])
-            .one_time_keyboard(true)
             .resize_keyboard(true)
     }
 
@@ -71,11 +92,10 @@ impl MainMenu {
     }*/
 }
 
-
 // ============================================================================
 // [A type-safe finite automaton]
 // ============================================================================
-
+/*
 // Если выбрана категория еды, то надо показать список ресторанов, в которых есть
 // еда данной категории
 #[derive(Clone)]
@@ -105,17 +125,18 @@ struct ExitState {
     main_menu_state: MainMenu,
     some_text: String,
 }
-
+*/
 
 #[derive(SmartDefault)]
 enum Dialogue {
     #[default]
     Start,
-    ReceiveMainMenu,
+/*    ReceiveMainMenu,
     ReceiveRestaurantByCategory(ReceiveRestaurantByCategoryState),
     ReceiveRestaurantByNow(ReceiveRestaurantByNowState),
-    ReceiveDish,
-    RestoratorMode,
+    ReceiveDish,*/
+    UserMode,
+    RestaurateurMode,
 }
 
 // ============================================================================
@@ -128,14 +149,34 @@ type Res = ResponseResult<DialogueStage<Dialogue>>;
 async fn start(cx: Cx<()>) -> Res {
     // Отображаем приветственное сообщение и меню с кнопками.
     cx.answer("Пожалуйста, выберите, какие заведения показать. Если вы ресторатор, то жмите /addOwnMenu")
-        .reply_markup(MainMenu::markup())
+        .reply_markup(Commands::main_menu_markup())
         .send()
         .await?;
     
     // Переходим в режим получения выбранного пункта в главном меню.
-    next(Dialogue::ReceiveMainMenu)
+    next(Dialogue::UserMode)
 }
 
+async fn user_mode(cx: Cx<()>) -> Res {
+    // Разбираем команду.
+    match cx.update.text() {
+        None => {
+            cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
+        }
+        Some(command) => {
+        }
+    }
+
+    // Остаёмся в пользовательском режиме.
+    next(Dialogue::UserMode)
+}
+
+async fn restorator_mode(cx: Cx<()>) -> Res {
+    cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova")).send().await?;
+    next(Dialogue::Start)
+}
+
+/*
 async fn main_menu(cx: Cx<()>) -> Res {
     // Преобразовываем выбор пользователя в элемент MainMenu.
     match cx.update.text().unwrap().parse::<MainMenu>() {
@@ -241,7 +282,7 @@ async fn show_dish(cx: Cx<()>) -> Res {
 
     // Переходим в главное меню.
     start(cx.with_new_dialogue(())).await
-}
+}*/
 
 async fn handle_message(cx: Cx<Dialogue>) -> Res {
     let DialogueDispatcherHandlerCx { bot, update, dialogue } = cx;
@@ -252,7 +293,10 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
         Dialogue::Start => {
             start(DialogueDispatcherHandlerCx::new(bot, update, ())).await
         }
-        Dialogue::ReceiveMainMenu => {
+        Dialogue::UserMode => {
+            user_mode(DialogueDispatcherHandlerCx::new(bot, update, ())).await
+        }
+/*        Dialogue::ReceiveMainMenu => {
             main_menu(DialogueDispatcherHandlerCx::new(bot, update, ()))
                 .await
         }
@@ -267,24 +311,14 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
         Dialogue::ReceiveDish => {
             show_dish(DialogueDispatcherHandlerCx::new(bot, update, ()))
                 .await
-        }
-        Dialogue::RestoratorMode => {
-            main_menu(DialogueDispatcherHandlerCx::new(bot, update, ()))
+        }*/
+        Dialogue::RestaurateurMode => {
+            restorator_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
                 .await
         }
     }
 }
 
-// ============================================================================
-// [Database routines!]
-// ============================================================================
-
-async fn restaurant_opened_now_from_db() -> String {
-    String::from("
-        Ёлки-палки /rest01
-        Крошка-картошка /rest02"
-    )
-}
 
 // ============================================================================
 // [Run!]
