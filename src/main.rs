@@ -112,12 +112,10 @@ enum Dialogue {
     #[default]
     Start,
     ReceiveMainMenu,
-    ReceiveReastaurantByCategory(ReceiveRestaurantByCategoryState),
-    ReceiveReastaurantByNow(ReceiveRestaurantByNowState),
+    ReceiveRestaurantByCategory(ReceiveRestaurantByCategoryState),
+    ReceiveRestaurantByNow(ReceiveRestaurantByNowState),
+    ReceiveDish,
     RestoratorMode,
-    /*ReceiveFoodName,
-    ReceiveFoodPrice(ReceivePriceState),
-    ReceiveFoodCategory(ReceiveFoodCategoryState),*/
 }
 
 // ============================================================================
@@ -150,10 +148,10 @@ async fn main_menu(cx: Cx<()>) -> Res {
                 MainMenu::Dessert => {
                     // Отобразим все рестораны, у которых есть в меню выбранная категория.
                     let rest_list = database::restaurant_by_category_from_db(main_menu_state.to_string()).await;
-                    cx.answer(format!("Список ресторанов с блюдами категории{}{}\n\
+                    cx.answer(format!("Список ресторанов с блюдами категории {}{}\n\
                     Возврат в главное меню /main", main_menu_state, rest_list)).send().await?;
 
-                    next(Dialogue::ReceiveReastaurantByCategory(ReceiveRestaurantByCategoryState {
+                    next(Dialogue::ReceiveRestaurantByCategory(ReceiveRestaurantByCategoryState {
                         main_menu_state : main_menu_state.to_owned(),
                     }))
                 }
@@ -164,7 +162,7 @@ async fn main_menu(cx: Cx<()>) -> Res {
                     cx.answer(format!("Список ресторанов, работающих сейчас{}\n\
                     Возврат в главное меню /main", rest_list)).send().await?;
 
-                    next(Dialogue::ReceiveReastaurantByNow(ReceiveRestaurantByNowState {
+                    next(Dialogue::ReceiveRestaurantByNow(ReceiveRestaurantByNowState {
                         main_menu_state : main_menu_state.to_owned(),
                     }))
                 }
@@ -187,7 +185,7 @@ async fn restaurant_by_category(cx: Cx<ReceiveRestaurantByCategoryState>) -> Res
     match cx.update.text() {
         None => {
             cx.answer("Ссылку на ресторан или /main, пожалуйста!").send().await?;
-            next(Dialogue::ReceiveReastaurantByCategory(cx.dialogue))
+            next(Dialogue::ReceiveRestaurantByCategory(cx.dialogue))
         }
         Some(rest_name) => {
             match rest_name {
@@ -199,8 +197,7 @@ async fn restaurant_by_category(cx: Cx<ReceiveRestaurantByCategoryState>) -> Res
                     let dishes_list = database::dishes_by_restaurant_and_category_from_db(rest_name.to_string(), String::default()).await;
                     cx.answer(format!("Меню ресторана с блюдами выбранной категории{}\n\
                     Возврат в главное меню /main", dishes_list)).send().await?;
-                    //next(Dialogue::ReceiveMainMenu)
-                    exit()
+                    next(Dialogue::ReceiveDish)
                 }
             }
         }
@@ -211,7 +208,7 @@ async fn restaurant_by_now(cx: Cx<ReceiveRestaurantByNowState>) -> Res {
     match cx.update.text() {
         None => {
             cx.answer("Название категории, пожалуйста!").send().await?;
-            next(Dialogue::ReceiveReastaurantByNow(cx.dialogue))
+            next(Dialogue::ReceiveRestaurantByNow(cx.dialogue))
         }
         Some(full_name) => {
             cx.answer(format!(
@@ -228,6 +225,24 @@ async fn restaurant_by_now(cx: Cx<ReceiveRestaurantByNowState>) -> Res {
     }
 }
 
+async fn show_dish(cx: Cx<()>) -> Res {
+    // Получаем информацию о блюде.
+    let dish = database::dish(String::default()).await;
+    
+    // Отправляем информацию о блюде.
+    match dish {
+        None => {
+        }
+        Some(dish_info) => {
+            cx.answer_photo(dish_info.img).send().await?;
+            cx.answer(format!("Цена {} тыс. ₫\n{}", dish_info.price, dish_info.desc)).send().await?;
+        }
+    }
+
+    // Переходим в главное меню.
+    start(cx.with_new_dialogue(())).await
+}
+
 async fn handle_message(cx: Cx<Dialogue>) -> Res {
     let DialogueDispatcherHandlerCx { bot, update, dialogue } = cx;
 
@@ -241,12 +256,16 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
             main_menu(DialogueDispatcherHandlerCx::new(bot, update, ()))
                 .await
         }
-        Dialogue::ReceiveReastaurantByCategory(s) => {
+        Dialogue::ReceiveRestaurantByCategory(s) => {
             restaurant_by_category(DialogueDispatcherHandlerCx::new(bot, update, s))
                 .await
         }
-        Dialogue::ReceiveReastaurantByNow(s) => {
+        Dialogue::ReceiveRestaurantByNow(s) => {
             restaurant_by_now(DialogueDispatcherHandlerCx::new(bot, update, s))
+                .await
+        }
+        Dialogue::ReceiveDish => {
+            show_dish(DialogueDispatcherHandlerCx::new(bot, update, ()))
                 .await
         }
         Dialogue::RestoratorMode => {

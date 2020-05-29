@@ -11,6 +11,9 @@ extern crate once_cell;
 
 use once_cell::sync::{OnceCell};
 use std::collections::HashMap;
+use teloxide::types::InputFile;
+
+
 
 fn restaurants() -> &'static HashMap<u32, &'static str> {
     static INSTANCE: OnceCell<HashMap<u32, &'static str>> = OnceCell::new();
@@ -61,3 +64,19 @@ pub async fn dishes_by_restaurant_and_category_from_db(_restaurant: String, _cat
     res
 }
 
+// Возвращает информацию о блюде - картинку, цену и описание.
+pub struct DishInfo {
+    pub img : InputFile,
+    pub price : u32,
+    pub desc : String,
+}
+
+pub async fn dish(_dish_id : String) -> Option<DishInfo> {
+    let dish_info = DishInfo {
+        img : InputFile::file("media/dish.jpg"),
+        price : 100,
+        desc : String::from("Просто пальчики оближешь"),
+    };
+
+    Some(dish_info)
+}
