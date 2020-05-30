@@ -54,7 +54,7 @@ pub async fn restaurant_by_category_from_db(_category: String) -> String {
     res
 }
     
-pub async fn dishes_by_restaurant_and_category_from_db(_restaurant: String, _category: String) -> String {
+pub async fn dishes_by_restaurant_and_category_from_db(_category: String, _restaurant: String) -> String {
     let mut res = String::default();
     let hash = dishes();
     for (key, value) in hash {

@@ -22,6 +22,7 @@ use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
 use tokio::sync::mpsc;
 use warp::Filter;
 use reqwest::StatusCode;
+use chrono;
 
 mod database;
 
@@ -38,7 +39,7 @@ enum Commands {
     OpenedNow,
     RestoratorMode,
     UnknownCommand,
-    // Показать список блюд в указанной категории ресторана /rest#___ rest_id, cat_id
+    // Показать список блюд в указанной категории ресторана /rest#___ cat_id, rest_id, 
     RestaurantMenuInCategory(u32, u32),
     // Показать информацию о блюде /dish___ dish_id
     DishInfo(u32),
@@ -83,13 +84,6 @@ impl Commands {
             ])
             .resize_keyboard(true)
     }
-
-/*    fn exit_markup() -> ReplyKeyboardMarkup {
-        ReplyKeyboardMarkup::default()
-            .append_row(vec![KeyboardButton::new("Продолжить")])
-            .one_time_keyboard(true)
-            .resize_keyboard(true)
-    }*/
 }
 
 // ============================================================================
@@ -131,10 +125,6 @@ struct ExitState {
 enum Dialogue {
     #[default]
     Start,
-/*    ReceiveMainMenu,
-    ReceiveRestaurantByCategory(ReceiveRestaurantByCategoryState),
-    ReceiveRestaurantByNow(ReceiveRestaurantByNowState),
-    ReceiveDish,*/
     UserMode,
     RestaurateurMode,
 }
@@ -164,6 +154,47 @@ async fn user_mode(cx: Cx<()>) -> Res {
             cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
         }
         Some(command) => {
+            match Commands::from(command) {
+                Commands::Breakfast |
+                Commands::Lunch |
+                Commands::Dinner | 
+                Commands::Dessert => {
+                    // Отобразим все рестораны, у которых есть в меню выбранная категория.
+                    let rest_list = database::restaurant_by_category_from_db(command.to_string()).await;
+                    cx.answer(format!("Рестораны с меню в категории {}{}", command, rest_list))
+                        .send().await?;
+                }
+                Commands::OpenedNow => {
+                    cx.answer(format!("Рестораны, открытые сейчас ({})", chrono::offset::Utc::now())).send().await?;
+                }
+                Commands::RestaurantMenuInCategory(cat_id, rest_id) => {
+                    // Отобразим категорию меню ресторана.rest_id
+                    let menu_list = database::dishes_by_restaurant_and_category_from_db(cat_id.to_string(), rest_id.to_string()).await;
+                    cx.answer(format!("Меню в категории {} ресторана {}{}", cat_id, rest_id, menu_list)).send().await?;
+                }
+                Commands::RestaurantOpenedCategories(rest_id) => {
+                    cx.answer(format!("Доступные категории ресторана {}", rest_id)).send().await?;
+                }
+                Commands::DishInfo(dish_id) => {
+                    // Отобразим информацию о выбранном блюде.
+                    let dish = database::dish(dish_id.to_string()).await;
+                    match dish {
+                        None => {
+                        }
+                        Some(dish_info) => {
+                            cx.answer_photo(dish_info.img).send().await?;
+                            cx.answer(format!("Цена {} тыс. ₫\n{}", dish_info.price, dish_info.desc)).send().await?;
+                        }
+                    }
+                }
+                Commands::RestoratorMode => {
+                    cx.answer("Переходим в режим для владельцев ресторанов").send().await?;
+                    return next(Dialogue::RestaurateurMode);
+                }
+                Commands::UnknownCommand => {
+                    cx.answer(format!("Рестораны с меню в категории {}", command)).send().await?;
+                }
+            }
         }
     }
 
