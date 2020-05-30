@@ -37,6 +37,7 @@ enum Commands {
     Dinner, 
     Dessert,
     OpenedNow,
+    Repeat,
     RestoratorMode,
     UnknownCommand,
     // Показать список блюд в указанной категории ресторана /rest#___ cat_id, rest_id, 
@@ -54,36 +55,29 @@ impl Commands {
             "Завтрак" => Commands::Breakfast,
             "Обед" => Commands::Lunch,
             "Ужин" => Commands::Dinner,
-            "Кофе/десерты" => Commands::Dessert,
+            "Кофе" => Commands::Dessert,
             "Работают сейчас" => Commands::OpenedNow,
-            "/addOwnMenu" => Commands::RestoratorMode,
+            "Повтор" => Commands::Repeat,
+            "/New" => Commands::RestoratorMode,
             _ => {
                 // Ищем среди команд с цифровыми суффиксами, если строка достаточной длины.
-                let len = input.len();
-                if len < 5 {
-                    return Commands::UnknownCommand;
-                }
-
-                // Извлекаем возможное тело команды
-                let left_part = &input[..5];
-
-                // Разбираем команду и аргументы.
-                match left_part {
+                // Сначала Извлекаем возможное тело команды, потом разбираем команду и аргументы.
+                match input.get(..5).unwrap_or_default() {
                     "/rest" => {
                         // Длина строки должна быть достаточной для двух аргументов.
-                        if len < 6 {
+/*                        if len < 6 {
                             return Commands::UnknownCommand;
-                        }
+                        }*/
 
-                        // Извлекаем аргументы.
-                        let arg1 = (&input[5..6]).parse().unwrap_or_default();
-                        let arg2 = (&input[6..]).parse().unwrap_or_default();
+                        // Извлекаем аргументы (сначала подстроку, потом число).
+                        let arg1 = input.get(5..6).unwrap_or_default().parse().unwrap_or_default();
+                        let arg2 = input.get(6..).unwrap_or_default().parse().unwrap_or_default();
 
                         // Возвращаем команду.
                         Commands::RestaurantMenuInCategory(arg1, arg2)
                     }
-                    "/dish" => Commands::DishInfo((&input[5..]).parse().unwrap_or_default()),
-                    "/menu" => Commands::RestaurantOpenedCategories((&input[5..]).parse().unwrap_or_default()),
+                    "/dish" => Commands::DishInfo(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                    "/menu" => Commands::RestaurantOpenedCategories(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                     _ => Commands::UnknownCommand,
                 }
             }
@@ -96,10 +90,11 @@ impl Commands {
                 KeyboardButton::new("Завтрак"),
                 KeyboardButton::new("Обед"),
                 KeyboardButton::new("Ужин"),
+                KeyboardButton::new("Кофе"),
             ])
             .append_row(vec![
-                KeyboardButton::new("Кофе/десерты"),
                 KeyboardButton::new("Работают сейчас"),
+                KeyboardButton::new("/New"),
             ])
             .resize_keyboard(true)
     }
@@ -208,6 +203,10 @@ async fn user_mode(cx: Cx<()>) -> Res {
                 }
                 Commands::RestoratorMode => {
                     cx.answer("Переходим в режим для владельцев ресторанов").send().await?;
+                    return next(Dialogue::RestaurateurMode);
+                }
+                Commands::Repeat => {
+                    cx.answer("Повтор").send().await?;
                     return next(Dialogue::RestaurateurMode);
                 }
                 Commands::UnknownCommand => {
