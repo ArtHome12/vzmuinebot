@@ -56,9 +56,9 @@ impl Commands {
             "Обед" => Commands::Lunch,
             "Ужин" => Commands::Dinner,
             "Кофе" => Commands::Dessert,
-            "Работают сейчас" => Commands::OpenedNow,
+            "Сейчас" => Commands::OpenedNow,
             "Повтор" => Commands::Repeat,
-            "Добавить меню" => Commands::RestoratorMode,
+            "Добавить" => Commands::RestoratorMode,
             _ => {
                 // Ищем среди команд с цифровыми суффиксами, если строка достаточной длины.
                 // Сначала Извлекаем возможное тело команды, потом разбираем команду и аргументы.
@@ -93,7 +93,7 @@ impl Commands {
                 KeyboardButton::new("Кофе"),
             ])
             .append_row(vec![
-                KeyboardButton::new("Работают сейчас"),
+                KeyboardButton::new("Сейчас"),
                 KeyboardButton::new("Повтор"),
                 KeyboardButton::new("Добавить"),
             ])
@@ -141,7 +141,7 @@ enum Dialogue {
     #[default]
     Start,
     UserMode,
-    RestaurateurMode,
+//    RestaurateurMode,
 }
 
 // ============================================================================
@@ -180,8 +180,9 @@ async fn user_mode(cx: Cx<()>) -> Res {
                         .send().await?;
                 }
                 Commands::OpenedNow => {
-                    use chrono::{Utc};
-                    let now = Utc::now().format("%H:%M");
+                    use chrono::{Utc, FixedOffset};
+                    let our_timezone = FixedOffset::east(7 * 3600);
+                    let now = Utc::now().with_timezone(&our_timezone).format("%H:%M");
                     cx.answer(format!("Рестораны, открытые сейчас ({})", now)).send().await?;
                 }
                 Commands::RestaurantMenuInCategory(cat_id, rest_id) => {
@@ -205,12 +206,10 @@ async fn user_mode(cx: Cx<()>) -> Res {
                     }
                 }
                 Commands::RestoratorMode => {
-                    cx.answer("Переходим в режим для владельцев ресторанов").send().await?;
-                    return next(Dialogue::RestaurateurMode);
+                    cx.answer("Для доступа в режим рестораторов обратитесь к @vzbalmashova").send().await?;
                 }
                 Commands::Repeat => {
                     cx.answer("Повтор").send().await?;
-                    return next(Dialogue::RestaurateurMode);
                 }
                 Commands::UnknownCommand => {
                     cx.answer(format!("Неизвестная команда {}", command)).send().await?;
@@ -223,117 +222,9 @@ async fn user_mode(cx: Cx<()>) -> Res {
     next(Dialogue::UserMode)
 }
 
-async fn restorator_mode(cx: Cx<()>) -> Res {
+/*async fn restorator_mode(cx: Cx<()>) -> Res {
     cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova")).send().await?;
     next(Dialogue::Start)
-}
-
-/*
-async fn main_menu(cx: Cx<()>) -> Res {
-    // Преобразовываем выбор пользователя в элемент MainMenu.
-    match cx.update.text().unwrap().parse::<MainMenu>() {
-        Ok(main_menu_state) => {
-            match main_menu_state {
-                // Если пользователь выбрал вариант с указанием категории меню (завтрак, обед и т.д.).
-                MainMenu::Breakfast | 
-                MainMenu::Lunch | 
-                MainMenu::Dinner |
-                MainMenu::Dessert => {
-                    // Отобразим все рестораны, у которых есть в меню выбранная категория.
-                    let rest_list = database::restaurant_by_category_from_db(main_menu_state.to_string()).await;
-                    cx.answer(format!("Список ресторанов с блюдами категории {}{}\n\
-                    Возврат в главное меню /main", main_menu_state, rest_list)).send().await?;
-
-                    next(Dialogue::ReceiveRestaurantByCategory(ReceiveRestaurantByCategoryState {
-                        main_menu_state : main_menu_state.to_owned(),
-                    }))
-                }
-
-                // Если пользователь хочет увидеть рестораны, работающие сейчас.
-                MainMenu::OpenedNow => {
-                    let rest_list = String::from(restaurant_opened_now_from_db().await);
-                    cx.answer(format!("Список ресторанов, работающих сейчас{}\n\
-                    Возврат в главное меню /main", rest_list)).send().await?;
-
-                    next(Dialogue::ReceiveRestaurantByNow(ReceiveRestaurantByNowState {
-                        main_menu_state : main_menu_state.to_owned(),
-                    }))
-                }
-
-                // Если пользователь хочет перейти в режим управления меню.
-                MainMenu::RestoratorMode => {
-                    cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova")).send().await?;
-                    next(Dialogue::RestoratorMode)
-                }
-            }
-        }
-        Err(_) => {
-            cx.answer("Пожалуйста, выберите вариант с кнопки!").send().await?;
-            next(Dialogue::ReceiveMainMenu)
-        }
-    }
-}
-
-async fn restaurant_by_category(cx: Cx<ReceiveRestaurantByCategoryState>) -> Res {
-    match cx.update.text() {
-        None => {
-            cx.answer("Ссылку на ресторан или /main, пожалуйста!").send().await?;
-            next(Dialogue::ReceiveRestaurantByCategory(cx.dialogue))
-        }
-        Some(rest_name) => {
-            match rest_name {
-                "/main" => {
-                    start(cx.with_new_dialogue(())).await
-                }
-                _ => {
-                    // Отобразим меню выбранного ресторана
-                    let dishes_list = database::dishes_by_restaurant_and_category_from_db(rest_name.to_string(), String::default()).await;
-                    cx.answer(format!("Меню ресторана с блюдами выбранной категории{}\n\
-                    Возврат в главное меню /main", dishes_list)).send().await?;
-                    next(Dialogue::ReceiveDish)
-                }
-            }
-        }
-    }
-}
-
-async fn restaurant_by_now(cx: Cx<ReceiveRestaurantByNowState>) -> Res {
-    match cx.update.text() {
-        None => {
-            cx.answer("Название категории, пожалуйста!").send().await?;
-            next(Dialogue::ReceiveRestaurantByNow(cx.dialogue))
-        }
-        Some(full_name) => {
-            cx.answer(format!(
-                "Отлично. {}",
-                ExitState {
-                    main_menu_state: cx.dialogue.main_menu_state.clone(),
-                    some_text: full_name.to_string(),
-                }
-            ))
-            .send()
-            .await?;
-            exit()
-        }
-    }
-}
-
-async fn show_dish(cx: Cx<()>) -> Res {
-    // Получаем информацию о блюде.
-    let dish = database::dish(String::default()).await;
-    
-    // Отправляем информацию о блюде.
-    match dish {
-        None => {
-        }
-        Some(dish_info) => {
-            cx.answer_photo(dish_info.img).send().await?;
-            cx.answer(format!("Цена {} тыс. ₫\n{}", dish_info.price, dish_info.desc)).send().await?;
-        }
-    }
-
-    // Переходим в главное меню.
-    start(cx.with_new_dialogue(())).await
 }*/
 
 async fn handle_message(cx: Cx<Dialogue>) -> Res {
@@ -348,26 +239,10 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
         Dialogue::UserMode => {
             user_mode(DialogueDispatcherHandlerCx::new(bot, update, ())).await
         }
-/*        Dialogue::ReceiveMainMenu => {
-            main_menu(DialogueDispatcherHandlerCx::new(bot, update, ()))
-                .await
-        }
-        Dialogue::ReceiveRestaurantByCategory(s) => {
-            restaurant_by_category(DialogueDispatcherHandlerCx::new(bot, update, s))
-                .await
-        }
-        Dialogue::ReceiveRestaurantByNow(s) => {
-            restaurant_by_now(DialogueDispatcherHandlerCx::new(bot, update, s))
-                .await
-        }
-        Dialogue::ReceiveDish => {
-            show_dish(DialogueDispatcherHandlerCx::new(bot, update, ()))
-                .await
-        }*/
-        Dialogue::RestaurateurMode => {
+/*        Dialogue::RestaurateurMode => {
             restorator_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
                 .await
-        }
+        }*/
     }
 }
 
