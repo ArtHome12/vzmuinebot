@@ -58,7 +58,7 @@ impl Commands {
             "Кофе" => Commands::Dessert,
             "Работают сейчас" => Commands::OpenedNow,
             "Повтор" => Commands::Repeat,
-            "/New" => Commands::RestoratorMode,
+            "Добавить меню" => Commands::RestoratorMode,
             _ => {
                 // Ищем среди команд с цифровыми суффиксами, если строка достаточной длины.
                 // Сначала Извлекаем возможное тело команды, потом разбираем команду и аргументы.
@@ -94,7 +94,8 @@ impl Commands {
             ])
             .append_row(vec![
                 KeyboardButton::new("Работают сейчас"),
-                KeyboardButton::new("/New"),
+                KeyboardButton::new("Повтор"),
+                KeyboardButton::new("Добавить"),
             ])
             .resize_keyboard(true)
     }
@@ -152,7 +153,7 @@ type Res = ResponseResult<DialogueStage<Dialogue>>;
 
 async fn start(cx: Cx<()>) -> Res {
     // Отображаем приветственное сообщение и меню с кнопками.
-    cx.answer("Пожалуйста, выберите, какие заведения показать. Если вы ресторатор, то жмите /addOwnMenu")
+    cx.answer("Пожалуйста, выберите, какие заведения показать в основном меню снизу. Меню можно скрыть и работать по ссылкам.")
         .reply_markup(Commands::main_menu_markup())
         .send()
         .await?;
@@ -179,7 +180,9 @@ async fn user_mode(cx: Cx<()>) -> Res {
                         .send().await?;
                 }
                 Commands::OpenedNow => {
-                    cx.answer(format!("Рестораны, открытые сейчас ({})", chrono::offset::Utc::now())).send().await?;
+                    use chrono::{Utc};
+                    let now = Utc::now().format("%H:%M");
+                    cx.answer(format!("Рестораны, открытые сейчас ({})", now)).send().await?;
                 }
                 Commands::RestaurantMenuInCategory(cat_id, rest_id) => {
                     // Отобразим категорию меню ресторана.rest_id
@@ -210,7 +213,7 @@ async fn user_mode(cx: Cx<()>) -> Res {
                     return next(Dialogue::RestaurateurMode);
                 }
                 Commands::UnknownCommand => {
-                    cx.answer(format!("Рестораны с меню в категории {}", command)).send().await?;
+                    cx.answer(format!("Неизвестная команда {}", command)).send().await?;
                 }
             }
         }
