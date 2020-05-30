@@ -58,18 +58,37 @@ impl Commands {
             "Работают сейчас" => Commands::OpenedNow,
             "/addOwnMenu" => Commands::RestoratorMode,
             _ => {
-                // Ищем среди команд с цифровыми суффиксами.
+                // Ищем среди команд с цифровыми суффиксами, если строка достаточной длины.
+                let len = input.len();
+                if len < 5 {
+                    return Commands::UnknownCommand;
+                }
+
+                // Извлекаем возможное тело команды
                 let left_part = &input[..5];
+
+                // Разбираем команду и аргументы.
                 match left_part {
-                    "/rest" => Commands::RestaurantMenuInCategory((&input[5..6]).parse().unwrap(), (&input[6..]).parse().unwrap()),
-                    "/dish" => Commands::DishInfo((&input[5..]).parse().unwrap()),
-                    "/menu" => Commands::RestaurantOpenedCategories((&input[5..]).parse().unwrap()),
+                    "/rest" => {
+                        // Длина строки должна быть достаточной для двух аргументов.
+                        if len < 6 {
+                            return Commands::UnknownCommand;
+                        }
+
+                        // Извлекаем аргументы.
+                        let arg1 = (&input[5..6]).parse().unwrap_or_default();
+                        let arg2 = (&input[6..]).parse().unwrap_or_default();
+
+                        // Возвращаем команду.
+                        Commands::RestaurantMenuInCategory(arg1, arg2)
+                    }
+                    "/dish" => Commands::DishInfo((&input[5..]).parse().unwrap_or_default()),
+                    "/menu" => Commands::RestaurantOpenedCategories((&input[5..]).parse().unwrap_or_default()),
                     _ => Commands::UnknownCommand,
                 }
             }
         }
     }
-
 
     fn main_menu_markup() -> ReplyKeyboardMarkup {
         ReplyKeyboardMarkup::default()
