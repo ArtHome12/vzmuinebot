@@ -96,11 +96,11 @@ pub async fn rest_info(_user_id: i32) -> String {
 ")
 }
 
-pub async fn rest_edit_title(_rest_id: i32, _new_str: &str) {
+pub async fn rest_edit_title(_rest_id: i32, _new_str: String) {
 
 }
 
-pub async fn rest_edit_info(_rest_id: i32, _new_str: &str) {
+pub async fn rest_edit_info(_rest_id: i32, _new_str: String) {
 
 }
 
@@ -108,11 +108,11 @@ pub async fn rest_toggle(_rest_id: i32) {
 
 }
 
-pub async fn rest_edit_group(_rest_id: i32, _group_id: i32, _new_str: &str) {
+pub async fn rest_edit_group(_rest_id: i32, _group_id: i32, _new_str: String) {
 
 }
 
-pub async fn rest_add_group(_rest_id: i32, _new_str: &str) {
+pub async fn rest_add_group(_rest_id: i32, _new_str: String) {
 
 }
 

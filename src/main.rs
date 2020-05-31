@@ -15,7 +15,6 @@ extern crate smart_default;
 use teloxide::{
     dispatching::update_listeners, 
     prelude::*, 
-    //types::{ReplyKeyboardMarkup},
 };
 
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
@@ -27,40 +26,6 @@ use chrono;
 mod database;
 mod commands;
 
-// ============================================================================
-// [A type-safe finite automaton]
-// ============================================================================
-/*
-// Если выбрана категория еды, то надо показать список ресторанов, в которых есть
-// еда данной категории
-#[derive(Clone)]
-struct ReceiveRestaurantByCategoryState {
-    main_menu_state: MainMenu,
-}
-
-// Если выбрана категория "Работающие сейчас", то надо показать список ресторанов,
-// работающих в текущее время.
-#[derive(Clone)]
-struct ReceiveRestaurantByNowState {
-    main_menu_state: MainMenu,
-}
-
-// Если выбрана категория "Режим для рестораторов", то переходим в него.
-#[derive(Clone)]
-struct ReceiveRestauratorNameState {
-    main_menu_state: MainMenu,
-}
-
-
-#[derive(Display)]
-#[display(
-    "В главном меню выбрано: {main_menu_state}, {some_text}"
-)]
-struct ExitState {
-    main_menu_state: MainMenu,
-    some_text: String,
-}
-*/
 
 #[derive(SmartDefault)]
 enum Dialogue {
@@ -209,7 +174,10 @@ async fn caterer_mode(cx: Cx<()>) -> Res {
                     next(Dialogue::EditRestTitle)
                 }
                 commands::Caterer::EditRestInfo => {
-                    cx.answer(format!("Введите описание (адрес, контакты)")).send().await?;
+                    cx.answer(format!("Введите описание (адрес, контакты)"))
+                    .reply_markup(commands::Caterer::slash_markup())
+                    .send()
+                    .await?;
                     next(Dialogue::EditRestInfo)
                 }
                 // Переключение активности ресторана
@@ -219,15 +187,24 @@ async fn caterer_mode(cx: Cx<()>) -> Res {
                     next(Dialogue::CatererMode)
                 }
                 commands::Caterer::EditMainGroup => {
-                    cx.answer(format!("Введите название группы")).send().await?;
+                    cx.answer(format!("Введите название группы"))
+                    .reply_markup(commands::Caterer::slash_markup())
+                    .send()
+                    .await?;
                     next(Dialogue::EditMainGroup)
                 }
                 commands::Caterer::EditGroup(group_id) => {
-                    cx.answer(format!("Введите название группы")).send().await?;
+                    cx.answer(format!("Введите название группы"))
+                    .reply_markup(commands::Caterer::slash_markup())
+                    .send()
+                    .await?;
                     next(Dialogue::EditGroup(group_id))
                 }
                 commands::Caterer::AddGroup => {
-                    cx.answer(format!("Введите название группы")).send().await?;
+                    cx.answer(format!("Введите название группы"))
+                    .reply_markup(commands::Caterer::slash_markup())
+                    .send()
+                    .await?;
                     next(Dialogue::AddGroup)
                 }
 
@@ -246,81 +223,112 @@ async fn caterer_mode(cx: Cx<()>) -> Res {
 
 async fn edit_rest_title_mode(cx: Cx<()>) -> Res {
     if let Some(text) = cx.update.text() {
-        // Код пользователя - код ресторана
-        let rest_id = cx.update.from().unwrap().id;
-        database::rest_edit_title(rest_id, text).await;
+        // Удалим из строки слеши
+        let s = commands::remove_slash(text).await;
 
-        // Снова покажем главное меню
-        let rest_info = database::rest_info(rest_id).await;
-        cx.answer(format!("{}", rest_info))
-        .reply_markup(commands::Caterer::main_menu_markup())
-        .send()
-        .await?;
+        // Если строка не пустая, продолжим
+        if !s.is_empty() {
+            // Код пользователя - код ресторана
+            let rest_id = cx.update.from().unwrap().id;
+        
+            database::rest_edit_title(rest_id, s).await;
+
+            // Снова покажем главное меню
+            let rest_info = database::rest_info(rest_id).await;
+            cx.answer(format!("{}", rest_info))
+            .reply_markup(commands::Caterer::main_menu_markup())
+            .send()
+            .await?;
+        }
 }
     next(Dialogue::CatererMode)
 }
 
 async fn edit_rest_info_mode(cx: Cx<()>) -> Res {
     if let Some(text) = cx.update.text() {
-        // Код пользователя - код ресторана
-        let rest_id = cx.update.from().unwrap().id;
-        database::rest_edit_info(rest_id, text).await;
+        // Удалим из строки слеши
+        let s = commands::remove_slash(text).await;
 
-        // Снова покажем главное меню
-        let rest_info = database::rest_info(rest_id).await;
-        cx.answer(format!("{}", rest_info))
-        .reply_markup(commands::Caterer::main_menu_markup())
-        .send()
-        .await?;
+        // Если строка не пустая, продолжим
+        if !s.is_empty() {
+            // Код пользователя - код ресторана
+            let rest_id = cx.update.from().unwrap().id;
+            database::rest_edit_info(rest_id, s).await;
+
+            // Снова покажем главное меню
+            let rest_info = database::rest_info(rest_id).await;
+            cx.answer(format!("{}", rest_info))
+            .reply_markup(commands::Caterer::main_menu_markup())
+            .send()
+            .await?;
+        }
     }
     next(Dialogue::CatererMode)
 }
 
 async fn edit_rest_main_group_mode(cx: Cx<()>) -> Res {
     if let Some(text) = cx.update.text() {
-        // Код пользователя - код ресторана
-        let rest_id = cx.update.from().unwrap().id;
-        database::rest_edit_group(rest_id, 1, text).await;
+        // Удалим из строки слеши
+        let s = commands::remove_slash(text).await;
 
-        // Снова покажем главное меню
-        let rest_info = database::rest_info(rest_id).await;
-        cx.answer(format!("{}", rest_info))
-        .reply_markup(commands::Caterer::main_menu_markup())
-        .send()
-        .await?;
+        // Если строка не пустая, продолжим
+        if !s.is_empty() {
+            // Код пользователя - код ресторана
+            let rest_id = cx.update.from().unwrap().id;
+            database::rest_edit_group(rest_id, 1, s).await;
+
+            // Снова покажем главное меню
+            let rest_info = database::rest_info(rest_id).await;
+            cx.answer(format!("{}", rest_info))
+            .reply_markup(commands::Caterer::main_menu_markup())
+            .send()
+            .await?;
+        }
     }
     next(Dialogue::CatererMode)
 }
 
 async fn edit_rest_group_mode(cx: Cx<i32>) -> Res {
     if let Some(text) = cx.update.text() {
-        // Код пользователя - код ресторана
-        let rest_id = cx.update.from().unwrap().id;
-        let group_id = cx.dialogue;
-        database::rest_edit_group(rest_id, group_id, text).await;
+        // Удалим из строки слеши
+        let s = commands::remove_slash(text).await;
 
-        // Снова покажем главное меню
-        let rest_info = database::rest_info(rest_id).await;
-        cx.answer(format!("{}", rest_info))
-        .reply_markup(commands::Caterer::main_menu_markup())
-        .send()
-        .await?;
+        // Если строка не пустая, продолжим
+        if !s.is_empty() {
+            // Код пользователя - код ресторана
+            let rest_id = cx.update.from().unwrap().id;
+            let group_id = cx.dialogue;
+            database::rest_edit_group(rest_id, group_id, s).await;
+
+            // Снова покажем главное меню
+            let rest_info = database::rest_info(rest_id).await;
+            cx.answer(format!("{}", rest_info))
+            .reply_markup(commands::Caterer::main_menu_markup())
+            .send()
+            .await?;
+        }
     }
     next(Dialogue::CatererMode)
 }
 
 async fn add_rest_group(cx: Cx<()>) -> Res {
     if let Some(text) = cx.update.text() {
-        // Код пользователя - код ресторана
-        let rest_id = cx.update.from().unwrap().id;
-        database::rest_add_group(rest_id, text).await;
+         // Удалим из строки слеши
+         let s = commands::remove_slash(text).await;
 
-        // Снова покажем главное меню
-        let rest_info = database::rest_info(rest_id).await;
-        cx.answer(format!("{}", rest_info))
-        .reply_markup(commands::Caterer::main_menu_markup())
-        .send()
-        .await?;
+         // Если строка не пустая, продолжим
+         if !s.is_empty() {
+            // Код пользователя - код ресторана
+            let rest_id = cx.update.from().unwrap().id;
+            database::rest_add_group(rest_id, s).await;
+
+            // Снова покажем главное меню
+            let rest_info = database::rest_info(rest_id).await;
+            cx.answer(format!("{}", rest_info))
+            .reply_markup(commands::Caterer::main_menu_markup())
+            .send()
+            .await?;
+         }
     }
     next(Dialogue::CatererMode)
 }
