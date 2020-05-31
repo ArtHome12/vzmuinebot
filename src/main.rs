@@ -239,6 +239,11 @@ async fn edit_rest_title_mode(cx: Cx<()>) -> Res {
             .reply_markup(commands::Caterer::main_menu_markup())
             .send()
             .await?;
+        } else {
+            cx.answer(format!("Отмена"))
+            .reply_markup(commands::Caterer::main_menu_markup())
+            .send()
+            .await?;
         }
 }
     next(Dialogue::CatererMode)
@@ -261,6 +266,11 @@ async fn edit_rest_info_mode(cx: Cx<()>) -> Res {
             .reply_markup(commands::Caterer::main_menu_markup())
             .send()
             .await?;
+        } else {
+            cx.answer(format!("Отмена"))
+            .reply_markup(commands::Caterer::main_menu_markup())
+            .send()
+            .await?;
         }
     }
     next(Dialogue::CatererMode)
@@ -280,6 +290,11 @@ async fn edit_rest_main_group_mode(cx: Cx<()>) -> Res {
             // Снова покажем главное меню
             let rest_info = database::rest_info(rest_id).await;
             cx.answer(format!("{}", rest_info))
+            .reply_markup(commands::Caterer::main_menu_markup())
+            .send()
+            .await?;
+        } else {
+            cx.answer(format!("Отмена"))
             .reply_markup(commands::Caterer::main_menu_markup())
             .send()
             .await?;
@@ -306,6 +321,11 @@ async fn edit_rest_group_mode(cx: Cx<i32>) -> Res {
             .reply_markup(commands::Caterer::main_menu_markup())
             .send()
             .await?;
+        } else {
+            cx.answer(format!("Отмена"))
+            .reply_markup(commands::Caterer::main_menu_markup())
+            .send()
+            .await?;
         }
     }
     next(Dialogue::CatererMode)
@@ -328,7 +348,12 @@ async fn add_rest_group(cx: Cx<()>) -> Res {
             .reply_markup(commands::Caterer::main_menu_markup())
             .send()
             .await?;
-         }
+        } else {
+            cx.answer(format!("Отмена"))
+            .reply_markup(commands::Caterer::main_menu_markup())
+            .send()
+            .await?;
+        }
     }
     next(Dialogue::CatererMode)
 }
