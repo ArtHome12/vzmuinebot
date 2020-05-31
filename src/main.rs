@@ -133,11 +133,15 @@ async fn user_mode(cx: Cx<()>) -> Res {
                 commands::User::CatererMode => {
                     if let Some(user) = cx.update.from() {
                         if database::is_rest_owner(user.id).await {
-                            cx.answer(format!("Добро пожаловать!"))
-                                .reply_markup(commands::Caterer::main_menu_markup())
+                            // Запрос к БД
+                            let rest_info = database::restaurant_info(user.id).await;
+
+                            // Отображаем информацию о ресторане и добавляем кнопки меню
+                            cx.answer(format!("User Id {}{}", user.id, rest_info))
+                            .reply_markup(commands::Caterer::main_menu_markup())
                                 .send()
                                 .await?;
-                            return next(Dialogue::CatererMode)
+                            return next(Dialogue::CatererMode);
                         } else {
                             cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova и сообщите ей свой Id={}", user.id))
                             .send().await?;
@@ -159,6 +163,9 @@ async fn user_mode(cx: Cx<()>) -> Res {
 }
 
 async fn caterer_mode(cx: Cx<()>) -> Res {
+    // Код пользователя - код ресторана
+    let rest_id = cx.update.from().unwrap().id;
+
     // Разбираем команду.
     match cx.update.text() {
         None => {
@@ -167,8 +174,11 @@ async fn caterer_mode(cx: Cx<()>) -> Res {
         Some(command) => {
             match commands::Caterer::from(command) {
                 commands::Caterer::CatererMain => {
-                    let rest_info = database::restaurant_info(String::from("00")).await;
-                    cx.answer(format!("User Id {}{}", "00", rest_info)).send().await?;
+                    let rest_info = database::restaurant_info(rest_id).await;
+                    cx.answer(format!("User Id {}{}", "00", rest_info))
+                    .reply_markup(commands::Caterer::main_menu_markup())
+                    .send()
+                    .await?;
                 }
                 commands::Caterer::CatererExit => {
                     return start(cx).await

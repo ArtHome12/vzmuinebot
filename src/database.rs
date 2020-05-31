@@ -82,10 +82,10 @@ pub async fn dish(_dish_id : String) -> Option<DishInfo> {
 }
 
 pub async fn is_rest_owner(user_id : i32) -> bool {
-    user_id == 409664508
+    user_id == 409664508 || user_id == 501159140
 }
 
-pub async fn restaurant_info(_restaurant: String) -> String {
+pub async fn restaurant_info(user_id: i32) -> String {
     String::from("
 Название: Название /EditTitle
 Описание: Наш адрес 00NDC, доставка @nick, +84123456789 /EditInfo
