@@ -130,8 +130,11 @@ async fn user_mode(cx: Cx<()>) -> Res {
                         None => {
                         }
                         Some(dish_info) => {
-                            cx.answer_photo(dish_info.img).send().await?;
-                            cx.answer(format!("Цена {} тыс. ₫\n{}", dish_info.price, dish_info.desc)).send().await?;
+                            cx.answer_photo(dish_info.img)
+                            .caption(format!("Цена {} тыс. ₫\n{}", dish_info.price, dish_info.desc))
+                            .send()
+                            .await?;
+                            //cx.answer(format!("Цена {} тыс. ₫\n{}", dish_info.price, dish_info.desc)).send().await?;
                         }
                     }
                 }
@@ -242,11 +245,14 @@ async fn edit_rest_title_mode(cx: Cx<()>) -> Res {
         // Код пользователя - код ресторана
         let rest_id = cx.update.from().unwrap().id;
         database::rest_edit_title(rest_id, text).await;
-        cx.answer(format!("Ok"))
+
+        // Снова покажем главное меню
+        let rest_info = database::rest_info(rest_id).await;
+        cx.answer(format!("{}", rest_info))
         .reply_markup(commands::Caterer::main_menu_markup())
         .send()
         .await?;
-    }
+}
     next(Dialogue::CatererMode)
 }
 
@@ -255,7 +261,10 @@ async fn edit_rest_info_mode(cx: Cx<()>) -> Res {
         // Код пользователя - код ресторана
         let rest_id = cx.update.from().unwrap().id;
         database::rest_edit_info(rest_id, text).await;
-        cx.answer(format!("Ok"))
+
+        // Снова покажем главное меню
+        let rest_info = database::rest_info(rest_id).await;
+        cx.answer(format!("{}", rest_info))
         .reply_markup(commands::Caterer::main_menu_markup())
         .send()
         .await?;
@@ -268,7 +277,10 @@ async fn edit_rest_main_group_mode(cx: Cx<()>) -> Res {
         // Код пользователя - код ресторана
         let rest_id = cx.update.from().unwrap().id;
         database::rest_edit_group(rest_id, 1, text).await;
-        cx.answer(format!("Ok"))
+
+        // Снова покажем главное меню
+        let rest_info = database::rest_info(rest_id).await;
+        cx.answer(format!("{}", rest_info))
         .reply_markup(commands::Caterer::main_menu_markup())
         .send()
         .await?;
@@ -282,7 +294,10 @@ async fn edit_rest_group_mode(cx: Cx<i32>) -> Res {
         let rest_id = cx.update.from().unwrap().id;
         let group_id = cx.dialogue;
         database::rest_edit_group(rest_id, group_id, text).await;
-        cx.answer(format!("Ok"))
+
+        // Снова покажем главное меню
+        let rest_info = database::rest_info(rest_id).await;
+        cx.answer(format!("{}", rest_info))
         .reply_markup(commands::Caterer::main_menu_markup())
         .send()
         .await?;
@@ -295,7 +310,10 @@ async fn add_rest_group(cx: Cx<()>) -> Res {
         // Код пользователя - код ресторана
         let rest_id = cx.update.from().unwrap().id;
         database::rest_add_group(rest_id, text).await;
-        cx.answer(format!("Ok"))
+
+        // Снова покажем главное меню
+        let rest_info = database::rest_info(rest_id).await;
+        cx.answer(format!("{}", rest_info))
         .reply_markup(commands::Caterer::main_menu_markup())
         .send()
         .await?;

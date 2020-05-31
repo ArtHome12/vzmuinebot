@@ -88,7 +88,7 @@ pub async fn is_rest_owner(user_id : i32) -> bool {
 pub async fn rest_info(_user_id: i32) -> String {
     String::from("
 Название: Название /EditTitle
-Описание: Наш адрес 00NDC, доставка @nick, +84123456789 /EditInfo
+Описание: Наш адрес 00NDC, доставка @nick, +84123 /EditInfo
 Статус: работаем /Toggle
 Группы и время работы (добавить новую /AddGroup):
    Основная группа 07:00-23:00 /EditGroup
