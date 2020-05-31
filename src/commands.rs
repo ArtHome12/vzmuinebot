@@ -68,10 +68,10 @@ impl User {
     pub fn main_menu_markup() -> ReplyKeyboardMarkup {
         ReplyKeyboardMarkup::default()
             .append_row(vec![
-                KeyboardButton::new("Завтрак"),
-                KeyboardButton::new("Обед"),
-                KeyboardButton::new("Ужин"),
-                KeyboardButton::new("Кофе"),
+                KeyboardButton::new("Соки-воды"),
+                KeyboardButton::new("Еда"),
+                KeyboardButton::new("Алкоголь"),
+                KeyboardButton::new("Развлечения"),
             ])
             .append_row(vec![
                 KeyboardButton::new("Сейчас"),
@@ -87,15 +87,22 @@ impl User {
 // ============================================================================
 #[derive(Copy, Clone)]
 pub enum Caterer {
-    // Команды главного меню
-    Breakfast, 
-    Lunch, 
-    Dinner, 
-    Dessert,
-    OpenedNow,
-    Repeat,
-    CatererMode,
+    // Команды главного меню в
+    CatererMain,
+    CatererExit, 
     UnknownCommand,
-    // Показать список блюд в указанной категории ресторана /rest#___ cat_id, rest_id, 
-    RestaurantMenuInCategory(u32, u32),
+    // Добавляет нового ресторатора user_id или возобновляет его доступ.
+    Registration(u32),
+    // Приостанавливает доступ ресторатора user_id и скрывает его меню.
+    Hold(u32),
+    // Изменить название ресторана
+    EditRestTitle,
+    // Изменить описание ресторана
+    EditRestInfo,
+    // Доступность меню, определяемая самим пользователем
+    ToggleRestPause,
+    // Переход к редактированию основной группы блюд.
+    EditMainGroup,
+    // Переход к редактированию указанной группы блюд.
+    EditGroup(u32),
 }
