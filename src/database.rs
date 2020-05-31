@@ -80,3 +80,7 @@ pub async fn dish(_dish_id : String) -> Option<DishInfo> {
 
     Some(dish_info)
 }
+
+pub async fn is_rest_owner(user_id : i32) -> bool {
+    user_id == 409664508
+}

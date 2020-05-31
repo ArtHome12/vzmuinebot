@@ -38,7 +38,7 @@ enum Commands {
     Dessert,
     OpenedNow,
     Repeat,
-    RestoratorMode,
+    RestOwnerMode,
     UnknownCommand,
     // Показать список блюд в указанной категории ресторана /rest#___ cat_id, rest_id, 
     RestaurantMenuInCategory(u32, u32),
@@ -58,17 +58,12 @@ impl Commands {
             "Кофе" => Commands::Dessert,
             "Сейчас" => Commands::OpenedNow,
             "Повтор" => Commands::Repeat,
-            "Добавить" => Commands::RestoratorMode,
+            "Добавить" => Commands::RestOwnerMode,
             _ => {
                 // Ищем среди команд с цифровыми суффиксами, если строка достаточной длины.
                 // Сначала Извлекаем возможное тело команды, потом разбираем команду и аргументы.
                 match input.get(..5).unwrap_or_default() {
                     "/rest" => {
-                        // Длина строки должна быть достаточной для двух аргументов.
-/*                        if len < 6 {
-                            return Commands::UnknownCommand;
-                        }*/
-
                         // Извлекаем аргументы (сначала подстроку, потом число).
                         let arg1 = input.get(5..6).unwrap_or_default().parse().unwrap_or_default();
                         let arg2 = input.get(6..).unwrap_or_default().parse().unwrap_or_default();
@@ -205,10 +200,15 @@ async fn user_mode(cx: Cx<()>) -> Res {
                         }
                     }
                 }
-                Commands::RestoratorMode => {
+                Commands::RestOwnerMode => {
                     if let Some(user) = cx.update.from() {
-                        cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova и сообщите ей свой Id={}", user.id))
-                        .send().await?;
+                        if database::is_rest_owner(user.id).await {
+                            cx.answer(format!("Добро пожаловать!"))
+                            .send().await?;
+                        } else {
+                            cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova и сообщите ей свой Id={}", user.id))
+                            .send().await?;
+                        }
                     }
                 }
                 Commands::Repeat => {
