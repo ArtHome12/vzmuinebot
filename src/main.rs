@@ -15,6 +15,7 @@ extern crate smart_default;
 use teloxide::{
     dispatching::update_listeners, 
     prelude::*, 
+    types::{ReplyKeyboardMarkup},
 };
 
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
@@ -249,7 +250,7 @@ async fn edit_rest_title_mode(cx: Cx<()>) -> Res {
         // Снова покажем главное меню
         let rest_info = database::rest_info(rest_id).await;
         cx.answer(format!("{}", rest_info))
-        .reply_markup(commands::Caterer::main_menu_markup())
+        .reply_markup(ReplyKeyboardMarkup::default())
         .send()
         .await?;
 }
