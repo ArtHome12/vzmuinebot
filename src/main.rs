@@ -137,7 +137,7 @@ async fn user_mode(cx: Cx<()>) -> Res {
                             let rest_info = database::restaurant_info(user.id).await;
 
                             // Отображаем информацию о ресторане и добавляем кнопки меню
-                            cx.answer(format!("User Id {}{}", user.id, rest_info))
+                            cx.answer(format!("{}\nUser Id {}{}", commands::Caterer::WELCOME_MSG, user.id, rest_info))
                             .reply_markup(commands::Caterer::main_menu_markup())
                                 .send()
                                 .await?;
@@ -175,7 +175,7 @@ async fn caterer_mode(cx: Cx<()>) -> Res {
             match commands::Caterer::from(command) {
                 commands::Caterer::CatererMain => {
                     let rest_info = database::restaurant_info(rest_id).await;
-                    cx.answer(format!("User Id {}{}", "00", rest_info))
+                    cx.answer(format!("User Id {}{}", rest_id, rest_info))
                     .reply_markup(commands::Caterer::main_menu_markup())
                     .send()
                     .await?;

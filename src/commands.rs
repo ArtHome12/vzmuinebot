@@ -92,9 +92,9 @@ pub enum Caterer {
     CatererExit, 
     UnknownCommand,
     // Добавляет нового ресторатора user_id или возобновляет его доступ.
-    Registration(u32),
+    //Registration(u32),
     // Приостанавливает доступ ресторатора user_id и скрывает его меню.
-    Hold(u32),
+    //Hold(u32),
     // Изменить название ресторана
     EditRestTitle,
     // Изменить описание ресторана
@@ -105,14 +105,26 @@ pub enum Caterer {
     EditMainGroup,
     // Переход к редактированию указанной группы блюд.
     EditGroup(u32),
+    // Добавляет новую группу
+    AddGroup,
 }
 
 impl Caterer {
+
+    // Приветствие
+    pub const WELCOME_MSG: &'static str = "Добро пожаловать в режим для ввода меню!
+Изначально всё заполнено значениями по-умолчанию, отредактируйте их. Подсказка - если вы случайно вошли в режим изменения названия и не хотите его менять, то просто введите /";
+
     pub fn from(input: &str) -> Caterer {
         match input {
             // Сначала проверим на цельные команды.
             "Главная" => Caterer::CatererMain,
             "Выход" => Caterer::CatererExit,
+            "/EditTitle" => Caterer::EditRestTitle,
+            "/EditInfo" => Caterer::EditRestInfo,
+            "/Toggle" => Caterer::ToggleRestPause,
+            "/AddGroup" => Caterer::AddGroup,
+            "/EditGroup" => Caterer::EditMainGroup,
             _ => Caterer::UnknownCommand,
         }
     }
