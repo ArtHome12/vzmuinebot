@@ -85,7 +85,7 @@ pub async fn is_rest_owner(user_id : i32) -> bool {
     user_id == 409664508 || user_id == 501159140
 }
 
-pub async fn restaurant_info(user_id: i32) -> String {
+pub async fn rest_info(_user_id: i32) -> String {
     String::from("
 Название: Название /EditTitle
 Описание: Наш адрес 00NDC, доставка @nick, +84123456789 /EditInfo
@@ -95,3 +95,24 @@ pub async fn restaurant_info(user_id: i32) -> String {
    Завтраки 07:00-11:00 /EdGr1
 ")
 }
+
+pub async fn rest_edit_title(_rest_id: i32, _new_str: &str) {
+
+}
+
+pub async fn rest_edit_info(_rest_id: i32, _new_str: &str) {
+
+}
+
+pub async fn rest_toggle(_rest_id: i32) {
+
+}
+
+pub async fn rest_edit_group(_rest_id: i32, _group_id: i32, _new_str: &str) {
+
+}
+
+pub async fn rest_add_group(_rest_id: i32, _new_str: &str) {
+
+}
+

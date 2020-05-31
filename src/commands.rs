@@ -46,8 +46,7 @@ impl User {
             "Повтор" => User::Repeat,
             "Добавить" => User::CatererMode,
             _ => {
-                // Ищем среди команд с цифровыми суффиксами, если строка достаточной длины.
-                // Сначала Извлекаем возможное тело команды, потом разбираем команду и аргументы.
+                // Ищем среди команд с цифровыми суффиксами - аргументами
                 match input.get(..5).unwrap_or_default() {
                     "/rest" => {
                         // Извлекаем аргументы (сначала подстроку, потом число).
@@ -104,7 +103,7 @@ pub enum Caterer {
     // Переход к редактированию основной группы блюд.
     EditMainGroup,
     // Переход к редактированию указанной группы блюд.
-    EditGroup(u32),
+    EditGroup(i32),
     // Добавляет новую группу
     AddGroup,
 }
@@ -125,7 +124,13 @@ impl Caterer {
             "/Toggle" => Caterer::ToggleRestPause,
             "/AddGroup" => Caterer::AddGroup,
             "/EditGroup" => Caterer::EditMainGroup,
-            _ => Caterer::UnknownCommand,
+            _ => {
+                // Ищем среди команд с цифровыми суффиксами - аргументами
+                match input.get(..5).unwrap_or_default() {
+                    "/EdGr" => Caterer::EditGroup(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                    _ => Caterer::UnknownCommand,
+                }
+            }
         }
     }
     pub fn main_menu_markup() -> ReplyKeyboardMarkup {

@@ -67,6 +67,11 @@ enum Dialogue {
     Start,
     UserMode,
     CatererMode,
+    EditRestTitle,
+    EditRestInfo,
+    EditMainGroup,
+    EditGroup(i32),
+    AddGroup,
 }
 
 // ============================================================================
@@ -134,10 +139,10 @@ async fn user_mode(cx: Cx<()>) -> Res {
                     if let Some(user) = cx.update.from() {
                         if database::is_rest_owner(user.id).await {
                             // Запрос к БД
-                            let rest_info = database::restaurant_info(user.id).await;
+                            let rest_info = database::rest_info(user.id).await;
 
                             // Отображаем информацию о ресторане и добавляем кнопки меню
-                            cx.answer(format!("{}\nUser Id {}{}", commands::Caterer::WELCOME_MSG, user.id, rest_info))
+                            cx.answer(format!("{}\n\nUser Id {}{}", commands::Caterer::WELCOME_MSG, user.id, rest_info))
                             .reply_markup(commands::Caterer::main_menu_markup())
                                 .send()
                                 .await?;
@@ -170,31 +175,109 @@ async fn caterer_mode(cx: Cx<()>) -> Res {
     match cx.update.text() {
         None => {
             cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
+            next(Dialogue::CatererMode)
         }
         Some(command) => {
             match commands::Caterer::from(command) {
+                // Показать основное меню
                 commands::Caterer::CatererMain => {
-                    let rest_info = database::restaurant_info(rest_id).await;
+                    let rest_info = database::rest_info(rest_id).await;
                     cx.answer(format!("User Id {}{}", rest_id, rest_info))
                     .reply_markup(commands::Caterer::main_menu_markup())
                     .send()
                     .await?;
+
+                    // Остаёмся в режиме ресторатора
+                    next(Dialogue::CatererMode)
                 }
+
+                // Выйти из режима ресторатора
                 commands::Caterer::CatererExit => {
                     return start(cx).await
                 }
+
+                // Изменение названия ресторана
+                commands::Caterer::EditRestTitle => {
+                    next(Dialogue::EditRestTitle)
+                }
+                commands::Caterer::EditRestInfo => {
+                    next(Dialogue::EditRestInfo)
+                }
+                // Переключение активности ресторана
+                commands::Caterer::ToggleRestPause => {
+                    // Без запроса доп.данных переключаем активность
+                    database::rest_toggle(rest_id).await;
+                    next(Dialogue::CatererMode)
+                }
+                commands::Caterer::EditMainGroup => {
+                    next(Dialogue::EditMainGroup)
+                }
+                commands::Caterer::EditGroup(group_id) => {
+                    next(Dialogue::EditGroup(group_id))
+                }
+                commands::Caterer::AddGroup => {
+                    next(Dialogue::AddGroup)
+                }
+
                 commands::Caterer::UnknownCommand => {
                     cx.answer(format!("Неизвестная команда {}", command)).send().await?;
+                    next(Dialogue::CatererMode)
                 }
-                _ => {
+/*                _ => {
                     cx.answer(format!("В разработке")).send().await?;
-                }
+                    next(Dialogue::CatererMode)
+                }*/
             }
         }
     }
-    // Остаёмся в режиме ресторатора
+}
+
+async fn edit_rest_title_mode(cx: Cx<()>) -> Res {
+    if let Some(text) = cx.update.text() {
+        // Код пользователя - код ресторана
+        let rest_id = cx.update.from().unwrap().id;
+        database::rest_edit_title(rest_id, text).await;
+    }
     next(Dialogue::CatererMode)
 }
+
+async fn edit_rest_info_mode(cx: Cx<()>) -> Res {
+    if let Some(text) = cx.update.text() {
+        // Код пользователя - код ресторана
+        let rest_id = cx.update.from().unwrap().id;
+        database::rest_edit_info(rest_id, text).await;
+    }
+    next(Dialogue::CatererMode)
+}
+
+async fn edit_rest_main_group_mode(cx: Cx<()>) -> Res {
+    if let Some(text) = cx.update.text() {
+        // Код пользователя - код ресторана
+        let rest_id = cx.update.from().unwrap().id;
+        database::rest_edit_group(rest_id, 1, text).await;
+    }
+    next(Dialogue::CatererMode)
+}
+
+async fn edit_rest_group_mode(cx: Cx<i32>) -> Res {
+    if let Some(text) = cx.update.text() {
+        // Код пользователя - код ресторана
+        let rest_id = cx.update.from().unwrap().id;
+        let group_id = cx.dialogue;
+        database::rest_edit_group(rest_id, group_id, text).await;
+    }
+    next(Dialogue::CatererMode)
+}
+
+async fn add_rest_group(cx: Cx<()>) -> Res {
+    if let Some(text) = cx.update.text() {
+        // Код пользователя - код ресторана
+        let rest_id = cx.update.from().unwrap().id;
+        database::rest_add_group(rest_id, text).await;
+    }
+    next(Dialogue::CatererMode)
+}
+
 
 async fn handle_message(cx: Cx<Dialogue>) -> Res {
     let DialogueDispatcherHandlerCx { bot, update, dialogue } = cx;
@@ -210,6 +293,26 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
         }
         Dialogue::CatererMode => {
             caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
+                .await
+        }
+        Dialogue::EditRestTitle => {
+            edit_rest_title_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
+                .await
+        }
+        Dialogue::EditRestInfo => {
+            edit_rest_info_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
+                .await
+        }
+        Dialogue::EditMainGroup => {
+            edit_rest_main_group_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
+                .await
+        }
+        Dialogue::EditGroup(s) => {
+            edit_rest_group_mode(DialogueDispatcherHandlerCx::new(bot, update, s))
+                .await
+        }
+        Dialogue::AddGroup => {
+            add_rest_group(DialogueDispatcherHandlerCx::new(bot, update, ()))
                 .await
         }
     }
