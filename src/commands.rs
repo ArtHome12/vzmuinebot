@@ -133,6 +133,7 @@ impl Caterer {
             }
         }
     }
+
     pub fn main_menu_markup() -> ReplyKeyboardMarkup {
         ReplyKeyboardMarkup::default()
             .append_row(vec![
@@ -141,5 +142,13 @@ impl Caterer {
             ])
             .resize_keyboard(true)
             //.one_time_keyboard(true)
+    }
+
+    pub fn slash_markup() -> ReplyKeyboardMarkup {
+        ReplyKeyboardMarkup::default()
+            .append_row(vec![
+                KeyboardButton::new("/"),
+            ])
+            .resize_keyboard(true)
     }
 }

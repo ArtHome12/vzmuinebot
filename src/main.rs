@@ -15,7 +15,7 @@ extern crate smart_default;
 use teloxide::{
     dispatching::update_listeners, 
     prelude::*, 
-    types::{ReplyKeyboardMarkup},
+    //types::{ReplyKeyboardMarkup},
 };
 
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
@@ -203,7 +203,7 @@ async fn caterer_mode(cx: Cx<()>) -> Res {
                 // Изменение названия ресторана
                 commands::Caterer::EditRestTitle => {
                     cx.answer(format!("Введите название (/ для отмены)"))
-                    .reply_markup(ReplyKeyboardMarkup::default())
+                    .reply_markup(commands::Caterer::slash_markup())
                     .send()
                     .await?;
                     next(Dialogue::EditRestTitle)
