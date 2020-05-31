@@ -38,6 +38,7 @@ enum Dialogue {
     EditMainGroup,
     EditGroup(i32),
     AddGroup,
+    EditGroupCategory(i32, i32),
 }
 
 // ============================================================================
@@ -187,22 +188,22 @@ async fn caterer_mode(cx: Cx<()>) -> Res {
                     next(Dialogue::CatererMode)
                 }
                 commands::Caterer::EditMainGroup => {
-                    cx.answer(format!("Введите название группы"))
-                    .reply_markup(commands::Caterer::slash_markup())
+                    cx.answer(format!("К какой категории отнесём группу?"))
+                    .reply_markup(commands::Caterer::category_markup())
                     .send()
                     .await?;
                     next(Dialogue::EditMainGroup)
                 }
                 commands::Caterer::EditGroup(group_id) => {
-                    cx.answer(format!("Введите название группы"))
-                    .reply_markup(commands::Caterer::slash_markup())
+                    cx.answer(format!("К какой категории отнесём группу?"))
+                    .reply_markup(commands::Caterer::category_markup())
                     .send()
                     .await?;
                     next(Dialogue::EditGroup(group_id))
                 }
                 commands::Caterer::AddGroup => {
-                    cx.answer(format!("Введите название группы"))
-                    .reply_markup(commands::Caterer::slash_markup())
+                    cx.answer(format!("К какой категории отнесём группу?"))
+                    .reply_markup(commands::Caterer::category_markup())
                     .send()
                     .await?;
                     next(Dialogue::AddGroup)
@@ -277,13 +278,49 @@ async fn edit_rest_info_mode(cx: Cx<()>) -> Res {
 }
 
 async fn edit_rest_main_group_mode(cx: Cx<()>) -> Res {
-    if let Some(text) = cx.update.text() {
+    match cx.update.text() {
+        None => {
+            cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
+        }
+        Some(command) => {
+            let category_id:i32 = match commands::User::from(command) {
+                commands::User::Water => 1,
+                commands::User::Food => 2,
+                commands::User::Alcohol => 3, 
+                commands::User::Entertainment => 4,
+                _ => 0,
+            };
+
+                // Если категория успешно задана, переходим к вводу названия
+            if category_id > 1 {
+                cx.answer(format!("Введите название (/ для отмены)"))
+                .reply_markup(commands::Caterer::slash_markup())
+                .send()
+                .await?;
+
+                let group_id = 1;
+                return next(Dialogue::EditGroupCategory(category_id, group_id));
+            } else {
+                cx.answer(format!("Отмена"))
+                .reply_markup(commands::Caterer::main_menu_markup())
+                .send()
+                .await?;
+            }
+        }
+    };
+
+    next(Dialogue::CatererMode)
+}
+
+
+
+    /*if let Some(text) = cx.update.text() {
         // Удалим из строки слеши
         let s = commands::remove_slash(text).await;
 
         // Если строка не пустая, продолжим
-        if !s.is_empty() {
-            // Код пользователя - код ресторана
+        if !s.is_empty() {*/
+            /*// Код пользователя - код ресторана
             let rest_id = cx.update.from().unwrap().id;
             database::rest_edit_group(rest_id, 1, s).await;
 
@@ -292,42 +329,54 @@ async fn edit_rest_main_group_mode(cx: Cx<()>) -> Res {
             cx.answer(format!("{}", rest_info))
             .reply_markup(commands::Caterer::main_menu_markup())
             .send()
+            .await?;*/
+            /*cx.answer(format!("К какой категории группа относится?"))
+            .reply_markup(commands::Caterer::category_markup())
+            .send()
             .await?;
+
+            return next(Dialogue::EditGroupCategory(1, s));
         } else {
             cx.answer(format!("Отмена"))
             .reply_markup(commands::Caterer::main_menu_markup())
             .send()
             .await?;
         }
-    }
-    next(Dialogue::CatererMode)
-}
+    }*/
+
 
 async fn edit_rest_group_mode(cx: Cx<i32>) -> Res {
-    if let Some(text) = cx.update.text() {
-        // Удалим из строки слеши
-        let s = commands::remove_slash(text).await;
-
-        // Если строка не пустая, продолжим
-        if !s.is_empty() {
-            // Код пользователя - код ресторана
-            let rest_id = cx.update.from().unwrap().id;
-            let group_id = cx.dialogue;
-            database::rest_edit_group(rest_id, group_id, s).await;
-
-            // Снова покажем главное меню
-            let rest_info = database::rest_info(rest_id).await;
-            cx.answer(format!("{}", rest_info))
-            .reply_markup(commands::Caterer::main_menu_markup())
-            .send()
-            .await?;
-        } else {
-            cx.answer(format!("Отмена"))
-            .reply_markup(commands::Caterer::main_menu_markup())
-            .send()
-            .await?;
+    match cx.update.text() {
+        None => {
+            cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
         }
-    }
+        Some(command) => {
+            let category_id:i32 = match commands::User::from(command) {
+                commands::User::Water => 1,
+                commands::User::Food => 2,
+                commands::User::Alcohol => 3, 
+                commands::User::Entertainment => 4,
+                _ => 0,
+            };
+
+                // Если категория успешно задана, переходим к вводу названия
+            if category_id > 1 {
+                cx.answer(format!("Введите название (/ для отмены)"))
+                .reply_markup(commands::Caterer::slash_markup())
+                .send()
+                .await?;
+
+                let group_id = cx.dialogue;
+                return next(Dialogue::EditGroupCategory(category_id, group_id));
+            } else {
+                cx.answer(format!("Отмена"))
+                .reply_markup(commands::Caterer::main_menu_markup())
+                .send()
+                .await?;
+            }
+        }
+    };
+
     next(Dialogue::CatererMode)
 }
 
@@ -358,6 +407,74 @@ async fn add_rest_group(cx: Cx<()>) -> Res {
     next(Dialogue::CatererMode)
 }
 
+async fn edit_rest_group_category(cx: Cx<(i32, i32)>) -> Res {
+    if let Some(text) = cx.update.text() {
+        // Удалим из строки слеши
+        let s = commands::remove_slash(text).await;
+
+        // Если строка не пустая, продолжим
+        if !s.is_empty() {
+            // Код пользователя - код ресторана
+            let rest_id = cx.update.from().unwrap().id;
+
+            // Код категории и группы
+            let (category_id, group_id) = cx.dialogue;
+
+            database::rest_edit_group(rest_id, category_id, group_id, s).await;
+
+            // Снова покажем главное меню
+            let rest_info = database::rest_info(rest_id).await;
+            cx.answer(format!("{}", rest_info))
+            .reply_markup(commands::Caterer::main_menu_markup())
+            .send()
+            .await?;
+       } else {
+            cx.answer(format!("Отмена"))
+            .reply_markup(commands::Caterer::main_menu_markup())
+            .send()
+            .await?;
+       }
+   }
+   next(Dialogue::CatererMode)
+
+
+
+    /*match cx.update.text() {
+        None => {
+            cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
+        }
+        Some(command) => {
+            match commands::User::from(command) {
+                commands::User::Water |
+                commands::User::Food |
+                commands::User::Alcohol | 
+                commands::User::Entertainment => {
+                    // Код пользователя - код ресторана
+                    let rest_id = cx.update.from().unwrap().id;
+
+                    // Код группы
+                    let (group_id, group_title) = cx.dialogue;
+
+                    database::rest_edit_group(rest_id, group_id, group_title, command.to_string()).await;
+
+                    // Снова покажем главное меню
+                    let rest_info = database::rest_info(rest_id).await;
+                    cx.answer(format!("{}", rest_info))
+                    .reply_markup(commands::Caterer::main_menu_markup())
+                    .send()
+                    .await?;
+                }
+                _ => {
+                    cx.answer(format!("Неизвестная категория,  отмена"))
+                    .reply_markup(commands::Caterer::main_menu_markup())
+                    .send()
+                    .await?;
+                }
+            }
+        }
+    }
+    next(Dialogue::CatererMode)*/
+}
 
 async fn handle_message(cx: Cx<Dialogue>) -> Res {
     let DialogueDispatcherHandlerCx { bot, update, dialogue } = cx;
@@ -393,6 +510,10 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
         }
         Dialogue::AddGroup => {
             add_rest_group(DialogueDispatcherHandlerCx::new(bot, update, ()))
+                .await
+        }
+        Dialogue::EditGroupCategory(group_id, category_id) => {
+            edit_rest_group_category(DialogueDispatcherHandlerCx::new(bot, update, (group_id, category_id)))
                 .await
         }
     }

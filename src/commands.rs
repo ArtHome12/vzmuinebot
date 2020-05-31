@@ -151,12 +151,23 @@ impl Caterer {
             ])
             .resize_keyboard(true)
     }
+
+    pub fn category_markup() -> ReplyKeyboardMarkup {
+        ReplyKeyboardMarkup::default()
+            .append_row(vec![
+                KeyboardButton::new("Соки воды"),
+                KeyboardButton::new("Еда"),
+                KeyboardButton::new("Алкоголь"),
+                KeyboardButton::new("Развлечения"),
+            ])
+            .resize_keyboard(true)
+    }
 }
 
 // ============================================================================
 // [Some]
 // ============================================================================
 pub async fn remove_slash(s: &str) -> String {
-    String::from(s).replace("/", "")
+    s.replace("/", "")
 }
 

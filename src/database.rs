@@ -108,7 +108,7 @@ pub async fn rest_toggle(_rest_id: i32) {
 
 }
 
-pub async fn rest_edit_group(_rest_id: i32, _group_id: i32, _new_str: String) {
+pub async fn rest_edit_group(_rest_id: i32, _category_id: i32, _group_id: i32, _new_str: String) {
 
 }
 
