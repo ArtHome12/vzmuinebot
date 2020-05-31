@@ -38,7 +38,7 @@ impl User {
     pub fn from(input: &str) -> User {
         match input {
             // Сначала проверим на цельные команды.
-            "Соки-воды" => User::Water,
+            "Соки воды" => User::Water,
             "Еда" => User::Food,
             "Алкоголь" => User::Alcohol,
             "Развлечения" => User::Entertainment,
@@ -68,7 +68,7 @@ impl User {
     pub fn main_menu_markup() -> ReplyKeyboardMarkup {
         ReplyKeyboardMarkup::default()
             .append_row(vec![
-                KeyboardButton::new("Соки-воды"),
+                KeyboardButton::new("Соки воды"),
                 KeyboardButton::new("Еда"),
                 KeyboardButton::new("Алкоголь"),
                 KeyboardButton::new("Развлечения"),
@@ -87,7 +87,7 @@ impl User {
 // ============================================================================
 #[derive(Copy, Clone)]
 pub enum Caterer {
-    // Команды главного меню в
+    // Команды главного меню
     CatererMain,
     CatererExit, 
     UnknownCommand,
@@ -105,4 +105,23 @@ pub enum Caterer {
     EditMainGroup,
     // Переход к редактированию указанной группы блюд.
     EditGroup(u32),
+}
+
+impl Caterer {
+    pub fn from(input: &str) -> Caterer {
+        match input {
+            // Сначала проверим на цельные команды.
+            "Главная" => Caterer::CatererMain,
+            "Выход" => Caterer::CatererExit,
+            _ => Caterer::UnknownCommand,
+        }
+    }
+    pub fn main_menu_markup() -> ReplyKeyboardMarkup {
+        ReplyKeyboardMarkup::default()
+            .append_row(vec![
+                KeyboardButton::new("Главная"),
+                KeyboardButton::new("Выход"),
+            ])
+            .resize_keyboard(true)
+    }
 }

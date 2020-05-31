@@ -66,7 +66,7 @@ enum Dialogue {
     #[default]
     Start,
     UserMode,
-    RestOwnerMode,
+    CatererMode,
 }
 
 // ============================================================================
@@ -134,8 +134,10 @@ async fn user_mode(cx: Cx<()>) -> Res {
                     if let Some(user) = cx.update.from() {
                         if database::is_rest_owner(user.id).await {
                             cx.answer(format!("Добро пожаловать!"))
-                            .send().await?;
-                            return next(Dialogue::RestOwnerMode)
+                                .reply_markup(commands::Caterer::main_menu_markup())
+                                .send()
+                                .await?;
+                            return next(Dialogue::CatererMode)
                         } else {
                             cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova и сообщите ей свой Id={}", user.id))
                             .send().await?;
@@ -157,8 +159,31 @@ async fn user_mode(cx: Cx<()>) -> Res {
 }
 
 async fn rest_owner_mode(cx: Cx<()>) -> Res {
-    cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova")).send().await?;
-    next(Dialogue::Start)
+    // Разбираем команду.
+    match cx.update.text() {
+        None => {
+            cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
+        }
+        Some(command) => {
+            match commands::Caterer::from(command) {
+                commands::Caterer::CatererMain => {
+                    let rest_info = database::restaurant_info(String::from("00")).await;
+                    cx.answer(format!("User Id {}{}", "00", rest_info)).send().await?;
+                }
+                commands::Caterer::CatererExit => {
+                    return next(Dialogue::UserMode)
+                }
+                commands::Caterer::UnknownCommand => {
+                    cx.answer(format!("Неизвестная команда {}", command)).send().await?;
+                }
+                _ => {
+                    cx.answer(format!("В разработке")).send().await?;
+                }
+            }
+        }
+    }
+    // Остаёмся в режиме ресторатора
+    next(Dialogue::CatererMode)
 }
 
 async fn handle_message(cx: Cx<Dialogue>) -> Res {
@@ -173,7 +198,7 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
         Dialogue::UserMode => {
             user_mode(DialogueDispatcherHandlerCx::new(bot, update, ())).await
         }
-        Dialogue::RestOwnerMode => {
+        Dialogue::CatererMode => {
             rest_owner_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
                 .await
         }

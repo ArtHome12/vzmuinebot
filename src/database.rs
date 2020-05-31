@@ -84,3 +84,14 @@ pub async fn dish(_dish_id : String) -> Option<DishInfo> {
 pub async fn is_rest_owner(user_id : i32) -> bool {
     user_id == 409664508
 }
+
+pub async fn restaurant_info(_restaurant: String) -> String {
+    String::from("
+Название: Название /EditTitle
+Описание: Наш адрес 00NDC, доставка @nick, +84123456789 /EditInfo
+Статус: работаем /Toggle
+Группы и время работы (добавить новую /AddGroup):
+   Основная группа 07:00-23:00 /EditGroup
+   Завтраки 07:00-11:00 /EdGr1
+")
+}
