@@ -183,7 +183,7 @@ async fn user_mode(cx: Cx<()>) -> Res {
                     use chrono::{Utc, FixedOffset};
                     let our_timezone = FixedOffset::east(7 * 3600);
                     let now = Utc::now().with_timezone(&our_timezone).format("%H:%M");
-                    cx.answer(format!("Рестораны, открытые сейчас ({})", now)).send().await?;
+                    cx.answer(format!("Рестораны, открытые сейчас ({})\nКоманда в разработке", now)).send().await?;
                 }
                 Commands::RestaurantMenuInCategory(cat_id, rest_id) => {
                     // Отобразим категорию меню ресторана.rest_id
@@ -206,10 +206,13 @@ async fn user_mode(cx: Cx<()>) -> Res {
                     }
                 }
                 Commands::RestoratorMode => {
-                    cx.answer("Для доступа в режим рестораторов обратитесь к @vzbalmashova").send().await?;
+                    if let Some(user) = cx.update.from() {
+                        cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova и сообщите ей свой Id={}", user.id))
+                        .send().await?;
+                    }
                 }
                 Commands::Repeat => {
-                    cx.answer("Повтор").send().await?;
+                    cx.answer("Команда в разработке").send().await?;
                 }
                 Commands::UnknownCommand => {
                     cx.answer(format!("Неизвестная команда {}", command)).send().await?;
