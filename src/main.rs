@@ -15,7 +15,6 @@ extern crate smart_default;
 use teloxide::{
     dispatching::update_listeners, 
     prelude::*, 
-    types::{KeyboardButton, ReplyKeyboardMarkup},
 };
 
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
@@ -25,76 +24,7 @@ use reqwest::StatusCode;
 use chrono;
 
 mod database;
-
-// ============================================================================
-// [Main menu]
-// ============================================================================
-#[derive(Copy, Clone)]
-enum Commands {
-    // Команды главного меню
-    Breakfast, 
-    Lunch, 
-    Dinner, 
-    Dessert,
-    OpenedNow,
-    Repeat,
-    RestOwnerMode,
-    UnknownCommand,
-    // Показать список блюд в указанной категории ресторана /rest#___ cat_id, rest_id, 
-    RestaurantMenuInCategory(u32, u32),
-    // Показать информацию о блюде /dish___ dish_id
-    DishInfo(u32),
-    // Показать список доступных сейчас категорий меню ресторана /menu___ rest_id
-    RestaurantOpenedCategories(u32),
-}
-
-impl Commands {
-    fn from(input: &str) -> Commands {
-        match input {
-            // Сначала проверим на цельные команды.
-            "Завтрак" => Commands::Breakfast,
-            "Обед" => Commands::Lunch,
-            "Ужин" => Commands::Dinner,
-            "Кофе" => Commands::Dessert,
-            "Сейчас" => Commands::OpenedNow,
-            "Повтор" => Commands::Repeat,
-            "Добавить" => Commands::RestOwnerMode,
-            _ => {
-                // Ищем среди команд с цифровыми суффиксами, если строка достаточной длины.
-                // Сначала Извлекаем возможное тело команды, потом разбираем команду и аргументы.
-                match input.get(..5).unwrap_or_default() {
-                    "/rest" => {
-                        // Извлекаем аргументы (сначала подстроку, потом число).
-                        let arg1 = input.get(5..6).unwrap_or_default().parse().unwrap_or_default();
-                        let arg2 = input.get(6..).unwrap_or_default().parse().unwrap_or_default();
-
-                        // Возвращаем команду.
-                        Commands::RestaurantMenuInCategory(arg1, arg2)
-                    }
-                    "/dish" => Commands::DishInfo(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
-                    "/menu" => Commands::RestaurantOpenedCategories(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
-                    _ => Commands::UnknownCommand,
-                }
-            }
-        }
-    }
-
-    fn main_menu_markup() -> ReplyKeyboardMarkup {
-        ReplyKeyboardMarkup::default()
-            .append_row(vec![
-                KeyboardButton::new("Завтрак"),
-                KeyboardButton::new("Обед"),
-                KeyboardButton::new("Ужин"),
-                KeyboardButton::new("Кофе"),
-            ])
-            .append_row(vec![
-                KeyboardButton::new("Сейчас"),
-                KeyboardButton::new("Повтор"),
-                KeyboardButton::new("Добавить"),
-            ])
-            .resize_keyboard(true)
-    }
-}
+mod commands;
 
 // ============================================================================
 // [A type-safe finite automaton]
@@ -136,7 +66,7 @@ enum Dialogue {
     #[default]
     Start,
     UserMode,
-//    RestaurateurMode,
+    RestOwnerMode,
 }
 
 // ============================================================================
@@ -149,7 +79,7 @@ type Res = ResponseResult<DialogueStage<Dialogue>>;
 async fn start(cx: Cx<()>) -> Res {
     // Отображаем приветственное сообщение и меню с кнопками.
     cx.answer("Пожалуйста, выберите, какие заведения показать в основном меню снизу. Меню можно скрыть и работать по ссылкам.")
-        .reply_markup(Commands::main_menu_markup())
+        .reply_markup(commands::User::main_menu_markup())
         .send()
         .await?;
     
@@ -164,31 +94,31 @@ async fn user_mode(cx: Cx<()>) -> Res {
             cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
         }
         Some(command) => {
-            match Commands::from(command) {
-                Commands::Breakfast |
-                Commands::Lunch |
-                Commands::Dinner | 
-                Commands::Dessert => {
+            match commands::User::from(command) {
+                commands::User::Water |
+                commands::User::Food |
+                commands::User::Alcohol | 
+                commands::User::Entertainment => {
                     // Отобразим все рестораны, у которых есть в меню выбранная категория.
                     let rest_list = database::restaurant_by_category_from_db(command.to_string()).await;
                     cx.answer(format!("Рестораны с меню в категории {}{}", command, rest_list))
                         .send().await?;
                 }
-                Commands::OpenedNow => {
+                commands::User::OpenedNow => {
                     use chrono::{Utc, FixedOffset};
                     let our_timezone = FixedOffset::east(7 * 3600);
                     let now = Utc::now().with_timezone(&our_timezone).format("%H:%M");
                     cx.answer(format!("Рестораны, открытые сейчас ({})\nКоманда в разработке", now)).send().await?;
                 }
-                Commands::RestaurantMenuInCategory(cat_id, rest_id) => {
+                commands::User::RestaurantMenuInCategory(cat_id, rest_id) => {
                     // Отобразим категорию меню ресторана.rest_id
                     let menu_list = database::dishes_by_restaurant_and_category_from_db(cat_id.to_string(), rest_id.to_string()).await;
                     cx.answer(format!("Меню в категории {} ресторана {}{}", cat_id, rest_id, menu_list)).send().await?;
                 }
-                Commands::RestaurantOpenedCategories(rest_id) => {
+                commands::User::RestaurantOpenedCategories(rest_id) => {
                     cx.answer(format!("Доступные категории ресторана {}", rest_id)).send().await?;
                 }
-                Commands::DishInfo(dish_id) => {
+                commands::User::DishInfo(dish_id) => {
                     // Отобразим информацию о выбранном блюде.
                     let dish = database::dish(dish_id.to_string()).await;
                     match dish {
@@ -200,21 +130,22 @@ async fn user_mode(cx: Cx<()>) -> Res {
                         }
                     }
                 }
-                Commands::RestOwnerMode => {
+                commands::User::CatererMode => {
                     if let Some(user) = cx.update.from() {
                         if database::is_rest_owner(user.id).await {
                             cx.answer(format!("Добро пожаловать!"))
                             .send().await?;
+                            return next(Dialogue::RestOwnerMode)
                         } else {
                             cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova и сообщите ей свой Id={}", user.id))
                             .send().await?;
                         }
                     }
                 }
-                Commands::Repeat => {
+                commands::User::Repeat => {
                     cx.answer("Команда в разработке").send().await?;
                 }
-                Commands::UnknownCommand => {
+                commands::User::UnknownCommand => {
                     cx.answer(format!("Неизвестная команда {}", command)).send().await?;
                 }
             }
@@ -225,10 +156,10 @@ async fn user_mode(cx: Cx<()>) -> Res {
     next(Dialogue::UserMode)
 }
 
-/*async fn restorator_mode(cx: Cx<()>) -> Res {
+async fn rest_owner_mode(cx: Cx<()>) -> Res {
     cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova")).send().await?;
     next(Dialogue::Start)
-}*/
+}
 
 async fn handle_message(cx: Cx<Dialogue>) -> Res {
     let DialogueDispatcherHandlerCx { bot, update, dialogue } = cx;
@@ -242,10 +173,10 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
         Dialogue::UserMode => {
             user_mode(DialogueDispatcherHandlerCx::new(bot, update, ())).await
         }
-/*        Dialogue::RestaurateurMode => {
-            restorator_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
+        Dialogue::RestOwnerMode => {
+            rest_owner_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
                 .await
-        }*/
+        }
     }
 }
 

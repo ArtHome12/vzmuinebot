@@ -1,0 +1,101 @@
+/* ===============================================================================
+Бот для сбора меню у рестораторов и выдача их желающим покушать.
+Команды бота и меню. 31 May 2020.
+----------------------------------------------------------------------------
+Licensed under the terms of the GPL version 3.
+http://www.gnu.org/licenses/gpl-3.0.html
+Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
+=============================================================================== */
+
+use teloxide::{
+    types::{KeyboardButton, ReplyKeyboardMarkup},
+};
+
+
+// ============================================================================
+// [User menu]
+// ============================================================================
+#[derive(Copy, Clone)]
+pub enum User {
+    // Команды главного меню
+    Water, 
+    Food, 
+    Alcohol, 
+    Entertainment,
+    OpenedNow,
+    Repeat,
+    CatererMode,
+    UnknownCommand,
+    // Показать список блюд в указанной категории ресторана /rest#___ cat_id, rest_id, 
+    RestaurantMenuInCategory(u32, u32),
+    // Показать информацию о блюде /dish___ dish_id
+    DishInfo(u32),
+    // Показать список доступных сейчас категорий меню ресторана /menu___ rest_id
+    RestaurantOpenedCategories(u32),
+}
+
+impl User {
+    pub fn from(input: &str) -> User {
+        match input {
+            // Сначала проверим на цельные команды.
+            "Соки-воды" => User::Water,
+            "Еда" => User::Food,
+            "Алкоголь" => User::Alcohol,
+            "Развлечения" => User::Entertainment,
+            "Сейчас" => User::OpenedNow,
+            "Повтор" => User::Repeat,
+            "Добавить" => User::CatererMode,
+            _ => {
+                // Ищем среди команд с цифровыми суффиксами, если строка достаточной длины.
+                // Сначала Извлекаем возможное тело команды, потом разбираем команду и аргументы.
+                match input.get(..5).unwrap_or_default() {
+                    "/rest" => {
+                        // Извлекаем аргументы (сначала подстроку, потом число).
+                        let arg1 = input.get(5..6).unwrap_or_default().parse().unwrap_or_default();
+                        let arg2 = input.get(6..).unwrap_or_default().parse().unwrap_or_default();
+
+                        // Возвращаем команду.
+                        User::RestaurantMenuInCategory(arg1, arg2)
+                    }
+                    "/dish" => User::DishInfo(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                    "/menu" => User::RestaurantOpenedCategories(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                    _ => User::UnknownCommand,
+                }
+            }
+        }
+    }
+
+    pub fn main_menu_markup() -> ReplyKeyboardMarkup {
+        ReplyKeyboardMarkup::default()
+            .append_row(vec![
+                KeyboardButton::new("Завтрак"),
+                KeyboardButton::new("Обед"),
+                KeyboardButton::new("Ужин"),
+                KeyboardButton::new("Кофе"),
+            ])
+            .append_row(vec![
+                KeyboardButton::new("Сейчас"),
+                KeyboardButton::new("Повтор"),
+                KeyboardButton::new("Добавить"),
+            ])
+            .resize_keyboard(true)
+    }
+}
+
+// ============================================================================
+// [Restaurant's owner menu]
+// ============================================================================
+#[derive(Copy, Clone)]
+pub enum Caterer {
+    // Команды главного меню
+    Breakfast, 
+    Lunch, 
+    Dinner, 
+    Dessert,
+    OpenedNow,
+    Repeat,
+    CatererMode,
+    UnknownCommand,
+    // Показать список блюд в указанной категории ресторана /rest#___ cat_id, rest_id, 
+    RestaurantMenuInCategory(u32, u32),
+}
