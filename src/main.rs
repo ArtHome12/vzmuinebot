@@ -158,7 +158,7 @@ async fn user_mode(cx: Cx<()>) -> Res {
     next(Dialogue::UserMode)
 }
 
-async fn rest_owner_mode(cx: Cx<()>) -> Res {
+async fn caterer_mode(cx: Cx<()>) -> Res {
     // Разбираем команду.
     match cx.update.text() {
         None => {
@@ -171,7 +171,7 @@ async fn rest_owner_mode(cx: Cx<()>) -> Res {
                     cx.answer(format!("User Id {}{}", "00", rest_info)).send().await?;
                 }
                 commands::Caterer::CatererExit => {
-                    return next(Dialogue::UserMode)
+                    return start(cx).await
                 }
                 commands::Caterer::UnknownCommand => {
                     cx.answer(format!("Неизвестная команда {}", command)).send().await?;
@@ -199,7 +199,7 @@ async fn handle_message(cx: Cx<Dialogue>) -> Res {
             user_mode(DialogueDispatcherHandlerCx::new(bot, update, ())).await
         }
         Dialogue::CatererMode => {
-            rest_owner_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
+            caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
                 .await
         }
     }
