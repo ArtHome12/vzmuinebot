@@ -250,7 +250,7 @@ async fn edit_rest_title_mode(cx: Cx<()>) -> Res {
         // Снова покажем главное меню
         let rest_info = database::rest_info(rest_id).await;
         cx.answer(format!("{}", rest_info))
-        .reply_markup(ReplyKeyboardMarkup::default())
+        .reply_markup(commands::Caterer::main_menu_markup())
         .send()
         .await?;
 }

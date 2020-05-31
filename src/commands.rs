@@ -140,5 +140,6 @@ impl Caterer {
                 KeyboardButton::new("Выход"),
             ])
             .resize_keyboard(true)
+            .one_time_keyboard(true)
     }
 }
