@@ -142,7 +142,7 @@ async fn user_mode(cx: Cx<()>) -> Res {
                             let rest_info = database::rest_info(user.id).await;
 
                             // Отображаем информацию о ресторане и добавляем кнопки меню
-                            cx.answer(format!("{}\n\nUser Id {}{}", commands::Caterer::WELCOME_MSG, user.id, rest_info))
+                            cx.answer(format!("{}\n\nUser Id={}{}", commands::Caterer::WELCOME_MSG, user.id, rest_info))
                             .reply_markup(commands::Caterer::main_menu_markup())
                                 .send()
                                 .await?;
@@ -182,7 +182,7 @@ async fn caterer_mode(cx: Cx<()>) -> Res {
                 // Показать основное меню
                 commands::Caterer::CatererMain => {
                     let rest_info = database::rest_info(rest_id).await;
-                    cx.answer(format!("User Id {}{}", rest_id, rest_info))
+                    cx.answer(format!("{}", rest_info))
                     .reply_markup(commands::Caterer::main_menu_markup())
                     .send()
                     .await?;
@@ -198,9 +198,11 @@ async fn caterer_mode(cx: Cx<()>) -> Res {
 
                 // Изменение названия ресторана
                 commands::Caterer::EditRestTitle => {
+                    cx.answer(format!("Введите название (/ для отмены)")).send().await?;
                     next(Dialogue::EditRestTitle)
                 }
                 commands::Caterer::EditRestInfo => {
+                    cx.answer(format!("Введите описание (адрес, контакты)")).send().await?;
                     next(Dialogue::EditRestInfo)
                 }
                 // Переключение активности ресторана
@@ -210,12 +212,15 @@ async fn caterer_mode(cx: Cx<()>) -> Res {
                     next(Dialogue::CatererMode)
                 }
                 commands::Caterer::EditMainGroup => {
+                    cx.answer(format!("Введите название группы")).send().await?;
                     next(Dialogue::EditMainGroup)
                 }
                 commands::Caterer::EditGroup(group_id) => {
+                    cx.answer(format!("Введите название группы")).send().await?;
                     next(Dialogue::EditGroup(group_id))
                 }
                 commands::Caterer::AddGroup => {
+                    cx.answer(format!("Введите название группы")).send().await?;
                     next(Dialogue::AddGroup)
                 }
 
@@ -237,6 +242,10 @@ async fn edit_rest_title_mode(cx: Cx<()>) -> Res {
         // Код пользователя - код ресторана
         let rest_id = cx.update.from().unwrap().id;
         database::rest_edit_title(rest_id, text).await;
+        cx.answer(format!("Ok"))
+        .reply_markup(commands::Caterer::main_menu_markup())
+        .send()
+        .await?;
     }
     next(Dialogue::CatererMode)
 }
@@ -246,6 +255,10 @@ async fn edit_rest_info_mode(cx: Cx<()>) -> Res {
         // Код пользователя - код ресторана
         let rest_id = cx.update.from().unwrap().id;
         database::rest_edit_info(rest_id, text).await;
+        cx.answer(format!("Ok"))
+        .reply_markup(commands::Caterer::main_menu_markup())
+        .send()
+        .await?;
     }
     next(Dialogue::CatererMode)
 }
@@ -255,6 +268,10 @@ async fn edit_rest_main_group_mode(cx: Cx<()>) -> Res {
         // Код пользователя - код ресторана
         let rest_id = cx.update.from().unwrap().id;
         database::rest_edit_group(rest_id, 1, text).await;
+        cx.answer(format!("Ok"))
+        .reply_markup(commands::Caterer::main_menu_markup())
+        .send()
+        .await?;
     }
     next(Dialogue::CatererMode)
 }
@@ -265,6 +282,10 @@ async fn edit_rest_group_mode(cx: Cx<i32>) -> Res {
         let rest_id = cx.update.from().unwrap().id;
         let group_id = cx.dialogue;
         database::rest_edit_group(rest_id, group_id, text).await;
+        cx.answer(format!("Ok"))
+        .reply_markup(commands::Caterer::main_menu_markup())
+        .send()
+        .await?;
     }
     next(Dialogue::CatererMode)
 }
@@ -274,6 +295,10 @@ async fn add_rest_group(cx: Cx<()>) -> Res {
         // Код пользователя - код ресторана
         let rest_id = cx.update.from().unwrap().id;
         database::rest_add_group(rest_id, text).await;
+        cx.answer(format!("Ok"))
+        .reply_markup(commands::Caterer::main_menu_markup())
+        .send()
+        .await?;
     }
     next(Dialogue::CatererMode)
 }
