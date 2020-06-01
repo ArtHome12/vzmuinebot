@@ -68,7 +68,6 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                             .caption(format!("Цена {} тыс. ₫\n{}", dish_info.price, dish_info.desc))
                             .send()
                             .await?;
-                            //cx.answer(format!("Цена {} тыс. ₫\n{}", dish_info.price, dish_info.desc)).send().await?;
                         }
                     }
                 }

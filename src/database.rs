@@ -87,12 +87,27 @@ pub async fn is_rest_owner(user_id : i32) -> bool {
 
 pub async fn rest_info(_user_id: i32) -> String {
     String::from("
-Название: Название /EditTitle
+Название: Хинкал /EditTitle
 Описание: Наш адрес 00NDC, доставка @nick, +84123 /EditInfo
 Статус: работаем /Toggle
 Группы и время работы (добавить новую /AddGroup):
    Основная группа 07:00-23:00 /EdGr1
    Завтраки 07:00-11:00 /EdGr2
+")
+}
+
+pub async fn group_info(_rest_id: i32, _gproup_id: i32) -> String {
+    String::from("
+Название: Основная /EditTitle
+Категория: Еда /EditCategory
+Доп.инфо: К блюдам полагаются салфетки /EditInfo
+Статус: показывать /Toggle
+Время: 00:00-00:00 /EditTime
+Удалить группу /Delete
+Новое блюдо /AddDish
+Хинкали /EdDi1
+Киндзмараули /EdDi2
+Гварцители /EdDi3
 ")
 }
 
@@ -108,9 +123,9 @@ pub async fn rest_toggle(_rest_id: i32) {
 
 }
 
-pub async fn rest_edit_group(_rest_id: i32, _category_id: i32, _group_id: i32, _new_str: String) {
+/*pub async fn rest_edit_group(_rest_id: i32, _category_id: i32, _group_id: i32, _new_str: String) {
 
-}
+}*/
 
 pub async fn rest_add_group(_rest_id: i32, _new_str: String) {
 

@@ -22,11 +22,11 @@ pub enum Dialogue {
     Start,
     UserMode,
     CatererMode,
-    EditRestTitle,
-    EditRestInfo,
-    EditGroup(i32),
-    AddGroup,
-    EditGroupCategory(i32, i32),
+    CatEditRestTitle(i32), // rest_id
+    CatEditRestInfo(i32), // rest_id
+    CatEditGroup(i32, i32), // rest_id, group_id
+    CatAddGroup(i32), // rest_id
+//    CatEditGroupCategory(i32, i32),
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
@@ -46,7 +46,7 @@ pub enum User {
     Entertainment,
     OpenedNow,
     Repeat,
-    CatererMode,
+    CatererMode, 
     UnknownCommand,
     // Показать список блюд в указанной категории ресторана /rest#___ cat_id, rest_id, 
     RestaurantMenuInCategory(u32, u32),
@@ -109,7 +109,7 @@ impl User {
 #[derive(Copy, Clone)]
 pub enum Caterer {
     // Команды главного меню
-    CatererMain,
+    CatererMain(i32), // rest_id
     CatererExit, 
     UnknownCommand,
     // Добавляет нового ресторатора user_id или возобновляет его доступ.
@@ -117,15 +117,15 @@ pub enum Caterer {
     // Приостанавливает доступ ресторатора user_id и скрывает его меню.
     //Hold(u32),
     // Изменить название ресторана
-    EditRestTitle,
+    EditRestTitle(i32), // rest_id
     // Изменить описание ресторана
-    EditRestInfo,
+    EditRestInfo(i32), // rest_id
     // Доступность меню, определяемая самим пользователем
-    ToggleRestPause,
+    ToggleRestPause(i32), // rest_id
     // Переход к редактированию указанной группы блюд.
-    EditGroup(i32),
+    EditGroup(i32, i32), // rest_id, group_id
     // Добавляет новую группу
-    AddGroup,
+    AddGroup(i32), // rest_id
 }
 
 impl Caterer {
@@ -134,19 +134,19 @@ impl Caterer {
     pub const WELCOME_MSG: &'static str = "Добро пожаловать в режим ввода меню!
 Изначально всё заполнено значениями по-умолчанию, отредактируйте их.";
 
-    pub fn from(input: &str) -> Caterer {
+    pub fn from(rest_id: i32, input: &str) -> Caterer {
         match input {
             // Сначала проверим на цельные команды.
-            "Главная" => Caterer::CatererMain,
+            "Главная" => Caterer::CatererMain(rest_id),
             "Выход" => Caterer::CatererExit,
-            "/EditTitle" => Caterer::EditRestTitle,
-            "/EditInfo" => Caterer::EditRestInfo,
-            "/Toggle" => Caterer::ToggleRestPause,
-            "/AddGroup" => Caterer::AddGroup,
+            "/EditTitle" => Caterer::EditRestTitle(rest_id),
+            "/EditInfo" => Caterer::EditRestInfo(rest_id),
+            "/Toggle" => Caterer::ToggleRestPause(rest_id),
+            "/AddGroup" => Caterer::AddGroup(rest_id),
             _ => {
                 // Ищем среди команд с цифровыми суффиксами - аргументами
                 match input.get(..5).unwrap_or_default() {
-                    "/EdGr" => Caterer::EditGroup(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                    "/EdGr" => Caterer::EditGroup(rest_id, input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                     _ => Caterer::UnknownCommand,
                 }
             }
@@ -171,7 +171,7 @@ impl Caterer {
             .resize_keyboard(true)
     }
 
-    pub fn category_markup() -> ReplyKeyboardMarkup {
+    /*pub fn category_markup() -> ReplyKeyboardMarkup {
         ReplyKeyboardMarkup::default()
             .append_row(vec![
                 KeyboardButton::new("Соки воды"),
@@ -180,7 +180,7 @@ impl Caterer {
                 KeyboardButton::new("Развлечения"),
             ])
             .resize_keyboard(true)
-    }
+    }*/
 }
 
 // ============================================================================

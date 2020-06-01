@@ -48,26 +48,26 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
             caterer::caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
                 .await
         }
-        cmd::Dialogue::EditRestTitle => {
-            caterer::edit_rest_title_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
+        cmd::Dialogue::CatEditRestTitle(rest_id) => {
+            caterer::edit_rest_title_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
                 .await
         }
-        cmd::Dialogue::EditRestInfo => {
-            caterer::edit_rest_info_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
+        cmd::Dialogue::CatEditRestInfo(rest_id) => {
+            caterer::edit_rest_info_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
                 .await
         }
-        cmd::Dialogue::EditGroup(s) => {
-            caterer::edit_rest_group_mode(DialogueDispatcherHandlerCx::new(bot, update, s))
+        cmd::Dialogue::CatEditGroup(rest_id, s) => {
+            caterer::edit_rest_group_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, s)))
                 .await
         }
-        cmd::Dialogue::AddGroup => {
-            caterer::add_rest_group(DialogueDispatcherHandlerCx::new(bot, update, ()))
+        cmd::Dialogue::CatAddGroup(rest_id) => {
+            caterer::add_rest_group(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
                 .await
         }
-        cmd::Dialogue::EditGroupCategory(group_id, category_id) => {
+ /*       cmd::Dialogue::CatEditGroupCategory(group_id, category_id) => {
             caterer::edit_rest_group_category(DialogueDispatcherHandlerCx::new(bot, update, (group_id, category_id)))
                 .await
-        }
+        }*/
     }
 }
 
