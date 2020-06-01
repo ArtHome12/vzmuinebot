@@ -8,12 +8,34 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide::{
+    prelude::*, 
     types::{KeyboardButton, ReplyKeyboardMarkup},
 };
 
 
 // ============================================================================
-// [User menu]
+// [Common]
+// ============================================================================
+#[derive(SmartDefault)]
+pub enum Dialogue {
+    #[default]
+    Start,
+    UserMode,
+    CatererMode,
+    EditRestTitle,
+    EditRestInfo,
+    EditGroup(i32),
+    AddGroup,
+    EditGroupCategory(i32, i32),
+}
+
+pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
+pub type Res = ResponseResult<DialogueStage<Dialogue>>;
+
+
+
+// ============================================================================
+// [Client menu]
 // ============================================================================
 #[derive(Copy, Clone)]
 pub enum User {
@@ -100,8 +122,6 @@ pub enum Caterer {
     EditRestInfo,
     // Доступность меню, определяемая самим пользователем
     ToggleRestPause,
-    // Переход к редактированию основной группы блюд.
-    EditMainGroup,
     // Переход к редактированию указанной группы блюд.
     EditGroup(i32),
     // Добавляет новую группу
@@ -123,7 +143,6 @@ impl Caterer {
             "/EditInfo" => Caterer::EditRestInfo,
             "/Toggle" => Caterer::ToggleRestPause,
             "/AddGroup" => Caterer::AddGroup,
-            "/EditGroup" => Caterer::EditMainGroup,
             _ => {
                 // Ищем среди команд с цифровыми суффиксами - аргументами
                 match input.get(..5).unwrap_or_default() {
