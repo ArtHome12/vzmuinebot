@@ -100,7 +100,7 @@ pub async fn group_info(_rest_id: i32, _gproup_id: i32) -> String {
     String::from("
 Название: Основная /EditTitle
 Категория: Еда /EditCategory
-Доп.инфо: К блюдам полагаются салфетки /EditInfo
+Доп.инфо: Блюда подаются на тарелке /EditInfo
 Статус: показывать /Toggle
 Время: 00:00-00:00 /EditTime
 Удалить группу /Delete
