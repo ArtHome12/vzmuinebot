@@ -30,7 +30,7 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
         .send()
         .await?;
 
-    // Переходим (остаёмся) в режим редактирования группы.
+    // Переходим (остаёмся) в режим редактирования группы
     next(cmd::Dialogue::CatEditGroup(rest_id, group_id))
 }
 
@@ -40,8 +40,11 @@ async fn next_with_cancel(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
     .send()
     .await?;
 
-    // Остаёмся в режиме главного меню ресторатора.
-    next(cmd::Dialogue::CatererMode)
+    // Извлечём параметры
+    let (rest_id, group_id) = cx.dialogue;
+
+    // Остаёмся в режиме редактирования группы
+    next(cmd::Dialogue::CatEditGroup(rest_id, group_id))
 }
 
 

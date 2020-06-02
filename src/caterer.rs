@@ -27,7 +27,7 @@ async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
         let rest_info = db::rest_info(rest_id).await;
 
         // Отправляем её пользователю и отображаем главное меню
-        cx.answer(format!("{}", rest_info))
+        cx.answer(format!("\n{}", rest_info))
         .reply_markup(cmd::Caterer::main_menu_markup())
         .send()
         .await?;

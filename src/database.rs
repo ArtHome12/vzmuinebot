@@ -111,7 +111,7 @@ use std::sync::Mutex;
 
 static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
 
-    let group = Group {
+    let group1 = Group {
         title: String::from("Основная"),
         info: String::from("Блюда подаются на тарелке"),
         active: true,
@@ -120,8 +120,18 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
         closing_time: String::from("00:00"),
     };
 
+    let group2 = Group {
+        title: String::from("Завтраки"),
+        info: String::from("Имеются салфетки"),
+        active: true,
+        cat_id: 1,
+        opening_time: String::from("07:00"),
+        closing_time: String::from("11:00"),
+    };
+
     let mut map = HashMap::new();
-    map.insert(1, group);
+    map.insert(1, group1);
+    map.insert(2, group2);
     
     Mutex::new(Restaurant {
         //id: 0,
@@ -137,8 +147,15 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
 
 impl Restaurant {
     fn to_str(&self) -> String {
-        String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n   Основная группа 07:00-23:00 /EdGr1\n   Завтраки 07:00-11:00 /EdGr2",
-            self.title, self.info, active_to_str(self.active)))
+        // Информация о ресторане
+        let mut s = String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n",
+            self.title, self.info, active_to_str(self.active)));
+
+        // Добавим информацию о группах
+        for (key, value) in &self.groups {
+            s.push_str(&format!("   {}: {}\n", value.to_str_short(), key));
+        };
+        s
     }
 
     fn set_title(&mut self, new_title : String) {
@@ -185,25 +202,16 @@ impl Group {
             self.title, self.info, self.cat_id, active_to_str(self.active), self.opening_time, self.closing_time))
     }
 
+    fn to_str_short(&self) -> String {
+        String::from(format!("{} {}-{} /EditGr", self.title, self.opening_time, self.closing_time))
+    }
+
     fn toggle(&mut self) {
         self.active = !self.active; 
     }
 }
 
 pub async fn group_info(_rest_id: i32, group_id: i32) -> String {
- /*   String::from("
-Название: Основная /EditTitle
-Доп.инфо: Блюда подаются на тарелке /EditInfo
-Категория: Еда /EditCategory
-Статус: показывать /Toggle
-Время: 00:00-00:00 /EditTime
-Удалить группу /Delete
-Новое блюдо /AddDish
-Хинкали /EdDi1
-Киндзмараули /EdDi2
-Гварцители /EdDi3
-")*/
-
     if let Some(group) = REST_DB.lock().unwrap().groups.get(&group_id) {
         group.to_str()
     } else {
