@@ -97,6 +97,27 @@ fn active_to_str(active : bool) -> &'static str {
     }
 }
 
+fn id_to_category(cat_id : i32) -> &'static str {
+    match cat_id {
+        1 => "Соки воды",
+        2 => "Еда",
+        3 => "Алкоголь",
+        4 => "Развлечения",
+        _ => "Неизвестная категория",
+    }
+} 
+
+pub fn category_to_id(category: &str) -> i32 {
+    match category {
+        "Соки воды" => 1,
+        "Еда" => 2,
+        "Алкоголь" => 3,
+        "Развлечения" => 4,
+        _ => 0,
+    }
+}
+
+
 struct Restaurant {
     //id: i32,
     title: String,
@@ -197,9 +218,9 @@ struct Group {
 impl Group {
 
     fn to_str(&self) -> String {
-        String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCategory\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime
+        String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime
 Удалить группу /Delete\nНовое блюдо /AddDish\nАджапсандали /EdDi1\nКиндзмараули /EdDi2\nГварцители /EdDi3",
-            self.title, self.info, self.cat_id, active_to_str(self.active), self.opening_time, self.closing_time))
+            self.title, self.info, id_to_category(self.cat_id), active_to_str(self.active), self.opening_time, self.closing_time))
     }
 
     fn to_str_short(&self) -> String {
@@ -249,6 +270,12 @@ pub async fn rest_group_edit_info(_rest_id: i32, group_id: i32, new_str: String)
 pub async fn rest_group_toggle(_rest_id: i32, group_id: i32) {
     if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
         group.toggle();
+    }
+}
+
+pub async fn rest_group_edit_category(_rest_id: i32, group_id: i32, new_cat : i32) {
+    if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
+        group.cat_id = new_cat;
     }
 }
 

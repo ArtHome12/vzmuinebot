@@ -65,14 +65,19 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
             caterer::add_rest_group(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
                 .await
         }
-        cmd::Dialogue::CatEditGroupTitle(group_id, category_id) => {
-            cat_group::edit_title_mode(DialogueDispatcherHandlerCx::new(bot, update, (group_id, category_id)))
+        cmd::Dialogue::CatEditGroupTitle(rest_id, group_id) => {
+            cat_group::edit_title_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
                 .await
         }
-        cmd::Dialogue::CatEditGroupInfo(group_id, category_id) => {
-            cat_group::edit_info_mode(DialogueDispatcherHandlerCx::new(bot, update, (group_id, category_id)))
+        cmd::Dialogue::CatEditGroupInfo(rest_id, group_id) => {
+            cat_group::edit_info_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
                 .await
         }
+        cmd::Dialogue::CatEditGroupCategory(rest_id, group_id) => {
+            cat_group::edit_category_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
+                .await
+        }
+        
     }
 }
 

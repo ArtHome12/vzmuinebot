@@ -117,6 +117,20 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                     next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
                 }
 
+                // Изменить категорию группы
+                cmd::CatGroup::EditCategory(rest_id, group_id) => {
+
+                    // Отправляем приглашение ввести строку с категориями в меню для выбора
+                    cx.answer(format!("Выберите категорию"))
+                    .reply_markup(cmd::CatGroup::category_markup())
+                    .send()
+                    .await?;
+
+                    // Переходим в режим ввода информации о ресторане
+                    next(cmd::Dialogue::CatEditGroupCategory(rest_id, group_id))
+                }
+
+
                 cmd::CatGroup::UnknownCommand => {
                     cx.answer(format!("Неизвестная команда {}", command)).send().await?;
                     next(cmd::Dialogue::CatEditGroup(rest_id, group_id))
@@ -128,36 +142,6 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             }
         }
     }
-    /*match cx.update.text() {
-        None => {
-            cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
-        }
-        Some(command) => {
-            let category_id:i32 = match cmd::User::from(command) {
-                cmd::User::Water => 1,
-                cmd::User::Food => 2,
-                cmd::User::Alcohol => 3, 
-                cmd::User::Entertainment => 4,
-                _ => 0,
-            };
-
-                // Если категория успешно задана, переходим к вводу названия
-            if category_id > 1 {
-                cx.answer(format!("Введите название (/ для отмены)"))
-                .reply_markup(cmd::Caterer::slash_markup())
-                .send()
-                .await?;
-
-                let group_id = cx.dialogue;
-                return next(cmd::Dialogue::EditGroupCategory(category_id, group_id));
-            } else {
-                cx.answer(format!("Отмена"))
-                .reply_markup(cmd::Caterer::main_menu_markup())
-                .send()
-                .await?;
-            }
-        }
-    };*/
 }
 
 // Изменение названия группы rest_id, group_id
@@ -176,7 +160,7 @@ pub async fn edit_title_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             // Сохраним новое значение в БД
             db::rest_group_edit_title(rest_id, group_id, s).await;
 
-            // Покажем изменённую информацию о ресторане
+            // Покажем изменённую информацию о группе
             next_with_info(cx).await
 
         } else {
@@ -188,7 +172,7 @@ pub async fn edit_title_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
     }
 }
 
-// Изменение описания ресторана rest_id
+// Изменение описания группы rest_id, group_id
 //
 pub async fn edit_info_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
     if let Some(text) = cx.update.text() {
@@ -203,7 +187,34 @@ pub async fn edit_info_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             // Сохраним новое значение в БД
             db::rest_group_edit_info(rest_id, group_id, s).await;
 
-            // Покажем изменённую информацию о ресторане
+            // Покажем изменённую информацию о группе
+            next_with_info(cx).await
+
+        } else {
+            // Сообщим об отмене
+            next_with_cancel(cx).await
+        }
+    } else {
+        next(cmd::Dialogue::CatererMode)
+    }
+}
+
+// Изменение категории группы rest_id, group_id
+//
+pub async fn edit_category_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
+    if let Some(text) = cx.update.text() {
+        // Попытаемся преобразовать ответ пользователя в код категории
+        let cat_id = db::category_to_id(text);
+
+        // Если категория не пустая, продолжим
+        if cat_id > 0 {
+            // Извлечём параметры
+            let (rest_id, group_id) = cx.dialogue;
+        
+            // Сохраним новое значение в БД
+            db::rest_group_edit_category(rest_id, group_id, cat_id).await;
+
+            // Покажем изменённую информацию о группе
             next_with_info(cx).await
 
         } else {

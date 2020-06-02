@@ -28,6 +28,7 @@ pub enum Dialogue {
     CatAddGroup(i32), // rest_id
     CatEditGroupTitle(i32, i32), // rest_id, group_id (cat_group)
     CatEditGroupInfo(i32, i32), // rest_id, group_id (cat_group)
+    CatEditGroupCategory(i32, i32), // rest_id, group_id (cat_group)
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
@@ -171,17 +172,6 @@ impl Caterer {
             ])
             .resize_keyboard(true)
     }
-
-    /*pub fn category_markup() -> ReplyKeyboardMarkup {
-        ReplyKeyboardMarkup::default()
-            .append_row(vec![
-                KeyboardButton::new("Соки воды"),
-                KeyboardButton::new("Еда"),
-                KeyboardButton::new("Алкоголь"),
-                KeyboardButton::new("Развлечения"),
-            ])
-            .resize_keyboard(true)
-    }*/
 }
 
 // ============================================================================
@@ -207,6 +197,8 @@ pub enum CatGroup {
     EditInfo(i32, i32), // rest_id, group_id
     // Переключить доступность группы
     TogglePause(i32, i32), // rest_id, group_id
+    // Изменить категорию группы
+    EditCategory(i32, i32), // rest_id, group_id
 }
 
 impl CatGroup {
@@ -219,6 +211,7 @@ impl CatGroup {
             "/EditTitle" => CatGroup::EditTitle(rest_id, group_id),
             "/EditInfo" => CatGroup::EditInfo(rest_id, group_id),
             "/Toggle" => CatGroup::TogglePause(rest_id, group_id),
+            "/EditCat" => CatGroup::EditCategory(rest_id, group_id),
             _ => {
                 // Ищем среди команд с цифровыми суффиксами - аргументами
                 /*match input.get(..5).unwrap_or_default() {
@@ -226,5 +219,16 @@ impl CatGroup {
                     _ => */CatGroup::UnknownCommand
             }
         }
+    }
+
+    pub fn category_markup() -> ReplyKeyboardMarkup {
+        ReplyKeyboardMarkup::default()
+            .append_row(vec![
+                KeyboardButton::new("Соки воды"),
+                KeyboardButton::new("Еда"),
+                KeyboardButton::new("Алкоголь"),
+                KeyboardButton::new("Развлечения"),
+            ])
+            .resize_keyboard(true)
     }
 }
