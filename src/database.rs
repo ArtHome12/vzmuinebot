@@ -91,9 +91,9 @@ pub async fn is_rest_owner(user_id : i32) -> bool {
 
 pub struct Restaurant {
     //id: i32,
-    pub title: String,
-    pub info: String,
-    pub active: bool,
+    title: String,
+    info: String,
+    active: bool,
 }
 
 use once_cell::sync::Lazy;
@@ -114,14 +114,6 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
 //pub static REST_DB: OnceCell<Mutex<Restaurant>> = OnceCell::new();
 
 impl Restaurant {
-/*    pub fn global() -> &'static Restaurant {
-        REST_DB.lock().expect("logger is not initialized")
-    }
-
-    pub fn global_mut() -> &'static mut Restaurant {
-        REST_DB.get_mut().expect("logger is not initialized")
-    }*/
-
     fn to_str(&self) -> String {
         String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n   Основная группа 07:00-23:00 /EdGr1\n   Завтраки 07:00-11:00 /EdGr2",
             self.title, self.info, self.active))
@@ -129,6 +121,10 @@ impl Restaurant {
 
     fn set_title(&mut self, new_title : String) {
         self.title = new_title;
+    }
+
+    fn toggle(&mut self) {
+        self.active = !self.active; 
     }
 }
 
@@ -140,12 +136,12 @@ pub async fn rest_edit_title(_rest_id: i32, new_str: String) {
     REST_DB.lock().unwrap().set_title(new_str);
 }
 
-pub async fn rest_edit_info(_rest_id: i32, _new_str: String) {
-
+pub async fn rest_edit_info(_rest_id: i32, new_str: String) {
+    REST_DB.lock().unwrap().info = new_str;
 }
 
 pub async fn rest_toggle(_rest_id: i32) {
-
+    REST_DB.lock().unwrap().toggle();
 }
 
 /*    String::from("
