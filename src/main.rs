@@ -151,6 +151,21 @@ async fn run() {
     
     let bot = Bot::from_env();
 
+    // Откроем БД
+    /*let restaurant = database::Restaurant{
+        //id: 0,
+        title: String::from("Хинкал"),
+        info: String::from("Наш адрес 00NDC, доставка @nick, +84123"),
+        active: true,
+    };
+
+    use std::sync::Mutex;
+
+    if database::REST_DB.set(Mutex::new(restaurant)).is_err() {
+        return;
+    }*/
+
+
     Dispatcher::new(Arc::clone(&bot))
         .messages_handler(DialogueDispatcher::new(|cx| async move {
             handle_message(cx).await.expect("Something wrong with the bot!")

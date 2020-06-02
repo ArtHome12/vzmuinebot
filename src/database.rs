@@ -15,6 +15,7 @@ use teloxide::types::InputFile;
 
 
 
+
 fn restaurants() -> &'static HashMap<u32, &'static str> {
     static INSTANCE: OnceCell<HashMap<u32, &'static str>> = OnceCell::new();
     INSTANCE.get_or_init(|| {
@@ -81,20 +82,83 @@ pub async fn dish(_dish_id : String) -> Option<DishInfo> {
     Some(dish_info)
 }
 
+// ============================================================================
+// [Caterer]
+// ============================================================================
 pub async fn is_rest_owner(user_id : i32) -> bool {
     user_id == 409664508 || user_id == 501159140
 }
 
-pub async fn rest_info(_user_id: i32) -> String {
-    String::from("
+pub struct Restaurant {
+    //id: i32,
+    pub title: String,
+    pub info: String,
+    pub active: bool,
+}
+
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
+
+
+static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
+    Mutex::new(Restaurant {
+        //id: 0,
+        title: String::from("Хинкал"),
+        info: String::from("Наш адрес 00NDC, доставка @nick, +84123"),
+        active: true,
+    })
+});
+
+
+
+//pub static REST_DB: OnceCell<Mutex<Restaurant>> = OnceCell::new();
+
+impl Restaurant {
+/*    pub fn global() -> &'static Restaurant {
+        REST_DB.lock().expect("logger is not initialized")
+    }
+
+    pub fn global_mut() -> &'static mut Restaurant {
+        REST_DB.get_mut().expect("logger is not initialized")
+    }*/
+
+    fn to_str(&self) -> String {
+        String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n   Основная группа 07:00-23:00 /EdGr1\n   Завтраки 07:00-11:00 /EdGr2",
+            self.title, self.info, self.active))
+    }
+
+    fn set_title(&mut self, new_title : String) {
+        self.title = new_title;
+    }
+}
+
+pub async fn rest_info(_rest_id: i32) -> String {
+    REST_DB.lock().unwrap().to_str()
+}
+
+pub async fn rest_edit_title(_rest_id: i32, new_str: String) {
+    REST_DB.lock().unwrap().set_title(new_str);
+}
+
+pub async fn rest_edit_info(_rest_id: i32, _new_str: String) {
+
+}
+
+pub async fn rest_toggle(_rest_id: i32) {
+
+}
+
+/*    String::from("
 Название: Хинкал /EditTitle
 Описание: Наш адрес 00NDC, доставка @nick, +84123 /EditInfo
 Статус: работаем /Toggle
 Группы и время работы (добавить новую /AddGroup):
    Основная группа 07:00-23:00 /EdGr1
    Завтраки 07:00-11:00 /EdGr2
-")
-}
+")*/
+
+
+
 
 pub async fn group_info(_rest_id: i32, _gproup_id: i32) -> String {
     String::from("
@@ -109,18 +173,6 @@ pub async fn group_info(_rest_id: i32, _gproup_id: i32) -> String {
 Киндзмараули /EdDi2
 Гварцители /EdDi3
 ")
-}
-
-pub async fn rest_edit_title(_rest_id: i32, _new_str: String) {
-
-}
-
-pub async fn rest_edit_info(_rest_id: i32, _new_str: String) {
-
-}
-
-pub async fn rest_toggle(_rest_id: i32) {
-
 }
 
 /*pub async fn rest_edit_group(_rest_id: i32, _category_id: i32, _group_id: i32, _new_str: String) {
