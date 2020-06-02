@@ -99,8 +99,8 @@ pub async fn rest_info(_user_id: i32) -> String {
 pub async fn group_info(_rest_id: i32, _gproup_id: i32) -> String {
     String::from("
 Название: Основная /EditTitle
-Категория: Еда /EditCategory
 Доп.инфо: Блюда подаются на тарелке /EditInfo
+Категория: Еда /EditCategory
 Статус: показывать /Toggle
 Время: 00:00-00:00 /EditTime
 Удалить группу /Delete
@@ -128,6 +128,18 @@ pub async fn rest_toggle(_rest_id: i32) {
 }*/
 
 pub async fn rest_add_group(_rest_id: i32, _new_str: String) {
+
+}
+
+pub async fn rest_group_edit_title(_rest_id: i32, _group_id: i32, _new_str: String) {
+
+}
+
+pub async fn rest_group_edit_info(_rest_id: i32, _group_id: i32, _new_str: String) {
+
+}
+
+pub async fn rest_group_toggle(_rest_id: i32, _group_id: i32) {
 
 }
 

@@ -26,7 +26,8 @@ pub enum Dialogue {
     CatEditRestInfo(i32), // rest_id
     CatEditGroup(i32, i32), // rest_id, group_id
     CatAddGroup(i32), // rest_id
-//    CatEditGroupCategory(i32, i32),
+    CatEditGroupTitle(i32, i32), // rest_id, group_id (cat_group)
+    CatEditGroupInfo(i32, i32), // rest_id, group_id (cat_group)
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
@@ -104,24 +105,24 @@ impl User {
 }
 
 // ============================================================================
-// [Restaurant owner menu]
+// [Restaurant owner main menu]
 // ============================================================================
 #[derive(Copy, Clone)]
 pub enum Caterer {
     // Команды главного меню
-    CatererMain(i32), // rest_id
-    CatererExit, 
+    Main(i32), // rest_id
+    Exit, 
     UnknownCommand,
     // Добавляет нового ресторатора user_id или возобновляет его доступ.
     //Registration(u32),
     // Приостанавливает доступ ресторатора user_id и скрывает его меню.
     //Hold(u32),
     // Изменить название ресторана
-    EditRestTitle(i32), // rest_id
+    EditTitle(i32), // rest_id
     // Изменить описание ресторана
-    EditRestInfo(i32), // rest_id
+    EditInfo(i32), // rest_id
     // Доступность меню, определяемая самим пользователем
-    ToggleRestPause(i32), // rest_id
+    TogglePause(i32), // rest_id
     // Переход к редактированию указанной группы блюд.
     EditGroup(i32, i32), // rest_id, group_id
     // Добавляет новую группу
@@ -137,11 +138,11 @@ impl Caterer {
     pub fn from(rest_id: i32, input: &str) -> Caterer {
         match input {
             // Сначала проверим на цельные команды.
-            "Главная" => Caterer::CatererMain(rest_id),
-            "Выход" => Caterer::CatererExit,
-            "/EditTitle" => Caterer::EditRestTitle(rest_id),
-            "/EditInfo" => Caterer::EditRestInfo(rest_id),
-            "/Toggle" => Caterer::ToggleRestPause(rest_id),
+            "Главная" => Caterer::Main(rest_id),
+            "Выход" => Caterer::Exit,
+            "/EditTitle" => Caterer::EditTitle(rest_id),
+            "/EditInfo" => Caterer::EditInfo(rest_id),
+            "/Toggle" => Caterer::TogglePause(rest_id),
             "/AddGroup" => Caterer::AddGroup(rest_id),
             _ => {
                 // Ищем среди команд с цифровыми суффиксами - аргументами
@@ -190,3 +191,36 @@ pub async fn remove_slash(s: &str) -> String {
     s.replace("/", "")
 }
 
+
+// ============================================================================
+// [Restaurant group editing menu]
+// ============================================================================
+#[derive(Copy, Clone)]
+pub enum CatGroup {
+    // Команды главного меню
+    UnknownCommand,
+    // Изменить название группы
+    EditTitle(i32, i32), // rest_id, group_id
+    // Изменить описание группы
+    EditInfo(i32, i32), // rest_id, group_id
+    // Переключить доступность группы
+    TogglePause(i32, i32), // rest_id, group_id
+}
+
+impl CatGroup {
+
+    pub fn from(rest_id: i32, group_id: i32, input: &str) -> CatGroup {
+        match input {
+            // Сначала проверим на цельные команды.
+            "/EditTitle" => CatGroup::EditTitle(rest_id, group_id),
+            "/EditInfo" => CatGroup::EditInfo(rest_id, group_id),
+            "/Toggle" => CatGroup::TogglePause(rest_id, group_id),
+            _ => {
+                // Ищем среди команд с цифровыми суффиксами - аргументами
+                /*match input.get(..5).unwrap_or_default() {
+                    "/EdGr" => Caterer::EditGroup(rest_id, input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                    _ => */CatGroup::UnknownCommand
+            }
+        }
+    }
+}
