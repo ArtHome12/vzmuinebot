@@ -153,7 +153,7 @@ impl Restaurant {
 
         // Добавим информацию о группах
         for (key, value) in &self.groups {
-            s.push_str(&format!("   {}: {}\n", value.to_str_short(), key));
+            s.push_str(&format!("   {}{}\n", value.to_str_short(), key));
         };
         s
     }
@@ -203,7 +203,7 @@ impl Group {
     }
 
     fn to_str_short(&self) -> String {
-        String::from(format!("{} {}-{} /EditGr", self.title, self.opening_time, self.closing_time))
+        String::from(format!("{} {}-{} /EdGr", self.title, self.opening_time, self.closing_time))
     }
 
     fn toggle(&mut self) {

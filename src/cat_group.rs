@@ -14,6 +14,9 @@ use teloxide::{
 
 use crate::commands as cmd;
 use crate::database as db;
+use crate::eater;
+use crate::caterer;
+
 
 // Показывает информацию о группе 
 //
@@ -65,7 +68,20 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
         Some(command) => {
             match cmd::CatGroup::from(rest_id, group_id, command) {
 
-                // Изменение названия группы
+                 // Показать информацию о ресторане (возврат в главное меню ресторатора)
+                 cmd::CatGroup::Main(rest_id) => {
+                    // Покажем информацию
+                    let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                    caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id)).await
+                }
+
+                // Выйти из режима ресторатора
+                cmd::CatGroup::Exit => {
+                    let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                    eater::start(DialogueDispatcherHandlerCx::new(bot, update, ())).await
+                }
+
+               // Изменение названия группы
                 cmd::CatGroup::EditTitle(rest_id, group_id) => {
 
                     // Отправляем приглашение ввести строку со слешем в меню для отмены

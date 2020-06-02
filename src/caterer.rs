@@ -19,7 +19,7 @@ use crate::cat_group;
 
 // Показывает информацию о ресторане 
 //
-async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
+pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
     // Код ресторана
     let rest_id = cx.dialogue;
 

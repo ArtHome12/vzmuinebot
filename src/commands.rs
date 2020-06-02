@@ -198,6 +198,8 @@ pub async fn remove_slash(s: &str) -> String {
 #[derive(Copy, Clone)]
 pub enum CatGroup {
     // Команды главного меню
+    Main(i32), // rest_id
+    Exit, 
     UnknownCommand,
     // Изменить название группы
     EditTitle(i32, i32), // rest_id, group_id
@@ -212,6 +214,8 @@ impl CatGroup {
     pub fn from(rest_id: i32, group_id: i32, input: &str) -> CatGroup {
         match input {
             // Сначала проверим на цельные команды.
+            "Главная" => CatGroup::Main(rest_id),
+            "Выход" => CatGroup::Exit,
             "/EditTitle" => CatGroup::EditTitle(rest_id, group_id),
             "/EditInfo" => CatGroup::EditInfo(rest_id, group_id),
             "/Toggle" => CatGroup::TogglePause(rest_id, group_id),
