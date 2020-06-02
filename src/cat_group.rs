@@ -25,7 +25,7 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
     let rest_info = db::group_info(rest_id, group_id).await;
 
     // Отображаем информацию о группе и оставляем кнопки главного меню
-    cx.answer(format!("{}", rest_info))
+    cx.answer(format!("\n{}", rest_info))
     .reply_markup(cmd::Caterer::main_menu_markup())
         .send()
         .await?;

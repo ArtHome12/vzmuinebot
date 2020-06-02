@@ -91,17 +91,18 @@ pub async fn is_rest_owner(user_id : i32) -> bool {
 
 fn active_to_str(active : bool) -> &'static str {
     if active {
-        "показывать"
+        "показывается"
     } else {
-        "скрыть"
+        "скрыт"
     }
 }
 
-pub struct Restaurant {
+struct Restaurant {
     //id: i32,
     title: String,
     info: String,
     active: bool,
+    groups: HashMap<i32, Group>
 }
 
 use once_cell::sync::Lazy;
@@ -109,14 +110,27 @@ use std::sync::Mutex;
 
 
 static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
+
+    let group = Group {
+        title: String::from("Основная"),
+        info: String::from("Блюда подаются на тарелке"),
+        active: true,
+        cat_id: 1,
+        opening_time: String::from("00:00"),
+        closing_time: String::from("00:00"),
+    };
+
+    let mut map = HashMap::new();
+    map.insert(1, group);
+    
     Mutex::new(Restaurant {
         //id: 0,
-        title: String::from("Хинкал"),
+        title: String::from("Хинкалий"),
         info: String::from("Наш адрес 00NDC, доставка @nick, +84123"),
         active: true,
+        groups: map,
     })
 });
-
 
 
 //pub static REST_DB: OnceCell<Mutex<Restaurant>> = OnceCell::new();
@@ -153,9 +167,31 @@ pub async fn rest_toggle(_rest_id: i32) {
 }
 
 
+struct Group {
+    //id: i32,
+    title: String,
+    info: String,
+    active: bool,
+    cat_id: i32,
+    opening_time: String,
+    closing_time: String,    
+}
 
-pub async fn group_info(_rest_id: i32, _gproup_id: i32) -> String {
-    String::from("
+impl Group {
+
+    fn to_str(&self) -> String {
+        String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCategory\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime
+Удалить группу /Delete\nНовое блюдо /AddDish\nАджапсандали /EdDi1\nКиндзмараули /EdDi2\nГварцители /EdDi3",
+            self.title, self.info, self.cat_id, active_to_str(self.active), self.opening_time, self.closing_time))
+    }
+
+    fn toggle(&mut self) {
+        self.active = !self.active; 
+    }
+}
+
+pub async fn group_info(_rest_id: i32, group_id: i32) -> String {
+ /*   String::from("
 Название: Основная /EditTitle
 Доп.инфо: Блюда подаются на тарелке /EditInfo
 Категория: Еда /EditCategory
@@ -166,7 +202,13 @@ pub async fn group_info(_rest_id: i32, _gproup_id: i32) -> String {
 Хинкали /EdDi1
 Киндзмараули /EdDi2
 Гварцители /EdDi3
-")
+")*/
+
+    if let Some(group) = REST_DB.lock().unwrap().groups.get(&group_id) {
+        group.to_str()
+    } else {
+        String::from("")
+    }
 }
 
 /*pub async fn rest_edit_group(_rest_id: i32, _category_id: i32, _group_id: i32, _new_str: String) {
@@ -177,15 +219,21 @@ pub async fn rest_add_group(_rest_id: i32, _new_str: String) {
 
 }
 
-pub async fn rest_group_edit_title(_rest_id: i32, _group_id: i32, _new_str: String) {
-
+pub async fn rest_group_edit_title(_rest_id: i32, group_id: i32, new_str: String) {
+    if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
+        group.title = new_str;
+    }
 }
 
-pub async fn rest_group_edit_info(_rest_id: i32, _group_id: i32, _new_str: String) {
-
+pub async fn rest_group_edit_info(_rest_id: i32, group_id: i32, new_str: String) {
+    if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
+        group.info = new_str;
+    }
 }
 
-pub async fn rest_group_toggle(_rest_id: i32, _group_id: i32) {
-
+pub async fn rest_group_toggle(_rest_id: i32, group_id: i32) {
+    if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
+        group.toggle();
+    }
 }
 
