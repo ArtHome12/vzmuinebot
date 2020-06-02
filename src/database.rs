@@ -89,6 +89,14 @@ pub async fn is_rest_owner(user_id : i32) -> bool {
     user_id == 409664508 || user_id == 501159140
 }
 
+fn active_to_str(active : bool) -> &'static str {
+    if active {
+        "показывать"
+    } else {
+        "скрыть"
+    }
+}
+
 pub struct Restaurant {
     //id: i32,
     title: String,
@@ -116,7 +124,7 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
 impl Restaurant {
     fn to_str(&self) -> String {
         String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n   Основная группа 07:00-23:00 /EdGr1\n   Завтраки 07:00-11:00 /EdGr2",
-            self.title, self.info, self.active))
+            self.title, self.info, active_to_str(self.active)))
     }
 
     fn set_title(&mut self, new_title : String) {
@@ -143,16 +151,6 @@ pub async fn rest_edit_info(_rest_id: i32, new_str: String) {
 pub async fn rest_toggle(_rest_id: i32) {
     REST_DB.lock().unwrap().toggle();
 }
-
-/*    String::from("
-Название: Хинкал /EditTitle
-Описание: Наш адрес 00NDC, доставка @nick, +84123 /EditInfo
-Статус: работаем /Toggle
-Группы и время работы (добавить новую /AddGroup):
-   Основная группа 07:00-23:00 /EdGr1
-   Завтраки 07:00-11:00 /EdGr2
-")*/
-
 
 
 
