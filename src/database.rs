@@ -230,7 +230,7 @@ pub async fn rest_add_group(_rest_id: i32, new_str: String) {
     };
 
     let groups = & mut(REST_DB.lock().unwrap().groups);
-    let group_id = groups.len() as i32;
+    let group_id = groups.len() as i32 + 1;
     groups.insert(group_id, group);
 }
 
