@@ -219,12 +219,19 @@ pub async fn group_info(_rest_id: i32, group_id: i32) -> String {
     }
 }
 
-/*pub async fn rest_edit_group(_rest_id: i32, _category_id: i32, _group_id: i32, _new_str: String) {
+pub async fn rest_add_group(_rest_id: i32, new_str: String) {
+    let group = Group {
+        title: new_str,
+        info: String::from("Блюда подаются на тарелке"),
+        active: true,
+        cat_id: 1,
+        opening_time: String::from("00:00"),
+        closing_time: String::from("00:00"),
+    };
 
-}*/
-
-pub async fn rest_add_group(_rest_id: i32, _new_str: String) {
-
+    let groups = & mut(REST_DB.lock().unwrap().groups);
+    let group_id = groups.len() as i32;
+    groups.insert(group_id, group);
 }
 
 pub async fn rest_group_edit_title(_rest_id: i32, group_id: i32, new_str: String) {
