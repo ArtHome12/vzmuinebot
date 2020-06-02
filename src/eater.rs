@@ -78,7 +78,7 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                             let rest_info = db::rest_info(user.id).await;
 
                             // Отображаем информацию о ресторане и добавляем кнопки меню
-                            cx.answer(format!("{}\n\nUser Id={}{}", cmd::Caterer::WELCOME_MSG, user.id, rest_info))
+                            cx.answer(format!("{}\n\nUser Id={}\n{}", cmd::Caterer::WELCOME_MSG, user.id, rest_info))
                             .reply_markup(cmd::Caterer::main_menu_markup())
                                 .send()
                                 .await?;
