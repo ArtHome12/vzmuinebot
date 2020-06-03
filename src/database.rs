@@ -220,11 +220,11 @@ impl Group {
     fn to_str(&self) -> String {
         String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime
 Удалить группу /Delete\nНовое блюдо /AddDish\nАджапсандали /EdDi1\nКиндзмараули /EdDi2\nГварцители /EdDi3",
-            self.title, self.info, id_to_category(self.cat_id), active_to_str(self.active), self.opening_time, self.closing_time))
+            self.title, self.info, id_to_category(self.cat_id), active_to_str(self.active), self.opening_time.format("%H:%M"), self.closing_time.format("%H:%M")))
     }
 
     fn to_str_short(&self) -> String {
-        String::from(format!("{} {}-{} /EdGr", self.title, self.opening_time, self.closing_time))
+        String::from(format!("{} {}-{} /EdGr", self.title, self.opening_time.format("%H:%M"), self.closing_time.format("%H:%M")))
     }
 
     fn toggle(&mut self) {
