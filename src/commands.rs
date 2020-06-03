@@ -202,6 +202,8 @@ pub enum CatGroup {
     EditCategory(i32, i32), // rest_id, group_id
     // Изменить время доступности группы
     EditTime(i32, i32), // rest_id, group_id
+    // Удалить группу
+    RemoveGroup(i32, i32), // rest_id, group_id
 }
 
 impl CatGroup {
@@ -216,6 +218,7 @@ impl CatGroup {
             "/Toggle" => CatGroup::TogglePause(rest_id, group_id),
             "/EditCat" => CatGroup::EditCategory(rest_id, group_id),
             "/EditTime" => CatGroup::EditTime(rest_id, group_id),
+            "/Remove" => CatGroup::RemoveGroup(rest_id, group_id),
             _ => {
                 // Ищем среди команд с цифровыми суффиксами - аргументами
                 /*match input.get(..5).unwrap_or_default() {

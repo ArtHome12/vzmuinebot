@@ -144,6 +144,20 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                     next(cmd::Dialogue::CatEditGroupTime(rest_id, group_id))
                 }
 
+                // Удалить группу
+                cmd::CatGroup::RemoveGroup(rest_id, group_id) => {
+                    // Запрос доп.данных не требуется, сразу удаяем, если это не основная.
+                    if group_id > 1 {
+                        db::rest_group_remove(rest_id, group_id).await;
+
+                        // Покажем изменённую информацию
+                        let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                        next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
+                    } else {
+                        next_with_cancel(cx, "Нельзя удалить основную группу и группу с блюдами").await
+                    }
+                }
+
                 cmd::CatGroup::UnknownCommand => {
                     cx.answer(format!("Неизвестная команда {}", command)).send().await?;
                     next(cmd::Dialogue::CatEditGroup(rest_id, group_id))

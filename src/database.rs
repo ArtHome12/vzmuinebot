@@ -219,7 +219,7 @@ impl Group {
 
     fn to_str(&self) -> String {
         String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime
-Удалить группу /Delete\nНовое блюдо /AddDish\nАджапсандали /EdDi1\nКиндзмараули /EdDi2\nГварцители /EdDi3",
+Удалить группу /Remove\nНовое блюдо /AddDish\nАджапсандали /EdDi1\nКиндзмараули /EdDi2\nГварцители /EdDi3",
             self.title, self.info, id_to_category(self.cat_id), active_to_str(self.active), self.opening_time.format("%H:%M"), self.closing_time.format("%H:%M")))
     }
 
@@ -283,6 +283,15 @@ pub async fn rest_group_edit_time(_rest_id: i32, group_id: i32, opening_time: Na
     if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
         group.opening_time = opening_time;
         group.closing_time = closing_time;
+    }
+}
+
+pub async fn rest_group_remove(_rest_id: i32, group_id: i32) {
+    let groups = & mut(REST_DB.lock().unwrap().groups);
+    
+    // Первую группу не удаляем
+    if group_id > 1 {
+        groups.remove(&group_id);
     }
 }
 
