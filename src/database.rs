@@ -137,8 +137,8 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
         info: String::from("Блюда подаются на тарелке"),
         active: true,
         cat_id: 1,
-        opening_time: String::from("00:00"),
-        closing_time: String::from("00:00"),
+        opening_time: NaiveTime::from_hms(0, 0, 0),
+        closing_time: NaiveTime::from_hms(0, 0, 0),
     };
 
     let group2 = Group {
@@ -146,8 +146,8 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
         info: String::from("Имеются салфетки"),
         active: true,
         cat_id: 1,
-        opening_time: String::from("07:00"),
-        closing_time: String::from("11:00"),
+        opening_time: NaiveTime::from_hms(7, 0, 0),
+        closing_time: NaiveTime::from_hms(11, 0, 0),
     };
 
     let mut map = BTreeMap::new();
@@ -211,8 +211,8 @@ struct Group {
     info: String,
     active: bool,
     cat_id: i32,
-    opening_time: String,
-    closing_time: String,    
+    opening_time: NaiveTime,
+    closing_time: NaiveTime,    
 }
 
 impl Group {
@@ -246,8 +246,8 @@ pub async fn rest_add_group(_rest_id: i32, new_str: String) {
         info: String::from("Блюда подаются на тарелке"),
         active: true,
         cat_id: 1,
-        opening_time: String::from("00:00"),
-        closing_time: String::from("00:00"),
+        opening_time: NaiveTime::from_hms(0, 0, 0),
+        closing_time: NaiveTime::from_hms(0, 0, 0),
     };
 
     let groups = & mut(REST_DB.lock().unwrap().groups);
@@ -281,8 +281,8 @@ pub async fn rest_group_edit_category(_rest_id: i32, group_id: i32, new_cat : i3
 
 pub async fn rest_group_edit_time(_rest_id: i32, group_id: i32, opening_time: NaiveTime, closing_time: NaiveTime) {
     if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
-        group.opening_time = format!("{}", opening_time);
-        group.closing_time = format!("{}", closing_time);
+        group.opening_time = opening_time;
+        group.closing_time = closing_time;
     }
 }
 

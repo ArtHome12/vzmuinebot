@@ -135,7 +135,7 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                 cmd::CatGroup::EditTime(rest_id, group_id) => {
 
                     // Отправляем приглашение ввести строку с категориями в меню для выбора
-                    cx.answer(format!("Время доступности категории (00:00-00:00 - всегда). Если блюда всех категорий доступны всё время работы заведения, можно не менять."))
+                    cx.answer(format!("Введите время доступности категории"))
                     .reply_markup(cmd::Caterer::slash_markup())
                     .send()
                     .await?;
