@@ -95,7 +95,7 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                     next(cmd::Dialogue::CatEditGroupTitle(rest_id, group_id))
                 }
 
-                // Изменение информации о ресторане
+                // Изменение информации о группе
                 cmd::CatGroup::EditInfo(rest_id, group_id) => {
 
                     // Отправляем приглашение ввести строку со слешем в меню для отмены
@@ -104,11 +104,11 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                     .send()
                     .await?;
 
-                    // Переходим в режим ввода информации о ресторане
+                    // Переходим в режим ввода информации о группе
                     next(cmd::Dialogue::CatEditGroupInfo(rest_id, group_id))
                 }
 
-                // Переключение активности ресторана
+                // Переключение активности группы
                 cmd::CatGroup::TogglePause(rest_id, group_id) => {
                     // Запрос доп.данных не требуется, сразу переключаем активность
                     db::rest_group_toggle(rest_id, group_id).await;
@@ -150,9 +150,9 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                     if group_id > 1 {
                         db::rest_group_remove(rest_id, group_id).await;
 
-                        // Покажем изменённую информацию
+                        // Группы больше нет, показываем главное меню
                         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                        next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
+                        caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id)).await
                     } else {
                         next_with_cancel(cx, "Нельзя удалить основную группу и группу с блюдами").await
                     }
