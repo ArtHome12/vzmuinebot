@@ -30,6 +30,10 @@ pub enum Dialogue {
     CatEditGroupInfo(i32, i32), // rest_id, group_id (cat_group)
     CatEditGroupCategory(i32, i32), // rest_id, group_id (cat_group)
     CatEditGroupTime(i32, i32), // rest_id, group_id (cat_group)
+    CatEditDish(i32, i32), // rest_id, dish_id (dish)
+    CatEditDishTitle(i32, i32), // rest_id, dish_id (dish)
+    CatEditDishInfo(i32, i32), // rest_id, dish_id (dish)
+    CatEditDishGroup(i32, i32), // rest_id, dish_id (dish)
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
@@ -224,6 +228,61 @@ impl CatGroup {
                 /*match input.get(..5).unwrap_or_default() {
                     "/EdGr" => Caterer::EditGroup(rest_id, input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                     _ => */CatGroup::UnknownCommand
+            }
+        }
+    }
+
+    pub fn category_markup() -> ReplyKeyboardMarkup {
+        ReplyKeyboardMarkup::default()
+            .append_row(vec![
+                KeyboardButton::new("Соки воды"),
+                KeyboardButton::new("Еда"),
+                KeyboardButton::new("Алкоголь"),
+                KeyboardButton::new("Развлечения"),
+            ])
+            .resize_keyboard(true)
+    }
+}
+
+
+// ============================================================================
+// [Restaurant dish editing menu]
+// ============================================================================
+#[derive(Copy, Clone)]
+pub enum CatDish {
+    // Команды главного меню
+    Main(i32), // rest_id
+    Exit, 
+    UnknownCommand,
+    // Изменить название
+    EditTitle(i32, i32), // rest_id, group_id
+    // Изменить описание
+    EditInfo(i32, i32), // rest_id, group_id
+    // Переключить доступность
+    TogglePause(i32, i32), // rest_id, group_id
+    // Изменить группу
+    EditGroup(i32, i32), // rest_id, group_id
+    // Удалить
+    Remove(i32, i32), // rest_id, group_id
+}
+
+impl CatDish {
+
+    pub fn from(rest_id: i32, dish_id: i32, input: &str) -> CatDish {
+        match input {
+            // Сначала проверим на цельные команды.
+            "Главная" => CatDish::Main(rest_id),
+            "Выход" => CatDish::Exit,
+            "/EditTitle" => CatDish::EditTitle(rest_id, dish_id),
+            "/EditInfo" => CatDish::EditInfo(rest_id, dish_id),
+            "/Toggle" => CatDish::TogglePause(rest_id, dish_id),
+            "/EditGroup" => CatDish::EditGroup(rest_id, dish_id),
+            "/Remove" => CatDish::Remove(rest_id, dish_id),
+            _ => {
+                // Ищем среди команд с цифровыми суффиксами - аргументами
+                /*match input.get(..5).unwrap_or_default() {
+                    "/EdGr" => Caterer::EditGroup(rest_id, input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                    _ => */CatDish::UnknownCommand
             }
         }
     }

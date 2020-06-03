@@ -27,6 +27,7 @@ mod commands;
 mod eater;
 mod caterer;
 mod cat_group;
+mod dish;
 
 use commands as cmd;
 
@@ -79,6 +80,22 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
         }
         cmd::Dialogue::CatEditGroupTime(rest_id, group_id) => {
             cat_group::edit_time_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
+                .await
+        }
+        cmd::Dialogue::CatEditDish(rest_id, dish_id) => {
+            dish::edit_dish_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, dish_id)))
+                .await
+        }
+        cmd::Dialogue::CatEditDishTitle(rest_id, dish_id) => {
+            dish::edit_title_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, dish_id)))
+                .await
+        }
+        cmd::Dialogue::CatEditDishInfo(rest_id, dish_id) => {
+            dish::edit_info_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, dish_id)))
+                .await
+        }
+        cmd::Dialogue::CatEditDishGroup(rest_id, dish_id) => {
+            dish::edit_dish_group_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, dish_id)))
                 .await
         }
     }

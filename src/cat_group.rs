@@ -162,10 +162,6 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                     cx.answer(format!("Неизвестная команда {}", command)).send().await?;
                     next(cmd::Dialogue::CatEditGroup(rest_id, group_id))
                 }
-/*                _ => {
-                    cx.answer(format!("В разработке")).send().await?;
-                    next(cmd::Dialogue::CatererMode)
-                }*/
             }
         }
     }

@@ -164,8 +164,6 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
 });
 
 
-//pub static REST_DB: OnceCell<Mutex<Restaurant>> = OnceCell::new();
-
 impl Restaurant {
     fn to_str(&self) -> String {
         // Информация о ресторане
@@ -293,5 +291,35 @@ pub async fn rest_group_remove(_rest_id: i32, group_id: i32) {
     if group_id > 1 {
         groups.remove(&group_id);
     }
+}
+
+
+//
+// Dish
+//
+pub async fn dish_info(_rest_id: i32, dish_id: i32) -> String {
+    String::from("")
+}
+
+pub async fn dish_group(_rest_id: i32, dish_id: i32) -> i32 {
+    0
+}
+
+pub async fn rest_add_dish(_rest_id: i32, new_str: String) {
+}
+
+pub async fn rest_dish_edit_title(_rest_id: i32, _dish_id: i32, _new_str: String) {
+}
+
+pub async fn rest_dish_edit_info(_rest_id: i32, _dish_id: i32, _new_str: String) {
+}
+
+pub async fn rest_dish_toggle(_rest_id: i32, _dish_id: i32) {
+}
+
+pub async fn rest_dish_edit_group(_rest_id: i32, _dish_id: i32, _new_cat : i32) {
+}
+
+pub async fn rest_dish_remove(_rest_id: i32, _dish_id: i32) {
 }
 
