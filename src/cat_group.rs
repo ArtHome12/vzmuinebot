@@ -7,6 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
+use chrono::{NaiveTime};
 use teloxide::{
     prelude::*, 
 };
@@ -238,7 +239,7 @@ pub async fn edit_category_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
     }
 }
 
-// Изменение описания группы rest_id, group_id
+// Изменение времени доступности группы rest_id, group_id
 //
 pub async fn edit_time_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
     if let Some(text) = cx.update.text() {
@@ -247,18 +248,31 @@ pub async fn edit_time_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
         // Если строка не пустая, продолжим
         if !s.is_empty() {
-            // Извлечём параметры
-            let (rest_id, group_id) = cx.dialogue;
+
+            // Получим первое и второе время в виде куска строки
+            let part1 = s.get(..5).unwrap_or_default();
+            let part2 = s.get(6..).unwrap_or_default();
         
-            // Сохраним новое значение в БД
-            db::rest_group_edit_info(rest_id, group_id, s).await;
+            // Попытаемся преобразовать их во время
+            if let Ok(opening_time) = NaiveTime::parse_from_str(part1, "%H:%M") {
+                if let Ok(closing_time) = NaiveTime::parse_from_str(part2, "%H:%M") {
 
-            // Покажем изменённую информацию о группе
-            next_with_info(cx).await
+                    // Извлечём параметры
+                    let (rest_id, group_id) = cx.dialogue;
+                
+                    // Сохраним новое значение в БД
+                    db::rest_group_edit_time(rest_id, group_id, opening_time, closing_time).await;
 
+                    // Покажем изменённую информацию о группе
+                    return next_with_info(cx).await;
+                }
+            }
+        
+            // Сообщим об ошибке
+            next_with_cancel(cx, "Ошибка распознавания, д.б. ЧЧ:ММ-ЧЧ-ММ").await
         } else {
             // Сообщим об отмене
-            next_with_cancel(cx, "Ошибка формата, д.б. ЧЧ:ММ-ЧЧ-ММ. Отмена").await
+            next_with_cancel(cx, "Отмена").await
         }
     } else {
         next(cmd::Dialogue::CatererMode)

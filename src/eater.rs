@@ -7,6 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
+use chrono::{Utc, FixedOffset};
 use teloxide::{
     prelude::*, 
 };
@@ -44,7 +45,6 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                         .send().await?;
                 }
                 cmd::User::OpenedNow => {
-                    use chrono::{Utc, FixedOffset};
                     let our_timezone = FixedOffset::east(7 * 3600);
                     let now = Utc::now().with_timezone(&our_timezone).format("%H:%M");
                     cx.answer(format!("Рестораны, открытые сейчас ({})\nКоманда в разработке", now)).send().await?;

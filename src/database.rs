@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-extern crate once_cell;
+use chrono::{NaiveTime};
 
 use once_cell::sync::{OnceCell};
 use std::collections::{HashMap, BTreeMap};
@@ -276,6 +276,13 @@ pub async fn rest_group_toggle(_rest_id: i32, group_id: i32) {
 pub async fn rest_group_edit_category(_rest_id: i32, group_id: i32, new_cat : i32) {
     if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
         group.cat_id = new_cat;
+    }
+}
+
+pub async fn rest_group_edit_time(_rest_id: i32, group_id: i32, opening_time: NaiveTime, closing_time: NaiveTime) {
+    if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
+        group.opening_time = format!("{}", opening_time);
+        group.closing_time = format!("{}", closing_time);
     }
 }
 
