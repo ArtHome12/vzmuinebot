@@ -10,7 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 extern crate once_cell;
 
 use once_cell::sync::{OnceCell};
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 use teloxide::types::InputFile;
 
 
@@ -123,7 +123,7 @@ struct Restaurant {
     title: String,
     info: String,
     active: bool,
-    groups: HashMap<i32, Group>
+    groups: BTreeMap<i32, Group>
 }
 
 use once_cell::sync::Lazy;
@@ -150,7 +150,7 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
         closing_time: String::from("11:00"),
     };
 
-    let mut map = HashMap::new();
+    let mut map = BTreeMap::new();
     map.insert(1, group1);
     map.insert(2, group2);
     

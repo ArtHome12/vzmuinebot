@@ -29,6 +29,7 @@ pub enum Dialogue {
     CatEditGroupTitle(i32, i32), // rest_id, group_id (cat_group)
     CatEditGroupInfo(i32, i32), // rest_id, group_id (cat_group)
     CatEditGroupCategory(i32, i32), // rest_id, group_id (cat_group)
+    CatEditGroupTime(i32, i32), // rest_id, group_id (cat_group)
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
@@ -199,6 +200,8 @@ pub enum CatGroup {
     TogglePause(i32, i32), // rest_id, group_id
     // Изменить категорию группы
     EditCategory(i32, i32), // rest_id, group_id
+    // Изменить время доступности группы
+    EditTime(i32, i32), // rest_id, group_id
 }
 
 impl CatGroup {
@@ -212,6 +215,7 @@ impl CatGroup {
             "/EditInfo" => CatGroup::EditInfo(rest_id, group_id),
             "/Toggle" => CatGroup::TogglePause(rest_id, group_id),
             "/EditCat" => CatGroup::EditCategory(rest_id, group_id),
+            "/EditTime" => CatGroup::EditTime(rest_id, group_id),
             _ => {
                 // Ищем среди команд с цифровыми суффиксами - аргументами
                 /*match input.get(..5).unwrap_or_default() {

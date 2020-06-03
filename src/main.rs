@@ -77,7 +77,10 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
             cat_group::edit_category_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
                 .await
         }
-        
+        cmd::Dialogue::CatEditGroupTime(rest_id, group_id) => {
+            cat_group::edit_time_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
+                .await
+        }
     }
 }
 

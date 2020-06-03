@@ -37,8 +37,8 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
     next(cmd::Dialogue::CatEditGroup(rest_id, group_id))
 }
 
-async fn next_with_cancel(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
-    cx.answer(format!("Отмена"))
+async fn next_with_cancel(cx: cmd::Cx<(i32, i32)>, text: &str) -> cmd::Res {
+    cx.answer(text)
     .reply_markup(cmd::Caterer::main_menu_markup())
     .send()
     .await?;
@@ -130,6 +130,18 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                     next(cmd::Dialogue::CatEditGroupCategory(rest_id, group_id))
                 }
 
+                // Изменить время
+                cmd::CatGroup::EditTime(rest_id, group_id) => {
+
+                    // Отправляем приглашение ввести строку с категориями в меню для выбора
+                    cx.answer(format!("Время доступности категории (00:00-00:00 - всегда). Если блюда всех категорий доступны всё время работы заведения, можно не менять."))
+                    .reply_markup(cmd::Caterer::slash_markup())
+                    .send()
+                    .await?;
+
+                    // Переходим в режим ввода времени
+                    next(cmd::Dialogue::CatEditGroupTime(rest_id, group_id))
+                }
 
                 cmd::CatGroup::UnknownCommand => {
                     cx.answer(format!("Неизвестная команда {}", command)).send().await?;
@@ -165,7 +177,7 @@ pub async fn edit_title_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
         } else {
             // Сообщим об отмене
-            next_with_cancel(cx).await
+            next_with_cancel(cx, "Отмена").await
         }
     } else {
         next(cmd::Dialogue::CatererMode)
@@ -192,7 +204,7 @@ pub async fn edit_info_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
         } else {
             // Сообщим об отмене
-            next_with_cancel(cx).await
+            next_with_cancel(cx, "Отмена").await
         }
     } else {
         next(cmd::Dialogue::CatererMode)
@@ -219,7 +231,34 @@ pub async fn edit_category_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
         } else {
             // Сообщим об отмене
-            next_with_cancel(cx).await
+            next_with_cancel(cx, "Неизвестная категория, отмена").await
+        }
+    } else {
+        next(cmd::Dialogue::CatererMode)
+    }
+}
+
+// Изменение описания группы rest_id, group_id
+//
+pub async fn edit_time_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
+    if let Some(text) = cx.update.text() {
+        // Удалим из строки слеши
+        let s = cmd::remove_slash(text).await;
+
+        // Если строка не пустая, продолжим
+        if !s.is_empty() {
+            // Извлечём параметры
+            let (rest_id, group_id) = cx.dialogue;
+        
+            // Сохраним новое значение в БД
+            db::rest_group_edit_info(rest_id, group_id, s).await;
+
+            // Покажем изменённую информацию о группе
+            next_with_info(cx).await
+
+        } else {
+            // Сообщим об отмене
+            next_with_cancel(cx, "Ошибка формата, д.б. ЧЧ:ММ-ЧЧ-ММ. Отмена").await
         }
     } else {
         next(cmd::Dialogue::CatererMode)
