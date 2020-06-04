@@ -182,7 +182,7 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                 // Ошибочная команда
                 cmd::CatGroup::UnknownCommand => {
                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                    next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)), "Неизвестная команда").await
+                    next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)), "Вы в меню группы: неизвестная команда").await
                 }
             }
         }

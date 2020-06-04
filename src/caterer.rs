@@ -36,8 +36,8 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
     next(cmd::Dialogue::CatererMode)
 }
 
-async fn next_with_cancel(cx: cmd::Cx<i32>) -> cmd::Res {
-    cx.answer(format!("Отмена"))
+async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
+    cx.answer(text)
     .reply_markup(cmd::Caterer::main_menu_markup())
     .send()
     .await?;
@@ -130,13 +130,9 @@ pub async fn caterer_mode(cx: cmd::Cx<()>) -> cmd::Res {
                 }
 
                 cmd::Caterer::UnknownCommand => {
-                    cx.answer(format!("Неизвестная команда {}", command)).send().await?;
-                    next(cmd::Dialogue::CatererMode)
+                    let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                    next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), "Вы в главном меню: неизвестная команда").await
                 }
-/*                _ => {
-                    cx.answer(format!("В разработке")).send().await?;
-                    next(cmd::Dialogue::CatererMode)
-                }*/
             }
         }
     }
@@ -162,7 +158,7 @@ pub async fn edit_rest_title_mode(cx: cmd::Cx<i32>) -> cmd::Res {
 
         } else {
             // Сообщим об отмене
-            next_with_cancel(cx).await
+            next_with_cancel(cx, "Отмена").await
         }
     } else {
         next(cmd::Dialogue::CatererMode)
@@ -189,7 +185,7 @@ pub async fn edit_rest_info_mode(cx: cmd::Cx<i32>) -> cmd::Res {
 
         } else {
             // Сообщим об отмене
-            next_with_cancel(cx).await
+            next_with_cancel(cx, "Отмена").await
         }
     } else {
         next(cmd::Dialogue::CatererMode)
@@ -215,7 +211,7 @@ pub async fn add_rest_group(cx: cmd::Cx<i32>) -> cmd::Res {
 
         } else {
             // Сообщим об отмене
-            next_with_cancel(cx).await
+            next_with_cancel(cx, "Отмена").await
         }
     } else {
         next(cmd::Dialogue::CatererMode)

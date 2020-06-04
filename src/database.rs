@@ -169,7 +169,7 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
         title: String::from("Чай"),
         info: String::from("Без сахара в маленькой чашке"),
         active: true,
-        group_id: 1,
+        group_id: 2,
         price: 0,
     };
 
@@ -177,7 +177,7 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
         title: String::from("Основная"),
         info: String::from("Блюда подаются на тарелке"),
         active: true,
-        cat_id: 1,
+        cat_id: 2,
         opening_time: NaiveTime::from_hms(0, 0, 0),
         closing_time: NaiveTime::from_hms(0, 0, 0),
     };
@@ -421,13 +421,19 @@ pub async fn rest_dish_toggle(_rest_id: i32, dish_id: i32) {
     }
 }
 
-pub async fn rest_dish_edit_group(_rest_id: i32, dish_id: i32, new_group_id : i32) -> bool {
-    if let Some(dish) = REST_DB.lock().unwrap().dishes.get_mut(&dish_id) {
-        dish.group_id = new_group_id;
-        true
-    } else {
-        false
+pub async fn rest_dish_edit_group(_rest_id: i32, dish_id: i32, group_id : i32) -> bool {
+    // Ресторан
+    let mut rest = REST_DB.lock().unwrap();
+
+    // Проверим, есть ли такая группа
+    if rest.groups.get(&group_id).is_some() {
+        // Обновим код группы у блюда
+        if let Some(dish) = rest.dishes.get_mut(&dish_id) {
+            dish.group_id = group_id;
+            return true;
+        }
     }
+        false
 }
 
 pub async fn rest_dish_remove(_rest_id: i32, dish_id: i32) {
