@@ -30,6 +30,7 @@ pub enum Dialogue {
     CatEditGroupInfo(i32, i32), // rest_id, group_id (cat_group)
     CatEditGroupCategory(i32, i32), // rest_id, group_id (cat_group)
     CatEditGroupTime(i32, i32), // rest_id, group_id (cat_group)
+    CatAddDish(i32, i32), // rest_id, dish_id (cat_group)
     CatEditDish(i32, i32), // rest_id, dish_id (dish)
     CatEditDishTitle(i32, i32), // rest_id, dish_id (dish)
     CatEditDishInfo(i32, i32), // rest_id, dish_id (dish)
@@ -208,6 +209,8 @@ pub enum CatGroup {
     EditTime(i32, i32), // rest_id, group_id
     // Удалить группу
     RemoveGroup(i32, i32), // rest_id, group_id
+    // Добавление нового блюда
+    AddDish(i32, i32), // rest_id, group_id
 }
 
 impl CatGroup {
@@ -223,6 +226,7 @@ impl CatGroup {
             "/EditCat" => CatGroup::EditCategory(rest_id, group_id),
             "/EditTime" => CatGroup::EditTime(rest_id, group_id),
             "/Remove" => CatGroup::RemoveGroup(rest_id, group_id),
+            "/AddDish" => CatGroup::AddDish(rest_id, group_id),
             _ => {
                 // Ищем среди команд с цифровыми суффиксами - аргументами
                 /*match input.get(..5).unwrap_or_default() {

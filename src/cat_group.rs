@@ -158,6 +158,19 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                     }
                 }
 
+                // Добавление нового блюда
+                cmd::CatGroup::AddDish(rest_id, group_id) => {
+
+                    // Отправляем приглашение ввести строку со слешем в меню для отмены
+                    cx.answer(format!("Введите название блюда"))
+                    .reply_markup(cmd::Caterer::slash_markup())
+                    .send()
+                    .await?;
+
+                    // Переходим в режим ввода названия блюда
+                    next(cmd::Dialogue::CatAddDish(rest_id, group_id))
+                }
+
                 cmd::CatGroup::UnknownCommand => {
                     cx.answer(format!("Неизвестная команда {}", command)).send().await?;
                     next(cmd::Dialogue::CatEditGroup(rest_id, group_id))
@@ -289,4 +302,31 @@ pub async fn edit_time_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
     }
 }
 
+
+// Добавление нового блюда
+//
+pub async fn add_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
+    if let Some(text) = cx.update.text() {
+        // Удалим из строки слеши
+        let s = cmd::remove_slash(text).await;
+
+        // Если строка не пустая, продолжим
+        if !s.is_empty() {
+            // Извлечём параметры
+            let (rest_id, group_id) = cx.dialogue;
+        
+            // Сохраним новое значение в БД
+            db::rest_add_dish(rest_id, group_id, s).await;
+
+            // Покажем изменённую информацию о группе
+            next_with_info(cx).await
+
+        } else {
+            // Сообщим об отмене
+            next_with_cancel(cx, "Отмена").await
+        }
+    } else {
+        next(cmd::Dialogue::CatererMode)
+    }
+}
 

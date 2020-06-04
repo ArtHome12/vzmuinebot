@@ -372,7 +372,7 @@ impl Dish {
     }
 
     fn to_str_short(&self) -> String {
-        String::from(format!("{} {}k₫ /EdDi", self.title, self.price))
+        String::from(format!("{} {}k₫", self.title, self.price))
     }
 
     fn toggle(&mut self) {
@@ -388,12 +388,12 @@ pub async fn dish_info(_rest_id: i32, dish_id: i32) -> String {
     }
 }
 
-pub async fn rest_add_dish(_rest_id: i32, new_str: String) {
+pub async fn rest_add_dish(_rest_id: i32, group_id: i32, new_str: String) {
     let dish = Dish {
         title: new_str,
         info: String::from("Порция 100гр."),
         active: true,
-        group_id: 1,
+        group_id,
         price: 0,
     };
 
