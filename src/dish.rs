@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
     prelude::*,
-    types::{InputFile},
+    types::{InputFile, ReplyMarkup},
 };
 
 use crate::commands as cmd;
@@ -37,7 +37,7 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
         // Отправляем картинку и текст как комментарий
         cx.answer_photo(image)
         .caption(dish_info)
-//        .reply_markup(cmd::Caterer::main_menu_markup())
+        .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
         .send()
         .await?;
     } else {
@@ -161,7 +161,7 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                 cmd::CatDish::EditImage(rest_id, dish_id) => {
 
                     // Отправляем приглашение ввести строку с категориями в меню для выбора
-                    cx.answer(format!("Загрузите или перешлите с другого чата телеграм картинку"))
+                    cx.answer(format!("Загрузите картинку"))
                     .reply_markup(cmd::CatGroup::category_markup())
                     .send()
                     .await?;
