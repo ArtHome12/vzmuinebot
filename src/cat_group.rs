@@ -179,9 +179,10 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                     dish::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
                 }
 
+                // Ошибочная команда
                 cmd::CatGroup::UnknownCommand => {
-                    cx.answer(format!("Неизвестная команда {}", command)).send().await?;
-                    next(cmd::Dialogue::CatEditGroup(rest_id, group_id))
+                    let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                    next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)), "Неизвестная команда").await
                 }
             }
         }
