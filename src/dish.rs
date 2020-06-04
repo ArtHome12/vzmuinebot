@@ -136,7 +136,7 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
                     // Отправляем приглашение ввести строку с категориями в меню для выбора
                     cx.answer(format!("Введите номер группы"))
-                    .reply_markup(cmd::CatGroup::category_markup())
+                    .reply_markup(cmd::Caterer::main_menu_markup())
                     .send()
                     .await?;
 
@@ -149,7 +149,7 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
                     // Отправляем приглашение ввести строку с категориями в меню для выбора
                     cx.answer(format!("Введите сумму в тыс. донгов"))
-                    .reply_markup(cmd::CatGroup::category_markup())
+                    .reply_markup(cmd::Caterer::main_menu_markup())
                     .send()
                     .await?;
 
@@ -162,7 +162,7 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
                     // Отправляем приглашение ввести строку с категориями в меню для выбора
                     cx.answer(format!("Загрузите картинку"))
-                    .reply_markup(cmd::CatGroup::category_markup())
+                    .reply_markup(cmd::Caterer::main_menu_markup())
                     .send()
                     .await?;
 
