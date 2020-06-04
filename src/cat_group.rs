@@ -17,7 +17,7 @@ use crate::commands as cmd;
 use crate::database as db;
 use crate::eater;
 use crate::caterer;
-
+use crate::dish;
 
 // Показывает информацию о группе 
 //
@@ -174,8 +174,9 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                  // Редактирование блюда
                  cmd::CatGroup::EditDish(rest_id, group_id) => {
 
-                    // Переходим в режим редактирования блюда
-                    next(cmd::Dialogue::CatEditDish(rest_id, group_id))
+                    // Отображаем информацию о блюде и переходим в режим её редактирования
+                    let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                    dish::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
                 }
 
                 cmd::CatGroup::UnknownCommand => {
