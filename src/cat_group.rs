@@ -162,13 +162,20 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                 cmd::CatGroup::AddDish(rest_id, group_id) => {
 
                     // Отправляем приглашение ввести строку со слешем в меню для отмены
-                    cx.answer(format!("Введите название блюда"))
+                    cx.answer(format!("Введите название блюда (/ для отмены)"))
                     .reply_markup(cmd::Caterer::slash_markup())
                     .send()
                     .await?;
 
                     // Переходим в режим ввода названия блюда
                     next(cmd::Dialogue::CatAddDish(rest_id, group_id))
+                }
+
+                 // Редактирование блюда
+                 cmd::CatGroup::EditDish(rest_id, group_id) => {
+
+                    // Переходим в режим редактирования блюда
+                    next(cmd::Dialogue::CatEditDish(rest_id, group_id))
                 }
 
                 cmd::CatGroup::UnknownCommand => {

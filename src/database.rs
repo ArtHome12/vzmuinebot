@@ -289,7 +289,7 @@ pub async fn group_info(_rest_id: i32, group_id: i32) -> String {
 
         // Добавим информацию о блюдах
         for (key, value) in &rest.dishes {
-            s.push_str(&format!("   {} EdDi{}\n", value.to_str_short(), key));
+            s.push_str(&format!("   {} /EdDi{}\n", value.to_str_short(), key));
         };
         s
     } else {

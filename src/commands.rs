@@ -211,6 +211,8 @@ pub enum CatGroup {
     RemoveGroup(i32, i32), // rest_id, group_id
     // Добавление нового блюда
     AddDish(i32, i32), // rest_id, group_id
+    // Редактирование блюда
+    EditDish(i32, i32), // rest_id, group_id
 }
 
 impl CatGroup {
@@ -229,9 +231,10 @@ impl CatGroup {
             "/AddDish" => CatGroup::AddDish(rest_id, group_id),
             _ => {
                 // Ищем среди команд с цифровыми суффиксами - аргументами
-                /*match input.get(..5).unwrap_or_default() {
-                    "/EdGr" => Caterer::EditGroup(rest_id, input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
-                    _ => */CatGroup::UnknownCommand
+                match input.get(..5).unwrap_or_default() {
+                    "/EdDi" => CatGroup::EditDish(rest_id, input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                    _ => CatGroup::UnknownCommand,
+                }
             }
         }
     }
@@ -282,12 +285,7 @@ impl CatDish {
             "/Toggle" => CatDish::TogglePause(rest_id, dish_id),
             "/EditGroup" => CatDish::EditGroup(rest_id, dish_id),
             "/Remove" => CatDish::Remove(rest_id, dish_id),
-            _ => {
-                // Ищем среди команд с цифровыми суффиксами - аргументами
-                /*match input.get(..5).unwrap_or_default() {
-                    "/EdGr" => Caterer::EditGroup(rest_id, input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
-                    _ => */CatDish::UnknownCommand
-            }
+            _ => CatDish::UnknownCommand,
         }
     }
 }
