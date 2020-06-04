@@ -286,15 +286,4 @@ impl CatDish {
             }
         }
     }
-
-    pub fn category_markup() -> ReplyKeyboardMarkup {
-        ReplyKeyboardMarkup::default()
-            .append_row(vec![
-                KeyboardButton::new("Соки воды"),
-                KeyboardButton::new("Еда"),
-                KeyboardButton::new("Алкоголь"),
-                KeyboardButton::new("Развлечения"),
-            ])
-            .resize_keyboard(true)
-    }
 }

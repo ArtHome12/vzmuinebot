@@ -120,7 +120,7 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                 cmd::CatDish::EditGroup(rest_id, dish_id) => {
 
                     // Отправляем приглашение ввести строку с категориями в меню для выбора
-                    cx.answer(format!("Выберите группу"))
+                    cx.answer(format!("Введите номер группы"))
                     .reply_markup(cmd::CatGroup::category_markup())
                     .send()
                     .await?;
@@ -136,7 +136,7 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                     let group_id = db::dish_group(rest_id, dish_id).await;
                     
                     // Удаяем
-                    db::rest_group_remove(rest_id, dish_id).await;
+                    db::rest_dish_remove(rest_id, dish_id).await;
 
                     // Блюда больше нет, показываем меню группы
                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
@@ -209,29 +209,30 @@ pub async fn edit_info_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
 // Изменение группы блюда rest_id, dish_id
 //
-pub async fn edit_dish_group_mode(_cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
-/*    if let Some(text) = cx.update.text() {
+pub async fn edit_dish_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
+    if let Some(text) = cx.update.text() {
         // Попытаемся преобразовать ответ пользователя в код группы
-        let group_id = db::category_to_id(text);
+        let group_id = text.parse::<i32>().unwrap_or_default();
 
-        // Если категория не пустая, продолжим
-        if cat_id > 0 {
+        // Если группа не пустая, продолжим
+        if group_id > 0 {
             // Извлечём параметры
-            let (rest_id, group_id) = cx.dialogue;
+            let (rest_id, dish_id) = cx.dialogue;
         
             // Сохраним новое значение в БД
-            db::rest_group_edit_category(rest_id, group_id, cat_id).await;
-
-            // Покажем изменённую информацию о группе
-            next_with_info(cx).await
-
+            if db::rest_dish_edit_group(rest_id, dish_id, group_id).await {
+                // Покажем изменённую информацию о группе
+                next_with_info(cx).await
+            } else {
+                // Сообщим об ошибке
+                next_with_cancel(cx, "Группы с таким кодом нет, отмена").await
+            }
         } else {
-            // Сообщим об отмене
-            next_with_cancel(cx, "Неизвестная категория, отмена").await
+            // Сообщим об ошибке
+            next_with_cancel(cx, "Должно быть число 1 или больше, отмена").await
         }
     } else {
         next(cmd::Dialogue::CatererMode)
-    }*/
-    next(cmd::Dialogue::CatererMode)
+    }
 }
 
