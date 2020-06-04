@@ -450,3 +450,9 @@ pub async fn dish_group(_rest_id: i32, dish_id: i32) -> i32 {
     }
 }
 
+pub async fn rest_dish_edit_price(_rest_id: i32, dish_id: i32, price: u32) {
+    if let Some(dish) = REST_DB.lock().unwrap().dishes.get_mut(&dish_id) {
+        dish.price = price;
+    }
+}
+

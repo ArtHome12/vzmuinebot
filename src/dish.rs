@@ -129,6 +129,19 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                     next(cmd::Dialogue::CatEditDishGroup(rest_id, dish_id))
                 }
 
+                // Изменить цену блюда
+                cmd::CatDish::EditPrice(rest_id, dish_id) => {
+
+                    // Отправляем приглашение ввести строку с категориями в меню для выбора
+                    cx.answer(format!("Введите сумму в тыс. донгов"))
+                    .reply_markup(cmd::CatGroup::category_markup())
+                    .send()
+                    .await?;
+
+                    // Переходим в режим ввода информации о блюде
+                    next(cmd::Dialogue::CatEditDishPrice(rest_id, dish_id))
+                }
+
                 // Удалить блюдо
                 cmd::CatDish::Remove(rest_id, dish_id) => {
 
@@ -170,15 +183,11 @@ pub async fn edit_title_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             db::rest_dish_edit_title(rest_id, dish_id, s).await;
 
             // Покажем изменённую информацию о группе
-            next_with_info(cx).await
-
-        } else {
-            // Сообщим об отмене
-            next_with_cancel(cx, "Отмена").await
+            return next_with_info(cx).await;
         }
-    } else {
-        next(cmd::Dialogue::CatererMode)
-    }
+    } 
+    // Сообщим об отмене
+    next_with_cancel(cx, "Отмена").await
 }
 
 // Изменение описания rest_id, dish_id
@@ -197,15 +206,11 @@ pub async fn edit_info_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             db::rest_dish_edit_info(rest_id, dish_id, s).await;
 
             // Покажем изменённую информацию о группе
-            next_with_info(cx).await
-
-        } else {
-            // Сообщим об отмене
-            next_with_cancel(cx, "Отмена").await
+            return next_with_info(cx).await;
         }
-    } else {
-        next(cmd::Dialogue::CatererMode)
-    }
+    } 
+    // Сообщим об отмене
+    next_with_cancel(cx, "Отмена").await
 }
 
 // Изменение группы блюда rest_id, dish_id
@@ -233,7 +238,24 @@ pub async fn edit_dish_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             next_with_cancel(cx, "Должно быть число 1 или больше, отмена").await
         }
     } else {
-        next(cmd::Dialogue::CatererMode)
+        next_with_cancel(cx, "Ошибка, отмена").await
     }
+}
+
+// Изменение цены rest_id, dish_id
+//
+pub async fn edit_price_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
+    if let Some(text) = cx.update.text() {
+        // Попытаемся преобразовать ответ пользователя в число
+        let price = text.parse::<u32>().unwrap_or_default();
+
+        // Извлечём параметры
+        let (rest_id, dish_id) = cx.dialogue;
+        
+        // Сохраним новое значение в БД
+        db::rest_dish_edit_price(rest_id, dish_id, price).await;
+    }
+        // Покажем изменённую информацию о группе
+        next_with_info(cx).await
 }
 
