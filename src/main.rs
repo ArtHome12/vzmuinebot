@@ -106,6 +106,10 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
             dish::edit_price_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, dish_id)))
                 .await
         }
+        cmd::Dialogue::CatEditDishImage(rest_id, dish_id) => {
+            dish::edit_image_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, dish_id)))
+                .await
+        }
     }
 }
 

@@ -139,6 +139,7 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
         active: true,
         group_id: 1,
         price: 0,
+        image_id: Option::None,
     };
 
     let dish2 = Dish {
@@ -147,6 +148,7 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
         active: true,
         group_id: 1,
         price: 0,
+        image_id: Option::None,
     };
 
     let dish3 = Dish {
@@ -155,6 +157,7 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
         active: true,
         group_id: 1,
         price: 0,
+        image_id: Option::None,
     };
 
     let dish4 = Dish {
@@ -163,6 +166,7 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
         active: true,
         group_id: 1,
         price: 0,
+        image_id: Option::None,
     };
 
     let dish5 = Dish {
@@ -171,6 +175,7 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
         active: true,
         group_id: 2,
         price: 0,
+        image_id: Option::None,
     };
 
     let group1 = Group {
@@ -363,12 +368,13 @@ struct Dish {
     active: bool,
     group_id: i32,
     price: u32,
+    image_id: Option::<String>,
 }
 
 impl Dish {
 
     fn to_str(&self) -> String {
-        String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nГруппа: {} /EditGroup\nСтатус: {} /Toggle\nЦена: {} /EditPrice\nУдалить блюдо /Remove",
+        String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nГруппа: {} /EditGroup\nСтатус: {} /Toggle\nЦена: {} /EditPrice\nЗагрузить фото /EditImg\nУдалить блюдо /Remove",
             self.title, self.info, self.group_id, active_to_str(self.active), self.price))
     }
 
@@ -396,6 +402,7 @@ pub async fn rest_add_dish(_rest_id: i32, group_id: i32, new_str: String) {
         active: true,
         group_id,
         price: 0,
+        image_id: Option::None,
     };
 
     let dishes = & mut(REST_DB.lock().unwrap().dishes);
@@ -453,6 +460,19 @@ pub async fn dish_group(_rest_id: i32, dish_id: i32) -> i32 {
 pub async fn rest_dish_edit_price(_rest_id: i32, dish_id: i32, price: u32) {
     if let Some(dish) = REST_DB.lock().unwrap().dishes.get_mut(&dish_id) {
         dish.price = price;
+    }
+}
+
+pub async fn rest_dish_edit_image(_rest_id: i32, dish_id: i32, image_id: &String) {
+    if let Some(dish) = REST_DB.lock().unwrap().dishes.get_mut(&dish_id) {
+        dish.image_id = Option::Some(image_id.to_string());
+    }
+}
+
+pub async fn dish_image(_rest_id: i32, dish_id: i32) -> Option::<String> {
+    match REST_DB.lock().unwrap().dishes.get_mut(&dish_id) {
+        Some(dish) => dish.image_id.clone(),
+        _ => None,
     }
 }
 

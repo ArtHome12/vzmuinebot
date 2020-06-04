@@ -36,6 +36,7 @@ pub enum Dialogue {
     CatEditDishInfo(i32, i32), // rest_id, dish_id (dish)
     CatEditDishGroup(i32, i32), // rest_id, dish_id (dish)
     CatEditDishPrice(i32, i32), // rest_id, dish_id (dish)
+    CatEditDishImage(i32, i32), // rest_id, dish_id (dish)
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
@@ -272,6 +273,8 @@ pub enum CatDish {
     EditGroup(i32, i32), // rest_id, group_id
     // Изменить цену
     EditPrice(i32, i32), // rest_id, group_id
+    // Изменить цену
+    EditImage(i32, i32), // rest_id, group_id
     // Удалить
     Remove(i32, i32), // rest_id, group_id
 }
@@ -288,6 +291,7 @@ impl CatDish {
             "/Toggle" => CatDish::TogglePause(rest_id, dish_id),
             "/EditGroup" => CatDish::EditGroup(rest_id, dish_id),
             "/EditPrice" => CatDish::EditPrice(rest_id, dish_id),
+            "/EditImg" => CatDish::EditImage(rest_id, dish_id),
             "/Remove" => CatDish::Remove(rest_id, dish_id),
             _ => CatDish::UnknownCommand,
         }

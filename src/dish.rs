@@ -8,7 +8,8 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide::{
-    prelude::*, 
+    prelude::*,
+    types::{InputFile},
 };
 
 use crate::commands as cmd;
@@ -24,13 +25,27 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
     let (rest_id, dish_id) = cx.dialogue;
     
     // Запрос к БД с информацией о блюде
-    let dish_info = db::dish_info(rest_id, dish_id).await;
+    let dish_info = format!("\n{}", db::dish_info(rest_id, dish_id).await);
+    let dish_image_id = db::dish_image(rest_id, dish_id).await;
 
-    // Отображаем информацию о группе и оставляем кнопки главного меню
-    cx.answer(format!("\n{}", dish_info))
-    .reply_markup(cmd::Caterer::main_menu_markup())
+
+    // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
+    if let Some(image_id) = dish_image_id {
+        // Создадим графический объект
+        let image = InputFile::file_id(image_id);
+
+        // Отправляем картинку и текст как комментарий
+        cx.answer_photo(image)
+        .caption(dish_info)
+//        .reply_markup(cmd::Caterer::main_menu_markup())
         .send()
         .await?;
+    } else {
+        cx.answer(dish_info)
+        .reply_markup(cmd::Caterer::main_menu_markup())
+        .send()
+        .await?;
+    }
 
     // Переходим (остаёмся) в режим редактирования блюда
     next(cmd::Dialogue::CatEditDish(rest_id, dish_id))
@@ -140,6 +155,19 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
                     // Переходим в режим ввода информации о блюде
                     next(cmd::Dialogue::CatEditDishPrice(rest_id, dish_id))
+                }
+
+                // Изменить картинку
+                cmd::CatDish::EditImage(rest_id, dish_id) => {
+
+                    // Отправляем приглашение ввести строку с категориями в меню для выбора
+                    cx.answer(format!("Загрузите или перешлите с другого чата телеграм картинку"))
+                    .reply_markup(cmd::CatGroup::category_markup())
+                    .send()
+                    .await?;
+
+                    // Переходим в режим ввода информации о блюде
+                    next(cmd::Dialogue::CatEditDishImage(rest_id, dish_id))
                 }
 
                 // Удалить блюдо
@@ -255,7 +283,24 @@ pub async fn edit_price_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
         // Сохраним новое значение в БД
         db::rest_dish_edit_price(rest_id, dish_id, price).await;
     }
-        // Покажем изменённую информацию о группе
-        next_with_info(cx).await
+    // Покажем изменённую информацию о группе
+    next_with_info(cx).await
+}
+
+// Изменение картинки
+//
+pub async fn edit_image_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
+    if let Some(photo_size) = cx.update.photo() {
+        // Попытаемся преобразовать ответ пользователя в число
+        let image = &photo_size[0].file_id;
+
+        // Извлечём параметры
+        let (rest_id, dish_id) = cx.dialogue;
+        
+        // Сохраним новое значение в БД
+        db::rest_dish_edit_image(rest_id, dish_id, image).await;
+    }
+    // Покажем изменённую информацию о группе
+    next_with_info(cx).await
 }
 
