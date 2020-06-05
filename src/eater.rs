@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use chrono::{Utc, FixedOffset};
 use teloxide::{
-    prelude::*, 
+    prelude::*,
 };
 
 
