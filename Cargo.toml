@@ -24,5 +24,8 @@ parse-display = "0.1.2"
 enum-utils = "*"
 chrono = "*"
 
-# Для database.rs
+# Database
 once_cell = "*"
+diesel = { version = "1.4.4", features = ["postgres"] }
+dotenv = "0.15.0"
+
