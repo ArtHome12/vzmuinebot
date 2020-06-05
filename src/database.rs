@@ -475,4 +475,3 @@ pub async fn dish_image(_rest_id: i32, dish_id: i32) -> Option::<String> {
         _ => None,
     }
 }
-
