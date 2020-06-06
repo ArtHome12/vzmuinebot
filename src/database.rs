@@ -13,7 +13,10 @@ use once_cell::sync::{OnceCell};
 use std::collections::{HashMap, BTreeMap};
 use teloxide::types::InputFile;
 
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
 
+pub static DB: OnceCell<tokio_postgres::Client> = OnceCell::new();
 
 
 fn restaurants() -> &'static HashMap<u32, &'static str> {
@@ -127,8 +130,20 @@ struct Restaurant {
     dishes: BTreeMap<i32, Dish>,
 }
 
-use once_cell::sync::Lazy;
-use std::sync::Mutex;
+/*
+CREATE TABLE restaurants (
+    PRIMARY KEY (user_id),
+    user_id     INTEGER         NOT NULL,
+    title       VARCHAR(100)    NOT NULL,
+    info        VARCHAR(255)    NOT NULL,
+    active      BOOLEAN         NOT NULL,
+    image_id    VARCHAR(100)    NOT NULL,
+);
+
+INSERT INTO restaurants (user_id, title, info, active)
+VALUES (409664508, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE),
+       (501159140, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE);
+*/
 
 
 static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
@@ -475,3 +490,5 @@ pub async fn dish_image(_rest_id: i32, dish_id: i32) -> Option::<String> {
         _ => None,
     }
 }
+
+

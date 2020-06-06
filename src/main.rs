@@ -19,6 +19,7 @@ use teloxide::{
 
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
 use tokio::sync::mpsc;
+use tokio_postgres::{NoTls};
 use warp::Filter;
 use reqwest::StatusCode;
 
@@ -188,20 +189,23 @@ async fn run() {
     
     let bot = Bot::from_env();
 
+    // Логин к БД
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL env variable missing");    
     // Откроем БД
-    /*let restaurant = database::Restaurant{
-        //id: 0,
-        title: String::from("Хинкал"),
-        info: String::from("Наш адрес 00NDC, доставка @nick, +84123"),
-        active: true,
-    };
+    let (client, connection) =
+        tokio_postgres::connect(&database_url, NoTls).await
+            .expect("Cannot connect to database");
 
-    use std::sync::Mutex;
+    // The connection object performs the actual communication with the database,
+    // so spawn it off to run on its own.
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
 
-    if database::REST_DB.set(Mutex::new(restaurant)).is_err() {
-        return;
-    }*/
-
+    // Сохраним доступ к БД
+    database::DB.set(client).unwrap();
 
     Dispatcher::new(Arc::clone(&bot))
         .messages_handler(DialogueDispatcher::new(|cx| async move {
