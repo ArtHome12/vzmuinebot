@@ -185,8 +185,7 @@ async fn run() {
     teloxide::enable_logging!();
     log::info!("Starting vzmuinebot!");
 
-    log::info!("Database connected");
-    
+   
     let bot = Bot::from_env();
 
     // Логин к БД
@@ -205,7 +204,10 @@ async fn run() {
     });
 
     // Сохраним доступ к БД
-    database::DB.set(client).unwrap();
+    match database::DB.set(client) {
+        Ok(_) => log::info!("Database connected"),
+        _ => log::info!("Something wrong with database"),
+    }
 
     Dispatcher::new(Arc::clone(&bot))
         .messages_handler(DialogueDispatcher::new(|cx| async move {

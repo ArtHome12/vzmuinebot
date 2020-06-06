@@ -89,7 +89,20 @@ pub async fn dish(_dish_id : String) -> Option<DishInfo> {
 // [Caterer]
 // ============================================================================
 pub async fn is_rest_owner(user_id : i32) -> bool {
-    user_id == 409664508 || user_id == 501159140
+    // Выполняем запрос
+    let rows = DB.get().unwrap()
+        .query("SELECT COUNT(*) FROM restaurants WHERE USER_ID=$1::INTEGER", &[&user_id])
+        .await;
+
+    // Проверяем результат
+    match rows {
+        Ok(data) => {
+            let res: i32 = data[0].get(0);
+            res == 1
+        },
+        _ => false,
+    }
+//    user_id == 409664508 || user_id == 501159140
 }
 
 fn active_to_str(active : bool) -> &'static str {
