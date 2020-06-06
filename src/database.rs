@@ -91,15 +91,12 @@ pub async fn dish(_dish_id : String) -> Option<DishInfo> {
 pub async fn is_rest_owner(user_id : i32) -> bool {
     // Выполняем запрос
     let rows = DB.get().unwrap()
-        .query("SELECT COUNT(*) FROM restaurants WHERE USER_ID=$1::INTEGER", &[&user_id])
+        .query("SELECT * FROM restaurants WHERE USER_ID=$1::INTEGER", &[&user_id])
         .await;
 
     // Проверяем результат
     match rows {
-        Ok(data) => {
-            let res: i32 = data[0].get(0);
-            res == 1
-        },
+        Ok(data) => data.len() > 0,
         _ => false,
     }
 //    user_id == 409664508 || user_id == 501159140
