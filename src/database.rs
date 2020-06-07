@@ -185,28 +185,6 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
 });
 
 
-/*impl Restaurant {
-    fn to_str(&self) -> String {
-        // Информация о ресторане
-        let mut s = String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n",
-            self.title, self.info, active_to_str(self.active)));
-
-        // Добавим информацию о группах
-        for (key, value) in &self.groups {
-            s.push_str(&format!("   {} /EdGr{}\n", value.to_str_short(), key));
-        };
-        s
-    }
-
-    fn set_title(&mut self, new_title : String) {
-        self.title = new_title;
-    }
-
-    fn toggle(&mut self) {
-        self.active = !self.active; 
-    }
-}*/
-
 struct Group {
     title: String,
     info: String,
@@ -218,34 +196,14 @@ struct Group {
 
 impl Group {
 
-    fn to_str(&self) -> String {
+/*    fn to_str(&self) -> String {
         String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime
 Удалить группу /Remove\nНовое блюдо /AddDish\n",
             self.title, self.info, id_to_category(self.cat_id), active_to_str(self.active), self.opening_time.format("%H:%M"), self.closing_time.format("%H:%M")))
-    }
+    }*/
 
     fn toggle(&mut self) {
         self.active = !self.active; 
-    }
-}
-
-pub async fn group_info(_rest_id: i32, group_id: i32) -> String {
-    
-    // Ресторан
-    let rest = REST_DB.lock().unwrap();
-
-    if let Some(group) = rest.groups.get(&group_id) {
-        // Информация о самой группе        
-        let mut s = group.to_str();
-
-        // Добавим информацию о блюдах
-        for (key, value) in rest.dishes.iter()
-                .filter(|(_, value)| value.group_id == group_id) {
-            s.push_str(&format!("   {} /EdDi{}\n", value.to_str_short(), key));
-        };
-        s
-    } else {
-        String::from("")
     }
 }
 
@@ -422,58 +380,11 @@ pub async fn dish_image(_rest_id: i32, dish_id: i32) -> Option::<String> {
     }
 }
 
-/* 
-Таблица с данными о ресторане
-CREATE TABLE restaurants (
-    PRIMARY KEY (user_id),
-    user_id     INTEGER         NOT NULL,
-    title       VARCHAR(100)    NOT NULL,
-    info        VARCHAR(255)    NOT NULL,
-    active      BOOLEAN         NOT NULL,
-    image_id    VARCHAR(100)    NOT NULL
-);
-
-INSERT INTO restaurants (user_id, title, info, active)
-VALUES (409664508, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE),
-       (501159140, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE);
-
-Таблица с данными о группах
-CREATE TABLE groups (
-    PRIMARY KEY (user_id, group_num),
-    user_id         INTEGER         NOT NULL,
-    group_num       INTEGER         NOT NULL,
-    title           VARCHAR(100)    NOT NULL,
-    info            VARCHAR(255)    NOT NULL,
-    active          BOOLEAN         NOT NULL,
-    cat_id          INTEGER         NOT NULL,
-    opening_time    TIME            NOT NULL,    
-    closing_time    TIME            NOT NULL  
-);
-
-INSERT INTO groups (user_id, group_num, title, info, active, cat_id, opening_time, closing_time)
-VALUES (409664508, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00'),
-       (501159140, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00');
-
-*/
 
 
-// Возвращает истину, если пользователю разрешён доступ в режим ресторатора
-//
-pub async fn is_rest_owner(user_id : i32) -> bool {
-    // Выполняем запрос
-    let rows = DB.get().unwrap()
-        .query("SELECT * FROM restaurants WHERE USER_ID=$1::INTEGER", &[&user_id])
-        .await;
-
-    // Проверяем результат
-    match rows {
-        Ok(data) => !data.is_empty(),
-        _ => false,
-    }
-//    user_id == 409664508 || user_id == 501159140
-}
-
-
+// ============================================================================
+// [Misc]
+// ============================================================================
 // Для отображения статуса
 //
 fn active_to_str(active : bool) -> &'static str {
@@ -507,17 +418,54 @@ pub fn category_to_id(category: &str) -> i32 {
     }
 }
 
+
+// ============================================================================
+// [Caterer]
+// ============================================================================
+/* 
+Таблица с данными о ресторанах
+CREATE TABLE restaurants (
+    PRIMARY KEY (user_id),
+    user_id     INTEGER         NOT NULL,
+    title       VARCHAR(100)    NOT NULL,
+    info        VARCHAR(255)    NOT NULL,
+    active      BOOLEAN         NOT NULL,
+    image_id    VARCHAR(100)    NOT NULL
+);
+
+INSERT INTO restaurants (user_id, title, info, active)
+VALUES (409664508, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE),
+       (501159140, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE);*/
+
+// Возвращает истину, если пользователю разрешён доступ в режим ресторатора
+//
+pub async fn is_rest_owner(user_id : i32) -> bool {
+    // Выполняем запрос
+    let rows = DB.get().unwrap()
+        .query("SELECT * FROM restaurants WHERE user_id=$1::INTEGER", &[&user_id])
+        .await;
+
+    // Проверяем результат
+    match rows {
+        Ok(data) => !data.is_empty(),
+        _ => false,
+    }
+//    user_id == 409664508 || user_id == 501159140
+}
+
+
 // Возвращает строку с информацией о ресторане
 //
 pub async fn rest_info(rest_id: i32) -> Option<(String, Option<String>)> {
     // Выполняем запрос
     let rows = DB.get().unwrap()
-        .query("SELECT title, info, active, image_id FROM restaurants WHERE USER_ID=$1::INTEGER", &[&rest_id])
+        .query("SELECT title, info, active, image_id FROM restaurants WHERE user_id=$1::INTEGER", &[&rest_id])
         .await;
 
     // Проверяем результат
     match rows {
-        Ok(data) => {if data.len() > 0 {
+        Ok(data) => {
+            if !data.is_empty() {
                 // Параметры ресторана
                 let title: String = data[0].get(0);
                 let info: String = data[0].get(1);
@@ -525,7 +473,7 @@ pub async fn rest_info(rest_id: i32) -> Option<(String, Option<String>)> {
                 let image_id: Option<String> = data[0].get(3);
                 Some((
                     String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n{}",
-                        title, info, active_to_str(active), group_names(rest_id).await)
+                        title, info, active_to_str(active), group_titles(rest_id).await)
                     ), image_id
                 ))
             } else {
@@ -536,11 +484,65 @@ pub async fn rest_info(rest_id: i32) -> Option<(String, Option<String>)> {
     }
 }
 
+pub async fn rest_edit_title(rest_id: i32, new_str: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE restaurants SET title = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&new_str, &rest_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
+}
+
+pub async fn rest_edit_info(rest_id: i32, new_str: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE restaurants SET info = $1::VARCHAR(255) WHERE user_id=$2::INTEGER", &[&new_str, &rest_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
+}
+
+pub async fn rest_toggle(rest_id: i32) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE restaurants SET active = NOT active WHERE user_id=$1::INTEGER", &[&rest_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
+}
+
+// ============================================================================
+// [Group]
+// ============================================================================
+/*Таблица с данными о группах
+CREATE TABLE groups (
+    PRIMARY KEY (user_id, group_num),
+    user_id         INTEGER         NOT NULL,
+    group_num       INTEGER         NOT NULL,
+    title           VARCHAR(100)    NOT NULL,
+    info            VARCHAR(255)    NOT NULL,
+    active          BOOLEAN         NOT NULL,
+    cat_id          INTEGER         NOT NULL,
+    opening_time    TIME            NOT NULL,    
+    closing_time    TIME            NOT NULL  
+);
+
+INSERT INTO groups (user_id, group_num, title, info, active, cat_id, opening_time, closing_time)
+VALUES (409664508, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00'),
+       (501159140, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00');*/
+
 // Возвращает строки с краткой информацией о группах
-async fn group_names(rest_id: i32) -> String {
+//
+async fn group_titles(rest_id: i32) -> String {
     // Выполняем запрос
     let rows = DB.get().unwrap()
-        .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE USER_ID=$1::INTEGER", &[&rest_id])
+        .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE user_id=$1::INTEGER", &[&rest_id])
         .await;
 
     // Строка для возврата результата
@@ -561,37 +563,62 @@ async fn group_names(rest_id: i32) -> String {
     res
 }
 
-pub async fn rest_edit_title(rest_id: i32, new_str: String) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap()
-   .execute("UPDATE restaurants SET title = $1::VARCHAR(100) WHERE USER_ID=$2::INTEGER", &[&new_str, &rest_id])
-   .await;
-   match query {
-       Ok(_) => true,
-       _ => false,
-   }
-}
 
-pub async fn rest_edit_info(rest_id: i32, new_str: String) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap()
-   .execute("UPDATE restaurants SET info = $1::VARCHAR(255) WHERE USER_ID=$2::INTEGER", &[&new_str, &rest_id])
-   .await;
-   match query {
-       Ok(_) => true,
-       _ => false,
-   }
-}
+// Возвращает информацию о группе
+//
+pub async fn group_info(rest_id: i32, group_id: i32) -> Option<String> {
+    
+     // Выполняем запрос
+     let rows = DB.get().unwrap()
+     .query("SELECT title, info, active, cat_id, opening_time, closing_time FROM groups WHERE user_id=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_id, &group_id])
+     .await;
 
-pub async fn rest_toggle(rest_id: i32) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap()
-   .execute("UPDATE restaurants SET active = NOT active WHERE USER_ID=$1::INTEGER", &[&rest_id])
-   .await;
-   match query {
-       Ok(_) => true,
-       _ => false,
-   }
-}
+    // Проверяем результат
+    match rows {
+        Ok(data) => {
+            if !data.is_empty() {
+                // Параметры ресторана
+                let title: String = data[0].get(0);
+                let info: String = data[0].get(1);
+                let active: bool = data[0].get(2);
+                let cat_id: i32 = data[0].get(3);
+                let opening_time: NaiveTime = data[0].get(4);
+                let closing_time: NaiveTime = data[0].get(5);
+                Some(
+                    String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime
+Удалить группу /Remove\nНовое блюдо /AddDish\n",
+                    title, info, id_to_category(cat_id), active_to_str(active), opening_time.format("%H:%M"), closing_time.format("%H:%M")))
+                )
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
 
+/* 
+    fn to_str(&self) -> String {
+        String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime
+Удалить группу /Remove\nНовое блюдо /AddDish\n",
+            self.title, self.info, id_to_category(self.cat_id), active_to_str(self.active), self.opening_time.format("%H:%M"), self.closing_time.format("%H:%M")))
+    }
+
+
+// Ресторан
+    let rest = REST_DB.lock().unwrap();
+
+    if let Some(group) = rest.groups.get(&group_id) {
+        // Информация о самой группе        
+        let mut s = group.to_str();
+
+        // Добавим информацию о блюдах
+        for (key, value) in rest.dishes.iter()
+                .filter(|(_, value)| value.group_id == group_id) {
+            s.push_str(&format!("   {} /EdDi{}\n", value.to_str_short(), key));
+        };
+        s
+    } else {
+        String::from("")
+    }*/
+}
 

@@ -25,11 +25,14 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
     // Извлечём параметры
     let (rest_id, group_id) = cx.dialogue;
     
-    // Запрос к БД с информацией о группе
-    let rest_info = db::group_info(rest_id, group_id).await;
+    // Получаем информацию о группе из БД
+    let info = match db::group_info(rest_id, group_id).await {
+        Some(rest_info) => rest_info,
+        None => format!("Ошибка db::group_info({}, {})", rest_id, group_id)
+    };
 
     // Отображаем информацию о группе и оставляем кнопки главного меню
-    cx.answer(format!("\n{}", rest_info))
+    cx.answer(format!("\n{}", info))
     .reply_markup(cmd::Caterer::main_menu_markup())
         .send()
         .await?;
