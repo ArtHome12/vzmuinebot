@@ -508,7 +508,7 @@ pub async fn rest_info(rest_id: i32) -> Option<(String, String)> {
                 let title: String = data[0].get(0);
                 let info: String = data[0].get(1);
                 let active: bool = data[0].get(2);
-                let image_id: String = data[0].get(3);
+                let image_id: Option<String> = data[0].get(3);
                 Some((
                     String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n",
                         title, info, active_to_str(active))
