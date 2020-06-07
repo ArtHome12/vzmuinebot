@@ -19,15 +19,28 @@ use crate::cat_group;
 
 // Показывает информацию о ресторане 
 //
-pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
+pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
     // Код ресторана
     let rest_id = cx.dialogue;
 
         // Получаем информацию о ресторане из БД
-        let rest_info = db::rest_info(rest_id).await;
+        let (info, _image_id) = match db::rest_info(rest_id).await {
+            Some(rest_info) => rest_info,
+            None => (String::default(), format!("Ошибка db::rest_info({})", rest_id))
+        };
+
+        // Дополним, при необходимости, приветствием
+        let welcome_msg = if show_welcome {
+            format!("Добро пожаловать в режим ввода меню!
+Изначально всё заполнено значениями по-умолчанию, отредактируйте их.
+
+user id={}", rest_id)
+        } else {
+            String::default()
+        };
 
         // Отправляем её пользователю и отображаем главное меню
-        cx.answer(format!("\n{}", rest_info))
+        cx.answer(format!("{}\n{}", welcome_msg, info))
         .reply_markup(cmd::Caterer::main_menu_markup())
         .send()
         .await?;
@@ -65,7 +78,7 @@ pub async fn caterer_mode(cx: cmd::Cx<()>) -> cmd::Res {
                 cmd::Caterer::Main(rest_id) => {
                     // Покажем информацию
                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                    next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id)).await
+                    next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
                 }
 
                 // Выйти из режима ресторатора
@@ -106,7 +119,7 @@ pub async fn caterer_mode(cx: cmd::Cx<()>) -> cmd::Res {
 
                     // Покажем изменённую информацию
                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                    next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id)).await
+                    next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
                 }
 
                 // Команда редактирования групп ресторана
@@ -154,7 +167,7 @@ pub async fn edit_rest_title_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             db::rest_edit_title(rest_id, s).await;
 
             // Покажем изменённую информацию о ресторане
-            next_with_info(cx).await
+            next_with_info(cx, false).await
 
         } else {
             // Сообщим об отмене
@@ -181,7 +194,7 @@ pub async fn edit_rest_info_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             db::rest_edit_info(rest_id, s).await;
 
             // Покажем изменённую информацию о ресторане
-            next_with_info(cx).await
+            next_with_info(cx, false).await
 
         } else {
             // Сообщим об отмене
@@ -207,7 +220,7 @@ pub async fn add_rest_group(cx: cmd::Cx<i32>) -> cmd::Res {
             db::rest_add_group(rest_id, s).await;
 
             // Покажем изменённую информацию о ресторане
-            next_with_info(cx).await
+            next_with_info(cx, false).await
 
         } else {
             // Сообщим об отмене

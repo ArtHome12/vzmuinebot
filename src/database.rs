@@ -88,72 +88,14 @@ pub async fn dish(_dish_id : String) -> Option<DishInfo> {
 // ============================================================================
 // [Caterer]
 // ============================================================================
-pub async fn is_rest_owner(user_id : i32) -> bool {
-    // Выполняем запрос
-    let rows = DB.get().unwrap()
-        .query("SELECT * FROM restaurants WHERE USER_ID=$1::INTEGER", &[&user_id])
-        .await;
-
-    // Проверяем результат
-    match rows {
-        Ok(data) => data.len() > 0,
-        _ => false,
-    }
-//    user_id == 409664508 || user_id == 501159140
-}
-
-fn active_to_str(active : bool) -> &'static str {
-    if active {
-        "показывается"
-    } else {
-        "скрыт"
-    }
-}
-
-fn id_to_category(cat_id : i32) -> &'static str {
-    match cat_id {
-        1 => "Соки воды",
-        2 => "Еда",
-        3 => "Алкоголь",
-        4 => "Развлечения",
-        _ => "Неизвестная категория",
-    }
-} 
-
-pub fn category_to_id(category: &str) -> i32 {
-    match category {
-        "Соки воды" => 1,
-        "Еда" => 2,
-        "Алкоголь" => 3,
-        "Развлечения" => 4,
-        _ => 0,
-    }
-}
-
-
 struct Restaurant {
     //id: i32,
-    title: String,
+    //title: String,
     info: String,
-    active: bool,
+    //active: bool,
     groups: BTreeMap<i32, Group>,
     dishes: BTreeMap<i32, Dish>,
 }
-
-/*
-CREATE TABLE restaurants (
-    PRIMARY KEY (user_id),
-    user_id     INTEGER         NOT NULL,
-    title       VARCHAR(100)    NOT NULL,
-    info        VARCHAR(255)    NOT NULL,
-    active      BOOLEAN         NOT NULL,
-    image_id    VARCHAR(100)    NOT NULL,
-);
-
-INSERT INTO restaurants (user_id, title, info, active)
-VALUES (409664508, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE),
-       (501159140, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE);
-*/
 
 
 static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
@@ -223,9 +165,9 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
 
     let mut rest = Restaurant {
         //id: 0,
-        title: String::from("Хинкалий"),
+        //title: String::from("Хинкалий"),
         info: String::from("Наш адрес 00NDC, доставка @nick, +84123"),
-        active: true,
+        //active: true,
         groups: BTreeMap::new(),
         dishes: BTreeMap::new(),
     };
@@ -243,7 +185,7 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
 });
 
 
-impl Restaurant {
+/*impl Restaurant {
     fn to_str(&self) -> String {
         // Информация о ресторане
         let mut s = String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n",
@@ -263,24 +205,7 @@ impl Restaurant {
     fn toggle(&mut self) {
         self.active = !self.active; 
     }
-}
-
-pub async fn rest_info(_rest_id: i32) -> String {
-    REST_DB.lock().unwrap().to_str()
-}
-
-pub async fn rest_edit_title(_rest_id: i32, new_str: String) {
-    REST_DB.lock().unwrap().set_title(new_str);
-}
-
-pub async fn rest_edit_info(_rest_id: i32, new_str: String) {
-    REST_DB.lock().unwrap().info = new_str;
-}
-
-pub async fn rest_toggle(_rest_id: i32) {
-    REST_DB.lock().unwrap().toggle();
-}
-
+}*/
 
 struct Group {
     title: String,
@@ -499,6 +424,128 @@ pub async fn dish_image(_rest_id: i32, dish_id: i32) -> Option::<String> {
         Some(dish) => dish.image_id.clone(),
         _ => None,
     }
+}
+
+/* Таблица с данными о ресторане
+CREATE TABLE restaurants (
+    PRIMARY KEY (user_id),
+    user_id     INTEGER         NOT NULL,
+    title       VARCHAR(100)    NOT NULL,
+    info        VARCHAR(255)    NOT NULL,
+    active      BOOLEAN         NOT NULL,
+    image_id    VARCHAR(100)    NOT NULL,
+);
+
+INSERT INTO restaurants (user_id, title, info, active)
+VALUES (409664508, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE),
+       (501159140, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE);
+*/
+
+
+// Возвращает истину, если пользователю разрешён доступ в режим ресторатора
+//
+pub async fn is_rest_owner(user_id : i32) -> bool {
+    // Выполняем запрос
+    let rows = DB.get().unwrap()
+        .query("SELECT * FROM restaurants WHERE USER_ID=$1::INTEGER", &[&user_id])
+        .await;
+
+    // Проверяем результат
+    match rows {
+        Ok(data) => data.len() > 0,
+        _ => false,
+    }
+//    user_id == 409664508 || user_id == 501159140
+}
+
+
+// Для отображения статуса
+//
+fn active_to_str(active : bool) -> &'static str {
+    if active {
+        "показывается"
+    } else {
+        "скрыт"
+    }
+}
+
+
+// Используется при редактировании категории группы
+//
+fn id_to_category(cat_id : i32) -> &'static str {
+    match cat_id {
+        1 => "Соки воды",
+        2 => "Еда",
+        3 => "Алкоголь",
+        4 => "Развлечения",
+        _ => "Неизвестная категория",
+    }
+} 
+
+pub fn category_to_id(category: &str) -> i32 {
+    match category {
+        "Соки воды" => 1,
+        "Еда" => 2,
+        "Алкоголь" => 3,
+        "Развлечения" => 4,
+        _ => 0,
+    }
+}
+
+// Возвращает строку с информацией о ресторане
+//
+pub async fn rest_info(rest_id: i32) -> Option<(String, String)> {
+    //REST_DB.lock().unwrap().to_str()
+    // Выполняем запрос
+    let rows = DB.get().unwrap()
+        .query("SELECT title, info, active, image_id FROM restaurants WHERE USER_ID=$1::INTEGER", &[&rest_id])
+        .await;
+
+    // Проверяем результат
+    match rows {
+        Ok(data) => {if data.len() > 0 {
+                // Параметры ресторана
+                let title: String = data[0].get(0);
+                let info: String = data[0].get(1);
+                let active: bool = data[0].get(2);
+                let image_id: String = data[0].get(3);
+                Some((
+                    String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n",
+                        title, info, active_to_str(active))
+                    ), image_id
+                ))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+
+
+
+    /*fn to_str(&self) -> String {
+        // Информация о ресторане
+        let mut s = String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n",
+            self.title, self.info, active_to_str(self.active)));
+
+        // Добавим информацию о группах
+        for (key, value) in &self.groups {
+            s.push_str(&format!("   {} /EdGr{}\n", value.to_str_short(), key));
+        };
+        s
+    }*/
+}
+
+pub async fn rest_edit_title(_rest_id: i32, new_str: String) {
+    //REST_DB.lock().unwrap().set_title(new_str);
+}
+
+pub async fn rest_edit_info(_rest_id: i32, new_str: String) {
+    REST_DB.lock().unwrap().info = new_str;
+}
+
+pub async fn rest_toggle(_rest_id: i32) {
+    //REST_DB.lock().unwrap().toggle();
 }
 
 

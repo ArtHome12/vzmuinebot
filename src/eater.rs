@@ -15,6 +15,7 @@ use teloxide::{
 
 use crate::commands as cmd;
 use crate::database as db;
+use crate::caterer;
 
 pub async fn start(cx: cmd::Cx<()>) -> cmd::Res {
     // Отображаем приветственное сообщение и меню с кнопками.
@@ -72,21 +73,19 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                     }
                 }
                 cmd::User::CatererMode => {
-                    if let Some(user) = cx.update.from() {
-                        if db::is_rest_owner(user.id).await {
-                            // Запрос к БД
-                            let rest_info = db::rest_info(user.id).await;
+                    // Код пользователя это код ресторана
+                    let user_id: i32 = match cx.update.from() {
+                        Some(user) => user.id,
+                        None => 0,
+                    };
 
-                            // Отображаем информацию о ресторане и добавляем кнопки меню
-                            cx.answer(format!("{}\n\nUser Id={}\n{}", cmd::Caterer::WELCOME_MSG, user.id, rest_info))
-                            .reply_markup(cmd::Caterer::main_menu_markup())
-                                .send()
-                                .await?;
-                            return next(cmd::Dialogue::CatererMode);
-                        } else {
-                            cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova и сообщите ей свой Id={}", user.id))
-                            .send().await?;
-                        }
+                    if db::is_rest_owner(user_id).await {
+                        // Отображаем информацию о ресторане и переходим в режим её редактирования
+                        let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                        return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, user_id), true).await;
+                    } else {
+                        cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova и сообщите ей свой Id={}", user_id))
+                        .send().await?;
                     }
                 }
                 cmd::User::Repeat => {

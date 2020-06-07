@@ -73,7 +73,7 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                  cmd::CatGroup::Main(rest_id) => {
                     // Покажем информацию
                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                    caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id)).await
+                    caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
                 }
 
                 // Выйти из режима ресторатора
@@ -152,7 +152,7 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
                         // Группы больше нет, показываем главное меню
                         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                        caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id)).await
+                        caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
                     } else {
                         next_with_cancel(cx, "Нельзя удалить основную группу и группу с блюдами").await
                     }

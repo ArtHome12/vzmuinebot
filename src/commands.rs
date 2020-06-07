@@ -140,10 +140,6 @@ pub enum Caterer {
 
 impl Caterer {
 
-    // Приветствие
-    pub const WELCOME_MSG: &'static str = "Добро пожаловать в режим ввода меню!
-Изначально всё заполнено значениями по-умолчанию, отредактируйте их.";
-
     pub fn from(rest_id: i32, input: &str) -> Caterer {
         match input {
             // Сначала проверим на цельные команды.
