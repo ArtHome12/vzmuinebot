@@ -494,7 +494,7 @@ pub fn category_to_id(category: &str) -> i32 {
 
 // Возвращает строку с информацией о ресторане
 //
-pub async fn rest_info(rest_id: i32) -> Option<(String, String)> {
+pub async fn rest_info(rest_id: i32) -> Option<(String, Option<String>)> {
     //REST_DB.lock().unwrap().to_str()
     // Выполняем запрос
     let rows = DB.get().unwrap()

@@ -26,7 +26,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
         // Получаем информацию о ресторане из БД
         let (info, _image_id) = match db::rest_info(rest_id).await {
             Some(rest_info) => rest_info,
-            None => (String::default(), format!("Ошибка db::rest_info({})", rest_id))
+            None => (format!("Ошибка db::rest_info({})", rest_id), None)
         };
 
         // Дополним, при необходимости, приветствием
