@@ -224,10 +224,6 @@ impl Group {
             self.title, self.info, id_to_category(self.cat_id), active_to_str(self.active), self.opening_time.format("%H:%M"), self.closing_time.format("%H:%M")))
     }
 
-    fn to_str_short(&self) -> String {
-        String::from(format!("{} {}-{}", self.title, self.opening_time.format("%H:%M"), self.closing_time.format("%H:%M")))
-    }
-
     fn toggle(&mut self) {
         self.active = !self.active; 
     }
@@ -538,20 +534,6 @@ pub async fn rest_info(rest_id: i32) -> Option<(String, Option<String>)> {
         }
         _ => None,
     }
-
-
-
-    /*fn to_str(&self) -> String {
-        // Информация о ресторане
-        let mut s = String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n",
-            self.title, self.info, active_to_str(self.active)));
-
-        // Добавим информацию о группах
-        for (key, value) in &self.groups {
-            s.push_str(&format!("   {} /EdGr{}\n", value.to_str_short(), key));
-        };
-        s
-    }*/
 }
 
 // Возвращает строки с краткой информацией о группах
@@ -561,8 +543,6 @@ async fn group_names(rest_id: i32) -> String {
         .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE USER_ID=$1::INTEGER", &[&rest_id])
         .await;
 
-
-        //String::from(format!("{} {}-{}", self.title, self.opening_time.format("%H:%M"), self.closing_time.format("%H:%M")))
     // Строка для возврата результата
     let mut res = String::default();
 
@@ -581,8 +561,15 @@ async fn group_names(rest_id: i32) -> String {
     res
 }
 
-pub async fn rest_edit_title(_rest_id: i32, new_str: String) {
-    //REST_DB.lock().unwrap().set_title(new_str);
+pub async fn rest_edit_title(rest_id: i32, new_str: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE groups SET title = $1::VARCHAR(100) WHERE USER_ID=$2::INTEGER", &[&new_str, &rest_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
 }
 
 pub async fn rest_edit_info(_rest_id: i32, new_str: String) {
