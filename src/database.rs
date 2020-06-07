@@ -91,7 +91,7 @@ pub async fn dish(_dish_id : String) -> Option<DishInfo> {
 struct Restaurant {
     //id: i32,
     //title: String,
-    info: String,
+    //info: String,
     //active: bool,
     groups: BTreeMap<i32, Group>,
     dishes: BTreeMap<i32, Dish>,
@@ -166,7 +166,7 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
     let mut rest = Restaurant {
         //id: 0,
         //title: String::from("Хинкалий"),
-        info: String::from("Наш адрес 00NDC, доставка @nick, +84123"),
+        //info: String::from("Наш адрес 00NDC, доставка @nick, +84123"),
         //active: true,
         groups: BTreeMap::new(),
         dishes: BTreeMap::new(),
