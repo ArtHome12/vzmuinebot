@@ -282,9 +282,9 @@ impl Dish {
             self.title, self.info, self.group_id, active_to_str(self.active), self.price))
     }
 
-    fn to_str_short(&self) -> String {
+    /*fn to_str_short(&self) -> String {
         String::from(format!("{} {}k₫", self.title, self.price))
-    }
+    }*/
 
     fn toggle(&mut self) {
         self.active = !self.active; 
@@ -471,9 +471,10 @@ pub async fn rest_info(rest_id: i32) -> Option<(String, Option<String>)> {
                 let info: String = data[0].get(1);
                 let active: bool = data[0].get(2);
                 let image_id: Option<String> = data[0].get(3);
+                let groups: String = group_titles(rest_id).await;
                 Some((
                     String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n{}",
-                        title, info, active_to_str(active), group_titles(rest_id).await)
+                        title, info, active_to_str(active), groups)
                     ), image_id
                 ))
             } else {
@@ -584,10 +585,11 @@ pub async fn group_info(rest_id: i32, group_id: i32) -> Option<String> {
                 let cat_id: i32 = data[0].get(3);
                 let opening_time: NaiveTime = data[0].get(4);
                 let closing_time: NaiveTime = data[0].get(5);
+                let dishes: String = dish_titles(rest_id, group_id).await;
                 Some(
                     String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime
-Удалить группу /Remove\nНовое блюдо /AddDish\n",
-                    title, info, id_to_category(cat_id), active_to_str(active), opening_time.format("%H:%M"), closing_time.format("%H:%M")))
+Удалить группу /Remove\nНовое блюдо /AddDish\n{}",
+                    title, info, id_to_category(cat_id), active_to_str(active), opening_time.format("%H:%M"), closing_time.format("%H:%M"), dishes))
                 )
             } else {
                 None
@@ -622,3 +624,30 @@ pub async fn group_info(rest_id: i32, group_id: i32) -> Option<String> {
     }*/
 }
 
+// ============================================================================
+// [Dish]
+// ============================================================================
+/*Таблица с данными о блюдах
+CREATE TABLE groups (
+    PRIMARY KEY (user_id, group_num),
+    user_id         INTEGER         NOT NULL,
+    group_num       INTEGER         NOT NULL,
+    title           VARCHAR(100)    NOT NULL,
+    info            VARCHAR(255)    NOT NULL,
+    active          BOOLEAN         NOT NULL,
+    cat_id          INTEGER         NOT NULL,
+    opening_time    TIME            NOT NULL,    
+    closing_time    TIME            NOT NULL  
+);
+
+INSERT INTO groups (user_id, group_num, title, info, active, cat_id, opening_time, closing_time)
+VALUES (409664508, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00'),
+       (501159140, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00');*/
+
+// Возвращает строки с краткой информацией о группах
+//
+async fn dish_titles(rest_id: i32, group_id: i32) -> String {
+    //        String::from(format!("{} {}k₫", self.title, self.price))
+
+    String::default()
+}
