@@ -426,19 +426,38 @@ pub async fn dish_image(_rest_id: i32, dish_id: i32) -> Option::<String> {
     }
 }
 
-/* Таблица с данными о ресторане
+/* 
+Таблица с данными о ресторане
 CREATE TABLE restaurants (
     PRIMARY KEY (user_id),
     user_id     INTEGER         NOT NULL,
     title       VARCHAR(100)    NOT NULL,
     info        VARCHAR(255)    NOT NULL,
     active      BOOLEAN         NOT NULL,
-    image_id    VARCHAR(100)    NOT NULL,
+    image_id    VARCHAR(100)    NOT NULL
 );
 
 INSERT INTO restaurants (user_id, title, info, active)
 VALUES (409664508, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE),
        (501159140, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE);
+
+Таблица с данными о группах
+CREATE TABLE groups (
+    PRIMARY KEY (user_id, group_num),
+    user_id         INTEGER         NOT NULL,
+    group_num       INTEGER         NOT NULL,
+    title           VARCHAR(100)    NOT NULL,
+    info            VARCHAR(255)    NOT NULL,
+    active          BOOLEAN         NOT NULL,
+    cat_id          INTEGER         NOT NULL,
+    opening_time    TIME            NOT NULL,    
+    closing_time    TIME            NOT NULL  
+);
+
+INSERT INTO groups (user_id, group_num, title, info, active, cat_id, opening_time, closing_time)
+VALUES (409664508, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00'),
+       (501159140, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00');
+
 */
 
 
@@ -452,7 +471,7 @@ pub async fn is_rest_owner(user_id : i32) -> bool {
 
     // Проверяем результат
     match rows {
-        Ok(data) => data.len() > 0,
+        Ok(data) => data.is_empty(),
         _ => false,
     }
 //    user_id == 409664508 || user_id == 501159140
@@ -495,7 +514,6 @@ pub fn category_to_id(category: &str) -> i32 {
 // Возвращает строку с информацией о ресторане
 //
 pub async fn rest_info(rest_id: i32) -> Option<(String, Option<String>)> {
-    //REST_DB.lock().unwrap().to_str()
     // Выполняем запрос
     let rows = DB.get().unwrap()
         .query("SELECT title, info, active, image_id FROM restaurants WHERE USER_ID=$1::INTEGER", &[&rest_id])
@@ -510,8 +528,8 @@ pub async fn rest_info(rest_id: i32) -> Option<(String, Option<String>)> {
                 let active: bool = data[0].get(2);
                 let image_id: Option<String> = data[0].get(3);
                 Some((
-                    String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n",
-                        title, info, active_to_str(active))
+                    String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n{}",
+                        title, info, active_to_str(active), group_names(rest_id).await)
                     ), image_id
                 ))
             } else {
@@ -534,6 +552,33 @@ pub async fn rest_info(rest_id: i32) -> Option<(String, Option<String>)> {
         };
         s
     }*/
+}
+
+// Возвращает строки с краткой информацией о группах
+async fn group_names(rest_id: i32) -> String {
+    // Выполняем запрос
+    let rows = DB.get().unwrap()
+        .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE USER_ID=$1::INTEGER", &[&rest_id])
+        .await;
+
+
+        //String::from(format!("{} {}-{}", self.title, self.opening_time.format("%H:%M"), self.closing_time.format("%H:%M")))
+    // Строка для возврата результата
+    let mut res = String::default();
+
+    // Проверяем результат
+    if let Ok(data) = rows {
+        for record in data {
+            let group_num: i32 = record.get(0);
+            let title: String = record.get(1);
+            let opening_time: NaiveTime = record.get(2);
+            let closing_time: NaiveTime = record.get(3);
+            res.push_str(&format!("   {} {}-{} /EdGr{}\n", 
+                title, opening_time, closing_time, group_num
+            ));
+        }
+    }
+    res
 }
 
 pub async fn rest_edit_title(_rest_id: i32, new_str: String) {

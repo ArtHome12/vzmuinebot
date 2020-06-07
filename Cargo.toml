@@ -28,4 +28,4 @@ chrono = "*"
 once_cell = "*"
 #diesel = { version = "1.4.4", features = ["postgres"] }
 #dotenv = "0.15.0"
-tokio-postgres = "*"
+tokio-postgres = { version = "0.5.4", features = ["with-chrono-0_4"] }
