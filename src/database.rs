@@ -471,7 +471,7 @@ pub async fn is_rest_owner(user_id : i32) -> bool {
 
     // Проверяем результат
     match rows {
-        Ok(data) => data.is_empty(),
+        Ok(data) => !data.is_empty(),
         _ => false,
     }
 //    user_id == 409664508 || user_id == 501159140
