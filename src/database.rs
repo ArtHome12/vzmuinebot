@@ -564,7 +564,7 @@ async fn group_names(rest_id: i32) -> String {
 pub async fn rest_edit_title(rest_id: i32, new_str: String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
-   .execute("UPDATE groups SET title = $1::VARCHAR(100) WHERE USER_ID=$2::INTEGER", &[&new_str, &rest_id])
+   .execute("UPDATE restaurants SET title = $1::VARCHAR(100) WHERE USER_ID=$2::INTEGER", &[&new_str, &rest_id])
    .await;
    match query {
        Ok(_) => true,
@@ -572,12 +572,26 @@ pub async fn rest_edit_title(rest_id: i32, new_str: String) -> bool {
    }
 }
 
-pub async fn rest_edit_info(_rest_id: i32, new_str: String) {
-    REST_DB.lock().unwrap().info = new_str;
+pub async fn rest_edit_info(rest_id: i32, new_str: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE restaurants SET info = $1::VARCHAR(255) WHERE USER_ID=$2::INTEGER", &[&new_str, &rest_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
 }
 
-pub async fn rest_toggle(_rest_id: i32) {
-    //REST_DB.lock().unwrap().toggle();
+pub async fn rest_toggle(rest_id: i32) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE restaurants SET active = NOT active WHERE USER_ID=$1::INTEGER", &[&rest_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
 }
 
 
