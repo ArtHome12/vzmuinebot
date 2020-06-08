@@ -440,7 +440,7 @@ pub async fn rest_group_remove(rest_id: i32, group_id: i32) -> bool {
 // ============================================================================
 /*Таблица с данными о блюдах
 CREATE TABLE dishes (
-    PRIMARY KEY (user_id, dish_num),
+    PRIMARY KEY (user_id, group_num, dish_num),
     user_id         INTEGER         NOT NULL,
     dish_num        INTEGER         NOT NULL,
     title           VARCHAR(100)    NOT NULL,

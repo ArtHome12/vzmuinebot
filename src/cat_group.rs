@@ -326,11 +326,13 @@ pub async fn add_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             let (rest_id, group_id) = cx.dialogue;
         
             // Сохраним новое значение в БД
-            db::rest_add_dish(rest_id, group_id, s).await;
-
-            // Покажем изменённую информацию о группе
-            next_with_info(cx).await
-
+            if db::rest_add_dish(rest_id, group_id, s).await {
+               // Покажем изменённую информацию о группе
+               next_with_info(cx).await
+            } else {
+               // Сообщим об ошибке
+               next_with_cancel(cx, &format!("Ошибка add_dish_mode({}, {})", rest_id, group_id)).await
+            }
         } else {
             // Сообщим об отмене
             next_with_cancel(cx, "Отмена").await
