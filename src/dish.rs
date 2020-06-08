@@ -24,10 +24,11 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
     // Извлечём параметры
     let (rest_id, dish_id) = cx.dialogue;
     
-    // Запрос к БД с информацией о блюде
-    let dish_info = format!("\n{}", db::dish_info(rest_id, dish_id).await);
-    let dish_image_id = db::dish_image(rest_id, dish_id).await;
-
+   // Получаем информацию из БД
+   let (info, dish_image_id) = match db::dish_info(rest_id, dish_id).await {
+      Some(dish_info) => dish_info,
+      None => (format!("Ошибка db::dish_info({})", rest_id), None)
+   };
 
     // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
     if let Some(image_id) = dish_image_id {
@@ -36,12 +37,12 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
         // Отправляем картинку и текст как комментарий
         cx.answer_photo(image)
-        .caption(dish_info)
+        .caption(info)
         .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
         .send()
         .await?;
     } else {
-        cx.answer(dish_info)
+        cx.answer(info)
         .reply_markup(cmd::Caterer::main_menu_markup())
         .send()
         .await?;
@@ -275,7 +276,7 @@ pub async fn edit_dish_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 pub async fn edit_price_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
     if let Some(text) = cx.update.text() {
         // Попытаемся преобразовать ответ пользователя в число
-        let price = text.parse::<u32>().unwrap_or_default();
+        let price = text.parse::<i32>().unwrap_or_default();
 
         // Извлечём параметры
         let (rest_id, dish_id) = cx.dialogue;
