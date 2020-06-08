@@ -399,7 +399,7 @@ pub async fn rest_group_remove(rest_id: i32, group_id: i32) -> bool {
    .query("SELECT * FROM dishes WHERE user_id=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_id, &group_id])
    .await;
    if let Ok(res) = rows {
-      if res.is_empty() {
+      if !res.is_empty() {
          return false;
       }
    } else {
