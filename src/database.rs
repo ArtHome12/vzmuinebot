@@ -610,7 +610,9 @@ pub async fn rest_group_edit_time(rest_id: i32, group_id: i32, opening_time: Nai
 pub async fn rest_group_remove(rest_id: i32, group_id: i32) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
-   .execute("DELETE FROM groups WHERE user_id=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_id, &group_id])
+   .execute("DELETE FROM groups WHERE user_id=$1::INTEGER AND group_num=$2::INTEGER;
+   UPDATE groups SET group_num = group_num - 1 WHERE user_id=$3::INTEGER AND group_num>$4::INTEGER
+   ", &[&rest_id, &group_id, &rest_id, &group_id])
    .await;
    match query {
        Ok(_) => true,
