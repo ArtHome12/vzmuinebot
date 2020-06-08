@@ -530,6 +530,8 @@ pub async fn group_info(rest_id: i32, group_id: i32) -> Option<String> {
     }
 }
 
+// Добавляет новую группу
+//
 pub async fn rest_add_group(rest_id: i32, new_str: String) -> bool {
    
    // Выполняем запрос
@@ -552,6 +554,8 @@ pub async fn rest_add_group(rest_id: i32, new_str: String) -> bool {
    }
 }
 
+// Изменяет название группы
+//
 pub async fn rest_group_edit_title(rest_id: i32, group_id: i32, new_str: String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
@@ -563,6 +567,8 @@ pub async fn rest_group_edit_title(rest_id: i32, group_id: i32, new_str: String)
    }
 }
 
+// Изменяет описание группы
+//
 pub async fn rest_group_edit_info(rest_id: i32, group_id: i32, new_str: String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
@@ -574,6 +580,8 @@ pub async fn rest_group_edit_info(rest_id: i32, group_id: i32, new_str: String) 
    }
 }
 
+// Переключает доступность группы
+//
 pub async fn rest_group_toggle(rest_id: i32, group_id: i32) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
@@ -585,6 +593,8 @@ pub async fn rest_group_toggle(rest_id: i32, group_id: i32) -> bool {
    }
 }
 
+// Изменяет категорию группы
+//
 pub async fn rest_group_edit_category(rest_id: i32, group_id: i32, new_cat : i32) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
@@ -596,6 +606,8 @@ pub async fn rest_group_edit_category(rest_id: i32, group_id: i32, new_cat : i32
    }
 }
 
+// Изменяет время доступности группы
+//
 pub async fn rest_group_edit_time(rest_id: i32, group_id: i32, opening_time: NaiveTime, closing_time: NaiveTime) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
@@ -607,16 +619,34 @@ pub async fn rest_group_edit_time(rest_id: i32, group_id: i32, opening_time: Nai
    }
 }
 
+// Удаляет группу и изменяет порядковый номер оставшихся групп, в т.ч. и у блюд
+//
 pub async fn rest_group_remove(rest_id: i32, group_id: i32) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap()
-   .execute("DELETE FROM groups WHERE user_id=$1::INTEGER AND group_num=$2::INTEGER;
-   UPDATE groups SET group_num = group_num - 1 WHERE user_id=$3::INTEGER AND group_num>$4::INTEGER
-   ", &[&rest_id, &group_id, &rest_id, &group_id])
+    // Выполняем запрос. Должно быть начало транзакции, потом коммит, но transaction требует mut
+   let query1 = DB.get().unwrap()
+   .execute("DELETE FROM groups WHERE user_id=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_id, &group_id])
    .await;
-   match query {
-       Ok(_) => true,
-       _ => false,
+   match query1 {
+      Ok(_) => {
+         // Номера групп перенумеровываем для исключения дырки
+         let query2 = DB.get().unwrap()
+         .execute("UPDATE groups SET group_num = group_num - 1 WHERE user_id=$1::INTEGER AND group_num>$2::INTEGER", &[&rest_id, &group_id])
+         .await;
+         match query2 {
+            Ok(_) => {
+               // Перенумеровываем группы у блюд
+               let query3 = DB.get().unwrap()
+               .execute("UPDATE dishes SET group_num = group_num - 1 WHERE user_id=$1::INTEGER AND group_num>$2::INTEGER", &[&rest_id, &group_id])
+               .await;
+               match query3 {
+                  Ok(_) => true,
+                  _ => false,
+               }
+            }
+            _     => false,
+         }
+      }
+      _ => false,
    }
 }
 
@@ -632,7 +662,7 @@ CREATE TABLE dishes (
     title           VARCHAR(100)    NOT NULL,
     info            VARCHAR(255)    NOT NULL,
     active          BOOLEAN         NOT NULL,
-    group_id        INTEGER         NOT NULL,
+    group_num       INTEGER         NOT NULL,
     price           INTEGER         NOT NULL,
     image_id        VARCHAR(100)
 );
