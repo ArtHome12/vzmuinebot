@@ -484,7 +484,7 @@ async fn dish_titles(rest_id: i32, group_id: i32) -> String {
 pub async fn dish_info(rest_id: i32, dish_id: i32) -> Option<(String, Option<String>)> {
      // Выполняем запрос
      let rows = DB.get().unwrap()
-     .query("SELECT title, info, active, group_num, price, image_id FROM groups WHERE user_id=$1::INTEGER AND dish_num=$2::INTEGER", &[&rest_id, &dish_id])
+     .query("SELECT title, info, active, group_num, price, image_id FROM dishes WHERE user_id=$1::INTEGER AND dish_num=$2::INTEGER", &[&rest_id, &dish_id])
      .await;
 
     // Проверяем результат

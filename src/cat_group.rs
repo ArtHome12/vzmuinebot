@@ -150,9 +150,7 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                 // Удалить группу
                 cmd::CatGroup::RemoveGroup(rest_id, group_id) => {
                     // Запрос доп.данных не требуется, сразу удаяем, если это не основная.
-                    if group_id > 1 {
-                        db::rest_group_remove(rest_id, group_id).await;
-
+                    if group_id > 1 && db::rest_group_remove(rest_id, group_id).await {
                         // Группы больше нет, показываем главное меню
                         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                         caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
