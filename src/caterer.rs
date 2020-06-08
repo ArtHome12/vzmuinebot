@@ -226,7 +226,7 @@ pub async fn add_rest_group(cx: cmd::Cx<i32>) -> cmd::Res {
                next_with_info(cx, false).await
             } else {
                // Сообщим об ошибке
-               next_with_cancel(cx, &format!("Ошибка add_rest_group({})", rest_id)).await
+               next_with_cancel(cx, &format!("Ошибка rest_add_group({})", rest_id)).await
             }
         } else {
             // Сообщим об отмене

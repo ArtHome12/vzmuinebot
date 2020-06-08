@@ -146,21 +146,21 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
     };
 
     let group1 = Group {
-        title: String::from("Основная"),
-        info: String::from("Блюда подаются на тарелке"),
-        active: true,
-        cat_id: 2,
-        opening_time: NaiveTime::from_hms(0, 0, 0),
-        closing_time: NaiveTime::from_hms(0, 0, 0),
+      //   title: String::from("Основная"),
+      //   info: String::from("Блюда подаются на тарелке"),
+      //   active: true,
+      //   cat_id: 2,
+      //   opening_time: NaiveTime::from_hms(0, 0, 0),
+      //   closing_time: NaiveTime::from_hms(0, 0, 0),
     };
 
     let group2 = Group {
-        title: String::from("Завтраки"),
-        info: String::from("Имеются салфетки"),
-        active: true,
-        cat_id: 1,
-        opening_time: NaiveTime::from_hms(7, 0, 0),
-        closing_time: NaiveTime::from_hms(11, 0, 0),
+      //   title: String::from("Завтраки"),
+      //   info: String::from("Имеются салфетки"),
+      //   active: true,
+      //   cat_id: 1,
+      //   opening_time: NaiveTime::from_hms(7, 0, 0),
+      //   closing_time: NaiveTime::from_hms(11, 0, 0),
     };
 
     let mut rest = Restaurant {
@@ -186,61 +186,13 @@ static REST_DB: Lazy<Mutex<Restaurant>> = Lazy::new(|| {
 
 
 struct Group {
-    title: String,
-    info: String,
-    active: bool,
-    cat_id: i32,
-    opening_time: NaiveTime,
-    closing_time: NaiveTime,    
+   //  title: String,
+   //  info: String,
+   //  active: bool,
+   //  cat_id: i32,
+   //  opening_time: NaiveTime,
+   //  closing_time: NaiveTime,    
 }
-
-impl Group {
-
-    fn toggle(&mut self) {
-        self.active = !self.active; 
-    }
-}
-
-pub async fn rest_group_edit_title(_rest_id: i32, group_id: i32, new_str: String) {
-    if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
-        group.title = new_str;
-    }
-}
-
-pub async fn rest_group_edit_info(_rest_id: i32, group_id: i32, new_str: String) {
-    if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
-        group.info = new_str;
-    }
-}
-
-pub async fn rest_group_toggle(_rest_id: i32, group_id: i32) {
-    if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
-        group.toggle();
-    }
-}
-
-pub async fn rest_group_edit_category(_rest_id: i32, group_id: i32, new_cat : i32) {
-    if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
-        group.cat_id = new_cat;
-    }
-}
-
-pub async fn rest_group_edit_time(_rest_id: i32, group_id: i32, opening_time: NaiveTime, closing_time: NaiveTime) {
-    if let Some(group) = REST_DB.lock().unwrap().groups.get_mut(&group_id) {
-        group.opening_time = opening_time;
-        group.closing_time = closing_time;
-    }
-}
-
-pub async fn rest_group_remove(_rest_id: i32, group_id: i32) {
-    let groups = & mut(REST_DB.lock().unwrap().groups);
-    
-    // Первую группу не удаляем
-    if group_id > 1 {
-        groups.remove(&group_id);
-    }
-}
-
 
 //
 // Dish
@@ -599,6 +551,73 @@ pub async fn rest_add_group(rest_id: i32, new_str: String) -> bool {
       _ => false,
    }
 }
+
+pub async fn rest_group_edit_title(rest_id: i32, group_id: i32, new_str: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE groups SET title = $1::VARCHAR(100) WHERE user_id=$2::INTEGER AND group_num=$3::INTEGER", &[&new_str, &rest_id, &group_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
+}
+
+pub async fn rest_group_edit_info(rest_id: i32, group_id: i32, new_str: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE groups SET info = $1::VARCHAR(255) WHERE user_id=$2::INTEGER AND group_num=$3::INTEGER", &[&new_str, &rest_id, &group_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
+}
+
+pub async fn rest_group_toggle(rest_id: i32, group_id: i32) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE groups SET active = NOT active WHERE user_id=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_id, &group_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
+}
+
+pub async fn rest_group_edit_category(rest_id: i32, group_id: i32, new_cat : i32) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE groups SET cat_id = $1::INTEGER WHERE user_id=$2::INTEGER AND group_num=$3::INTEGER", &[&new_cat, &rest_id, &group_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
+}
+
+pub async fn rest_group_edit_time(rest_id: i32, group_id: i32, opening_time: NaiveTime, closing_time: NaiveTime) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE groups SET opening_time = $1::TIME, closing_time = $2::TIME WHERE user_id=$3::INTEGER AND group_num=$4::INTEGER", &[&opening_time, &closing_time, &rest_id, &group_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
+}
+
+pub async fn rest_group_remove(rest_id: i32, group_id: i32) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("DELETE FROM groups WHERE user_id=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_id, &group_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
+}
+
 
 // ============================================================================
 // [Dish]
