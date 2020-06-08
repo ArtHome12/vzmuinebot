@@ -458,7 +458,7 @@ CREATE TABLE dishes (
 async fn dish_titles(rest_id: i32, group_id: i32) -> String {
     // Выполняем запрос
     let rows = DB.get().unwrap()
-        .query("SELECT dish_num, title, price FROM dishes WHERE user_id=$1::INTEGER AND group_id=$2::INTEGER", &[&rest_id, &group_id])
+        .query("SELECT dish_num, title, price FROM dishes WHERE user_id=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_id, &group_id])
         .await;
 
     // Строка для возврата результата
