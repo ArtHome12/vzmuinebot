@@ -164,11 +164,13 @@ pub async fn edit_rest_title_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             let rest_id = cx.dialogue;
         
             // Сохраним новое значение в БД
-            db::rest_edit_title(rest_id, s).await;
-
-            // Покажем изменённую информацию о ресторане
-            next_with_info(cx, false).await
-
+            if db::rest_edit_title(rest_id, s).await {
+               // Покажем изменённую информацию о ресторане
+               next_with_info(cx, false).await
+            } else {
+               // Сообщим об ошибке
+               next_with_cancel(cx, &format!("Ошибка rest_edit_title({})", rest_id)).await
+            }
         } else {
             // Сообщим об отмене
             next_with_cancel(cx, "Отмена").await
@@ -191,11 +193,13 @@ pub async fn edit_rest_info_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             let rest_id = cx.dialogue;
         
             // Сохраним новое значение в БД
-            db::rest_edit_info(rest_id, s).await;
-
-            // Покажем изменённую информацию о ресторане
-            next_with_info(cx, false).await
-
+            if db::rest_edit_info(rest_id, s).await {
+               // Покажем изменённую информацию о ресторане
+               next_with_info(cx, false).await
+            } else {
+               // Сообщим об ошибке
+               next_with_cancel(cx, &format!("Ошибка edit_rest_info_mode({})", rest_id)).await
+            }
         } else {
             // Сообщим об отмене
             next_with_cancel(cx, "Отмена").await
@@ -217,11 +221,13 @@ pub async fn add_rest_group(cx: cmd::Cx<i32>) -> cmd::Res {
             let rest_id = cx.dialogue;
         
             // Сохраним новое значение в БД
-            db::rest_add_group(rest_id, s).await;
-
-            // Покажем изменённую информацию о ресторане
-            next_with_info(cx, false).await
-
+            if db::rest_add_group(rest_id, s).await{
+               // Покажем изменённую информацию о ресторане
+               next_with_info(cx, false).await
+            } else {
+               // Сообщим об ошибке
+               next_with_cancel(cx, &format!("Ошибка add_rest_group({})", rest_id)).await
+            }
         } else {
             // Сообщим об отмене
             next_with_cancel(cx, "Отмена").await

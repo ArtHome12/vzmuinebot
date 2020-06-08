@@ -196,30 +196,9 @@ struct Group {
 
 impl Group {
 
-/*    fn to_str(&self) -> String {
-        String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime
-Удалить группу /Remove\nНовое блюдо /AddDish\n",
-            self.title, self.info, id_to_category(self.cat_id), active_to_str(self.active), self.opening_time.format("%H:%M"), self.closing_time.format("%H:%M")))
-    }*/
-
     fn toggle(&mut self) {
         self.active = !self.active; 
     }
-}
-
-pub async fn rest_add_group(_rest_id: i32, new_str: String) {
-    let group = Group {
-        title: new_str,
-        info: String::from("Блюда подаются на тарелке"),
-        active: true,
-        cat_id: 1,
-        opening_time: NaiveTime::from_hms(0, 0, 0),
-        closing_time: NaiveTime::from_hms(0, 0, 0),
-    };
-
-    let groups = & mut(REST_DB.lock().unwrap().groups);
-    let group_id = groups.len() as i32 + 1;
-    groups.insert(group_id, group);
 }
 
 pub async fn rest_group_edit_title(_rest_id: i32, group_id: i32, new_str: String) {
@@ -430,7 +409,7 @@ CREATE TABLE restaurants (
     title       VARCHAR(100)    NOT NULL,
     info        VARCHAR(255)    NOT NULL,
     active      BOOLEAN         NOT NULL,
-    image_id    VARCHAR(100)    NOT NULL
+    image_id    VARCHAR(100)
 );
 
 INSERT INTO restaurants (user_id, title, info, active)
@@ -597,57 +576,69 @@ pub async fn group_info(rest_id: i32, group_id: i32) -> Option<String> {
         }
         _ => None,
     }
+}
 
-/* 
-    fn to_str(&self) -> String {
-        String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime
-Удалить группу /Remove\nНовое блюдо /AddDish\n",
-            self.title, self.info, id_to_category(self.cat_id), active_to_str(self.active), self.opening_time.format("%H:%M"), self.closing_time.format("%H:%M")))
-    }
-
-
-// Ресторан
-    let rest = REST_DB.lock().unwrap();
-
-    if let Some(group) = rest.groups.get(&group_id) {
-        // Информация о самой группе        
-        let mut s = group.to_str();
-
-        // Добавим информацию о блюдах
-        for (key, value) in rest.dishes.iter()
-                .filter(|(_, value)| value.group_id == group_id) {
-            s.push_str(&format!("   {} /EdDi{}\n", value.to_str_short(), key));
-        };
-        s
-    } else {
-        String::from("")
-    }*/
+pub async fn rest_add_group(rest_id: i32, new_str: String) -> bool {
+   
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("INSERT INTO groups (user_id, group_num, title, info, active, cat_id, opening_time, closing_time) 
+   VALUES (
+      $1::INTEGER, 
+      (SELECT COUNT(*) FROM groups WHERE user_id=$2::INTEGER) + 1,
+      $3::VARCHAR(100),
+      'Блюда подаются на тарелке',
+      TRUE,
+      2,
+      '00:00',
+      '00:00'
+   )", &[&rest_id, &rest_id, &new_str])
+   .await;
+   match query {
+      Ok(_) => true,
+      _ => false,
+   }
 }
 
 // ============================================================================
 // [Dish]
 // ============================================================================
 /*Таблица с данными о блюдах
-CREATE TABLE groups (
-    PRIMARY KEY (user_id, group_num),
+CREATE TABLE dishes (
+    PRIMARY KEY (user_id, dish_num),
     user_id         INTEGER         NOT NULL,
-    group_num       INTEGER         NOT NULL,
+    dish_num        INTEGER         NOT NULL,
     title           VARCHAR(100)    NOT NULL,
     info            VARCHAR(255)    NOT NULL,
     active          BOOLEAN         NOT NULL,
-    cat_id          INTEGER         NOT NULL,
-    opening_time    TIME            NOT NULL,    
-    closing_time    TIME            NOT NULL  
+    group_id        INTEGER         NOT NULL,
+    price           INTEGER         NOT NULL,
+    image_id        VARCHAR(100)
 );
 
-INSERT INTO groups (user_id, group_num, title, info, active, cat_id, opening_time, closing_time)
-VALUES (409664508, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00'),
-       (501159140, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00');*/
+*/
 
 // Возвращает строки с краткой информацией о группах
 //
 async fn dish_titles(rest_id: i32, group_id: i32) -> String {
-    //        String::from(format!("{} {}k₫", self.title, self.price))
+    // Выполняем запрос
+    let rows = DB.get().unwrap()
+        .query("SELECT dish_num, title, price FROM dishes WHERE user_id=$1::INTEGER AND group_id=$2::INTEGER", &[&rest_id, &group_id])
+        .await;
 
-    String::default()
+    // Строка для возврата результата
+    let mut res = String::default();
+
+    // Проверяем результат
+    if let Ok(data) = rows {
+        for record in data {
+            let dish_num: i32 = record.get(0);
+            let title: String = record.get(1);
+            let price: i32 = record.get(2);
+            res.push_str(&format!("   {} {}k₫ /EdDi{}\n", 
+                title, price, dish_num
+            ));
+        }
+    }
+    res
 }
