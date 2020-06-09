@@ -66,7 +66,7 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
 
             // Выполняем запрос групп
             let rows = DB.get().unwrap()
-               .query("SELECT group_num, title FROM groups WHERE rest_num=$1::INTEGER AND cat_id=$2::INTEGER AND active = TRUE", &[&rest_num, &cat_id])
+               .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND cat_id=$2::INTEGER AND active = TRUE", &[&rest_num, &cat_id])
                .await;
 
             // Проверяем результат
@@ -74,7 +74,9 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
                for record in data {
                   let group_num: i32 = record.get(0);
                   let title: String = record.get(1);
-                  res.push_str(&format!("   {} /grou{}\n", title, group_num));
+                  let opening_time: NaiveTime = record.get(2);
+                  let closing_time: NaiveTime = record.get(3);
+                        res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening_time, closing_time, group_num));
                }
             };
 
@@ -366,7 +368,7 @@ async fn group_titles(rest_num: i32) -> String {
             let opening_time: NaiveTime = record.get(2);
             let closing_time: NaiveTime = record.get(3);
             res.push_str(&format!("   {} {}-{} /EdGr{}\n", 
-                title, opening_time, closing_time, group_num
+                title, opening_time.format("%H:%M"), closing_time.format("%H:%M"), group_num
             ));
         }
     }
