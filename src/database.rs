@@ -13,10 +13,11 @@ use once_cell::sync::{OnceCell};
 use std::collections::{HashMap};
 use teloxide::types::InputFile;
 
+
 pub static DB: OnceCell<tokio_postgres::Client> = OnceCell::new();
 
 
-fn restaurants() -> &'static HashMap<u32, &'static str> {
+/*fn restaurants() -> &'static HashMap<u32, &'static str> {
     static INSTANCE: OnceCell<HashMap<u32, &'static str>> = OnceCell::new();
     INSTANCE.get_or_init(|| {
         let mut m = HashMap::new();
@@ -27,7 +28,7 @@ fn restaurants() -> &'static HashMap<u32, &'static str> {
         m.insert(5, "Му-му");
         m
     })
-}
+}*/
 
 fn dishes() -> &'static HashMap<u32, &'static str> {
     static INSTANCE: OnceCell<HashMap<u32, &'static str>> = OnceCell::new();
@@ -45,46 +46,68 @@ fn dishes() -> &'static HashMap<u32, &'static str> {
 
 
 
-pub async fn restaurant_by_category_from_db(_category: String) -> String {
-    let mut res = String::default();
-    let hash = restaurants();
-    for (key, value) in hash {
-        let res1 = format!("\n   {} /rest0{}", value, key);
-        res.push_str(&res1);
-    }
-    res
+// ============================================================================
+// [User]
+// ============================================================================
+
+// Возвращает список ресторанов с активными группами в данной категории
+pub async fn restaurant_by_category_from_db(cat_id: i32) -> String {
+   // Выполняем запрос
+   let rows = DB.get().unwrap()
+      .query("SELECT r.title, r.rest_num from restaurants as r INNER JOIN (SELECT DISTINCT user_id FROM groups WHERE cat_id=$1::INTEGER) g ON r.user_id = g.user_id", &[&cat_id])
+      .await;
+
+   // Строка для возврата результата
+   let mut res = String::default();
+
+   // Проверяем результат
+   if let Ok(data) = rows {
+      for record in data {
+         let title: String = record.get(0);
+         let rest_num: i32 = record.get(1);
+         res.push_str(&format!("   {} /rest{}\n", title, rest_num));
+      }
+   }
+   res
+
+
+
+   /*let mut res = String::default();
+   let hash = restaurants();
+   for (key, value) in hash {
+       let res1 = format!("\n   {} /rest0{}", value, key);
+       res.push_str(&res1);
+   }
+   res*/
 }
-    
+   
 pub async fn dishes_by_restaurant_and_category_from_db(_category: String, _restaurant: String) -> String {
-    let mut res = String::default();
-    let hash = dishes();
-    for (key, value) in hash {
-        let res1 = format!("\n   {} /dish010{}", value, key);
-        res.push_str(&res1);
-    }
-    res
+   let mut res = String::default();
+   let hash = dishes();
+   for (key, value) in hash {
+       let res1 = format!("\n   {} /dish010{}", value, key);
+       res.push_str(&res1);
+   }
+   res
 }
 
 // Возвращает информацию о блюде - картинку, цену и описание.
 pub struct DishInfo {
-    pub img : InputFile,
-    pub price : u32,
-    pub desc : String,
+   pub img : InputFile,
+   pub price : u32,
+   pub desc : String,
 }
 
 pub async fn dish(_dish_id : String) -> Option<DishInfo> {
-    let dish_info = DishInfo {
-        img : InputFile::file("media/dish.jpg"),
-        price : 100,
-        desc : String::from("Просто пальчики оближешь"),
-    };
+   let dish_info = DishInfo {
+       img : InputFile::file("media/dish.jpg"),
+       price : 100,
+       desc : String::from("Просто пальчики оближешь"),
+   };
 
-    Some(dish_info)
+   Some(dish_info)
 }
 
-// ============================================================================
-// [Caterer]
-// ============================================================================
 
 
 // ============================================================================
@@ -104,23 +127,23 @@ fn active_to_str(active : bool) -> &'static str {
 // Используется при редактировании категории группы
 //
 fn id_to_category(cat_id : i32) -> &'static str {
-    match cat_id {
-        1 => "Соки воды",
-        2 => "Еда",
-        3 => "Алкоголь",
-        4 => "Развлечения",
-        _ => "Неизвестная категория",
-    }
+   match cat_id {
+      1 => "Соки воды",
+      2 => "Еда",
+      3 => "Алкоголь",
+      4 => "Развлечения",
+      _ => "Неизвестная категория",
+   }
 } 
 
 pub fn category_to_id(category: &str) -> i32 {
-    match category {
-        "Соки воды" => 1,
-        "Еда" => 2,
-        "Алкоголь" => 3,
-        "Развлечения" => 4,
-        _ => 0,
-    }
+   match category {
+      "Соки воды" => 1,
+      "Еда" => 2,
+      "Алкоголь" => 3,
+      "Развлечения" => 4,
+      _ => 0,
+   }
 }
 
 
@@ -135,12 +158,13 @@ CREATE TABLE restaurants (
     title       VARCHAR(100)    NOT NULL,
     info        VARCHAR(255)    NOT NULL,
     active      BOOLEAN         NOT NULL,
+    rest_num    INTEGER         NOT NULL,
     image_id    VARCHAR(100)
 );
 
 INSERT INTO restaurants (user_id, title, info, active)
-VALUES (409664508, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE),
-       (501159140, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE);*/
+VALUES (409664508, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, 1),
+       (501159140, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, 2);*/
 
 // Возвращает истину, если пользователю разрешён доступ в режим ресторатора
 //

@@ -36,13 +36,28 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
         }
         Some(command) => {
             match cmd::User::from(command) {
-                cmd::User::Water |
-                cmd::User::Food |
-                cmd::User::Alcohol | 
+                cmd::User::Water => {
+                    // Отобразим все рестораны, у которых есть в меню выбранная категория.
+                    let rest_list = db::restaurant_by_category_from_db(1).await;
+                    cx.answer(format!("Рестораны с подходящим меню\n{}", rest_list))
+                        .send().await?;
+                }
+                cmd::User::Food => {
+                    // Отобразим все рестораны, у которых есть в меню выбранная категория.
+                    let rest_list = db::restaurant_by_category_from_db(2).await;
+                    cx.answer(format!("Рестораны с подходящим меню\n{}", rest_list))
+                        .send().await?;
+                }
+                cmd::User::Alcohol => {
+                    // Отобразим все рестораны, у которых есть в меню выбранная категория.
+                    let rest_list = db::restaurant_by_category_from_db(3).await;
+                    cx.answer(format!("Рестораны с подходящим меню\n{}", rest_list))
+                        .send().await?;
+                }
                 cmd::User::Entertainment => {
                     // Отобразим все рестораны, у которых есть в меню выбранная категория.
-                    let rest_list = db::restaurant_by_category_from_db(command.to_string()).await;
-                    cx.answer(format!("Рестораны с меню в категории {}{}", command, rest_list))
+                    let rest_list = db::restaurant_by_category_from_db(4).await;
+                    cx.answer(format!("Рестораны с подходящим меню\n{}", rest_list))
                         .send().await?;
                 }
                 cmd::User::OpenedNow => {
