@@ -389,7 +389,7 @@ impl EaterDish {
          _ => {
              // Ищем среди команд с цифровыми суффиксами - аргументами
              match input.get(..5).unwrap_or_default() {
-                 "/grou" => EaterDish::Dish(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                 "/dish" => EaterDish::Dish(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                  _ => EaterDish::UnknownCommand,
              }
          }
