@@ -61,7 +61,7 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> St
       for record in data {
          let group_num: i32 = record.get(0);
          let title: String = record.get(1);
-         res.push_str(&format!("   {} /ReGr{}\n", title, group_num));
+         res.push_str(&format!("   {} /grou{}\n", title, group_num));
       }
    }
 
