@@ -24,7 +24,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
    async fn hint(image_id : &Option<String>) -> String {
       match image_id {
          Some(_) => String::default(),
-         _ => String::from("Изначально всё заполнено значениями по-умолчанию, отредактируйте их."),
+         _ => String::from("\nИзначально всё заполнено значениями по-умолчанию, отредактируйте их."),
       }
    }
    
@@ -84,93 +84,104 @@ async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
 // Обработка команд главного меню в режиме ресторатора
 //
 pub async fn caterer_mode(cx: cmd::Cx<()>) -> cmd::Res {
-    // Разбираем команду.
-    match cx.update.text() {
-        None => {
-            cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
-            next(cmd::Dialogue::CatererMode)
-        }
-        Some(command) => {
-            // Код ресторана
-            let rest_id = cx.update.from().unwrap().id;
+   // Разбираем команду.
+   match cx.update.text() {
+      None => {
+         cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
+         next(cmd::Dialogue::CatererMode)
+      }
+      Some(command) => {
+         // Код ресторана
+         let rest_id = cx.update.from().unwrap().id;
 
-            match cmd::Caterer::from(rest_id, command) {
+         match cmd::Caterer::from(rest_id, command) {
 
-                // Показать информацию о ресторане
-                cmd::Caterer::Main(rest_id) => {
-                    // Покажем информацию
-                    let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                    next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
-                }
-
-                // Выйти из режима ресторатора
-                cmd::Caterer::Exit => {
-                    eater::start(cx).await
-                }
-
-                // Изменение названия ресторана
-                cmd::Caterer::EditTitle(rest_id) => {
-
-                    // Отправляем приглашение ввести строку со слешем в меню для отмены
-                    cx.answer(format!("Введите название (/ для отмены)"))
-                    .reply_markup(cmd::Caterer::slash_markup())
-                    .send()
-                    .await?;
-
-                    // Переходим в режим ввода нового названия ресторана
-                    next(cmd::Dialogue::CatEditRestTitle(rest_id))
-                }
-
-                // Изменение информации о ресторане
-                cmd::Caterer::EditInfo(rest_id) => {
-
-                    // Отправляем приглашение ввести строку со слешем в меню для отмены
-                    cx.answer(format!("Введите описание (адрес, контакты)"))
-                    .reply_markup(cmd::Caterer::slash_markup())
-                    .send()
-                    .await?;
-
-                    // Переходим в режим ввода информации о ресторане
-                    next(cmd::Dialogue::CatEditRestInfo(rest_id))
-                }
-
-                // Переключение активности ресторана
-                cmd::Caterer::TogglePause(rest_id) => {
-                    // Запрос доп.данных не требуется, сразу переключаем активность
-                    db::rest_toggle(rest_id).await;
-
-                    // Покажем изменённую информацию
-                    let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                    next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
-                }
-
-                // Команда редактирования групп ресторана
-                cmd::Caterer::EditGroup(rest_id, group_id) => {
-                    // Отображаем информацию о группе и переходим в режим её редактирования
-                    let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                    cat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
-                }
-
-                // Команда добвления новой группы
-                cmd::Caterer::AddGroup(rest_id) => {
-
-                    // Отправляем приглашение ввести строку со слешем в меню для отмены
-                    cx.answer(format!("Введите название (/ для отмены)"))
-                    .reply_markup(cmd::Caterer::slash_markup())
-                    .send()
-                    .await?;
-
-                    // Переходим в режим ввода названия новой группы
-                    next(cmd::Dialogue::CatAddGroup(rest_id))
-                }
-
-                cmd::Caterer::UnknownCommand => {
-                    let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                    next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), "Вы в главном меню: неизвестная команда").await
-                }
+            // Показать информацию о ресторане
+            cmd::Caterer::Main(rest_id) => {
+               // Покажем информацию
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
             }
-        }
-    }
+
+            // Выйти из режима ресторатора
+            cmd::Caterer::Exit => {
+               eater::start(cx).await
+            }
+
+            // Изменение названия ресторана
+            cmd::Caterer::EditTitle(rest_id) => {
+               // Отправляем приглашение ввести строку со слешем в меню для отмены
+               cx.answer(format!("Введите название (/ для отмены)"))
+               .reply_markup(cmd::Caterer::slash_markup())
+               .send()
+               .await?;
+
+               // Переходим в режим ввода нового названия ресторана
+               next(cmd::Dialogue::CatEditRestTitle(rest_id))
+            }
+
+            // Изменение информации о ресторане
+            cmd::Caterer::EditInfo(rest_id) => {
+               // Отправляем приглашение ввести строку со слешем в меню для отмены
+               cx.answer(format!("Введите описание (адрес, контакты)"))
+               .reply_markup(cmd::Caterer::slash_markup())
+               .send()
+               .await?;
+
+               // Переходим в режим ввода информации о ресторане
+               next(cmd::Dialogue::CatEditRestInfo(rest_id))
+            }
+
+            // Переключение активности ресторана
+            cmd::Caterer::TogglePause(rest_id) => {
+               // Запрос доп.данных не требуется, сразу переключаем активность
+               db::rest_toggle(rest_id).await;
+
+               // Покажем изменённую информацию
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
+            }
+
+            // Изменить картинку
+            cmd::Caterer::EditImage(rest_id) => {
+
+            // Отправляем приглашение ввести строку с категориями в меню для выбора
+            cx.answer(format!("Загрузите картинку"))
+            .reply_markup(cmd::Caterer::main_menu_markup())
+            .send()
+            .await?;
+
+            // Переходим в режим ввода картинки ресторана
+            next(cmd::Dialogue::CatEditRestImage(rest_id))
+         }
+
+         // Команда редактирования групп ресторана
+            cmd::Caterer::EditGroup(rest_id, group_id) => {
+               // Отображаем информацию о группе и переходим в режим её редактирования
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               cat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
+            }
+
+            // Команда добвления новой группы
+            cmd::Caterer::AddGroup(rest_id) => {
+
+               // Отправляем приглашение ввести строку со слешем в меню для отмены
+               cx.answer(format!("Введите название (/ для отмены)"))
+               .reply_markup(cmd::Caterer::slash_markup())
+               .send()
+               .await?;
+
+               // Переходим в режим ввода названия новой группы
+               next(cmd::Dialogue::CatAddGroup(rest_id))
+            }
+
+            cmd::Caterer::UnknownCommand => {
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), "Вы в главном меню: неизвестная команда").await
+            }
+      }
+      }
+   }
 }
 
 // Изменение названия ресторана rest_id
@@ -205,30 +216,48 @@ pub async fn edit_rest_title_mode(cx: cmd::Cx<i32>) -> cmd::Res {
 // Изменение описания ресторана rest_id
 //
 pub async fn edit_rest_info_mode(cx: cmd::Cx<i32>) -> cmd::Res {
-    if let Some(text) = cx.update.text() {
-        // Удалим из строки слеши
-        let s = cmd::remove_slash(text).await;
+   if let Some(text) = cx.update.text() {
+      // Удалим из строки слеши
+      let s = cmd::remove_slash(text).await;
 
-        // Если строка не пустая, продолжим
-        if !s.is_empty() {
-            // Код ресторана
-            let rest_id = cx.dialogue;
-        
-            // Сохраним новое значение в БД
-            if db::rest_edit_info(rest_id, s).await {
-               // Покажем изменённую информацию о ресторане
-               next_with_info(cx, false).await
-            } else {
-               // Сообщим об ошибке
-               next_with_cancel(cx, &format!("Ошибка edit_rest_info_mode({})", rest_id)).await
-            }
-        } else {
-            // Сообщим об отмене
-            next_with_cancel(cx, "Отмена").await
-        }
-    } else {
-        next(cmd::Dialogue::CatererMode)
-    }
+      // Если строка не пустая, продолжим
+      if !s.is_empty() {
+         // Код ресторана
+         let rest_id = cx.dialogue;
+      
+         // Сохраним новое значение в БД
+         if db::rest_edit_info(rest_id, s).await {
+            // Покажем изменённую информацию о ресторане
+            next_with_info(cx, false).await
+         } else {
+            // Сообщим об ошибке
+            next_with_cancel(cx, &format!("Ошибка edit_rest_info_mode({})", rest_id)).await
+         }
+      } else {
+         // Сообщим об отмене
+         next_with_cancel(cx, "Отмена").await
+      }
+   } else {
+      next(cmd::Dialogue::CatererMode)
+   }
+}
+
+// Изменение картинки
+//
+pub async fn edit_rest_image_mode(cx: cmd::Cx<i32>) -> cmd::Res {
+   if let Some(photo_size) = cx.update.photo() {
+       // Попытаемся преобразовать ответ пользователя в идентификатор фото
+       let image = &photo_size[0].file_id;
+
+      // Код ресторана
+      let rest_id = cx.dialogue;
+
+       // Сохраним новое значение в БД
+       db::rest_edit_image(rest_id, image).await;
+   }
+
+   // Покажем изменённую информацию о ресторане
+   next_with_info(cx, false).await
 }
 
 

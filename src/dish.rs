@@ -167,7 +167,7 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                     .send()
                     .await?;
 
-                    // Переходим в режим ввода информации о блюде
+                    // Переходим в режим ввода картинки блюда
                     next(cmd::Dialogue::CatEditDishImage(rest_id, dish_id))
                 }
 

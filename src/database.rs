@@ -178,7 +178,7 @@ pub async fn rest_info(rest_id: i32) -> Option<(String, Option<String>)> {
                 let image_id: Option<String> = data[0].get(3);
                 let groups: String = group_titles(rest_id).await;
                 Some((
-                    String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nГруппы и время работы (добавить новую /AddGroup):\n{}",
+                    String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nЗагрузить фото /EditImg\nГруппы и время работы (добавить новую /AddGroup):\n{}",
                         title, info, active_to_str(active), groups)
                     ), image_id
                 ))
@@ -222,6 +222,21 @@ pub async fn rest_toggle(rest_id: i32) -> bool {
        _ => false,
    }
 }
+
+
+// Изменение фото ресторана
+//
+pub async fn rest_edit_image(rest_id: i32, image_id: &String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE restaurants SET image_id = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&image_id, &rest_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
+}
+
 
 // ============================================================================
 // [Group]

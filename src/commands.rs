@@ -24,6 +24,7 @@ pub enum Dialogue {
     CatererMode,
     CatEditRestTitle(i32), // rest_id
     CatEditRestInfo(i32), // rest_id
+    CatEditRestImage(i32), // rest_id
     CatEditGroup(i32, i32), // rest_id, group_id
     CatAddGroup(i32), // rest_id
     CatEditGroupTitle(i32, i32), // rest_id, group_id (cat_group)
@@ -132,6 +133,8 @@ pub enum Caterer {
     EditInfo(i32), // rest_id
     // Доступность меню, определяемая самим пользователем
     TogglePause(i32), // rest_id
+    // Фото престорана
+    EditImage(i32), // rest_id
     // Переход к редактированию указанной группы блюд.
     EditGroup(i32, i32), // rest_id, group_id
     // Добавляет новую группу
@@ -148,6 +151,7 @@ impl Caterer {
             "/EditTitle" => Caterer::EditTitle(rest_id),
             "/EditInfo" => Caterer::EditInfo(rest_id),
             "/Toggle" => Caterer::TogglePause(rest_id),
+            "/EditImg" => Caterer::EditImage(rest_id),
             "/AddGroup" => Caterer::AddGroup(rest_id),
             _ => {
                 // Ищем среди команд с цифровыми суффиксами - аргументами
