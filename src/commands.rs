@@ -352,7 +352,7 @@ impl EaterGroup {
          _ => {
              // Ищем среди команд с цифровыми суффиксами - аргументами
              match input.get(..5).unwrap_or_default() {
-                 "/rest" => EaterGroup::Group(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                 "/grou" => EaterGroup::Group(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                  _ => EaterGroup::UnknownCommand,
              }
          }
