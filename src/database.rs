@@ -86,7 +86,7 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
             };
 
             // Окончательный результат
-            Some((format!("Название: {}\nОписание: {}\nПодходящие разделы меню:\n{}", title, info, res), image_id))
+            Some((format!("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}", title, info, id_to_category(cat_id), res), image_id))
          } else {
             None
          }
