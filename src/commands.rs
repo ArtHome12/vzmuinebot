@@ -56,13 +56,9 @@ pub enum User {
     // Команды главного меню
     Category(i32),   // cat_id 
     OpenedNow,
-    Repeat,
+    All,
     CatererMode, 
     UnknownCommand,
-    // Показать список групп в указанной категории ресторана rest_id
-    //RestaurantGroupsInCategory(i32),
-    // Показать информацию о блюде /dish___ dish_id
-    //DishInfo(u32),
     // Показать список доступных сейчас категорий меню ресторана /menu___ rest_id
     //RestaurantOpenedCategories(u32),
 }
@@ -76,23 +72,9 @@ impl User {
             "Алкоголь" => User::Category(3),
             "Развлечения" => User::Category(4),
             "Сейчас" => User::OpenedNow,
-            "Повтор" => User::Repeat,
+            "Все" => User::All,
             "Добавить" => User::CatererMode,
-/*            _ => {
-                // Ищем среди команд с цифровыми суффиксами - аргументами
-                match input.get(..5).unwrap_or_default() {
-                    "/rest" => {
-                        // Извлекаем аргументы.
-                        let rest_num = input.get(5..).unwrap_or_default().parse().unwrap_or_default();
-
-                        // Возвращаем команду.
-                        User::RestaurantGroupsInCategory(rest_num)
-                    }
-                    "/dish" => User::DishInfo(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
-                    "/menu" => User::RestaurantOpenedCategories(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
-                    _ => User::UnknownCommand,
-                }
-            }*/_ => User::UnknownCommand,
+            _ => User::UnknownCommand,
         }
     }
 
@@ -106,7 +88,7 @@ impl User {
             ])
             .append_row(vec![
                 KeyboardButton::new("Сейчас"),
-                KeyboardButton::new("Повтор"),
+                KeyboardButton::new("Все"),
                 KeyboardButton::new("Добавить"),
             ])
             .resize_keyboard(true)

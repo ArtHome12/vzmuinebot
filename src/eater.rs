@@ -55,28 +55,6 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                   let now = Utc::now().with_timezone(&our_timezone).format("%H:%M");
                   cx.answer(format!("Рестораны, открытые сейчас ({})\nКоманда в разработке", now)).send().await?;
                }
-/*               cmd::User::RestaurantGroupsInCategory(rest_num) => {
-                  // Отобразим категорию меню ресторана.rest_id
-                  let group_list = db::groups_by_restaurant_and_category(rest_id, cat_id).await;
-                  cx.answer(format!("Разделы меню ресторана {}{}:", rest_id, group_list)).send().await?;
-               }
-               cmd::User::RestaurantOpenedCategories(rest_id) => {
-                  cx.answer(format!("Доступные категории ресторана {}", rest_id)).send().await?;
-               }
-               cmd::User::DishInfo(dish_id) => {
-                  // Отобразим информацию о выбранном блюде.
-                  let dish = db::dish(dish_id.to_string()).await;
-                  match dish {
-                     None => {
-                     }
-                     Some(dish_info) => {
-                           cx.answer_photo(dish_info.img)
-                           .caption(format!("Цена {} тыс. ₫\n{}", dish_info.price, dish_info.desc))
-                           .send()
-                           .await?;
-                     }
-                  }
-               }*/
                cmd::User::CatererMode => {
                   // Код пользователя
                   let user_id: i32 = match cx.update.from() {
@@ -96,7 +74,7 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                      .send().await?;
                   }
                }
-               cmd::User::Repeat => {
+               cmd::User::All => {
                   cx.answer("Команда в разработке").send().await?;
                }
                cmd::User::UnknownCommand => {
