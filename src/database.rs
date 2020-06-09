@@ -55,7 +55,7 @@ fn dishes() -> &'static HashMap<u32, &'static str> {
 pub async fn restaurant_by_category_from_db(cat_id: i32) -> String {
    // Выполняем запрос
    let rows = DB.get().unwrap()
-      .query("SELECT r.title, r.rest_num from restaurants as r INNER JOIN (SELECT DISTINCT user_id FROM groups WHERE cat_id=$1::INTEGER) g ON r.user_id = g.user_id", &[&cat_id])
+      .query("SELECT r.title, r.rest_num from restaurants as r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER) g ON r.rest_num = g.rest_num", &[&cat_id])
       .await;
 
    // Строка для возврата результата
