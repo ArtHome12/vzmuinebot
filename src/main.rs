@@ -47,8 +47,8 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
       cmd::Dialogue::UserMode => {
          eater::user_mode(DialogueDispatcherHandlerCx::new(bot, update, ())).await
       }
-      cmd::Dialogue::CatererMode => {
-         caterer::caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
+      cmd::Dialogue::CatererMode(rest_id) => {
+         caterer::caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
                .await
       }
       cmd::Dialogue::CatEditRestTitle(rest_id) => {

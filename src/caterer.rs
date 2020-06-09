@@ -41,7 +41,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
    // Дополним, при необходимости, приветствием
    let welcome_msg = if show_welcome {
       // Добавляем подсказку только если ещё нет картинки
-      format!("Добро пожаловать в режим ввода меню!{}\nuser id={}", hint(&image_id).await, rest_id)
+      format!("Добро пожаловать в режим ввода меню!{}\nUser Id={}, {}", hint(&image_id).await, rest_id, cx.update.from().unwrap().id)
    } else {
       String::default()
    };
@@ -68,7 +68,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
    }
 
    // Остаёмся в режиме главного меню ресторатора.
-   next(cmd::Dialogue::CatererMode)
+   next(cmd::Dialogue::CatererMode(rest_id))
 }
 
 async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
@@ -77,22 +77,28 @@ async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
     .send()
     .await?;
 
-    // Остаёмся в режиме главного меню ресторатора.
-    next(cmd::Dialogue::CatererMode)
+   // Код ресторана
+   let rest_id = cx.dialogue;
+
+   // Остаёмся в режиме главного меню ресторатора.
+    next(cmd::Dialogue::CatererMode(rest_id))
 }
 
 // Обработка команд главного меню в режиме ресторатора
 //
-pub async fn caterer_mode(cx: cmd::Cx<()>) -> cmd::Res {
+pub async fn caterer_mode(cx: cmd::Cx<i32>) -> cmd::Res {
+   // Код ресторана
+   let rest_id = cx.dialogue;
+
    // Разбираем команду.
    match cx.update.text() {
       None => {
          cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
-         next(cmd::Dialogue::CatererMode)
+         next(cmd::Dialogue::CatererMode(rest_id))
       }
       Some(command) => {
          // Код ресторана
-         let rest_id = cx.update.from().unwrap().id;
+         let rest_id = cx.dialogue;
 
          match cmd::Caterer::from(rest_id, command) {
 
@@ -105,7 +111,8 @@ pub async fn caterer_mode(cx: cmd::Cx<()>) -> cmd::Res {
 
             // Выйти из режима ресторатора
             cmd::Caterer::Exit => {
-               eater::start(cx).await
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               eater::start(DialogueDispatcherHandlerCx::new(bot, update, ())).await
             }
 
             // Изменение названия ресторана
@@ -187,44 +194,44 @@ pub async fn caterer_mode(cx: cmd::Cx<()>) -> cmd::Res {
 // Изменение названия ресторана rest_id
 //
 pub async fn edit_rest_title_mode(cx: cmd::Cx<i32>) -> cmd::Res {
-    if let Some(text) = cx.update.text() {
-        // Удалим из строки слеши
-        let s = cmd::remove_slash(text).await;
-
-        // Если строка не пустая, продолжим
-        if !s.is_empty() {
-            // Код ресторана
-            let rest_id = cx.dialogue;
+   // Код ресторана
+   let rest_id = cx.dialogue;
         
-            // Сохраним новое значение в БД
-            if db::rest_edit_title(rest_id, s).await {
-               // Покажем изменённую информацию о ресторане
-               next_with_info(cx, false).await
-            } else {
-               // Сообщим об ошибке
-               next_with_cancel(cx, &format!("Ошибка rest_edit_title({})", rest_id)).await
-            }
-        } else {
-            // Сообщим об отмене
-            next_with_cancel(cx, "Отмена").await
-        }
-    } else {
-        next(cmd::Dialogue::CatererMode)
-    }
-}
-
-// Изменение описания ресторана rest_id
-//
-pub async fn edit_rest_info_mode(cx: cmd::Cx<i32>) -> cmd::Res {
    if let Some(text) = cx.update.text() {
       // Удалим из строки слеши
       let s = cmd::remove_slash(text).await;
 
       // Если строка не пустая, продолжим
       if !s.is_empty() {
-         // Код ресторана
-         let rest_id = cx.dialogue;
-      
+         // Сохраним новое значение в БД
+         if db::rest_edit_title(rest_id, s).await {
+            // Покажем изменённую информацию о ресторане
+            next_with_info(cx, false).await
+         } else {
+            // Сообщим об ошибке
+            next_with_cancel(cx, &format!("Ошибка rest_edit_title({})", rest_id)).await
+         }
+      } else {
+         // Сообщим об отмене
+         next_with_cancel(cx, "Отмена").await
+      }
+   } else {
+      next(cmd::Dialogue::CatererMode(rest_id))
+   }
+}
+
+// Изменение описания ресторана rest_id
+//
+pub async fn edit_rest_info_mode(cx: cmd::Cx<i32>) -> cmd::Res {
+   // Код ресторана
+   let rest_id = cx.dialogue;
+
+   if let Some(text) = cx.update.text() {
+      // Удалим из строки слеши
+      let s = cmd::remove_slash(text).await;
+
+      // Если строка не пустая, продолжим
+      if !s.is_empty() {
          // Сохраним новое значение в БД
          if db::rest_edit_info(rest_id, s).await {
             // Покажем изменённую информацию о ресторане
@@ -238,7 +245,7 @@ pub async fn edit_rest_info_mode(cx: cmd::Cx<i32>) -> cmd::Res {
          next_with_cancel(cx, "Отмена").await
       }
    } else {
-      next(cmd::Dialogue::CatererMode)
+      next(cmd::Dialogue::CatererMode(rest_id))
    }
 }
 
@@ -262,29 +269,29 @@ pub async fn edit_rest_image_mode(cx: cmd::Cx<i32>) -> cmd::Res {
 
 
 pub async fn add_rest_group(cx: cmd::Cx<i32>) -> cmd::Res {
-    if let Some(text) = cx.update.text() {
-         // Удалим из строки слеши
-         let s = cmd::remove_slash(text).await;
+   // Код ресторана
+   let rest_id = cx.dialogue;
 
-         // Если строка не пустая, продолжим
-         if !s.is_empty() {
-            // Код ресторана
-            let rest_id = cx.dialogue;
-        
-            // Сохраним новое значение в БД
-            if db::rest_add_group(rest_id, s).await{
-               // Покажем изменённую информацию о ресторане
-               next_with_info(cx, false).await
-            } else {
-               // Сообщим об ошибке
-               next_with_cancel(cx, &format!("Ошибка rest_add_group({})", rest_id)).await
-            }
-        } else {
-            // Сообщим об отмене
-            next_with_cancel(cx, "Отмена").await
-        }
-    } else {
-        next(cmd::Dialogue::CatererMode)
-    }
+   if let Some(text) = cx.update.text() {
+      // Удалим из строки слеши
+      let s = cmd::remove_slash(text).await;
+
+      // Если строка не пустая, продолжим
+      if !s.is_empty() {
+         // Сохраним новое значение в БД
+         if db::rest_add_group(rest_id, s).await{
+            // Покажем изменённую информацию о ресторане
+            next_with_info(cx, false).await
+         } else {
+            // Сообщим об ошибке
+            next_with_cancel(cx, &format!("Ошибка rest_add_group({})", rest_id)).await
+         }
+      } else {
+         // Сообщим об отмене
+         next_with_cancel(cx, "Отмена").await
+      }
+   } else {
+      next(cmd::Dialogue::CatererMode(rest_id))
+   }
 }
 

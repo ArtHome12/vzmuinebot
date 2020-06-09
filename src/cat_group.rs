@@ -214,7 +214,8 @@ pub async fn edit_title_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             next_with_cancel(cx, "Отмена").await
         }
     } else {
-        next(cmd::Dialogue::CatererMode)
+      // Сообщим об отмене
+      next_with_cancel(cx, "Отмена").await
     }
 }
 
@@ -241,7 +242,8 @@ pub async fn edit_info_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             next_with_cancel(cx, "Отмена").await
         }
     } else {
-        next(cmd::Dialogue::CatererMode)
+      // Сообщим об отмене
+      next_with_cancel(cx, "Отмена").await
     }
 }
 
@@ -268,7 +270,8 @@ pub async fn edit_category_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             next_with_cancel(cx, "Неизвестная категория, отмена").await
         }
     } else {
-        next(cmd::Dialogue::CatererMode)
+      // Сообщим об отмене
+      next_with_cancel(cx, "Отмена").await
     }
 }
 
@@ -308,7 +311,8 @@ pub async fn edit_time_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             next_with_cancel(cx, "Отмена").await
         }
     } else {
-        next(cmd::Dialogue::CatererMode)
+      // Сообщим об отмене
+      next_with_cancel(cx, "Отмена").await
     }
 }
 
@@ -338,7 +342,8 @@ pub async fn add_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             next_with_cancel(cx, "Отмена").await
         }
     } else {
-        next(cmd::Dialogue::CatererMode)
+      // Сообщим об отмене
+      next_with_cancel(cx, "Отмена").await
     }
 }
 

@@ -168,7 +168,7 @@ CREATE TABLE restaurants (
     active      BOOLEAN       NOT NULL,
     enabled     BOOLEAN       NOT NULL
     rest_num    SERIAL,
-    image_id    VARCHAR(100)
+    image_id    VARCHAR(255)
 );
 
 INSERT INTO restaurants (user_id, title, info, active)

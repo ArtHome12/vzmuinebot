@@ -21,7 +21,7 @@ pub enum Dialogue {
     #[default]
     Start,
     UserMode,
-    CatererMode,
+    CatererMode(i32), // rest_id
     CatEditRestTitle(i32), // rest_id
     CatEditRestInfo(i32), // rest_id
     CatEditRestImage(i32), // rest_id
