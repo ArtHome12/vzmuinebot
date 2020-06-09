@@ -117,8 +117,8 @@ pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> St
               // Параметры ресторана
               let title: String = data[0].get(0);
               let info: String = data[0].get(1);
-              let price: i32 = data[0].get(4);
-              let image_id: Option<String> = data[0].get(5);
+              let price: i32 = data[0].get(2);
+              let image_id: Option<String> = data[0].get(3);
               String::from(format!("Название: {}\nИнформация: {}\nЦена: {} тыс.₫", title, info, price))
           } else {
               String::default()
