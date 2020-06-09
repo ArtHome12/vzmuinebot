@@ -32,12 +32,12 @@ pub enum Dialogue {
     CatEditGroupCategory(i32, i32), // rest_id, group_id (cat_group)
     CatEditGroupTime(i32, i32), // rest_id, group_id (cat_group)
     CatAddDish(i32, i32), // rest_id, dish_id (cat_group)
-    CatEditDish(i32, i32), // rest_id, dish_id (dish)
-    CatEditDishTitle(i32, i32), // rest_id, dish_id (dish)
-    CatEditDishInfo(i32, i32), // rest_id, dish_id (dish)
-    CatEditDishGroup(i32, i32), // rest_id, dish_id (dish)
-    CatEditDishPrice(i32, i32), // rest_id, dish_id (dish)
-    CatEditDishImage(i32, i32), // rest_id, dish_id (dish)
+    CatEditDish(i32, i32, i32), // rest_num, group_num, dish_num (dish)
+    CatEditDishTitle(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
+    CatEditDishInfo(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
+    CatEditDishGroup(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
+    CatEditDishPrice(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
+    CatEditDishImage(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
@@ -214,7 +214,7 @@ pub enum CatGroup {
     // Добавление нового блюда
     AddDish(i32, i32), // rest_id, group_id
     // Редактирование блюда
-    EditDish(i32, i32), // rest_id, group_id
+    EditDish(i32, i32, i32), // rest_id, group_id, dish_id
 }
 
 impl CatGroup {
@@ -234,7 +234,7 @@ impl CatGroup {
             _ => {
                 // Ищем среди команд с цифровыми суффиксами - аргументами
                 match input.get(..5).unwrap_or_default() {
-                    "/EdDi" => CatGroup::EditDish(rest_id, input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                    "/EdDi" => CatGroup::EditDish(rest_id, group_id, input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                     _ => CatGroup::UnknownCommand,
                 }
             }
@@ -264,35 +264,35 @@ pub enum CatDish {
     Exit, 
     UnknownCommand,
     // Изменить название
-    EditTitle(i32, i32), // rest_id, group_id
+    EditTitle(i32, i32, i32), // rest_id, group_id, dish_id
     // Изменить описание
-    EditInfo(i32, i32), // rest_id, group_id
+    EditInfo(i32, i32, i32), // rest_id, group_id, dish_id
     // Переключить доступность
-    TogglePause(i32, i32), // rest_id, group_id
+    TogglePause(i32, i32, i32), // rest_id, group_id, dish_id
     // Изменить группу
-    EditGroup(i32, i32), // rest_id, group_id
+    EditGroup(i32, i32, i32), // rest_id, group_id, dish_id
     // Изменить цену
-    EditPrice(i32, i32), // rest_id, group_id
+    EditPrice(i32, i32, i32), // rest_id, group_id, dish_id
     // Изменить цену
-    EditImage(i32, i32), // rest_id, group_id
+    EditImage(i32, i32, i32), // rest_id, group_id, dish_id
     // Удалить
-    Remove(i32, i32), // rest_id, group_id
+    Remove(i32, i32, i32), // rest_id, group_id, dish_id
 }
 
 impl CatDish {
 
-    pub fn from(rest_id: i32, dish_id: i32, input: &str) -> CatDish {
+    pub fn from(rest_id: i32, group_id: i32, dish_id: i32, input: &str) -> CatDish {
         match input {
             // Сначала проверим на цельные команды.
             "Главная" => CatDish::Main(rest_id),
             "Выход" => CatDish::Exit,
-            "/EditTitle" => CatDish::EditTitle(rest_id, dish_id),
-            "/EditInfo" => CatDish::EditInfo(rest_id, dish_id),
-            "/Toggle" => CatDish::TogglePause(rest_id, dish_id),
-            "/EditGroup" => CatDish::EditGroup(rest_id, dish_id),
-            "/EditPrice" => CatDish::EditPrice(rest_id, dish_id),
-            "/EditImg" => CatDish::EditImage(rest_id, dish_id),
-            "/Remove" => CatDish::Remove(rest_id, dish_id),
+            "/EditTitle" => CatDish::EditTitle(rest_id, group_id, dish_id),
+            "/EditInfo" => CatDish::EditInfo(rest_id, group_id, dish_id),
+            "/Toggle" => CatDish::TogglePause(rest_id, group_id, dish_id),
+            "/EditGroup" => CatDish::EditGroup(rest_id, group_id, dish_id),
+            "/EditPrice" => CatDish::EditPrice(rest_id, group_id, dish_id),
+            "/EditImg" => CatDish::EditImage(rest_id, group_id, dish_id),
+            "/Remove" => CatDish::Remove(rest_id, group_id, dish_id),
             _ => CatDish::UnknownCommand,
         }
     }

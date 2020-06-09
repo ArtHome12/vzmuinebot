@@ -17,19 +17,6 @@ use teloxide::types::InputFile;
 pub static DB: OnceCell<tokio_postgres::Client> = OnceCell::new();
 
 
-/*fn restaurants() -> &'static HashMap<u32, &'static str> {
-    static INSTANCE: OnceCell<HashMap<u32, &'static str>> = OnceCell::new();
-    INSTANCE.get_or_init(|| {
-        let mut m = HashMap::new();
-        m.insert(1, "Ёлки-палки");
-        m.insert(2, "Крошка-картошка");
-        m.insert(3, "Плакучая ива");
-        m.insert(4, "Националь");
-        m.insert(5, "Му-му");
-        m
-    })
-}*/
-
 fn dishes() -> &'static HashMap<u32, &'static str> {
     static INSTANCE: OnceCell<HashMap<u32, &'static str>> = OnceCell::new();
     INSTANCE.get_or_init(|| {
@@ -76,15 +63,6 @@ pub async fn restaurant_by_category_from_db(cat_id: i32) -> String {
    } else {
       res
    }
-
-
-   /*let mut res = String::default();
-   let hash = restaurants();
-   for (key, value) in hash {
-       let res1 = format!("\n   {} /rest0{}", value, key);
-       res.push_str(&res1);
-   }
-   res*/
 }
 
 // Возвращает список блюд выбранного ресторана и категории
@@ -533,10 +511,10 @@ async fn dish_titles(rest_num: i32, group_num: i32) -> String {
 
 // Возвращает информацию о блюде
 //
-pub async fn dish_info(rest_num: i32, dish_num: i32) -> Option<(String, Option<String>)> {
+pub async fn dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Option<(String, Option<String>)> {
      // Выполняем запрос
      let rows = DB.get().unwrap()
-     .query("SELECT title, info, active, group_num, price, image_id FROM dishes WHERE rest_num=$1::INTEGER AND dish_num=$2::INTEGER", &[&rest_num, &dish_num])
+     .query("SELECT title, info, active, group_num, price, image_id FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
      .await;
 
     // Проверяем результат
@@ -588,10 +566,10 @@ pub async fn rest_add_dish(rest_num: i32, group_num: i32, new_str: String) -> bo
 
 // Редактирование названия блюда
 //
-pub async fn rest_dish_edit_title(rest_num: i32, dish_num: i32, new_str: String) -> bool {
+pub async fn rest_dish_edit_title(rest_num: i32, group_num: i32, dish_num: i32, new_str: String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
-   .execute("UPDATE dishes SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&new_str, &rest_num, &dish_num])
+   .execute("UPDATE dishes SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&new_str, &rest_num, &group_num, &dish_num])
    .await;
    match query {
        Ok(_) => true,
@@ -602,10 +580,10 @@ pub async fn rest_dish_edit_title(rest_num: i32, dish_num: i32, new_str: String)
 
 // Редактирование описания блюда
 //
-pub async fn rest_dish_edit_info(rest_num: i32, dish_num: i32, new_str: String) -> bool {
+pub async fn rest_dish_edit_info(rest_num: i32, group_num: i32, dish_num: i32, new_str: String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
-   .execute("UPDATE dishes SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&new_str, &rest_num, &dish_num])
+   .execute("UPDATE dishes SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&new_str, &rest_num, &group_num, &dish_num])
    .await;
    match query {
        Ok(_) => true,
@@ -616,10 +594,10 @@ pub async fn rest_dish_edit_info(rest_num: i32, dish_num: i32, new_str: String) 
 
 // Переключение доступности блюда
 //
-pub async fn rest_dish_toggle(rest_num: i32, dish_num: i32) -> bool {
+pub async fn rest_dish_toggle(rest_num: i32, group_num: i32, dish_num: i32) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
-   .execute("UPDATE dishes SET active = NOT active WHERE rest_num=$1::INTEGER AND dish_num=$2::INTEGER", &[&rest_num, &dish_num])
+   .execute("UPDATE dishes SET active = NOT active WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
    .await;
    match query {
        Ok(_) => true,
@@ -630,9 +608,9 @@ pub async fn rest_dish_toggle(rest_num: i32, dish_num: i32) -> bool {
 
 // Изменение группы блюда
 //
-pub async fn rest_dish_edit_group(rest_num: i32, dish_num: i32, group_num : i32) -> bool {
+pub async fn rest_dish_edit_group(_rest_num: i32, _group_num: i32, _dish_num: i32) -> bool {
    // Проверим, что есть такая группа
-   let rows = DB.get().unwrap()
+   /*let rows = DB.get().unwrap()
    .query("SELECT * FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
    .await;
 
@@ -642,7 +620,7 @@ pub async fn rest_dish_edit_group(rest_num: i32, dish_num: i32, group_num : i32)
             if !data.is_empty() {
             // Выполняем запрос
             let query = DB.get().unwrap()
-            .execute("UPDATE dishes SET group_num = $1::INTEGER WHERE rest_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&group_num, &rest_num, &dish_num])
+            .execute("UPDATE dishes SET group_num = $1::INTEGER WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&group_num, &rest_num, &group_num, &dish_num])
             .await;
             match query {
                Ok(_) => true,
@@ -653,22 +631,22 @@ pub async fn rest_dish_edit_group(rest_num: i32, dish_num: i32, group_num : i32)
          }
       }
       _ => false,
-   }
+   }*/false
 }
 
 
 // Удаление блюда
 //
-pub async fn rest_dish_remove(rest_num: i32, dish_num: i32) -> bool {
+pub async fn rest_dish_remove(rest_num: i32, group_num: i32, dish_num: i32) -> bool {
    // Выполняем запрос. Должно быть начало транзакции, потом коммит, но transaction требует mut
    let query = DB.get().unwrap()
-   .execute("DELETE FROM dishes WHERE rest_num=$1::INTEGER AND dish_num=$2::INTEGER", &[&rest_num, &dish_num])
+   .execute("DELETE FROM dishes WHERE rest_num=$1::INTEGER AND dish_num=$2::INTEGER", &[&rest_num, &group_num, &dish_num])
    .await;
    match query {
       Ok(_) => {
          // Номера оставшихся блюд перенумеровываем для исключения дырки
          let query = DB.get().unwrap()
-         .execute("UPDATE dishes SET dish_num = dish_num - 1 WHERE rest_num=$1::INTEGER AND dish_num>$2::INTEGER", &[&rest_num, &dish_num])
+         .execute("UPDATE dishes SET dish_num = dish_num - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
          .await;
          match query {
          Ok(_) => true,
@@ -682,7 +660,7 @@ pub async fn rest_dish_remove(rest_num: i32, dish_num: i32) -> bool {
 
 // Возвращает группу блюда
 //
-pub async fn dish_group(rest_num: i32, dish_num: i32) -> i32 {
+/*pub async fn dish_group(rest_num: i32, dish_num: i32) -> i32 {
    let rows = DB.get().unwrap()
    .query("SELECT group_num FROM dishes WHERE rest_num=$1::INTEGER AND dish_num=$2::INTEGER", &[&rest_num, &dish_num])
    .await;
@@ -698,15 +676,15 @@ pub async fn dish_group(rest_num: i32, dish_num: i32) -> i32 {
       }
       _ => 1,
    }
-}
+}*/
 
 
 // Изменение цены блюда
 //
-pub async fn rest_dish_edit_price(rest_num: i32, dish_num: i32, price: i32) -> bool {
+pub async fn rest_dish_edit_price(rest_num: i32, group_num: i32, dish_num: i32, price: i32) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
-   .execute("UPDATE dishes SET price = $1::INTEGER WHERE rest_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&price, &rest_num, &dish_num])
+   .execute("UPDATE dishes SET price = $1::INTEGER WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&price, &rest_num, &group_num, &dish_num])
    .await;
    match query {
        Ok(_) => true,
@@ -717,10 +695,10 @@ pub async fn rest_dish_edit_price(rest_num: i32, dish_num: i32, price: i32) -> b
 
 // Изменение фото блюда
 //
-pub async fn rest_dish_edit_image(rest_num: i32, dish_num: i32, image_id: &String) -> bool {
+pub async fn rest_dish_edit_image(rest_num: i32, group_num: i32, dish_num: i32, image_id: &String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
-   .execute("UPDATE dishes SET image_id = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&image_id, &rest_num, &dish_num])
+   .execute("UPDATE dishes SET image_id = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&image_id, &rest_num, &group_num, &dish_num])
    .await;
    match query {
        Ok(_) => true,

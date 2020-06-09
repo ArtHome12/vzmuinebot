@@ -173,11 +173,11 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                 }
 
                  // Редактирование блюда
-                 cmd::CatGroup::EditDish(rest_id, group_id) => {
+                 cmd::CatGroup::EditDish(rest_id, group_id, dish_id) => {
 
                     // Отображаем информацию о блюде и переходим в режим её редактирования
                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                    dish::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
+                    dish::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id))).await
                 }
 
                 // Ошибочная команда

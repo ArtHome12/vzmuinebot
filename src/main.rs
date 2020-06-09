@@ -91,28 +91,28 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
          cat_group::add_dish_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
                .await
       }
-      cmd::Dialogue::CatEditDish(rest_id, dish_id) => {
-         dish::edit_dish_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, dish_id)))
+      cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id) => {
+         dish::edit_dish_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
                .await
       }
-      cmd::Dialogue::CatEditDishTitle(rest_id, dish_id) => {
-         dish::edit_title_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, dish_id)))
+      cmd::Dialogue::CatEditDishTitle(rest_id, group_id, dish_id) => {
+         dish::edit_title_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
                .await
       }
-      cmd::Dialogue::CatEditDishInfo(rest_id, dish_id) => {
-         dish::edit_info_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, dish_id)))
+      cmd::Dialogue::CatEditDishInfo(rest_id, group_id, dish_id) => {
+         dish::edit_info_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
                .await
       }
-      cmd::Dialogue::CatEditDishGroup(rest_id, dish_id) => {
-         dish::edit_dish_group_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, dish_id)))
+      cmd::Dialogue::CatEditDishGroup(rest_id, group_id, dish_id) => {
+         dish::edit_dish_group_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
                .await
       }
-      cmd::Dialogue::CatEditDishPrice(rest_id, dish_id) => {
-         dish::edit_price_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, dish_id)))
+      cmd::Dialogue::CatEditDishPrice(rest_id, group_id, dish_id) => {
+         dish::edit_price_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
                .await
       }
-      cmd::Dialogue::CatEditDishImage(rest_id, dish_id) => {
-         dish::edit_image_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, dish_id)))
+      cmd::Dialogue::CatEditDishImage(rest_id, group_id, dish_id) => {
+         dish::edit_image_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
                .await
       }
    }
