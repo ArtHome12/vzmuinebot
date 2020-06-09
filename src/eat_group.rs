@@ -9,6 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
+   types::{InputFile, ReplyMarkup},
 };
 
 use crate::commands as cmd;
@@ -24,13 +25,28 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
    let (cat_id, rest_id) = cx.dialogue;
    
    // Получаем информацию из БД
-   let group_list = db::groups_by_restaurant_and_category(rest_id, cat_id).await;
+   let (info, rest_image_id) = match db::groups_by_restaurant_and_category(rest_id, cat_id).await {
+      Some(dish_info) => dish_info,
+      None => (format!("Ошибка db::groups_by_restaurant_and_category({}, {})", rest_id, cat_id), None)
+   };
 
-   // Отображаем информацию и кнопки меню
-   cx.answer(format!("Подходящие разделы меню:\n{}", group_list))
-   .reply_markup(cmd::EaterGroup::markup())
-       .send()
-       .await?;
+    // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
+    if let Some(image_id) = rest_image_id {
+      // Создадим графический объект
+      let image = InputFile::file_id(image_id);
+
+      // Отправляем картинку и текст как комментарий
+      cx.answer_photo(image)
+      .caption(info)
+      .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::EaterGroup::markup()))
+      .send()
+      .await?;
+   } else {
+         cx.answer(info)
+         .reply_markup(cmd::EaterGroup::markup())
+         .send()
+         .await?;
+   }
 
    // Переходим (остаёмся) в режим выбора ресторана
    next(cmd::Dialogue::EatRestGroupSelectionMode(cat_id, rest_id))

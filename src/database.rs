@@ -45,31 +45,53 @@ pub async fn restaurant_by_category_from_db(cat_id: i32) -> String {
    }
 }
 
-// Возвращает список групп выбранного ресторана и категории
+// Возвращает описание, список групп выбранного ресторана и категории и фото, если есть
 //
-pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> String {
-   // Выполняем запрос
+pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Option<(String, Option<String>)> {
+   // Выполняем запрос информации о ресторане
    let rows = DB.get().unwrap()
-      .query("SELECT group_num, title FROM groups WHERE rest_num=$1::INTEGER AND cat_id=$2::INTEGER AND active = TRUE", &[&rest_num, &cat_id])
+      .query("SELECT title, info, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
       .await;
 
-   // Строка для возврата результата
-   let mut res = String::default();
+   match rows {
+      Ok(data) => {
+         if !data.is_empty() {
+            // Параметры ресторана
+            let title: String = data[0].get(0);
+            let info: String = data[0].get(1);
+            let image_id: Option<String> = data[0].get(2);
 
-   // Проверяем результат
-   if let Ok(data) = rows {
-      for record in data {
-         let group_num: i32 = record.get(0);
-         let title: String = record.get(1);
-         res.push_str(&format!("   {} /grou{}\n", title, group_num));
+            // Строка для возврата результата
+            let mut res = String::default();
+
+            // Выполняем запрос групп
+            let rows = DB.get().unwrap()
+               .query("SELECT group_num, title FROM groups WHERE rest_num=$1::INTEGER AND cat_id=$2::INTEGER AND active = TRUE", &[&rest_num, &cat_id])
+               .await;
+
+            // Проверяем результат
+            if let Ok(data) = rows {
+               for record in data {
+                  let group_num: i32 = record.get(0);
+                  let title: String = record.get(1);
+                  res.push_str(&format!("   {} /grou{}\n", title, group_num));
+               }
+            };
+
+            // На случай пустого списка сообщим об этом
+            let res = if res.is_empty() {
+               String::from("   пусто :(")
+            } else {
+               res
+            };
+
+            // Окончательный результат
+            Some((format!("Название: {}\nОписание: {}\nПодходящие разделы меню:\n{}", title, info, res), image_id))
+         } else {
+            None
+         }
       }
-   }
-
-   // На случай пустого списка сообщим об этом
-   if res.is_empty() {
-      String::from("   пусто :(")
-   } else {
-      res
+      _ => None,
    }
 }
 
