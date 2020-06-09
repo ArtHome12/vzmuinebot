@@ -21,6 +21,7 @@ pub enum Dialogue {
     #[default]
     Start,
     UserMode,
+    EatRestSelectionMode(i32), // cat_id
     CatererMode(i32), // rest_id
     CatEditRestTitle(i32), // rest_id
     CatEditRestInfo(i32), // rest_id
@@ -292,4 +293,40 @@ impl CatDish {
             _ => CatDish::UnknownCommand,
         }
     }
+}
+
+
+// ============================================================================
+// [Eater menu, restaurant selection]
+// ============================================================================
+#[derive(Copy, Clone)]
+pub enum EaterRest {
+    Main,
+    UnknownCommand,
+    Restaurant(i32),   // cat_id 
+}
+
+impl EaterRest {
+   pub fn from(input: &str) -> EaterRest {
+      match input {
+         // Сначала проверим на цельные команды.
+         "В начало" => EaterRest::Main,
+         _ => {
+             // Ищем среди команд с цифровыми суффиксами - аргументами
+             match input.get(..5).unwrap_or_default() {
+                 "/rest" => EaterRest::Restaurant(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                 _ => EaterRest::UnknownCommand,
+             }
+         }
+     }
+   }
+
+   pub fn markup() -> ReplyKeyboardMarkup {
+      ReplyKeyboardMarkup::default()
+          .append_row(vec![
+              KeyboardButton::new("В начало"),
+              KeyboardButton::new("Назад"),
+          ])
+          .resize_keyboard(true)
+  }
 }

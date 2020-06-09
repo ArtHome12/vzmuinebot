@@ -16,6 +16,7 @@ use teloxide::{
 use crate::commands as cmd;
 use crate::database as db;
 use crate::caterer;
+use crate::eat_rest;
 
 pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    
@@ -45,10 +46,9 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
       Some(command) => {
          match cmd::User::from(command) {
                cmd::User::Category(cat_id) => {
-                  // Отобразим все рестораны, у которых есть в меню выбранная категория.
-                  let rest_list = db::restaurant_by_category_from_db(cat_id).await;
-                  cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
-                     .send().await?;
+                  // Отобразим все рестораны, у которых есть в меню выбранная категория и переходим в режим выбора ресторана
+                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                  return eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, cat_id)).await;
                }
                cmd::User::OpenedNow => {
                   let our_timezone = FixedOffset::east(7 * 3600);

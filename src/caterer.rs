@@ -97,9 +97,6 @@ pub async fn caterer_mode(cx: cmd::Cx<i32>) -> cmd::Res {
          next(cmd::Dialogue::CatererMode(rest_id))
       }
       Some(command) => {
-         // Код ресторана
-         let rest_id = cx.dialogue;
-
          match cmd::Caterer::from(rest_id, command) {
 
             // Показать информацию о ресторане
