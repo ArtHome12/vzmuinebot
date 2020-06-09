@@ -148,7 +148,7 @@ pub async fn dishes_by_restaurant_and_group_from_db(rest_num: i32, group_num: i3
 
 // Возвращает информацию о блюде - картинку, цену и описание.
 //
-pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> String {
+pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Option<(String, Option<String>)> {
    // Выполняем запрос
    let rows = DB.get().unwrap()
       .query("SELECT title, info, price, image_id FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND active = TRUE", &[&rest_num, &group_num, &dish_num])
@@ -163,12 +163,12 @@ pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> St
               let info: String = data[0].get(1);
               let price: i32 = data[0].get(2);
               let image_id: Option<String> = data[0].get(3);
-              String::from(format!("Название: {}\nИнформация: {}\nЦена: {} тыс.₫", title, info, price))
+              Some((String::from(format!("Название: {}\nИнформация: {}\nЦена: {} тыс.₫", title, info, price)), image_id))
           } else {
-              String::default()
+            None
           }
       }
-      _ => String::default()
+      _ => None,
    }
 }
 

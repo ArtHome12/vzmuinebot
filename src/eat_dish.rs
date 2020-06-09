@@ -9,6 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
+   types::{InputFile, ReplyMarkup},
 };
 
 use crate::commands as cmd;
@@ -82,9 +83,29 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 
             // Выбор блюда
             cmd::EaterDish::Dish(dish_num) => {
-               let dish_info = db::eater_dish_info(rest_id, group_id, dish_num).await;
-               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)), &dish_info).await
+               // Получаем информацию из БД
+               let (info, dish_image_id) = match db::eater_dish_info(rest_id, group_id, dish_num).await {
+                  Some(dish_info) => dish_info,
+                  None => (format!("Ошибка db::eater_dish_info({}, {}, {})", rest_id, group_id, dish_num), None)
+               };
+
+               // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
+               if let Some(image_id) = dish_image_id {
+                  // Создадим графический объект
+                  let image = InputFile::file_id(image_id);
+
+                  // Отправляем картинку и текст как комментарий
+                  cx.answer_photo(image)
+                  .caption(info)
+                  .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::EaterDish::markup()))
+                  .send()
+                  .await?;
+                  
+                  next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
+               } else {
+                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)), &info).await
+               }
             }
 
             cmd::EaterDish::UnknownCommand => {
