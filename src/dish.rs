@@ -136,7 +136,7 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                 cmd::CatDish::EditGroup(rest_id, dish_id) => {
 
                     // Отправляем приглашение ввести строку с категориями в меню для выбора
-                    cx.answer(format!("Введите номер группы"))
+                    cx.answer(format!("Введите номер группы для переноса блюда из текущей группы в другую"))
                     .reply_markup(cmd::Caterer::main_menu_markup())
                     .send()
                     .await?;
