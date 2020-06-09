@@ -39,25 +39,25 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                 cmd::User::Water => {
                     // Отобразим все рестораны, у которых есть в меню выбранная категория.
                     let rest_list = db::restaurant_by_category_from_db(1).await;
-                    cx.answer(format!("Рестораны с подходящим меню\n{}", rest_list))
+                    cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
                         .send().await?;
                 }
                 cmd::User::Food => {
                     // Отобразим все рестораны, у которых есть в меню выбранная категория.
                     let rest_list = db::restaurant_by_category_from_db(2).await;
-                    cx.answer(format!("Рестораны с подходящим меню\n{}", rest_list))
+                    cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
                         .send().await?;
                 }
                 cmd::User::Alcohol => {
                     // Отобразим все рестораны, у которых есть в меню выбранная категория.
                     let rest_list = db::restaurant_by_category_from_db(3).await;
-                    cx.answer(format!("Рестораны с подходящим меню\n{}", rest_list))
+                    cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
                         .send().await?;
                 }
                 cmd::User::Entertainment => {
                     // Отобразим все рестораны, у которых есть в меню выбранная категория.
                     let rest_list = db::restaurant_by_category_from_db(4).await;
-                    cx.answer(format!("Рестораны с подходящим меню\n{}", rest_list))
+                    cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
                         .send().await?;
                 }
                 cmd::User::OpenedNow => {
@@ -88,16 +88,19 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                     }
                 }
                 cmd::User::CatererMode => {
-                    // Код пользователя это код ресторана
+                    // Код пользователя
                     let user_id: i32 = match cx.update.from() {
                         Some(user) => user.id,
                         None => 0,
                     };
 
-                    if db::is_rest_owner(user_id).await {
+                    // По коду пользователя получим код ресторана, если 0 то доступ запрещён
+                    let rest_num = db::rest_num(user_id).await;
+
+                    if rest_num >0 {
                         // Отображаем информацию о ресторане и переходим в режим её редактирования
                         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                        return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, user_id), true).await;
+                        return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_num), true).await;
                     } else {
                         cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova и сообщите ей свой Id={}", user_id))
                         .send().await?;
