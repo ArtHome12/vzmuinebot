@@ -75,7 +75,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             // В предыдущее меню
             cmd::EaterGroup::Return => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               return eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, cat_id)).await;
+               eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, cat_id)).await
             }
 
             // Выбор группы
@@ -86,7 +86,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
             cmd::EaterGroup::UnknownCommand => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id)), "Вы в меню выбора ресторана: неизвестная команда").await
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id)), "Вы в меню выбора группы: неизвестная команда").await
             }
          }
       }

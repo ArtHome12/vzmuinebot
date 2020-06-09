@@ -100,16 +100,33 @@ pub async fn dishes_by_restaurant_and_group_from_db(rest_num: i32, group_num: i3
    } else {
       res
    }
-   /*let mut res = String::default();
-   let hash = dishes();
-   for (key, value) in hash {
-       let res1 = format!("\n   {} /dish010{}", value, key);
-       res.push_str(&res1);
-   }
-   res*/
 }
 
 // Возвращает информацию о блюде - картинку, цену и описание.
+//
+pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> String {
+   // Выполняем запрос
+   let rows = DB.get().unwrap()
+      .query("SELECT title, info, price, image_id FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND active = TRUE", &[&rest_num, &group_num, &dish_num])
+      .await;
+
+   // Проверяем результат
+    match rows {
+      Ok(data) => {
+          if !data.is_empty() {
+              // Параметры ресторана
+              let title: String = data[0].get(0);
+              let info: String = data[0].get(1);
+              let price: i32 = data[0].get(4);
+              let image_id: Option<String> = data[0].get(5);
+              String::from(format!("Название: {}\nИнформация: {}\nЦена: {} тыс.₫", title, info, price))
+          } else {
+              String::default()
+          }
+      }
+      _ => String::default()
+   }
+}
 
 // ============================================================================
 // [Misc]
@@ -495,7 +512,6 @@ CREATE TABLE dishes (
     price           INTEGER         NOT NULL,
     image_id        VARCHAR(255)
 );
-
 */
 
 // Возвращает строки с краткой информацией о блюдах

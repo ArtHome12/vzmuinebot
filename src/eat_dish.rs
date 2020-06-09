@@ -74,18 +74,19 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
             // В предыдущее меню
             cmd::EaterDish::Return => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               return eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id))).await;
+               eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id))).await
             }
 
             // Выбор блюда
-            cmd::EaterDish::Dish(group_id) => {
+            cmd::EaterDish::Dish(dish_num) => {
+               let dish_info = db::eater_dish_info(rest_id, group_id, dish_num).await;
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)), "Команда в разработке").await
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)), &dish_info).await
             }
 
             cmd::EaterDish::UnknownCommand => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)), "Вы в меню выбора ресторана: неизвестная команда").await
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)), "Вы в меню выбора блюда: неизвестная команда").await
             }
          }
       }
