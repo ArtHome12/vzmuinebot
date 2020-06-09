@@ -23,13 +23,16 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
    let (cat_id, rest_id, group_id) = cx.dialogue;
    
    // Получаем информацию из БД
-   let group_list = db::dishes_by_restaurant_and_group_from_db(rest_id, group_id).await;
+   let group_list = match db::dishes_by_restaurant_and_group_from_db(rest_id, group_id).await {
+      Some(info) => info,
+      None => format!("Ошибка db::dishes_by_restaurant_and_group_from_db({}, {})", rest_id, group_id)
+   };
 
    // Отображаем информацию и кнопки меню
-   cx.answer(format!("Подходящие разделы меню:\n{}", group_list))
+   cx.answer(group_list)
    .reply_markup(cmd::EaterDish::markup())
-       .send()
-       .await?;
+      .send()
+      .await?;
 
    // Переходим (остаёмся) в режим выбора ресторана
    next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
