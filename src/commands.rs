@@ -22,6 +22,7 @@ pub enum Dialogue {
     Start,
     UserMode,
     EatRestSelectionMode(i32), // cat_id
+    EatRestGroupSelectionMode(i32, i32), // cat_id, rest_id
     CatererMode(i32), // rest_id
     CatEditRestTitle(i32), // rest_id
     CatEditRestInfo(i32), // rest_id
@@ -325,8 +326,44 @@ impl EaterRest {
       ReplyKeyboardMarkup::default()
           .append_row(vec![
               KeyboardButton::new("В начало"),
-              KeyboardButton::new("Назад"),
           ])
           .resize_keyboard(true)
+  }
+}
+
+// ============================================================================
+// [Eater menu, group selection]
+// ============================================================================
+#[derive(Copy, Clone)]
+pub enum EaterGroup {
+    Main,
+    Return,
+    UnknownCommand,
+    Group(i32),   // cat_id 
+}
+
+impl EaterGroup {
+   pub fn from(input: &str) -> EaterGroup {
+      match input {
+         // Сначала проверим на цельные команды.
+         "В начало" => EaterGroup::Main,
+         "Назад" => EaterGroup::Return,
+         _ => {
+             // Ищем среди команд с цифровыми суффиксами - аргументами
+             match input.get(..5).unwrap_or_default() {
+                 "/rest" => EaterGroup::Group(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                 _ => EaterGroup::UnknownCommand,
+             }
+         }
+     }
+   }
+
+   pub fn markup() -> ReplyKeyboardMarkup {
+      ReplyKeyboardMarkup::default()
+         .append_row(vec![
+            KeyboardButton::new("В начало"),
+            KeyboardButton::new("Назад"),
+         ])
+         .resize_keyboard(true)
   }
 }

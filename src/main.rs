@@ -30,6 +30,7 @@ mod caterer;
 mod cat_group;
 mod dish;
 mod eat_rest;
+mod eat_group;
 
 use commands as cmd;
 
@@ -119,6 +120,10 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
 
       cmd::Dialogue::EatRestSelectionMode(cat_id) => {
          eat_rest::rest_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, cat_id))
+               .await
+      }
+      cmd::Dialogue::EatRestGroupSelectionMode(cat_id, rest_id) => {
+         eat_group::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id)))
                .await
       }
    }
