@@ -291,7 +291,7 @@ CREATE TABLE groups (
     closing_time    TIME            NOT NULL  
 );
 
-INSERT INTO groups (user_id, group_num, title, info, active, cat_id, opening_time, closing_time)
+INSERT INTO groups (rest_num, group_num, title, info, active, cat_id, opening_time, closing_time)
 VALUES (409664508, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00'),
        (501159140, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00');*/
 
@@ -363,7 +363,7 @@ pub async fn rest_add_group(rest_num: i32, new_str: String) -> bool {
    .execute("INSERT INTO groups (rest_num, group_num, title, info, active, cat_id, opening_time, closing_time) 
    VALUES (
       $1::INTEGER, 
-      (SELECT COUNT(*) FROM groups WHERE user_id=$2::INTEGER) + 1,
+      (SELECT COUNT(*) FROM groups WHERE rest_num=$2::INTEGER) + 1,
       $3::VARCHAR(100),
       'Блюда подаются на тарелке',
       TRUE,

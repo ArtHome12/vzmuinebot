@@ -41,7 +41,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
    // Дополним, при необходимости, приветствием
    let welcome_msg = if show_welcome {
       // Добавляем подсказку только если ещё нет картинки
-      format!("Добро пожаловать в режим ввода меню!{}\nUser Id={}, {}", hint(&image_id).await, rest_id, cx.update.from().unwrap().id)
+      format!("Добро пожаловать в режим ввода меню!{}\nUser Id={}, {}", hint(&image_id).await, cx.update.from().unwrap().id, rest_id)
    } else {
       String::default()
    };
