@@ -512,6 +512,7 @@ pub async fn dish_info(rest_id: i32, dish_id: i32) -> Option<(String, Option<Str
 
 
 // Добавляет новое блюдо
+//
 pub async fn rest_add_dish(rest_id: i32, group_id: i32, new_str: String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
@@ -532,6 +533,9 @@ pub async fn rest_add_dish(rest_id: i32, group_id: i32, new_str: String) -> bool
    }
 }
 
+
+// Редактирование названия блюда
+//
 pub async fn rest_dish_edit_title(rest_id: i32, dish_id: i32, new_str: String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
@@ -543,6 +547,9 @@ pub async fn rest_dish_edit_title(rest_id: i32, dish_id: i32, new_str: String) -
    }
 }
 
+
+// Редактирование описания блюда
+//
 pub async fn rest_dish_edit_info(rest_id: i32, dish_id: i32, new_str: String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
@@ -554,6 +561,9 @@ pub async fn rest_dish_edit_info(rest_id: i32, dish_id: i32, new_str: String) ->
    }
 }
 
+
+// Переключение доступности блюда
+//
 pub async fn rest_dish_toggle(rest_id: i32, dish_id: i32) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
@@ -565,6 +575,9 @@ pub async fn rest_dish_toggle(rest_id: i32, dish_id: i32) -> bool {
    }
 }
 
+
+// Изменение группы блюда
+//
 pub async fn rest_dish_edit_group(rest_id: i32, dish_id: i32, group_id : i32) -> bool {
    // Проверим, что есть такая группа
    let rows = DB.get().unwrap()
@@ -591,6 +604,9 @@ pub async fn rest_dish_edit_group(rest_id: i32, dish_id: i32, group_id : i32) ->
    }
 }
 
+
+// Удаление блюда
+//
 pub async fn rest_dish_remove(rest_id: i32, dish_id: i32) -> bool {
    // Выполняем запрос. Должно быть начало транзакции, потом коммит, но transaction требует mut
    let query = DB.get().unwrap()
@@ -611,7 +627,9 @@ pub async fn rest_dish_remove(rest_id: i32, dish_id: i32) -> bool {
    }
  }
 
+
 // Возвращает группу блюда
+//
 pub async fn dish_group(rest_id: i32, dish_id: i32) -> i32 {
    let rows = DB.get().unwrap()
    .query("SELECT group_num FROM dishes WHERE user_id=$1::INTEGER AND dish_num=$2::INTEGER", &[&rest_id, &dish_id])
@@ -630,6 +648,9 @@ pub async fn dish_group(rest_id: i32, dish_id: i32) -> i32 {
    }
 }
 
+
+// Изменение цены блюда
+//
 pub async fn rest_dish_edit_price(rest_id: i32, dish_id: i32, price: i32) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
@@ -641,6 +662,9 @@ pub async fn rest_dish_edit_price(rest_id: i32, dish_id: i32, price: i32) -> boo
    }
 }
 
+
+// Изменение фото блюда
+//
 pub async fn rest_dish_edit_image(rest_id: i32, dish_id: i32, image_id: &String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
