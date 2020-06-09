@@ -93,7 +93,7 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                 // Выйти из режима ресторатора
                 cmd::CatDish::Exit => {
                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                    eater::start(DialogueDispatcherHandlerCx::new(bot, update, ())).await
+                    eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
                 }
 
                // Изменение названия блюда

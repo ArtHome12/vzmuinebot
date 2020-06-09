@@ -112,7 +112,7 @@ pub async fn caterer_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             // Выйти из режима ресторатора
             cmd::Caterer::Exit => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               eater::start(DialogueDispatcherHandlerCx::new(bot, update, ())).await
+               eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
             }
 
             // Изменение названия ресторана

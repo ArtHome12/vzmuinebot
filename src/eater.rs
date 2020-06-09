@@ -17,9 +17,17 @@ use crate::commands as cmd;
 use crate::database as db;
 use crate::caterer;
 
-pub async fn start(cx: cmd::Cx<()>) -> cmd::Res {
-    // Отображаем приветственное сообщение и меню с кнопками.
-    cx.answer("Бот перезапущен. Пожалуйста, выберите в основном меню снизу какие заведения показать.")
+pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
+   
+   // Различаем перезапуск и возврат из меню ресторатора
+   let s = if after_restart {
+      String::from("Бот перезапущен. Пожалуйста, выберите в основном меню снизу какие заведения показать.")
+   } else {
+      String::from("Пожалуйста, выберите в основном меню снизу какие заведения показать.")
+   };
+   
+   // Отображаем приветственное сообщение и меню с кнопками.
+    cx.answer(s)
         .reply_markup(cmd::User::main_menu_markup())
         .send()
         .await?;

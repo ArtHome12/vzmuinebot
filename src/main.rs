@@ -42,7 +42,7 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
    // send diagnostics to a development chat.
    match dialogue {
       cmd::Dialogue::Start => {
-         eater::start(DialogueDispatcherHandlerCx::new(bot, update, ())).await
+         eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), true).await
       }
       cmd::Dialogue::UserMode => {
          eater::user_mode(DialogueDispatcherHandlerCx::new(bot, update, ())).await

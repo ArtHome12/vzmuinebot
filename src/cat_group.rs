@@ -82,7 +82,7 @@ pub async fn edit_rest_group_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                 // Выйти из режима ресторатора
                 cmd::CatGroup::Exit => {
                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                    eater::start(DialogueDispatcherHandlerCx::new(bot, update, ())).await
+                    eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
                 }
 
                // Изменение названия группы
