@@ -23,6 +23,7 @@ pub enum Dialogue {
     UserMode,
     EatRestSelectionMode(i32), // cat_id
     EatRestGroupSelectionMode(i32, i32), // cat_id, rest_id
+    EatRestGroupDishSelectionMode(i32, i32, i32), // cat_id, rest_id, group_id
     CatererMode(i32), // rest_id
     CatEditRestTitle(i32), // rest_id
     CatEditRestInfo(i32), // rest_id
@@ -353,6 +354,43 @@ impl EaterGroup {
              match input.get(..5).unwrap_or_default() {
                  "/rest" => EaterGroup::Group(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                  _ => EaterGroup::UnknownCommand,
+             }
+         }
+     }
+   }
+
+   pub fn markup() -> ReplyKeyboardMarkup {
+      ReplyKeyboardMarkup::default()
+         .append_row(vec![
+            KeyboardButton::new("В начало"),
+            KeyboardButton::new("Назад"),
+         ])
+         .resize_keyboard(true)
+  }
+}
+
+// ============================================================================
+// [Eater menu, dish selection]
+// ============================================================================
+#[derive(Copy, Clone)]
+pub enum EaterDish {
+    Main,
+    Return,
+    UnknownCommand,
+    Dish(i32),   // group_id
+}
+
+impl EaterDish {
+   pub fn from(input: &str) -> EaterDish {
+      match input {
+         // Сначала проверим на цельные команды.
+         "В начало" => EaterDish::Main,
+         "Назад" => EaterDish::Return,
+         _ => {
+             // Ищем среди команд с цифровыми суффиксами - аргументами
+             match input.get(..5).unwrap_or_default() {
+                 "/rest" => EaterDish::Dish(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                 _ => EaterDish::UnknownCommand,
              }
          }
      }

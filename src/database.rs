@@ -71,20 +71,14 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> St
    } else {
       res
    }
-   /*let mut res = String::default();
-   let hash = dishes();
-   for (key, value) in hash {
-       let res1 = format!("\n   {} /dish010{}", value, key);
-       res.push_str(&res1);
-   }*/
 }
 
 // Возвращает список блюд выбранного ресторана и группы
 //
-/*pub async fn dishes_by_restaurant_and_category_from_db(rest_num: i32, cat_id: i32) -> String {
+pub async fn dishes_by_restaurant_and_group_from_db(rest_num: i32, group_num: i32) -> String {
    // Выполняем запрос
    let rows = DB.get().unwrap()
-      .query("SELECT d.dish_num, d.title, d.price from DISHES as d INNER JOIN (SELECT group_num FROM groups WHERE cat_id=$1::INTEGER) g ON d.group_num = g.group_num", &[&cat_id])
+      .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE", &[&rest_num, &group_num])
       .await;
 
    // Строка для возврата результата
@@ -93,9 +87,10 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> St
    // Проверяем результат
    if let Ok(data) = rows {
       for record in data {
-         let title: String = record.get(0);
-         let rest_num: i32 = record.get(1);
-         res.push_str(&format!("   {} /rest{}\n", title, rest_num));
+         let dish_num: i32 = record.get(0);
+         let title: String = record.get(1);
+         let price: i32 = record.get(2);
+         res.push_str(&format!("   {} {} k₫ /dish{}\n", title, price, dish_num));
       }
    }
 
@@ -112,7 +107,7 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> St
        res.push_str(&res1);
    }
    res*/
-}*/
+}
 
 // Возвращает информацию о блюде - картинку, цену и описание.
 
