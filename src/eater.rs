@@ -37,94 +37,76 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
 }
 
 pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
-    // Разбираем команду.
-    match cx.update.text() {
-        None => {
-            cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
-        }
-        Some(command) => {
-            match cmd::User::from(command) {
-                cmd::User::Water => {
-                    // Отобразим все рестораны, у которых есть в меню выбранная категория.
-                    let rest_list = db::restaurant_by_category_from_db(1).await;
-                    cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
-                        .send().await?;
-                }
-                cmd::User::Food => {
-                    // Отобразим все рестораны, у которых есть в меню выбранная категория.
-                    let rest_list = db::restaurant_by_category_from_db(2).await;
-                    cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
-                        .send().await?;
-                }
-                cmd::User::Alcohol => {
-                    // Отобразим все рестораны, у которых есть в меню выбранная категория.
-                    let rest_list = db::restaurant_by_category_from_db(3).await;
-                    cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
-                        .send().await?;
-                }
-                cmd::User::Entertainment => {
-                    // Отобразим все рестораны, у которых есть в меню выбранная категория.
-                    let rest_list = db::restaurant_by_category_from_db(4).await;
-                    cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
-                        .send().await?;
-                }
-                cmd::User::OpenedNow => {
-                    let our_timezone = FixedOffset::east(7 * 3600);
-                    let now = Utc::now().with_timezone(&our_timezone).format("%H:%M");
-                    cx.answer(format!("Рестораны, открытые сейчас ({})\nКоманда в разработке", now)).send().await?;
-                }
-                cmd::User::RestaurantMenuInCategory(cat_id, rest_id) => {
-                    // Отобразим категорию меню ресторана.rest_id
-                    let menu_list = db::dishes_by_restaurant_and_category_from_db(cat_id.to_string(), rest_id.to_string()).await;
-                    cx.answer(format!("Меню в категории {} ресторана {}{}", cat_id, rest_id, menu_list)).send().await?;
-                }
-                cmd::User::RestaurantOpenedCategories(rest_id) => {
-                    cx.answer(format!("Доступные категории ресторана {}", rest_id)).send().await?;
-                }
-                cmd::User::DishInfo(dish_id) => {
-                    // Отобразим информацию о выбранном блюде.
-                    let dish = db::dish(dish_id.to_string()).await;
-                    match dish {
-                        None => {
-                        }
-                        Some(dish_info) => {
-                            cx.answer_photo(dish_info.img)
-                            .caption(format!("Цена {} тыс. ₫\n{}", dish_info.price, dish_info.desc))
-                            .send()
-                            .await?;
-                        }
-                    }
-                }
-                cmd::User::CatererMode => {
-                    // Код пользователя
-                    let user_id: i32 = match cx.update.from() {
-                        Some(user) => user.id,
-                        None => 0,
-                    };
+   // Разбираем команду.
+   match cx.update.text() {
+      None => {
+         cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
+      }
+      Some(command) => {
+         match cmd::User::from(command) {
+               cmd::User::Category(cat_id) => {
+                  // Отобразим все рестораны, у которых есть в меню выбранная категория.
+                  let rest_list = db::restaurant_by_category_from_db(cat_id).await;
+                  cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
+                     .send().await?;
+               }
+               cmd::User::OpenedNow => {
+                  let our_timezone = FixedOffset::east(7 * 3600);
+                  let now = Utc::now().with_timezone(&our_timezone).format("%H:%M");
+                  cx.answer(format!("Рестораны, открытые сейчас ({})\nКоманда в разработке", now)).send().await?;
+               }
+/*               cmd::User::RestaurantGroupsInCategory(rest_num) => {
+                  // Отобразим категорию меню ресторана.rest_id
+                  let group_list = db::groups_by_restaurant_and_category(rest_id, cat_id).await;
+                  cx.answer(format!("Разделы меню ресторана {}{}:", rest_id, group_list)).send().await?;
+               }
+               cmd::User::RestaurantOpenedCategories(rest_id) => {
+                  cx.answer(format!("Доступные категории ресторана {}", rest_id)).send().await?;
+               }
+               cmd::User::DishInfo(dish_id) => {
+                  // Отобразим информацию о выбранном блюде.
+                  let dish = db::dish(dish_id.to_string()).await;
+                  match dish {
+                     None => {
+                     }
+                     Some(dish_info) => {
+                           cx.answer_photo(dish_info.img)
+                           .caption(format!("Цена {} тыс. ₫\n{}", dish_info.price, dish_info.desc))
+                           .send()
+                           .await?;
+                     }
+                  }
+               }*/
+               cmd::User::CatererMode => {
+                  // Код пользователя
+                  let user_id: i32 = match cx.update.from() {
+                     Some(user) => user.id,
+                     None => 0,
+                  };
 
-                    // По коду пользователя получим код ресторана, если 0 то доступ запрещён
-                    let rest_num = db::rest_num(user_id).await;
+                  // По коду пользователя получим код ресторана, если 0 то доступ запрещён
+                  let rest_num = db::rest_num(user_id).await;
 
-                    if rest_num >0 {
-                        // Отображаем информацию о ресторане и переходим в режим её редактирования
-                        let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                        return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_num), true).await;
-                    } else {
-                        cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova и сообщите ей свой Id={}", user_id))
-                        .send().await?;
-                    }
-                }
-                cmd::User::Repeat => {
-                    cx.answer("Команда в разработке").send().await?;
-                }
-                cmd::User::UnknownCommand => {
-                    cx.answer(format!("Неизвестная команда {}", command)).send().await?;
-                }
-            }
-        }
-    }
+                  if rest_num >0 {
+                     // Отображаем информацию о ресторане и переходим в режим её редактирования
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_num), true).await;
+                  } else {
+                     cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova и сообщите ей свой Id={}", user_id))
+                     .send().await?;
+                  }
+               }
+               cmd::User::Repeat => {
+                  cx.answer("Команда в разработке").send().await?;
+               }
+               cmd::User::UnknownCommand => {
+                  cx.answer(format!("Неизвестная команда {}", command)).send().await?;
+               }
+         }
+      }
+   }
 
-    // Остаёмся в пользовательском режиме.
-    next(cmd::Dialogue::UserMode)
+   // Остаёмся в пользовательском режиме.
+   next(cmd::Dialogue::UserMode)
 }
 

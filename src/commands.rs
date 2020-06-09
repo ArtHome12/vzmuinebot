@@ -51,49 +51,45 @@ pub type Res = ResponseResult<DialogueStage<Dialogue>>;
 #[derive(Copy, Clone)]
 pub enum User {
     // Команды главного меню
-    Water, 
-    Food, 
-    Alcohol, 
-    Entertainment,
+    Category(i32),   // cat_id 
     OpenedNow,
     Repeat,
     CatererMode, 
     UnknownCommand,
-    // Показать список блюд в указанной категории ресторана /rest#___ cat_id, rest_id, 
-    RestaurantMenuInCategory(u32, u32),
+    // Показать список групп в указанной категории ресторана rest_id
+    //RestaurantGroupsInCategory(i32),
     // Показать информацию о блюде /dish___ dish_id
-    DishInfo(u32),
+    //DishInfo(u32),
     // Показать список доступных сейчас категорий меню ресторана /menu___ rest_id
-    RestaurantOpenedCategories(u32),
+    //RestaurantOpenedCategories(u32),
 }
 
 impl User {
     pub fn from(input: &str) -> User {
         match input {
             // Сначала проверим на цельные команды.
-            "Соки воды" => User::Water,
-            "Еда" => User::Food,
-            "Алкоголь" => User::Alcohol,
-            "Развлечения" => User::Entertainment,
+            "Соки воды" => User::Category(1),
+            "Еда" => User::Category(2),
+            "Алкоголь" => User::Category(3),
+            "Развлечения" => User::Category(4),
             "Сейчас" => User::OpenedNow,
             "Повтор" => User::Repeat,
             "Добавить" => User::CatererMode,
-            _ => {
+/*            _ => {
                 // Ищем среди команд с цифровыми суффиксами - аргументами
                 match input.get(..5).unwrap_or_default() {
                     "/rest" => {
-                        // Извлекаем аргументы (сначала подстроку, потом число).
-                        let arg1 = input.get(5..6).unwrap_or_default().parse().unwrap_or_default();
-                        let arg2 = input.get(6..).unwrap_or_default().parse().unwrap_or_default();
+                        // Извлекаем аргументы.
+                        let rest_num = input.get(5..).unwrap_or_default().parse().unwrap_or_default();
 
                         // Возвращаем команду.
-                        User::RestaurantMenuInCategory(arg1, arg2)
+                        User::RestaurantGroupsInCategory(rest_num)
                     }
                     "/dish" => User::DishInfo(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                     "/menu" => User::RestaurantOpenedCategories(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                     _ => User::UnknownCommand,
                 }
-            }
+            }*/_ => User::UnknownCommand,
         }
     }
 

@@ -8,29 +8,9 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use chrono::{NaiveTime};
-
 use once_cell::sync::{OnceCell};
-use std::collections::{HashMap};
-use teloxide::types::InputFile;
-
 
 pub static DB: OnceCell<tokio_postgres::Client> = OnceCell::new();
-
-
-fn dishes() -> &'static HashMap<u32, &'static str> {
-    static INSTANCE: OnceCell<HashMap<u32, &'static str>> = OnceCell::new();
-    INSTANCE.get_or_init(|| {
-        let mut m = HashMap::new();
-        m.insert(1, "Борщ");
-        m.insert(2, "Картофельное пюре");
-        m.insert(3, "Мясо по-французски");
-        m.insert(4, "Шарлотка");
-        m.insert(5, "Чай");
-        m
-    })
-}
-
-
 
 
 // ============================================================================
@@ -42,7 +22,7 @@ fn dishes() -> &'static HashMap<u32, &'static str> {
 pub async fn restaurant_by_category_from_db(cat_id: i32) -> String {
    // Выполняем запрос
    let rows = DB.get().unwrap()
-      .query("SELECT r.title, r.rest_num from restaurants as r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER) g ON r.rest_num = g.rest_num", &[&cat_id])
+      .query("SELECT r.title, r.rest_num FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&cat_id])
       .await;
 
    // Строка для возврата результата
@@ -65,36 +45,76 @@ pub async fn restaurant_by_category_from_db(cat_id: i32) -> String {
    }
 }
 
-// Возвращает список блюд выбранного ресторана и категории
+// Возвращает список групп выбранного ресторана и категории
 //
-pub async fn dishes_by_restaurant_and_category_from_db(_category: String, _restaurant: String) -> String {
+pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> String {
+   // Выполняем запрос
+   let rows = DB.get().unwrap()
+      .query("SELECT group_num, title FROM groups WHERE rest_num=$1::INTEGER AND cat_id=$2::INTEGER AND active = TRUE", &[&rest_num, &cat_id])
+      .await;
+
+   // Строка для возврата результата
    let mut res = String::default();
+
+   // Проверяем результат
+   if let Ok(data) = rows {
+      for record in data {
+         let group_num: i32 = record.get(0);
+         let title: String = record.get(1);
+         res.push_str(&format!("   {} /ReGr{}\n", title, group_num));
+      }
+   }
+
+   // На случай пустого списка сообщим об этом
+   if res.is_empty() {
+      String::from("   пусто :(")
+   } else {
+      res
+   }
+   /*let mut res = String::default();
+   let hash = dishes();
+   for (key, value) in hash {
+       let res1 = format!("\n   {} /dish010{}", value, key);
+       res.push_str(&res1);
+   }*/
+}
+
+// Возвращает список блюд выбранного ресторана и группы
+//
+/*pub async fn dishes_by_restaurant_and_category_from_db(rest_num: i32, cat_id: i32) -> String {
+   // Выполняем запрос
+   let rows = DB.get().unwrap()
+      .query("SELECT d.dish_num, d.title, d.price from DISHES as d INNER JOIN (SELECT group_num FROM groups WHERE cat_id=$1::INTEGER) g ON d.group_num = g.group_num", &[&cat_id])
+      .await;
+
+   // Строка для возврата результата
+   let mut res = String::default();
+
+   // Проверяем результат
+   if let Ok(data) = rows {
+      for record in data {
+         let title: String = record.get(0);
+         let rest_num: i32 = record.get(1);
+         res.push_str(&format!("   {} /rest{}\n", title, rest_num));
+      }
+   }
+
+   // На случай пустого списка сообщим об этом
+   if res.is_empty() {
+      String::from("   пусто :(")
+   } else {
+      res
+   }
+   /*let mut res = String::default();
    let hash = dishes();
    for (key, value) in hash {
        let res1 = format!("\n   {} /dish010{}", value, key);
        res.push_str(&res1);
    }
-   res
-}
+   res*/
+}*/
 
 // Возвращает информацию о блюде - картинку, цену и описание.
-pub struct DishInfo {
-   pub img : InputFile,
-   pub price : u32,
-   pub desc : String,
-}
-
-pub async fn dish(_dish_id : String) -> Option<DishInfo> {
-   let dish_info = DishInfo {
-       img : InputFile::file("media/dish.jpg"),
-       price : 100,
-       desc : String::from("Просто пальчики оближешь"),
-   };
-
-   Some(dish_info)
-}
-
-
 
 // ============================================================================
 // [Misc]
