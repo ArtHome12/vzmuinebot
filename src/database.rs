@@ -851,7 +851,7 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
             let active: bool = data[0].get(2);
             let price: i32 = data[0].get(3);
             let image_id: Option<String> = data[0].get(4);
-
+return false;
             // Добавляем блюдо в целевую группу
             let query = DB.get().unwrap()
             .execute("INSERT INTO dishes (rest_num, dish_num, title, info, active, group_num, price, image_id) 
