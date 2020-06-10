@@ -285,7 +285,7 @@ pub async fn hold_caterer(user_id: i32) -> bool {
          _ => true,
       }
    } else {
-      true
+      false
    }
 }
 
