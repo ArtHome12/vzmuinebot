@@ -851,7 +851,7 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
             let active: bool = data[0].get(2);
             let price: i32 = data[0].get(3);
             let image_id: Option<String> = data[0].get(4);
-return false;
+
             // Добавляем блюдо в целевую группу
             let query = DB.get().unwrap()
             .execute("INSERT INTO dishes (rest_num, dish_num, title, info, active, group_num, price, image_id) 
@@ -889,13 +889,13 @@ return false;
 pub async fn rest_dish_remove(rest_num: i32, group_num: i32, dish_num: i32) -> bool {
    // Выполняем запрос. Должно быть начало транзакции, потом коммит, но transaction требует mut
    let query = DB.get().unwrap()
-   .execute("DELETE FROM dishes WHERE rest_num=$1::INTEGER AND dish_num=$2::INTEGER", &[&rest_num, &group_num, &dish_num])
+   .execute("DELETE FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
    .await;
    match query {
       Ok(_) => {
          // Номера оставшихся блюд перенумеровываем для исключения дырки
          let query = DB.get().unwrap()
-         .execute("UPDATE dishes SET dish_num = dish_num - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
+         .execute("UPDATE dishes SET dish_num = dish_num - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
          .await;
          match query {
          Ok(_) => true,
