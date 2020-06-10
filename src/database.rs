@@ -278,7 +278,7 @@ pub async fn hold_caterer(user_id: i32) -> String {
    if rest_num > 0 {
       // Блокируем его
       let query = DB.get().unwrap()
-      .execute("UPDATE restaurants SET enabled = FALSE WHERE user_id=&1::INTEGER", &[&user_id])
+      .execute("UPDATE restaurants SET enabled = 'false' WHERE user_id=&1::INTEGER", &[&user_id])
       .await;
       match query {
          Ok(_) => String::from("true"),
