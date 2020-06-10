@@ -266,7 +266,16 @@ pub async fn register_caterer(user_id: i32) -> bool {
          return true;
       }
    }
-   false
+   
+   // Создаём новый ресторан
+   let query = DB.get().unwrap()
+   .execute("INSERT INTO restaurants (user_id, title, info, active, enabled) VALUES ($1::INTEGER, 'Му-му', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE)", &[&user_id])
+   .await;
+   
+   match query {
+      Ok(_) => true,
+      _ => false,
+   }
 }
 
 
@@ -278,7 +287,7 @@ pub async fn hold_caterer(user_id: i32) -> bool {
    if rest_num > 0 {
       // Блокируем его
       let query = DB.get().unwrap()
-      .execute("UPDATE restaurants SET enabled = FALSE WHERE user_id=$1::INTEGER", &[&user_id])
+      .execute("UPDATE restaurants SET enabled = FALSE, active = FALSE WHERE user_id=$1::INTEGER", &[&user_id])
       .await;
       match query {
          Ok(_) => true,
@@ -355,7 +364,7 @@ CREATE TABLE restaurants (
     image_id      VARCHAR(255)
 );
 
-INSERT INTO restaurants (user_id, title, info, active)
+INSERT INTO restaurants (user_id, title, info, active, enabled)
 VALUES (409664508, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE),
        (501159140, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE);*/
 

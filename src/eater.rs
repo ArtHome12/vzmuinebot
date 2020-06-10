@@ -95,9 +95,8 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                      Some(user) => user.id,
                      None => 0,
                   };
-                  //let res = db::is_success(db::is_admin(admin_id) && db::hold_caterer(user_id).await);
-                  //cx.answer(format!("Блокировка ресторатора {}: {}", user_id, res)).send().await?;
-                  cx.answer(format!("Блокировка ресторатора {}: {}", user_id, db::hold_caterer(user_id).await)).send().await?;
+                  let res = db::is_success(db::is_admin(admin_id) && db::hold_caterer(user_id).await);
+                  cx.answer(format!("Блокировка ресторатора {}: {}", user_id, res)).send().await?;
                }
          }
       }
