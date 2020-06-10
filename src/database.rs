@@ -172,7 +172,7 @@ pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Op
    }
 }
 
-// Возвращает список ресторанов с активными группами в данной категории
+// Возвращает список ресторанов с активными группами в указанное время
 //
 pub async fn restaurant_by_now_from_db(time: NaiveTime) -> String {
    // Выполняем запрос
@@ -197,6 +197,58 @@ pub async fn restaurant_by_now_from_db(time: NaiveTime) -> String {
       String::from("   пусто :(")
    } else {
       res
+   }
+}
+
+// Возвращает описание, список групп выбранного ресторана, работающего в указанное время и фото, если есть
+//
+pub async fn groups_by_restaurant_now(rest_num: i32, time: NaiveTime) -> Option<(String, Option<String>)> {
+   // Выполняем запрос информации о ресторане
+   let rows = DB.get().unwrap()
+      .query("SELECT title, info, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
+      .await;
+
+   match rows {
+      Ok(data) => {
+         if !data.is_empty() {
+            // Параметры ресторана
+            let title: String = data[0].get(0);
+            let info: String = data[0].get(1);
+            let image_id: Option<String> = data[0].get(2);
+
+            // Строка для возврата результата
+            let mut res = String::default();
+
+            // Выполняем запрос групп
+            let rows = DB.get().unwrap()
+               .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND active = TRUE AND $2::TIME BETWEEN opening_time AND closing_time", &[&rest_num, &time])
+               .await;
+
+            // Проверяем результат
+            if let Ok(data) = rows {
+               for record in data {
+                  let group_num: i32 = record.get(0);
+                  let title: String = record.get(1);
+                  let opening_time: NaiveTime = record.get(2);
+                  let closing_time: NaiveTime = record.get(3);
+                        res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening_time, closing_time, group_num));
+               }
+            };
+
+            // На случай пустого списка сообщим об этом
+            let res = if res.is_empty() {
+               String::from("   пусто :(")
+            } else {
+               res
+            };
+
+            // Окончательный результат
+            Some((format!("Заведение: {}\nОписание: {}\nРаботающие разделы меню на ({}):\n{}", title, info, time.format("%H:%M"), res), image_id))
+         } else {
+            None
+         }
+      }
+      _ => None,
    }
 }
 

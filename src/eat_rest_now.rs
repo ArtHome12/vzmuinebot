@@ -15,6 +15,7 @@ use teloxide::{
 use crate::commands as cmd;
 use crate::database as db;
 use crate::eater;
+use crate::eat_group_now;
 
 // Показывает список ресторанов с группами заданной категории
 //
@@ -52,9 +53,6 @@ async fn next_with_cancel(cx: cmd::Cx<()>, text: &str) -> cmd::Res {
 // Обработчик команд
 //
 pub async fn handle_selection_mode(cx: cmd::Cx<()>) -> cmd::Res {
-   // Код категории
-   let cat_id = cx.dialogue;
-
    // Разбираем команду.
    match cx.update.text() {
       None => {
@@ -72,14 +70,12 @@ pub async fn handle_selection_mode(cx: cmd::Cx<()>) -> cmd::Res {
             // Выбор ресторана
             cmd::EaterRest::Restaurant(rest_id) => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, cat_id), "Функция в разработке").await
-               // let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               // eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id))).await
+               eat_group_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id)).await
             }
 
             cmd::EaterRest::UnknownCommand => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, cat_id), "Вы в меню выбора ресторана: неизвестная команда").await
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, ()), "Вы в меню выбора ресторана: неизвестная команда").await
             }
          }
       }

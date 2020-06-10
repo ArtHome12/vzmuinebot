@@ -7,6 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
+use chrono::{Utc, FixedOffset};
 use teloxide::{
    prelude::*, 
    types::{InputFile, ReplyMarkup},
@@ -15,23 +16,27 @@ use teloxide::{
 use crate::commands as cmd;
 use crate::database as db;
 use crate::eater;
-use crate::eat_rest;
+use crate::eat_rest_now;
 use crate::eat_dish;
 
 // Основную информацию режима
 //
-pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
+pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    // Извлечём параметры
-   let (cat_id, rest_id) = cx.dialogue;
+   let rest_id = cx.dialogue;
+   
+   // Текущее время
+   let our_timezone = FixedOffset::east(7 * 3600);
+   let now = Utc::now().with_timezone(&our_timezone).naive_local().time();
    
    // Получаем информацию из БД
-   let (info, rest_image_id) = match db::groups_by_restaurant_and_category(rest_id, cat_id).await {
+   let (info, rest_image_id) = match db::groups_by_restaurant_now(rest_id, now).await {
       Some(dish_info) => dish_info,
-      None => (format!("Ошибка db::groups_by_restaurant_and_category({}, {})", rest_id, cat_id), None)
+      None => (format!("Ошибка db::groups_by_restaurant_now({}, {})", rest_id, now.format("%H:%M")), None)
    };
 
-    // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
-    if let Some(image_id) = rest_image_id {
+   // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
+   if let Some(image_id) = rest_image_id {
       // Создадим графический объект
       let image = InputFile::file_id(image_id);
 
@@ -49,30 +54,30 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
    }
 
    // Переходим (остаёмся) в режим выбора группы
-   next(cmd::Dialogue::EatRestGroupSelectionMode(cat_id, rest_id))
+   next(cmd::Dialogue::EatRestGroupNowSelectionMode(rest_id))
 }
 
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
-async fn next_with_cancel(cx: cmd::Cx<(i32, i32)>, text: &str) -> cmd::Res {
+async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
    cx.answer(text)
    .reply_markup(cmd::EaterGroup::markup())
    .send()
    .await?;
 
    // Извлечём параметры
-   let (cat_id, rest_id) = cx.dialogue;
+   let rest_id = cx.dialogue;
 
    // Остаёмся в прежнем режиме.
-   next(cmd::Dialogue::EatRestGroupSelectionMode(cat_id, rest_id))
+   next(cmd::Dialogue::EatRestGroupNowSelectionMode(rest_id))
 }
 
 
 
 // Обработчик команд
 //
-pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
+pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
    // Извлечём параметры
-   let (cat_id, rest_id) = cx.dialogue;
+   let rest_id = cx.dialogue;
 
    // Разбираем команду.
    match cx.update.text() {
@@ -91,18 +96,18 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             // В предыдущее меню
             cmd::EaterGroup::Return => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, cat_id)).await
+               eat_rest_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, ())).await
             }
 
             // Выбор группы
             cmd::EaterGroup::Group(group_id) => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               eat_dish::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id))).await
+               eat_dish::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (0, rest_id, group_id))).await
             }
 
             cmd::EaterGroup::UnknownCommand => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id)), "Вы в меню выбора группы: неизвестная команда").await
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), "Вы в меню выбора группы: неизвестная команда").await
             }
          }
       }

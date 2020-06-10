@@ -33,6 +33,7 @@ mod eat_rest;
 mod eat_group;
 mod eat_dish;
 mod eat_rest_now;
+mod eat_group_now;
 
 use commands as cmd;
 
@@ -134,6 +135,10 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
       }
       cmd::Dialogue::EatRestNowSelectionMode => {
          eat_rest_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
+               .await
+      }
+      cmd::Dialogue::EatRestGroupNowSelectionMode(rest_id) => {
+         eat_group_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
                .await
       }
    }
