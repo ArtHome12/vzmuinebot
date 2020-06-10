@@ -16,6 +16,7 @@ use crate::commands as cmd;
 use crate::database as db;
 use crate::eater;
 use crate::eat_group;
+use crate::eat_group_now;
 
 // Основную информацию режима
 //
@@ -78,7 +79,13 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
             // В предыдущее меню
             cmd::EaterDish::Return => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id))).await
+
+               // Попасть сюда могли двумя путями и это видно по коду категории
+               if cat_id > 0 {
+                  eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id))).await
+               } else {
+                  eat_group_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id)).await
+               }
             }
 
             // Выбор блюда

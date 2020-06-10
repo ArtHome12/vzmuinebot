@@ -76,7 +76,7 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
                   let title: String = record.get(1);
                   let opening_time: NaiveTime = record.get(2);
                   let closing_time: NaiveTime = record.get(3);
-                        res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening_time, closing_time, group_num));
+                        res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening_time.format("%H:%M"), closing_time.format("%H:%M"), group_num));
                }
             };
 
@@ -231,7 +231,7 @@ pub async fn groups_by_restaurant_now(rest_num: i32, time: NaiveTime) -> Option<
                   let title: String = record.get(1);
                   let opening_time: NaiveTime = record.get(2);
                   let closing_time: NaiveTime = record.get(3);
-                        res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening_time, closing_time, group_num));
+                        res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening_time.format("%H:%M"), closing_time.format("%H:%M"), group_num));
                }
             };
 
