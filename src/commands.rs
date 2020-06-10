@@ -58,7 +58,7 @@ pub enum User {
     // Команды главного меню
     Category(i32),   // cat_id 
     OpenedNow,
-    All,
+    Basket,
     CatererMode, 
     UnknownCommand,
     // Показать список доступных сейчас категорий меню ресторана /menu___ rest_id
@@ -74,7 +74,7 @@ impl User {
             "Алкоголь" => User::Category(3),
             "Развлечения" => User::Category(4),
             "Сейчас" => User::OpenedNow,
-            "Все" => User::All,
+            "Корзина" => User::Basket,
             "Добавить" => User::CatererMode,
             _ => User::UnknownCommand,
         }
@@ -90,7 +90,7 @@ impl User {
             ])
             .append_row(vec![
                 KeyboardButton::new("Сейчас"),
-                KeyboardButton::new("Все"),
+                KeyboardButton::new("Корзина"),
                 KeyboardButton::new("Добавить"),
             ])
             .resize_keyboard(true)

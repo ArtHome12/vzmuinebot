@@ -74,8 +74,8 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                      .send().await?;
                   }
                }
-               cmd::User::All => {
-                  cx.answer("Команда в разработке").send().await?;
+               cmd::User::Basket => {
+                  cx.answer("Уточните количество отобранных позиций и сообщите по указанным контактам:\nКоманда в разработке").send().await?;
                }
                cmd::User::UnknownCommand => {
                   cx.answer(format!("Неизвестная команда {}", command)).send().await?;
