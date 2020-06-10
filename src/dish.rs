@@ -232,8 +232,9 @@ pub async fn edit_info_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
             db::rest_dish_edit_info(rest_id, group_id, dish_id, s).await;
 
             // Покажем изменённую информацию о группе
-            return next_with_info(cx).await;
-        }
+            let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+            return cat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
+      }
     } 
     // Сообщим об отмене
     next_with_cancel(cx, "Отмена").await
