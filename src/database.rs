@@ -258,7 +258,7 @@ pub async fn groups_by_restaurant_now(rest_num: i32, time: NaiveTime) -> Option<
 pub async fn register_caterer(user_id: i32) -> bool {
    // Попробуем разблокировать пользователя, тогда получим 1 в качестве обновлённых записей
    let query = DB.get().unwrap()
-   .execute("UPDATE restaurants SET enabled = TRUE WHERE user_id=&1::INTEGER", &[&user_id])
+   .execute("UPDATE restaurants SET rest_enabled = TRUE WHERE user_id=&1::INTEGER", &[&user_id])
    .await;
 
    if let Ok(res) = query {
@@ -278,7 +278,7 @@ pub async fn hold_caterer(user_id: i32) -> String {
    if rest_num > 0 {
       // Блокируем его
       let query = DB.get().unwrap()
-      .execute("UPDATE restaurants SET enabled = NOT enabled WHERE user_id=&1::INTEGER", &[&user_id])
+      .execute("UPDATE restaurants SET rest_enabled = FALSE WHERE user_id=&1::INTEGER", &[&user_id])
       .await;
       match query {
          Ok(_) => String::from("true"),
@@ -348,13 +348,13 @@ pub fn is_admin(user_id: i32) -> bool {
 Таблица с данными о ресторанах
 CREATE TABLE restaurants (
     PRIMARY KEY (user_id),
-    user_id     INTEGER       NOT NULL,
-    title       VARCHAR(100)  NOT NULL,
-    info        VARCHAR(255)  NOT NULL,
-    active      BOOLEAN       NOT NULL,
-    enabled     BOOLEAN       NOT NULL
-    rest_num    SERIAL,
-    image_id    VARCHAR(255)
+    user_id       INTEGER       NOT NULL,
+    title         VARCHAR(100)  NOT NULL,
+    info          VARCHAR(255)  NOT NULL,
+    active        BOOLEAN       NOT NULL,
+    rest_enabled  BOOLEAN       NOT NULL
+    rest_num      SERIAL,
+    image_id      VARCHAR(255)
 );
 
 INSERT INTO restaurants (user_id, title, info, active)
@@ -366,7 +366,7 @@ VALUES (409664508, 'Плакучая ива', 'Наш адрес 00NDC, дост
 pub async fn rest_num(user_id : i32) -> i32 {
     // Выполняем запрос
     let rows = DB.get().unwrap()
-        .query("SELECT rest_num FROM restaurants WHERE user_id=$1::INTEGER AND enabled = TRUE", &[&user_id])
+        .query("SELECT rest_num FROM restaurants WHERE user_id=$1::INTEGER AND rest_enabled = TRUE", &[&user_id])
         .await;
 
     // Проверяем результат
