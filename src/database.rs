@@ -274,19 +274,19 @@ pub async fn register_caterer(user_id: i32) -> bool {
 //
 pub async fn hold_caterer(user_id: i32) -> bool {
    // Проверим, что такой пользователь зарегистрирован
-   let rest_num = rest_num(user_id).await;
-   if rest_num > 0 {
+   // let rest_num = rest_num(user_id).await;
+   // if rest_num > 0 {
       // Блокируем его
       let query = DB.get().unwrap()
       .execute("UPDATE restaurants SET enabled = FALSE WHERE user_id=&1::INTEGER", &[&user_id])
       .await;
       match query {
          Ok(_) => true,
-         _ => true,
+         _ => false,
       }
-   } else {
-      false
-   }
+   // } else {
+      // false
+   // }
 }
 
 // ============================================================================
