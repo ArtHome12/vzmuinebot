@@ -172,6 +172,34 @@ pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Op
    }
 }
 
+// Возвращает список ресторанов с активными группами в данной категории
+//
+pub async fn restaurant_by_now_from_db(time: NaiveTime) -> String {
+   // Выполняем запрос
+   let rows = DB.get().unwrap()
+      .query("SELECT DISTINCT r.title, r.rest_num FROM restaurants AS r INNER JOIN groups g ON r.rest_num = g.rest_num WHERE r.active = TRUE AND g.active = TRUE AND $1::TIME BETWEEN g.opening_time AND g.closing_time", &[&time])
+      .await;
+
+   // Строка для возврата результата
+   let mut res = String::default();
+
+   // Проверяем результат
+   if let Ok(data) = rows {
+      for record in data {
+         let title: String = record.get(0);
+         let rest_num: i32 = record.get(1);
+         res.push_str(&format!("   {} /rest{}\n", title, rest_num));
+      }
+   }
+
+   // На случай пустого списка сообщим об этом
+   if res.is_empty() {
+      String::from("   пусто :(")
+   } else {
+      res
+   }
+}
+
 // ============================================================================
 // [Misc]
 // ============================================================================

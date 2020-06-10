@@ -24,6 +24,7 @@ pub enum Dialogue {
     EatRestSelectionMode(i32), // cat_id
     EatRestGroupSelectionMode(i32, i32), // cat_id, rest_id
     EatRestGroupDishSelectionMode(i32, i32, i32), // cat_id, rest_id, group_id
+    EatRestNowSelectionMode,
     CatererMode(i32), // rest_id
     CatEditRestTitle(i32), // rest_id
     CatEditRestInfo(i32), // rest_id

@@ -1,12 +1,13 @@
 /* ===============================================================================
 Бот для сбора меню у рестораторов и выдача их желающим покушать.
-Режим едока, выбор ресторана при известной группе. 09 June 2020.
+Режим едока, выбор ресторана, открытого сейчас. 10 June 2020.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
+use chrono::{Utc, FixedOffset};
 use teloxide::{
    prelude::*, 
 };
@@ -14,46 +15,43 @@ use teloxide::{
 use crate::commands as cmd;
 use crate::database as db;
 use crate::eater;
-use crate::eat_group;
 
 // Показывает список ресторанов с группами заданной категории
 //
-pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
-   // Извлечём параметры
-   let cat_id = cx.dialogue;
+pub async fn next_with_info(cx: cmd::Cx<()>) -> cmd::Res {
+   // Текущее время
+   let our_timezone = FixedOffset::east(7 * 3600);
+   let now = Utc::now().with_timezone(&our_timezone).naive_local().time();
    
    // Получаем информацию из БД
-   let rest_list = db::restaurant_by_category_from_db(cat_id).await;
+   let rest_list = db::restaurant_by_now_from_db(now).await;
 
    // Отображаем информацию и кнопки меню
-   cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
+   cx.answer(format!("Рестораны, открытые сейчас ({}):\n{}", now.format("%H:%M"), rest_list))
    .reply_markup(cmd::EaterRest::markup())
        .send()
        .await?;
 
    // Переходим (остаёмся) в режим выбора ресторана
-   next(cmd::Dialogue::EatRestSelectionMode(cat_id))
+   next(cmd::Dialogue::EatRestNowSelectionMode)
 }
 
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
-async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
+async fn next_with_cancel(cx: cmd::Cx<()>, text: &str) -> cmd::Res {
    cx.answer(text)
    .reply_markup(cmd::EaterRest::markup())
    .send()
    .await?;
 
-   // Код категории
-   let cat_id = cx.dialogue;
-
    // Остаёмся в прежнем режиме.
-   next(cmd::Dialogue::EatRestSelectionMode(cat_id))
+   next(cmd::Dialogue::EatRestNowSelectionMode)
 }
 
 
 
 // Обработчик команд
 //
-pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
+pub async fn handle_selection_mode(cx: cmd::Cx<()>) -> cmd::Res {
    // Код категории
    let cat_id = cx.dialogue;
 
@@ -74,7 +72,9 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             // Выбор ресторана
             cmd::EaterRest::Restaurant(rest_id) => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id))).await
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, cat_id), "Функция в разработке").await
+               // let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               // eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id))).await
             }
 
             cmd::EaterRest::UnknownCommand => {

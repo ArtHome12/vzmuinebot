@@ -7,7 +7,6 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use chrono::{Utc, FixedOffset};
 use teloxide::{
     prelude::*,
 };
@@ -17,6 +16,7 @@ use crate::commands as cmd;
 use crate::database as db;
 use crate::caterer;
 use crate::eat_rest;
+use crate::eat_rest_now;
 
 pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    
@@ -51,9 +51,9 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                   return eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, cat_id)).await;
                }
                cmd::User::OpenedNow => {
-                  let our_timezone = FixedOffset::east(7 * 3600);
-                  let now = Utc::now().with_timezone(&our_timezone).format("%H:%M");
-                  cx.answer(format!("Рестораны, открытые сейчас ({})\nКоманда в разработке", now)).send().await?;
+                  // Отобразим рестораны, открытые сейчас и перейдём в режим их выбора
+                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                  return eat_rest_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, ())).await;
                }
                cmd::User::CatererMode => {
                   // Код пользователя
@@ -65,7 +65,7 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                   // По коду пользователя получим код ресторана, если 0 то доступ запрещён
                   let rest_num = db::rest_num(user_id).await;
 
-                  if rest_num >0 {
+                  if rest_num > 0 {
                      // Отображаем информацию о ресторане и переходим в режим её редактирования
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                      return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_num), true).await;
