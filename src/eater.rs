@@ -81,11 +81,21 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                   cx.answer(format!("Неизвестная команда {}", command)).send().await?;
                }
                cmd::User::RegisterCaterer(user_id) => {
-                  let res = db::is_success(db::register_caterer(user_id).await);
+                  // Код пользователя
+                  let admin_id: i32 = match cx.update.from() {
+                     Some(user) => user.id,
+                     None => 0,
+                  };
+                  let res = db::is_success(db::is_admin(admin_id) && db::register_caterer(user_id).await);
                   cx.answer(format!("Регистрация или разблокировка ресторатора {}: {}", user_id, res)).send().await?;
                }
                cmd::User::HoldCaterer(user_id) => {
-                  let res = db::is_success(db::hold_caterer(user_id).await);
+                  // Код пользователя
+                  let admin_id: i32 = match cx.update.from() {
+                     Some(user) => user.id,
+                     None => 0,
+                  };
+                  let res = db::is_success(db::is_admin(admin_id) && db::hold_caterer(user_id).await);
                   cx.answer(format!("Блокировка ресторатора {}: {}", user_id, res)).send().await?;
                }
          }

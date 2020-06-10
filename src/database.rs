@@ -256,6 +256,16 @@ pub async fn groups_by_restaurant_now(rest_num: i32, time: NaiveTime) -> Option<
 // Регистрация или разблокировка ресторатора
 //
 pub async fn register_caterer(user_id: i32) -> bool {
+   // Попробуем разблокировать пользователя, тогда получим 1 в качестве обновлённых записей
+   let query = DB.get().unwrap()
+   .execute("UPDATE restaurants SET enabled = TRUE WHERE user_id=&1::INTEGER", &[&user_id])
+   .await;
+
+   if let Ok(res) = query {
+      if res > 0 {
+         return true;
+      }
+   }
    false
 }
 
@@ -263,7 +273,20 @@ pub async fn register_caterer(user_id: i32) -> bool {
 // Приостановка доступа ресторатора
 //
 pub async fn hold_caterer(user_id: i32) -> bool {
-   false
+   // Проверим, что такой пользователь зарегистрирован
+   let rest_num = rest_num(user_id).await;
+   if rest_num > 0 {
+      // Блокируем его
+      let query = DB.get().unwrap()
+      .execute("UPDATE restaurants SET enabled = FALSE WHERE user_id=&1::INTEGER", &[&user_id])
+      .await;
+      match query {
+         Ok(_) => true,
+         _ => false,
+      }
+   } else {
+      false
+   }
 }
 
 // ============================================================================
@@ -310,6 +333,11 @@ pub fn category_to_id(category: &str) -> i32 {
    }
 }
 
+// Возвращает истину, если user_id принадлежит администратору
+//
+pub fn is_admin(user_id: i32) -> bool {
+   user_id == 409664508 || user_id == 501159140
+}
 
 // ============================================================================
 // [Caterer]
@@ -348,7 +376,6 @@ pub async fn rest_num(user_id : i32) -> i32 {
         }
         _ => 0,
     }
-//    user_id == 409664508 || user_id == 501159140
 }
 
 
