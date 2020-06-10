@@ -252,6 +252,20 @@ pub async fn groups_by_restaurant_now(rest_num: i32, time: NaiveTime) -> Option<
    }
 }
 
+
+// Регистрация или разблокировка ресторатора
+//
+pub async fn register_caterer(user_id: i32) -> bool {
+   false
+}
+
+
+// Приостановка доступа ресторатора
+//
+pub async fn hold_caterer(user_id: i32) -> bool {
+   false
+}
+
 // ============================================================================
 // [Misc]
 // ============================================================================
@@ -265,6 +279,14 @@ fn active_to_str(active : bool) -> &'static str {
     }
 }
 
+// Успешно-неуспешно
+pub fn is_success(flag : bool) -> &'static str {
+   if flag {
+      "успешно"
+  } else {
+      "ошибка"
+  }
+}
 
 // Используется при редактировании категории группы
 //

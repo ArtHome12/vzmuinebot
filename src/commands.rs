@@ -61,24 +61,31 @@ pub enum User {
     Basket,
     CatererMode, 
     UnknownCommand,
-    // Показать список доступных сейчас категорий меню ресторана /menu___ rest_id
-    //RestaurantOpenedCategories(u32),
+    RegisterCaterer(i32), // user_id
+    HoldCaterer(i32), // user_id
 }
 
 impl User {
-    pub fn from(input: &str) -> User {
-        match input {
-            // Сначала проверим на цельные команды.
-            "Соки воды" => User::Category(1),
-            "Еда" => User::Category(2),
-            "Алкоголь" => User::Category(3),
-            "Развлечения" => User::Category(4),
-            "Сейчас" => User::OpenedNow,
-            "Корзина" => User::Basket,
-            "Добавить" => User::CatererMode,
-            _ => User::UnknownCommand,
-        }
-    }
+   pub fn from(input: &str) -> User {
+      match input {
+         // Сначала проверим на цельные команды.
+         "Соки воды" => User::Category(1),
+         "Еда" => User::Category(2),
+         "Алкоголь" => User::Category(3),
+         "Развлечения" => User::Category(4),
+         "Сейчас" => User::OpenedNow,
+         "Корзина" => User::Basket,
+         "Добавить" => User::CatererMode,
+         _ => {
+            // Ищем среди команд с цифровыми суффиксами - аргументами
+            match input.get(..5).unwrap_or_default() {
+               "/regi" => User::RegisterCaterer(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+               "/hold" => User::HoldCaterer(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+               _ => User::UnknownCommand,
+            }
+         }
+      }
+   }
 
     pub fn main_menu_markup() -> ReplyKeyboardMarkup {
         ReplyKeyboardMarkup::default()
