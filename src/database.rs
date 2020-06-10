@@ -282,10 +282,10 @@ pub async fn hold_caterer(user_id: i32) -> bool {
       .await;
       match query {
          Ok(_) => true,
-         _ => false,
+         _ => true,
       }
    } else {
-      false
+      true
    }
 }
 
