@@ -232,8 +232,7 @@ pub async fn edit_info_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
             db::rest_dish_edit_info(rest_id, group_id, dish_id, s).await;
 
             // Покажем изменённую информацию о группе
-            let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-            return cat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
+            return next_with_info(cx).await;
       }
     } 
     // Сообщим об отмене
@@ -254,8 +253,9 @@ pub async fn edit_dish_group_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
         
             // Сохраним новое значение в БД
             if db::rest_dish_edit_group(rest_id, group_id, dish_id, new_group_id).await {
-                // Покажем изменённую информацию о группе
-                next_with_info(cx).await
+               // Покажем изменённую информацию о группе
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               cat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
             } else {
                 // Сообщим об ошибке
                 next_with_cancel(cx, "Ошибка, возможно нет группы с таким кодом, отмена").await
