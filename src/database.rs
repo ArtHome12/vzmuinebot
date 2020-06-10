@@ -821,30 +821,66 @@ pub async fn rest_dish_toggle(rest_num: i32, group_num: i32, dish_num: i32) -> b
 
 // Изменение группы блюда
 //
-pub async fn rest_dish_edit_group(_rest_num: i32, _group_num: i32, _dish_num: i32) -> bool {
-   // Проверим, что есть такая группа
-   /*let rows = DB.get().unwrap()
-   .query("SELECT * FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
+pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i32, new_group_num: i32) -> bool {
+   // Проверим, что есть такая целевая группа
+   let rows = DB.get().unwrap()
+   .query("SELECT * FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &new_group_num])
    .await;
 
-   // Если код группы действителен, сохраняем его
+   // Если целевой группы нет, выходим
    match rows {
       Ok(data) => {
-            if !data.is_empty() {
-            // Выполняем запрос
-            let query = DB.get().unwrap()
-            .execute("UPDATE dishes SET group_num = $1::INTEGER WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&group_num, &rest_num, &group_num, &dish_num])
-            .await;
-            match query {
-               Ok(_) => true,
-               _ => false,
-            }
-         } else {
-            false
+         if data.is_empty() {
+            return false;
          }
       }
-      _ => false,
-   }*/false
+      _ => return false
+   }
+
+   // Сохраним информацию о блюде
+   let rows = DB.get().unwrap()
+   .query("SELECT title, info, active, price, image_id FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &old_group_num, &dish_num])
+   .await;
+   match rows {
+      Ok(data) => {
+         if data.is_empty() {
+            return false;
+         } else {
+            let title: String = data[0].get(0);
+            let info: String = data[0].get(1);
+            let active: bool = data[0].get(2);
+            let price: i32 = data[0].get(3);
+            let image_id: Option<String> = data[0].get(4);
+
+            // Добавляем блюдо в целевую группу
+            let query = DB.get().unwrap()
+            .execute("INSERT INTO dishes (rest_num, dish_num, title, info, active, group_num, price, image_id) 
+            VALUES (
+               $1::INTEGER, 
+               (SELECT COUNT(*) FROM dishes WHERE rest_num = $2::INTEGER AND group_num = $3::INTEGER) + 1,
+               $4::VARCHAR(100),
+               $5::VARCHAR(255),
+               $6::BOOLEAN,
+               $7::INTEGER,
+               $8::INTEGER,
+               $9::VARCHAR(255)
+            )", &[&rest_num, &rest_num, &new_group_num, &title, &info, &active, &new_group_num, &price, &image_id])
+            .await;
+            match query {
+               Ok(inserted_num) => {
+                  if inserted_num < 1 {
+                     return false;
+                  }
+               }
+               _ => return false
+            }
+
+            // Удалим блюдо из прежней группы
+            rest_dish_remove(rest_num, old_group_num, dish_num).await
+         }
+      }
+      _ => return false
+   }
 }
 
 
@@ -869,27 +905,6 @@ pub async fn rest_dish_remove(rest_num: i32, group_num: i32, dish_num: i32) -> b
       _ => false,
    }
  }
-
-
-// Возвращает группу блюда
-//
-/*pub async fn dish_group(rest_num: i32, dish_num: i32) -> i32 {
-   let rows = DB.get().unwrap()
-   .query("SELECT group_num FROM dishes WHERE rest_num=$1::INTEGER AND dish_num=$2::INTEGER", &[&rest_num, &dish_num])
-   .await;
-
-   // Возвращаем код группы
-   match rows {
-      Ok(data) => {
-         if !data.is_empty() {
-            data[0].get(0)
-         } else {
-            1
-         }
-      }
-      _ => 1,
-   }
-}*/
 
 
 // Изменение цены блюда

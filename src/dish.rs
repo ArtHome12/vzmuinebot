@@ -244,20 +244,20 @@ pub async fn edit_info_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 pub async fn edit_dish_group_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
     if let Some(text) = cx.update.text() {
         // Попытаемся преобразовать ответ пользователя в код группы
-        let group_id = text.parse::<i32>().unwrap_or_default();
+        let new_group_id = text.parse::<i32>().unwrap_or_default();
 
         // Если группа не пустая, продолжим
-        if group_id > 0 {
+        if new_group_id > 0 {
             // Извлечём параметры
             let (rest_id, group_id, dish_id) = cx.dialogue;
         
             // Сохраним новое значение в БД
-            if db::rest_dish_edit_group(rest_id, group_id, dish_id).await {
+            if db::rest_dish_edit_group(rest_id, group_id, dish_id, new_group_id).await {
                 // Покажем изменённую информацию о группе
                 next_with_info(cx).await
             } else {
                 // Сообщим об ошибке
-                next_with_cancel(cx, "Группы с таким кодом нет, отмена").await
+                next_with_cancel(cx, "Ошибка, возможно нет группы с таким кодом, отмена").await
             }
         } else {
             // Сообщим об ошибке
