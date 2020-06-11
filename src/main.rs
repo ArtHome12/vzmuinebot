@@ -242,8 +242,8 @@ async fn run() {
    // Учётные данные админа бота - контактное имя
    let admin_name = env::var("TELEGRAM_ADMIN_NAME").expect("TELEGRAM_ADMIN_NAME env variable missing");
    match database::TELEGRAM_ADMIN_NAME.set(admin_name) {
-      Ok(_) => log::info!("Database connected"),
-      _ => log::info!("Something wrong with database"),
+      Ok(_) => log::info!("admin_name is {}", database::TELEGRAM_ADMIN_NAME.get().unwrap()),
+      _ => log::info!("Something wrong with admin name"),
    }
 
    // Учётные данные админа бота - user id
@@ -252,8 +252,8 @@ async fn run() {
       .parse()
       .expect("TELEGRAM_ADMIN_ID value to be integer");
    match database::TELEGRAM_ADMIN_ID.set(admin_id) {
-      Ok(_) => log::info!("Database connected"),
-      _ => log::info!("Something wrong with database"),
+      Ok(_) => log::info!("admin id is {}", *database::TELEGRAM_ADMIN_ID.get().unwrap()),
+      _ => log::info!("Something wrong with admin id"),
    }
    
    Dispatcher::new(Arc::clone(&bot))
