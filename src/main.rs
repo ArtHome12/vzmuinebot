@@ -213,7 +213,7 @@ pub async fn webhook<'a>(bot: Arc<Bot>) -> impl update_listeners::UpdateListener
 
 async fn run() {
    teloxide::enable_logging!();
-   log::info!("Starting vzmuinebot!");
+   log::info!("Starting...");
 
 
    let bot = Bot::from_env();
@@ -258,10 +258,10 @@ async fn run() {
 
    // Проверим существование таблиц и если их нет, создадим
    //
-   if database::is_tables_exists().await {
+   if database::is_tables_exist().await {
       log::info!("Table restaurants exist, open existing data");
    } else {
-      log::info!("Table restaurants do not exist, create new tables");
+      log::info!("Table restaurants do not exist, create new tables: {}", database::is_success(database::create_tables().await));
    }
    
    Dispatcher::new(Arc::clone(&bot))

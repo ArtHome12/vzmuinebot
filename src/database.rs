@@ -355,7 +355,8 @@ pub fn is_admin(user_id: i32) -> bool {
 }
 
 // Проверяет существование таблиц
-pub async fn is_tables_exists() -> bool {
+//
+pub async fn is_tables_exist() -> bool {
    // Выполняем запрос
    let rows = DB.get().unwrap()
       .query("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='restaurants'", &[]).await;
@@ -367,25 +368,71 @@ pub async fn is_tables_exists() -> bool {
    }
 }
 
+// Создаёт новые таблицы
+//
+pub async fn create_tables() -> bool {
+   // Таблица с данными о ресторанах
+   let query = DB.get().unwrap()
+   .execute("CREATE TABLE restaurants (
+      PRIMARY KEY (user_id),
+      user_id     INTEGER       NOT NULL,
+      title       VARCHAR(100)  NOT NULL,
+      info        VARCHAR(255)  NOT NULL,
+      active      BOOLEAN       NOT NULL,
+      enabled     BOOLEAN       NOT NULL
+      rest_num    SERIAL,
+      image_id    VARCHAR(255))", &[])
+   .await;
+   
+   match query {
+      Ok(_) => {
+         // Таблица с данными о группах
+         let query = DB.get().unwrap()
+         .execute("CREATE TABLE groups (
+            PRIMARY KEY (rest_num, group_num),
+            rest_num        INTEGER         NOT NULL,
+            group_num       INTEGER         NOT NULL,
+            title           VARCHAR(100)    NOT NULL,
+            info            VARCHAR(255)    NOT NULL,
+            active          BOOLEAN         NOT NULL,
+            cat_id          INTEGER         NOT NULL,
+            opening_time    TIME            NOT NULL,    
+            closing_time    TIME            NOT NULL)", &[])
+         .await;
+         
+         match query {
+            Ok(_) => {
+               // Таблица с данными о блюдах
+               let query = DB.get().unwrap()
+               .execute("CREATE TABLE dishes (
+                  PRIMARY KEY (rest_num, group_num, dish_num),
+                  rest_num         INTEGER        NOT NULL,
+                  dish_num        INTEGER         NOT NULL,
+                  title           VARCHAR(100)    NOT NULL,
+                  info            VARCHAR(255)    NOT NULL,
+                  active          BOOLEAN         NOT NULL,
+                  group_num       INTEGER         NOT NULL,
+                  price           INTEGER         NOT NULL,
+                  image_id        VARCHAR(255))", &[])
+               .await;
+               
+               match query {
+                  Ok(_) => {
+                     true
+                  }
+                  _ => false,
+               }
+            }
+            _ => false,
+         }
+      }
+      _ => false,
+   }
+}
+
 // ============================================================================
 // [Caterer]
 // ============================================================================
-/* 
-Таблица с данными о ресторанах
-CREATE TABLE restaurants (
-    PRIMARY KEY (user_id),
-    user_id       INTEGER       NOT NULL,
-    title         VARCHAR(100)  NOT NULL,
-    info          VARCHAR(255)  NOT NULL,
-    active        BOOLEAN       NOT NULL,
-    enabled  BOOLEAN       NOT NULL
-    rest_num      SERIAL,
-    image_id      VARCHAR(255)
-);
-
-INSERT INTO restaurants (user_id, title, info, active, enabled)
-VALUES (409664508, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE),
-       (501159140, 'Плакучая ива', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE);*/
 
 // Возвращает номер ресторана, если пользователю разрешён доступ в режим ресторатора
 //
@@ -489,22 +536,6 @@ pub async fn rest_edit_image(rest_num: i32, image_id: &String) -> bool {
 // ============================================================================
 // [Group]
 // ============================================================================
-/*Таблица с данными о группах
-CREATE TABLE groups (
-    PRIMARY KEY (rest_num, group_num),
-    rest_num        INTEGER         NOT NULL,
-    group_num       INTEGER         NOT NULL,
-    title           VARCHAR(100)    NOT NULL,
-    info            VARCHAR(255)    NOT NULL,
-    active          BOOLEAN         NOT NULL,
-    cat_id          INTEGER         NOT NULL,
-    opening_time    TIME            NOT NULL,    
-    closing_time    TIME            NOT NULL  
-);
-
-INSERT INTO groups (rest_num, group_num, title, info, active, cat_id, opening_time, closing_time)
-VALUES (409664508, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00'),
-       (501159140, 1, 'Основная', 'Блюда подаются на тарелке', TRUE, 2, '00:00', '00:00');*/
 
 // Возвращает строки с краткой информацией о группах
 //
@@ -701,19 +732,6 @@ pub async fn rest_group_remove(rest_num: i32, group_num: i32) -> bool {
 // ============================================================================
 // [Dish]
 // ============================================================================
-/*Таблица с данными о блюдах
-CREATE TABLE dishes (
-    PRIMARY KEY (rest_num, group_num, dish_num),
-    rest_num         INTEGER        NOT NULL,
-    dish_num        INTEGER         NOT NULL,
-    title           VARCHAR(100)    NOT NULL,
-    info            VARCHAR(255)    NOT NULL,
-    active          BOOLEAN         NOT NULL,
-    group_num       INTEGER         NOT NULL,
-    price           INTEGER         NOT NULL,
-    image_id        VARCHAR(255)
-);
-*/
 
 // Возвращает строки с краткой информацией о блюдах
 //
