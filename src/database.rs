@@ -379,7 +379,7 @@ pub async fn create_tables() -> bool {
       title       VARCHAR(100)  NOT NULL,
       info        VARCHAR(255)  NOT NULL,
       active      BOOLEAN       NOT NULL,
-      enabled     BOOLEAN       NOT NULL
+      enabled     BOOLEAN       NOT NULL,
       rest_num    SERIAL,
       image_id    VARCHAR(255))", &[])
    .await;
