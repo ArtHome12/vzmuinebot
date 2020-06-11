@@ -70,7 +70,7 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                      return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_num), true).await;
                   } else {
-                     cx.answer(format!("Для доступа в режим рестораторов обратитесь к @vzbalmashova и сообщите ей свой Id={}", user_id))
+                     cx.answer(format!("Для доступа в режим рестораторов обратитесь к {} и сообщите ей свой Id={}", db::TELEGRAM_ADMIN_NAME.get().unwrap(), user_id))
                      .send().await?;
                   }
                }
