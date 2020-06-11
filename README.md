@@ -38,4 +38,5 @@ To register (or enable) a new restaurant, enter the command `/regi12345...`, whe
 To disable restaurant `/hold12345...` 
 
 Note. This is my first experience in learning the rust programming language and in bots, so the code is not very beautiful, it contains an excessive amount of copy-paste.
+The code is written using https://github.com/teloxide/teloxide and deployed with https://github.com/emk/heroku-buildpack-rust
 Good luck!
