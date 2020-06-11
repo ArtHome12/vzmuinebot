@@ -242,7 +242,7 @@ async fn run() {
    // Учётные данные админа бота - контактное имя
    let admin_name = env::var("TELEGRAM_ADMIN_NAME").expect("TELEGRAM_ADMIN_NAME env variable missing");
    match database::TELEGRAM_ADMIN_NAME.set(admin_name) {
-      Ok(_) => log::info!("admin_name is {}", database::TELEGRAM_ADMIN_NAME.get().unwrap()),
+      Ok(_) => log::info!("admin name is {}", database::TELEGRAM_ADMIN_NAME.get().unwrap()),
       _ => log::info!("Something wrong with admin name"),
    }
 
@@ -254,6 +254,14 @@ async fn run() {
    match database::TELEGRAM_ADMIN_ID.set(admin_id) {
       Ok(_) => log::info!("admin id is {}", *database::TELEGRAM_ADMIN_ID.get().unwrap()),
       _ => log::info!("Something wrong with admin id"),
+   }
+
+   // Проверим существование таблиц и если их нет, создадим
+   //
+   if database::is_tables_exists() {
+      log::info!("Table restaurants exist, open existing data");
+   } else {
+      log::info!("Table restaurants do not exist, create new tables");
    }
    
    Dispatcher::new(Arc::clone(&bot))

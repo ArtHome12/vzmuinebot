@@ -350,7 +350,13 @@ pub fn category_to_id(category: &str) -> i32 {
 // Возвращает истину, если user_id принадлежит администратору
 //
 pub fn is_admin(user_id: i32) -> bool {
-   /*user_id == 409664508 ||*/ user_id == *TELEGRAM_ADMIN_ID.get().unwrap()
+   user_id == 409664508 // После отладки удалить
+      || user_id == *TELEGRAM_ADMIN_ID.get().unwrap()
+}
+
+// Проверят существование таблиц
+pub fn is_tables_exists() -> bool {
+   false
 }
 
 // ============================================================================
