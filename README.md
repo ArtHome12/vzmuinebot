@@ -10,8 +10,10 @@ Connection to PostgeSQL database
 `DATABASE_URL=postgres://ciiqzyjmfs...`
 
 URL for webhook
-`HOST=vzmuinebot.herokuapp.com
-PORT=443`
+`HOST=vzmuinebot.herokuapp.com`
+
+Port of your https
+`PORT=443`
 
 Token from bot father
 `TELOXIDE_TOKEN=11344...`
