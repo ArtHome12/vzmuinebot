@@ -354,9 +354,17 @@ pub fn is_admin(user_id: i32) -> bool {
       || user_id == *TELEGRAM_ADMIN_ID.get().unwrap()
 }
 
-// Проверят существование таблиц
-pub fn is_tables_exists() -> bool {
-   false
+// Проверяет существование таблиц
+pub async fn is_tables_exists() -> bool {
+   // Выполняем запрос
+   let rows = DB.get().unwrap()
+      .query("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='restaurants'", &[]).await;
+
+   // Проверяем результат
+   match rows {
+      Ok(data) => !data.is_empty(),
+      _ => false,
+   }
 }
 
 // ============================================================================
@@ -382,52 +390,52 @@ VALUES (409664508, 'Плакучая ива', 'Наш адрес 00NDC, дост
 // Возвращает номер ресторана, если пользователю разрешён доступ в режим ресторатора
 //
 pub async fn rest_num(user_id : i32) -> i32 {
-    // Выполняем запрос
-    let rows = DB.get().unwrap()
-        .query("SELECT rest_num FROM restaurants WHERE user_id=$1::INTEGER AND enabled = TRUE", &[&user_id])
-        .await;
+   // Выполняем запрос
+   let rows = DB.get().unwrap()
+      .query("SELECT rest_num FROM restaurants WHERE user_id=$1::INTEGER AND enabled = TRUE", &[&user_id])
+      .await;
 
-    // Проверяем результат
-    match rows {
-        Ok(data) => if !data.is_empty() {
-           data[0].get(0)
-        } else {
-           0
-        }
-        _ => 0,
-    }
+   // Проверяем результат
+   match rows {
+      Ok(data) => if !data.is_empty() {
+         data[0].get(0)
+      } else {
+         0
+      }
+      _ => 0,
+   }
 }
 
 
 // Возвращает строку с информацией о ресторане
 //
 pub async fn rest_info(rest_num: i32) -> Option<(String, Option<String>)> {
-    // Выполняем запрос
-    let rows = DB.get().unwrap()
-        .query("SELECT title, info, active, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
-        .await;
+   // Выполняем запрос
+   let rows = DB.get().unwrap()
+      .query("SELECT title, info, active, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
+      .await;
 
-    // Проверяем результат
-    match rows {
-        Ok(data) => {
-            if !data.is_empty() {
-                // Параметры ресторана
-                let title: String = data[0].get(0);
-                let info: String = data[0].get(1);
-                let active: bool = data[0].get(2);
-                let image_id: Option<String> = data[0].get(3);
-                let groups: String = group_titles(rest_num).await;
-                Some((
-                    String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nЗагрузить фото /EditImg\nГруппы и время работы (добавить новую /AddGroup):\n{}",
-                        title, info, active_to_str(active), groups)
-                    ), image_id
-                ))
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
+   // Проверяем результат
+   match rows {
+      Ok(data) => {
+         if !data.is_empty() {
+               // Параметры ресторана
+               let title: String = data[0].get(0);
+               let info: String = data[0].get(1);
+               let active: bool = data[0].get(2);
+               let image_id: Option<String> = data[0].get(3);
+               let groups: String = group_titles(rest_num).await;
+               Some((
+                  String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nЗагрузить фото /EditImg\nГруппы и время работы (добавить новую /AddGroup):\n{}",
+                     title, info, active_to_str(active), groups)
+                  ), image_id
+               ))
+         } else {
+               None
+         }
+      }
+      _ => None,
+   }
 }
 
 pub async fn rest_edit_title(rest_num: i32, new_str: String) -> bool {

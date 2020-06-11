@@ -258,7 +258,7 @@ async fn run() {
 
    // Проверим существование таблиц и если их нет, создадим
    //
-   if database::is_tables_exists() {
+   if database::is_tables_exists().await {
       log::info!("Table restaurants exist, open existing data");
    } else {
       log::info!("Table restaurants do not exist, create new tables");
