@@ -10,7 +10,12 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use chrono::{NaiveTime};
 use once_cell::sync::{OnceCell};
 
+// Клиент БД
 pub static DB: OnceCell<tokio_postgres::Client> = OnceCell::new();
+
+// Телеграм ник администратора бота для связи
+pub static TELEGRAM_ADMIN_NAME: OnceCell<String> = OnceCell::new();
+pub static TELEGRAM_ADMIN_ID: OnceCell<i32> = OnceCell::new();
 
 
 // ============================================================================
