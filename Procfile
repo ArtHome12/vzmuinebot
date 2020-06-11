@@ -1,1 +1,1 @@
-web: ./target/release/noway24
+web: ./target/release/vzmuinebot
