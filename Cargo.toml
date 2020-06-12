@@ -1,6 +1,6 @@
 [package]
 name = "vzmuinebot"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Artem Khomenko <_mag12@yahoo.com>"]
 edition = "2018"
 
