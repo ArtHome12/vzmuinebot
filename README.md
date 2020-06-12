@@ -37,6 +37,8 @@ To identify you as an admin - you can see your user_id when press button "Доб
 To register (or enable) a new restaurant, enter the command `/regi12345...`, where 12345 is user id of new caterer.
 To disable restaurant `/hold12345...` 
 
+To enter as owner some restaurant `/sudo123`, where 123 is the serial number (not user_id!) of the restaurant.
+
 Note. This is my first experience in learning the rust programming language and in bots, so the code is not very beautiful, it contains an excessive amount of copy-paste.
 The code is written using https://github.com/teloxide/teloxide and deployed with https://github.com/emk/heroku-buildpack-rust
 Good luck!
