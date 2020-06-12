@@ -63,6 +63,7 @@ pub enum User {
     UnknownCommand,
     RegisterCaterer(i32), // user_id
     HoldCaterer(i32), // user_id
+    Sudo(i32), // rest_num
 }
 
 impl User {
@@ -81,6 +82,7 @@ impl User {
             match input.get(..5).unwrap_or_default() {
                "/regi" => User::RegisterCaterer(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                "/hold" => User::HoldCaterer(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+               "/sudo" => User::Sudo(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                _ => User::UnknownCommand,
             }
          }

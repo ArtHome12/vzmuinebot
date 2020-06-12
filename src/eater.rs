@@ -98,6 +98,19 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                   let res = db::is_success(db::is_admin(admin_id) && db::hold_caterer(user_id).await);
                   cx.answer(format!("Блокировка ресторатора {}: {}", user_id, res)).send().await?;
                }
+               cmd::User::Sudo(rest_num) => {
+                  // Код пользователя
+                  let admin_id: i32 = match cx.update.from() {
+                     Some(user) => user.id,
+                     None => 0,
+                  };
+                  if db::is_admin(admin_id) {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_num), true).await;
+                  } else {
+                     cx.answer(format!("Доступно только для админов")).send().await?;
+                  }
+               }
          }
       }
    }
