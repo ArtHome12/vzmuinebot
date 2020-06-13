@@ -20,11 +20,16 @@ use crate::eat_rest_now;
 
 // Отправляет текстовое сообщение
 //
-pub async fn send_text(cx: cmd::Cx<()>, text: &str) {
-   cx.answer(text)
+pub async fn send_text(cx: &cmd::Cx<()>, text: &str) {
+   let res = cx.answer(text)
    .reply_markup(cmd::User::main_menu_markup())
    .send()
    .await;
+
+   // Если не удалось отправить, выведем ошибку в лог
+   if let Err(err) = res {
+      log::info!("Error send_text({}): {}", text, err);
+   }
 }
 
 pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
@@ -37,7 +42,7 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    };
    
    // Отображаем приветственное сообщение и меню с кнопками.
-   send_text(cx, &s);
+   send_text(&cx, &s).await;
     
     // Переходим в режим получения выбранного пункта в главном меню.
     next(cmd::Dialogue::UserMode)
@@ -46,7 +51,7 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
 pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
    // Разбираем команду.
    match cx.update.text() {
-      None => send_text(cx, "Текстовое сообщение, пожалуйста!").await,
+      None => send_text(&cx, "Текстовое сообщение, пожалуйста!").await,
       Some(command) => {
          match cmd::User::from(command) {
                cmd::User::Category(cat_id) => {
@@ -74,50 +79,36 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                      return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_num), true).await;
                   } else {
-                     cx.answer(format!("Для доступа в режим рестораторов обратитесь к {} и сообщите свой Id={}", db::TELEGRAM_ADMIN_NAME.get().unwrap(), user_id))
-                     .send().await?;
+                     send_text(&cx, &format!("Для доступа в режим рестораторов обратитесь к {} и сообщите свой Id={}", db::TELEGRAM_ADMIN_NAME.get().unwrap(), user_id)).await
                   }
                }
-               cmd::User::Basket => send_text(cx, "Уточните количество отобранных позиций и перешлите сообщение в заведение или независимую доставку:\nКоманда в разработке").await,
-               cmd::User::UnknownCommand => send_text(cx, &format!("Неизвестная команда {}", command)).await,
+               cmd::User::Basket => send_text(&cx, "Уточните количество отобранных позиций и перешлите сообщение в заведение или независимую доставку:\nКоманда в разработке").await,
+               cmd::User::UnknownCommand => send_text(&cx, &format!("Неизвестная команда {}", command)).await,
                cmd::User::RegisterCaterer(user_id) => {
                   // Проверим права
                   if db::is_admin(cx.update.from()) {
-
+                     let res = db::is_success(db::register_caterer(user_id).await);
+                     send_text(&cx, &format!("Регистрация или разблокировка ресторатора {}: {}", user_id, res)).await;
                   } else {
-                     cx.answer(format!("Неизвестная команда {}", command))
-                     .reply_markup(cmd::User::main_menu_markup())
-                     .send().await?;
+                     send_text(&cx, "Недостаточно прав").await;
                   }
-
-                  // Код пользователя
-                  let admin_id: i32 = match cx.update.from() {
-                     Some(user) => user.id,
-                     None => 0,
-                  };
-                  let res = db::is_success(db::is_admin(admin_id) && db::register_caterer(user_id).await);
-                  cx.answer(format!("Регистрация или разблокировка ресторатора {}: {}", user_id, res)).send().await?;
                }
                cmd::User::HoldCaterer(user_id) => {
-                  // Код пользователя
-                  let admin_id: i32 = match cx.update.from() {
-                     Some(user) => user.id,
-                     None => 0,
-                  };
-                  let res = db::is_success(db::is_admin(admin_id) && db::hold_caterer(user_id).await);
-                  cx.answer(format!("Блокировка ресторатора {}: {}", user_id, res)).send().await?;
+                  // Проверим права
+                  if db::is_admin(cx.update.from()) {
+                     let res = db::is_success(db::hold_caterer(user_id).await);
+                     send_text(&cx, &format!("Блокировка ресторатора {}: {}", user_id, res)).await;
+                  } else {
+                     send_text(&cx, "Недостаточно прав").await;
+                  }
                }
                cmd::User::Sudo(rest_num) => {
-                  // Код пользователя
-                  let admin_id: i32 = match cx.update.from() {
-                     Some(user) => user.id,
-                     None => 0,
-                  };
-                  if db::is_admin(admin_id) {
+                  // Проверим права
+                  if db::is_admin(cx.update.from()) {
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                      return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_num), true).await;
                   } else {
-                     cx.answer(format!("Доступно только для админов")).send().await?;
+                     send_text(&cx, "Недостаточно прав").await;
                   }
                }
          }
