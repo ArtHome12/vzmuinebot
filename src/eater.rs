@@ -111,6 +111,16 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                      send_text(&cx, "Недостаточно прав").await;
                   }
                }
+               cmd::User::List => {
+                  // Проверим права
+                  if db::is_admin(cx.update.from()) {
+                     // Получим из БД список ресторанов и отправим его
+                     let res = db::restaurant_list().await;
+                     send_text(&cx, &res).await;
+                  } else {
+                     send_text(&cx, "Недостаточно прав").await;
+                  }
+               }
          }
       }
    }

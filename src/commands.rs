@@ -64,6 +64,7 @@ pub enum User {
     RegisterCaterer(i32), // user_id
     HoldCaterer(i32), // user_id
     Sudo(i32), // rest_num
+    List,
 }
 
 impl User {
@@ -77,6 +78,7 @@ impl User {
          "Сейчас" => User::OpenedNow,
          "Корзина" => User::Basket,
          "Добавить" => User::CatererMode,
+         "/list" => User::List,
          _ => {
             // Ищем среди команд с цифровыми суффиксами - аргументами
             match input.get(..5).unwrap_or_default() {

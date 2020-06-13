@@ -303,17 +303,59 @@ pub async fn hold_caterer(user_id: i32) -> bool {
    }
 }
 
+pub async fn restaurant_list() -> String {
+   // Выполняем запрос информации о ресторане
+   let rows = DB.get().unwrap()
+      .query("SELECT rest_num, user_id, title, enabled FROM restaurants", &[])
+      .await;
+
+   match rows {
+      Ok(data) => {
+         // Строка для возврата результата
+         let mut res = String::default();
+
+         for record in data {
+            let rest_num: i32 = record.get(0);
+            let user_id: i32 = record.get(1);
+            let title: String = record.get(2);
+            let enabled: bool = record.get(3);
+            res.push_str(&format!("   {} {} {} {}{}\n", 
+                rest_num, title, enabled_to_str(enabled), enabled_to_cmd(enabled), user_id
+            ));
+        }
+        res
+      }
+      _ => String::default(),
+   }
+}
+
 // ============================================================================
 // [Misc]
 // ============================================================================
 // Для отображения статуса
 //
 fn active_to_str(active : bool) -> &'static str {
-    if active {
-        "показывается"
-    } else {
-        "скрыт"
-    }
+   if active {
+       "показывается"
+   } else {
+       "скрыт"
+   }
+}
+
+fn enabled_to_str(enabled : bool) -> &'static str {
+   if enabled {
+       "разр."
+   } else {
+       "блок."
+   }
+}
+
+fn enabled_to_cmd(enabled : bool) -> &'static str {
+   if enabled {
+       "/hold"
+   } else {
+       "/regi"
+   }
 }
 
 // Успешно-неуспешно
