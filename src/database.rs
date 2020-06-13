@@ -319,7 +319,7 @@ pub async fn restaurant_list() -> String {
             let user_id: i32 = record.get(1);
             let title: String = record.get(2);
             let enabled: bool = record.get(3);
-            res.push_str(&format!("   {} '{}', {} {}{}\n", 
+            res.push_str(&format!("{} '{}', {} {}{}\n", 
                 rest_num, title, enabled_to_str(enabled), enabled_to_cmd(enabled), user_id
             ));
         }
