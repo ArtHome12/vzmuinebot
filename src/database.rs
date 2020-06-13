@@ -349,9 +349,11 @@ pub fn category_to_id(category: &str) -> i32 {
 
 // Возвращает истину, если user_id принадлежит администратору
 //
-pub fn is_admin(user_id: i32) -> bool {
-   user_id == 409664508 // После отладки удалить
-      || user_id == *TELEGRAM_ADMIN_ID.get().unwrap()
+pub fn is_admin(user_id: Option<&teloxide::types::User>) -> bool {
+   match user_id { 
+      Some(user) => user.id == *TELEGRAM_ADMIN_ID.get().unwrap(),
+      None => false,
+   }
 }
 
 // Проверяет существование таблиц

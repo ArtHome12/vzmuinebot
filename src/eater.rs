@@ -18,6 +18,15 @@ use crate::caterer;
 use crate::eat_rest;
 use crate::eat_rest_now;
 
+// Отправляет текстовое сообщение
+//
+pub async fn send_text(cx: cmd::Cx<()>, text: &str) {
+   cx.answer(text)
+   .reply_markup(cmd::User::main_menu_markup())
+   .send()
+   .await;
+}
+
 pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    
    // Различаем перезапуск и возврат из меню ресторатора
@@ -28,10 +37,7 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    };
    
    // Отображаем приветственное сообщение и меню с кнопками.
-    cx.answer(s)
-        .reply_markup(cmd::User::main_menu_markup())
-        .send()
-        .await?;
+   send_text(cx, &s);
     
     // Переходим в режим получения выбранного пункта в главном меню.
     next(cmd::Dialogue::UserMode)
@@ -40,9 +46,7 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
 pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
    // Разбираем команду.
    match cx.update.text() {
-      None => {
-         cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
-      }
+      None => send_text(cx, "Текстовое сообщение, пожалуйста!").await,
       Some(command) => {
          match cmd::User::from(command) {
                cmd::User::Category(cat_id) => {
@@ -74,13 +78,18 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                      .send().await?;
                   }
                }
-               cmd::User::Basket => {
-                  cx.answer("Уточните количество отобранных позиций и перешлите сообщение по указанным контактам:\nКоманда в разработке").send().await?;
-               }
-               cmd::User::UnknownCommand => {
-                  cx.answer(format!("Неизвестная команда {}", command)).send().await?;
-               }
+               cmd::User::Basket => send_text(cx, "Уточните количество отобранных позиций и перешлите сообщение в заведение или независимую доставку:\nКоманда в разработке").await,
+               cmd::User::UnknownCommand => send_text(cx, &format!("Неизвестная команда {}", command)).await,
                cmd::User::RegisterCaterer(user_id) => {
+                  // Проверим права
+                  if db::is_admin(cx.update.from()) {
+
+                  } else {
+                     cx.answer(format!("Неизвестная команда {}", command))
+                     .reply_markup(cmd::User::main_menu_markup())
+                     .send().await?;
+                  }
+
                   // Код пользователя
                   let admin_id: i32 = match cx.update.from() {
                      Some(user) => user.id,
