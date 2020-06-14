@@ -147,10 +147,12 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
 
 
 async fn handle_callback_query(rx: DispatcherHandlerRx<CallbackQuery>) {
-   rx.for_each(|cx| async move {
+   rx.for_each_concurrent(None, |cx| async move {
       let query = cx.update;
-      cx.bot.answer_callback_query(query.id);
-      log::info!("handle_callback_query {}", query.data.unwrap());
+      match cx.bot.answer_callback_query(query.id).send().await {
+         Err(_) => log::info!("error with handle_callback_query {}", query.data.unwrap()),
+         _ => (),
+      }
   })
   .await;
 }
