@@ -32,7 +32,7 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 
    // Отображаем информацию и кнопки меню
    cx.answer(group_list)
-   .reply_markup(cmd::EaterDish::markup())
+   .reply_markup(cmd::EaterDish::inline_markup())
       .send()
       .await?;
 
@@ -43,7 +43,7 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
 async fn next_with_cancel(cx: cmd::Cx<(i32, i32, i32)>, text: &str) -> cmd::Res {
    cx.answer(text)
-   .reply_markup(cmd::EaterDish::markup())
+   .reply_markup(cmd::EaterDish::inline_markup())
    .send()
    .await?;
 
@@ -104,7 +104,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                   // Отправляем картинку и текст как комментарий
                   cx.answer_photo(image)
                   .caption(info)
-                  .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::EaterDish::markup()))
+                  .reply_markup(ReplyMarkup::InlineKeyboardMarkup(cmd::EaterDish::inline_markup()))
                   .send()
                   .await?;
                   

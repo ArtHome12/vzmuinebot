@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
     prelude::*, 
-    types::{KeyboardButton, ReplyKeyboardMarkup},
+    types::{KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton},
 };
 
 
@@ -391,12 +391,11 @@ impl EaterDish {
      }
    }
 
-   pub fn markup() -> ReplyKeyboardMarkup {
-      ReplyKeyboardMarkup::default()
-         .append_row(vec![
-            KeyboardButton::new("В начало"),
-            KeyboardButton::new("Назад"),
+   pub fn inline_markup() -> InlineKeyboardMarkup {
+      InlineKeyboardMarkup::default()
+      .append_row(vec![
+         InlineKeyboardButton::callback("+1 (в корзине 0)".to_string(), "callback_data1".to_string()),
+         InlineKeyboardButton::callback("-1 (в корзине 0)".to_string(), "callback_data2".to_string()),
          ])
-         .resize_keyboard(true)
   }
 }
