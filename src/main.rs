@@ -35,6 +35,7 @@ mod eat_group;
 mod eat_dish;
 mod eat_rest_now;
 mod eat_group_now;
+mod callback;
 
 use commands as cmd;
 
@@ -148,15 +149,8 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
 
 async fn handle_callback_query(rx: DispatcherHandlerRx<CallbackQuery>) {
    rx.for_each_concurrent(None, |cx| async move {
-      let query = cx.update;
-      match cx.bot.answer_callback_query(query.id)
-         .text("query.data.unwrap()")
-         .send()
-         .await {
-         Err(_) => log::info!("error with handle_callback_query {}", query.data.unwrap()),
-         _ => (),
-      }
-  })
+      callback::handle_message(cx).await
+   })
   .await;
 }
 
