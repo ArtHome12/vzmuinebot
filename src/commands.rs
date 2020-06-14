@@ -406,13 +406,13 @@ impl EaterDish {
          InlineKeyboardMarkup::default()
          .append_row(vec![
             InlineKeyboardButton::callback("🧺".to_string(), format!("bas{}", key)),
-            InlineKeyboardButton::callback(format!("+1 (в корзине {})", amount), format!("add{}", key)),
+            InlineKeyboardButton::callback(format!("+1 ({})", amount), format!("add{}", key)),
          ])
       } else {
          InlineKeyboardMarkup::default()
          .append_row(vec![
             InlineKeyboardButton::callback("🧺".to_string(), format!("bas{}", key)),
-            InlineKeyboardButton::callback(format!("+1 (в корзине {})", amount), format!("add{}", key)),
+            InlineKeyboardButton::callback(format!("+1 ({})", amount), format!("add{}", key)),
             InlineKeyboardButton::callback("-1".to_string(), format!("del{}", key)),
          ])
       }
