@@ -27,7 +27,7 @@ impl OrdersCommand {
          "bas" => OrdersCommand::Basket,
          _ => {
              // Ищем среди команд с цифровыми суффиксами - аргументами
-             match input.get(..5).unwrap_or_default() {
+             match input.get(..4).unwrap_or_default() {
                "add" => OrdersCommand::Add(1, 1, 1),
                "del" => OrdersCommand::Remove(1, 1, 1),
                _ => OrdersCommand::UnknownCommand,
