@@ -150,7 +150,7 @@ async fn handle_callback_query(rx: DispatcherHandlerRx<CallbackQuery>) {
    rx.for_each_concurrent(None, |cx| async move {
       let query = cx.update;
       match cx.bot.answer_callback_query(query.id)
-         .text(query.data.unwrap())
+         .text("query.data.unwrap()")
          .send()
          .await {
          Err(_) => log::info!("error with handle_callback_query {}", query.data.unwrap()),
