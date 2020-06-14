@@ -12,6 +12,8 @@ use teloxide::{
    types::{CallbackQuery},
 };
 
+use text_io::scan;
+
 #[derive(Copy, Clone)]
 enum OrdersCommand {
     Basket(i32, i32, i32), // rest_num, group_num, dish_num
@@ -22,10 +24,17 @@ enum OrdersCommand {
 
 impl OrdersCommand {
    pub fn from(input: &str) -> OrdersCommand {
+      // Попытаемся извлечь аргументы
+      let rest_num: i32;
+      let group_num: i32;
+      let dish_num: i32;
+      let r_part = input.get(3..).unwrap_or_default();
+      scan!(r_part.bytes() => "{}:{}:{}", rest_num, group_num, dish_num);
+
       match input.get(..3).unwrap_or_default() {
-         "bas" => OrdersCommand::Basket(1, 1, 1),
-         "add" => OrdersCommand::Add(1, 1, 1),
-         "1del" => OrdersCommand::Remove(1, 1, 1),
+         "bas" => OrdersCommand::Basket(rest_num, group_num, dish_num),
+         "add" => OrdersCommand::Add(rest_num, group_num, dish_num),
+         "del" => OrdersCommand::Remove(rest_num, group_num, dish_num),
          _ => OrdersCommand::UnknownCommand,
      }
    }
@@ -42,10 +51,10 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
       Some(data) => {
          // Идентифицируем и исполним команду
          match OrdersCommand::from(&data) {
-            OrdersCommand::Basket(_rest_num, _group_num, _dish_num) => String::from("В корзину"),
+            OrdersCommand::Basket(rest_num, group_num, dish_num) => format!("В корзину {}:{}:{}", rest_num, group_num, dish_num),
             OrdersCommand::UnknownCommand => format!("Error handle_message {}", &data),
-            OrdersCommand::Add(_rest_num, _group_num, _dish_num) => String::from("Добавить"),
-            OrdersCommand::Remove(_rest_num, _group_num, _dish_num) => String::from("Удалить"),
+            OrdersCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {}:{}:{}", rest_num, group_num, dish_num),
+            OrdersCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}:{}:{}", rest_num, group_num, dish_num),
          }
       }
    };
