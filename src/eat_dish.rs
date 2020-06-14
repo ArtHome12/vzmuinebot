@@ -32,7 +32,7 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 
    // Отображаем информацию и кнопки меню
    cx.answer(group_list)
-   .reply_markup(cmd::EaterDish::inline_markup())
+   .reply_markup(cmd::EaterDish::markup())
       .send()
       .await?;
 
@@ -43,7 +43,7 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
 async fn next_with_cancel(cx: cmd::Cx<(i32, i32, i32)>, text: &str) -> cmd::Res {
    cx.answer(text)
-   .reply_markup(cmd::EaterDish::inline_markup())
+   .reply_markup(cmd::EaterDish::markup())
    .send()
    .await?;
 

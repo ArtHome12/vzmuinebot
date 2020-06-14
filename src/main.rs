@@ -13,8 +13,9 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 extern crate smart_default;
 
 use teloxide::{
-    dispatching::update_listeners, 
-    prelude::*, 
+   dispatching::update_listeners, 
+   prelude::*, 
+   types::{InlineQuery},
 };
 
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
@@ -268,6 +269,11 @@ async fn run() {
    .messages_handler(DialogueDispatcher::new(|cx| async move {
       handle_message(cx).await.expect("Something wrong with the bot!")
    }))
+   .inline_queries_handler(|rx: DispatcherHandlerRx<InlineQuery>| {
+      rx.for_each(|cx| async move {
+          println!("New inline query: {:?}", cx.update);
+      })
+   })
    .dispatch_with_listener(
       webhook(bot).await,
       LoggingErrorHandler::with_custom_text("An error from the update listener"),
