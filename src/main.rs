@@ -15,7 +15,7 @@ extern crate smart_default;
 use teloxide::{
    dispatching::update_listeners, 
    prelude::*, 
-   types::{InlineQuery},
+   types::{CallbackQuery},
 };
 
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
@@ -269,7 +269,7 @@ async fn run() {
    .messages_handler(DialogueDispatcher::new(|cx| async move {
       handle_message(cx).await.expect("Something wrong with the bot!")
    }))
-   .inline_queries_handler(|rx: DispatcherHandlerRx<InlineQuery>| {
+   .callback_queries_handler(|rx: DispatcherHandlerRx<CallbackQuery>| {
       rx.for_each(|cx| async move {
           log::info!("New inline query: {:?}", cx.update);
       })
