@@ -271,7 +271,7 @@ async fn run() {
    }))
    .inline_queries_handler(|rx: DispatcherHandlerRx<InlineQuery>| {
       rx.for_each(|cx| async move {
-          println!("New inline query: {:?}", cx.update);
+          log::info!("New inline query: {:?}", cx.update);
       })
    })
    .dispatch_with_listener(
