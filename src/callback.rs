@@ -12,15 +12,56 @@ use teloxide::{
    types::{CallbackQuery},
 };
 
+#[derive(Copy, Clone)]
+enum OrdersCommand {
+    Basket,
+    Add(i32, i32, i32), // rest_num, group_num, dish_num
+    Remove(i32, i32, i32), // rest_num, group_num, dish_num
+    UnknownCommand,
+}
+
+impl OrdersCommand {
+   pub fn from(input: &str) -> OrdersCommand {
+      match input {
+         // Сначала проверим на цельные команды.
+         "bas" => OrdersCommand::Basket,
+         _ => {
+             // Ищем среди команд с цифровыми суффиксами - аргументами
+             match input.get(..5).unwrap_or_default() {
+               "add" => OrdersCommand::Add(1, 1, 1),
+               "del" => OrdersCommand::Remove(1, 1, 1),
+               _ => OrdersCommand::UnknownCommand,
+             }
+         }
+     }
+   }
+}
+
 pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
    let query = cx.update;
-   let command = query.data;
 
+   // Сообщение для отправки обратно
+   let msg = match query.data {
+      None => {
+         "Error handle_message None"
+      }
+      Some(data) => {
+         // Идентифицируем и исполним команду
+         match OrdersCommand::from(&data) {
+            OrdersCommand::Basket => "В корзину",
+            OrdersCommand::UnknownCommand => "Error handle_message Some",
+            OrdersCommand::Add(_rest_num, _group_num, _dish_num) => "Добавить",
+            OrdersCommand::Remove(_rest_num, _group_num, _dish_num) => "Удалить",
+         }
+      }
+   };
+
+   // Отправляем ответ
    match cx.bot.answer_callback_query(query.id)
-      .text("query.data.unwrap()")
+      .text(msg)
       .send()
       .await {
-      Err(_) => log::info!("error with handle_callback_query {}", command.unwrap_or_default()),
+      Err(_) => log::info!("Error handle_message {}", msg),
       _ => (),
    }
 }
