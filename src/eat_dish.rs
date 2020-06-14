@@ -100,7 +100,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                let user_id = cx.update.from().unwrap().id;
 
                // Запросим из БД, сколько этих блюд пользователь уже выбрал
-               let ordered_amount = 0;//db::amount_in_basket(rest_id, group_id, dish_num, user_id).await;
+               let ordered_amount = db::amount_in_basket(rest_id, group_id, dish_num, user_id).await;
 
                // Создаём инлайн кнопки с указанием количества блюд
                let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_dish_key(rest_id, group_id, dish_num), ordered_amount);

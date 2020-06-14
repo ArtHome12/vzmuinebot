@@ -394,6 +394,7 @@ impl EaterDish {
    pub fn markup() -> ReplyKeyboardMarkup {
       ReplyKeyboardMarkup::default()
       .append_row(vec![
+         KeyboardButton::new("🛒"),
          KeyboardButton::new("В начало"),
          KeyboardButton::new("Назад"),
       ])
@@ -402,16 +403,16 @@ impl EaterDish {
 
    pub fn inline_markup(key: &str, amount: i32) -> InlineKeyboardMarkup {
       // Если количество не пустое, добавим кнопку для убавления
-      if amount > 0 {
+      if amount == 0 {
          InlineKeyboardMarkup::default()
          .append_row(vec![
-            InlineKeyboardButton::callback("🛒".to_string(), format!("bas{}", key)),
+            // InlineKeyboardButton::callback("🛒".to_string(), format!("bas{}", key)),
             InlineKeyboardButton::callback(format!("+1 ({})", amount), format!("add{}", key)),
          ])
       } else {
          InlineKeyboardMarkup::default()
          .append_row(vec![
-            InlineKeyboardButton::callback("🛒".to_string(), format!("bas{}", key)),
+            // InlineKeyboardButton::callback("🛒".to_string(), format!("bas{}", key)),
             InlineKeyboardButton::callback(format!("+1 ({})", amount), format!("add{}", key)),
             InlineKeyboardButton::callback("-1".to_string(), format!("del{}", key)),
          ])
