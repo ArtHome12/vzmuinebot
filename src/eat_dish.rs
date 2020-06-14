@@ -96,6 +96,15 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                   None => (format!("Ошибка db::eater_dish_info({}, {}, {})", rest_id, group_id, dish_num), None)
                };
 
+               // Идентифицируем пользователя
+               let user_id = cx.update.from().unwrap().id;
+
+               // Запросим из БД, сколько этих блюд пользователь уже выбрал
+               let ordered_amount = db::amount_in_basket(rest_id, group_id, dish_num, user_id).await;
+
+               // Создаём инлайн кнопки с указанием количества блюд
+               let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_dish_key(rest_id, group_id, dish_num), ordered_amount);
+
                // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
                if let Some(image_id) = dish_image_id {
                   // Создадим графический объект
@@ -104,14 +113,18 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                   // Отправляем картинку и текст как комментарий
                   cx.answer_photo(image)
                   .caption(info)
-                  .reply_markup(ReplyMarkup::InlineKeyboardMarkup(cmd::EaterDish::inline_markup()))
+                  .reply_markup(ReplyMarkup::InlineKeyboardMarkup(inline_keyboard))
                   .send()
                   .await?;
                   
                   next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
                } else {
-                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)), &info).await
+                  cx.answer(info)
+                  .reply_markup(inline_keyboard)
+                  .send()
+                  .await?;
+
+                  next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
                }
             }
 

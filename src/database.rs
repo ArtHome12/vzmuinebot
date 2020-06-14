@@ -450,19 +450,48 @@ pub async fn create_tables() -> bool {
                let query = DB.get().unwrap()
                .execute("CREATE TABLE dishes (
                   PRIMARY KEY (rest_num, group_num, dish_num),
-                  rest_num         INTEGER        NOT NULL,
-                  dish_num        INTEGER         NOT NULL,
-                  title           VARCHAR(100)    NOT NULL,
-                  info            VARCHAR(255)    NOT NULL,
-                  active          BOOLEAN         NOT NULL,
-                  group_num       INTEGER         NOT NULL,
-                  price           INTEGER         NOT NULL,
-                  image_id        VARCHAR(255))", &[])
+                  rest_num       INTEGER        NOT NULL,
+                  dish_num       INTEGER        NOT NULL,
+                  title          VARCHAR(100)   NOT NULL,
+                  info           VARCHAR(255)   NOT NULL,
+                  active         BOOLEAN        NOT NULL,
+                  group_num      INTEGER        NOT NULL,
+                  price          INTEGER        NOT NULL,
+                  image_id       VARCHAR(255))", &[])
                .await;
                
                match query {
                   Ok(_) => {
-                     true
+                     // Таблица с данными о едоках
+                     let query = DB.get().unwrap()
+                     .execute("CREATE TABLE users (
+                        PRIMARY KEY (user_id),
+                        user_id     INTEGER        NOT NULL,
+                        user_name   VARCHAR(100))", &[])
+                     .await;
+                     
+                     match query {
+                        Ok(_) => {
+                           // Таблица с данными о заказах
+                           let query = DB.get().unwrap()
+                           .execute("CREATE TABLE orders (
+                              PRIMARY KEY (user_id, rest_num, group_num, dish_num),
+                              user_id     INTEGER        NOT NULL,
+                              rest_num    INTEGER        NOT NULL,
+                              group_num   INTEGER        NOT NULL,
+                              dish_num    INTEGER        NOT NULL,
+                              amount      INTEGER        NOT NULL)", &[])
+                           .await;
+                           
+                           match query {
+                              Ok(_) => {
+                                 true
+                              }
+                              _ => false,
+                           }
+                        }
+                        _ => false,
+                     }
                   }
                   _ => false,
                }
@@ -472,6 +501,12 @@ pub async fn create_tables() -> bool {
       }
       _ => false,
    }
+}
+
+// Формирование ключа блюда на основе аргументов
+//
+pub fn make_dish_key(rest_num: i32, group_num: i32, dish_num: i32) -> String {
+   format!("{}:{}:{}", rest_num, group_num, dish_num)
 }
 
 // ============================================================================
@@ -1015,3 +1050,20 @@ pub async fn rest_dish_edit_image(rest_num: i32, group_num: i32, dish_num: i32, 
    }
 }
 
+// Возвращает количество порций блюда в корзине
+//
+pub async fn amount_in_basket(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> i32 {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .query("SELECT amount FROM orders WHERE user_id=$1::INTEGER AND  rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&user_id, &rest_num, &group_num, &dish_num])
+   .await;
+
+   match query {
+      Ok(data) => if !data.is_empty() {
+         data[0].get(0)
+      } else {
+         0
+      }
+      _ => 0,
+   }
+}

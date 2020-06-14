@@ -146,6 +146,14 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
 }
 
 
+async fn handle_callback_query(rx: DispatcherHandlerRx<CallbackQuery>) {
+   rx.for_each_concurrent(None, |cx| async move {
+      let query = cx.update.id;
+      cx.bot.answer_callback_query(query);
+  })
+  .await;
+}
+
 
 // ============================================================================
 // [Run!]
@@ -269,11 +277,7 @@ async fn run() {
    .messages_handler(DialogueDispatcher::new(|cx| async move {
       handle_message(cx).await.expect("Something wrong with the bot!")
    }))
-   .callback_queries_handler(|rx: DispatcherHandlerRx<CallbackQuery>| {
-      rx.for_each(|cx| async move {
-          log::info!("New inline query: {:?}", cx.update);
-      })
-   })
+   .callback_queries_handler(handle_callback_query)
    .dispatch_with_listener(
       webhook(bot).await,
       LoggingErrorHandler::with_custom_text("An error from the update listener"),
