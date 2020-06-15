@@ -18,6 +18,7 @@ use crate::database as db;
 use crate::eater;
 use crate::eat_rest_now;
 use crate::eat_dish;
+use crate::basket;
 
 // Основную информацию режима
 //
@@ -86,6 +87,15 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
       }
       Some(command) => {
          match cmd::EaterGroup::from(command) {
+            // В корзину
+            cmd::EaterGroup::Basket => {
+               // Код едока
+               let user_id = cx.update.from().unwrap().id;
+               
+               // Переходим в корзину
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               return basket::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, user_id)).await;
+            }
 
             // В главное меню
             cmd::EaterGroup::Main => {

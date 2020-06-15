@@ -43,6 +43,7 @@ pub enum Dialogue {
     CatEditDishGroup(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
     CatEditDishPrice(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
     CatEditDishImage(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
+    BasketMode(i32), // user_id
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
@@ -298,15 +299,17 @@ impl CatDish {
 // ============================================================================
 #[derive(Copy, Clone)]
 pub enum EaterRest {
-    Main,
-    UnknownCommand,
-    Restaurant(i32),   // cat_id 
+   Basket,
+   Main,
+   UnknownCommand,
+   Restaurant(i32),   // cat_id 
 }
 
 impl EaterRest {
    pub fn from(input: &str) -> EaterRest {
       match input {
          // Сначала проверим на цельные команды.
+         "🛒" => EaterRest::Basket,
          "В начало" => EaterRest::Main,
          _ => {
              // Ищем среди команд с цифровыми суффиксами - аргументами
@@ -321,7 +324,8 @@ impl EaterRest {
    pub fn markup() -> ReplyKeyboardMarkup {
       ReplyKeyboardMarkup::default()
           .append_row(vec![
-              KeyboardButton::new("В начало"),
+            KeyboardButton::new("🛒"),
+            KeyboardButton::new("В начало"),
           ])
           .resize_keyboard(true)
   }
@@ -332,16 +336,18 @@ impl EaterRest {
 // ============================================================================
 #[derive(Copy, Clone)]
 pub enum EaterGroup {
-    Main,
-    Return,
-    UnknownCommand,
-    Group(i32),   // cat_id 
+   Basket,
+   Main,
+   Return,
+   UnknownCommand,
+   Group(i32),   // cat_id 
 }
 
 impl EaterGroup {
    pub fn from(input: &str) -> EaterGroup {
       match input {
          // Сначала проверим на цельные команды.
+         "🛒" => EaterGroup::Basket,
          "В начало" => EaterGroup::Main,
          "Назад" => EaterGroup::Return,
          _ => {
@@ -357,6 +363,7 @@ impl EaterGroup {
    pub fn markup() -> ReplyKeyboardMarkup {
       ReplyKeyboardMarkup::default()
          .append_row(vec![
+            KeyboardButton::new("🛒"),
             KeyboardButton::new("В начало"),
             KeyboardButton::new("Назад"),
          ])
@@ -369,16 +376,18 @@ impl EaterGroup {
 // ============================================================================
 #[derive(Copy, Clone)]
 pub enum EaterDish {
-    Main,
-    Return,
-    UnknownCommand,
-    Dish(i32),   // group_id
+   Basket,
+   Main,
+   Return,
+   UnknownCommand,
+   Dish(i32),   // group_id
 }
 
 impl EaterDish {
    pub fn from(input: &str) -> EaterDish {
       match input {
          // Сначала проверим на цельные команды.
+         "🛒" => EaterDish::Basket,
          "В начало" => EaterDish::Main,
          "Назад" => EaterDish::Return,
          _ => {
@@ -403,19 +412,37 @@ impl EaterDish {
 
    pub fn inline_markup(key: &str, amount: i32) -> InlineKeyboardMarkup {
       // Если количество не пустое, добавим кнопку для убавления
-      if amount == 0 {
-         InlineKeyboardMarkup::default()
-         .append_row(vec![
-            // InlineKeyboardButton::callback("🛒".to_string(), format!("bas{}", key)),
+      let buttons = if amount == 0 {
+         vec![
             InlineKeyboardButton::callback(format!("+1 ({})", amount), format!("add{}", key)),
-         ])
+         ]
       } else {
-         InlineKeyboardMarkup::default()
-         .append_row(vec![
-            // InlineKeyboardButton::callback("🛒".to_string(), format!("bas{}", key)),
+         vec![
             InlineKeyboardButton::callback(format!("+1 ({})", amount), format!("add{}", key)),
             InlineKeyboardButton::callback("-1".to_string(), format!("del{}", key)),
-         ])
+         ]
+      };
+
+      // Формируем меню
+      InlineKeyboardMarkup::default()
+      .append_row(buttons)
+   }
+}
+
+// ============================================================================
+// [Basket menu]
+// ============================================================================
+#[derive(Copy, Clone)]
+pub enum Basket {
+   Main,
+   UnknownCommand,
+}
+
+impl Basket {
+   pub fn from(input: &str) -> Basket {
+      match input {
+         "В начало" => Basket::Main,
+         _ => Basket::UnknownCommand,
       }
    }
 }

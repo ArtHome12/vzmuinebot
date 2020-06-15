@@ -16,6 +16,7 @@ use crate::commands as cmd;
 use crate::database as db;
 use crate::eater;
 use crate::eat_group_now;
+use crate::basket;
 
 // Показывает список ресторанов с группами заданной категории
 //
@@ -60,6 +61,15 @@ pub async fn handle_selection_mode(cx: cmd::Cx<()>) -> cmd::Res {
       }
       Some(command) => {
          match cmd::EaterRest::from(command) {
+            // В корзину
+            cmd::EaterRest::Basket => {
+               // Код едока
+               let user_id = cx.update.from().unwrap().id;
+               
+               // Переходим в корзину
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               return basket::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, user_id)).await;
+            }
 
             // В главное меню
             cmd::EaterRest::Main => {

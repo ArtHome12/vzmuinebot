@@ -36,6 +36,7 @@ mod eat_dish;
 mod eat_rest_now;
 mod eat_group_now;
 mod callback;
+mod basket;
 
 use commands as cmd;
 
@@ -141,6 +142,10 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
       }
       cmd::Dialogue::EatRestGroupNowSelectionMode(rest_id) => {
          eat_group_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+               .await
+      }
+      cmd::Dialogue::BasketMode(user_id) => {
+         basket::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
                .await
       }
    }

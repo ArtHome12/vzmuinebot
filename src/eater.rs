@@ -17,6 +17,7 @@ use crate::database as db;
 use crate::caterer;
 use crate::eat_rest;
 use crate::eat_rest_now;
+use crate::basket;
 
 // Отправляет текстовое сообщение
 //
@@ -82,7 +83,14 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                      send_text(&cx, &format!("Для доступа в режим рестораторов обратитесь к {} и сообщите свой Id={}", db::TELEGRAM_ADMIN_NAME.get().unwrap(), user_id)).await
                   }
                }
-               cmd::User::Basket => send_text(&cx, "Уточните количество отобранных позиций и перешлите сообщение в заведение или независимую доставку:\nКоманда в разработке").await,
+               cmd::User::Basket => {
+                  // Код едока
+                  let user_id = cx.update.from().unwrap().id;
+                  
+                  // Переходим в корзину
+                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                  return basket::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, user_id)).await;
+               }
                cmd::User::UnknownCommand => send_text(&cx, &format!("Неизвестная команда {}", command)).await,
                cmd::User::RegisterCaterer(user_id) => {
                   // Проверим права

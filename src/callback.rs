@@ -16,7 +16,6 @@ use text_io::scan;
 
 #[derive(Copy, Clone)]
 enum OrdersCommand {
-    Basket(i32, i32, i32), // rest_num, group_num, dish_num
     Add(i32, i32, i32), // rest_num, group_num, dish_num
     Remove(i32, i32, i32), // rest_num, group_num, dish_num
     UnknownCommand,
@@ -32,7 +31,6 @@ impl OrdersCommand {
       scan!(r_part.bytes() => "{}:{}:{}", rest_num, group_num, dish_num);
 
       match input.get(..3).unwrap_or_default() {
-         "bas" => OrdersCommand::Basket(rest_num, group_num, dish_num),
          "add" => OrdersCommand::Add(rest_num, group_num, dish_num),
          "del" => OrdersCommand::Remove(rest_num, group_num, dish_num),
          _ => OrdersCommand::UnknownCommand,
@@ -51,7 +49,6 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
       Some(data) => {
          // Идентифицируем и исполним команду
          match OrdersCommand::from(&data) {
-            OrdersCommand::Basket(rest_num, group_num, dish_num) => format!("В корзину {}:{}:{}", rest_num, group_num, dish_num),
             OrdersCommand::UnknownCommand => format!("Error handle_message {}", &data),
             OrdersCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {}:{}:{}", rest_num, group_num, dish_num),
             OrdersCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}:{}:{}", rest_num, group_num, dish_num),
