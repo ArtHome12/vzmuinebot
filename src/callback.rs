@@ -14,6 +14,8 @@ use teloxide::{
 
 use text_io::scan;
 
+use crate::database as db;
+
 #[derive(Copy, Clone)]
 enum OrdersCommand {
     Add(i32, i32, i32), // rest_num, group_num, dish_num
@@ -47,11 +49,14 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
          String::from("Error handle_message None")
       }
       Some(data) => {
+         // Код едока
+         let user_id = query.from.id;
+
          // Идентифицируем и исполним команду
          match OrdersCommand::from(&data) {
             OrdersCommand::UnknownCommand => format!("Error handle_message {}", &data),
-            OrdersCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {}:{}:{}", rest_num, group_num, dish_num),
-            OrdersCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}:{}:{}", rest_num, group_num, dish_num),
+            OrdersCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {}:{}:{} {}", rest_num, group_num, dish_num, db::is_success(add_dish(rest_num, group_num, dish_num, user_id).await)),
+            OrdersCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}:{}:{} {}", rest_num, group_num, dish_num, db::is_success(remove_dish(rest_num, group_num, dish_num, user_id).await)),
          }
       }
    };
@@ -65,3 +70,18 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
       _ => (),
    }
 }
+
+// Добавляет блюдо в корзину
+//
+async fn add_dish(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> bool {
+   false
+}
+
+
+// Удаляет блюдо из корзины
+//
+async fn remove_dish(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> bool {
+   false
+}
+
+
