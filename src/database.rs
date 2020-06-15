@@ -1137,7 +1137,7 @@ pub async fn basket_contents(user_id: i32) -> String {
 
    // Выберем все упомянутые рестораны
    let rows = DB.get().unwrap()
-      .query("SELECT r.title, r.info, r.rest_num FROM orders as o 
+      .query("SELECT DISTINCT r.title, r.info, r.rest_num FROM orders as o 
          INNER JOIN restaurants r ON o.rest_num = r.rest_num 
          WHERE o.user_id = $1::INTEGER
          ORDER BY r.rest_num", 
