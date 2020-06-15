@@ -110,7 +110,7 @@ async fn update_keyboard(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32,
       .send()
       .await {
          Err(_) => {
-            log::info!("Error edit_message_reply_markup");
+            log::info!("Error edit_message_reply_markup {}:{}:{}", rest_num, group_num, dish_num);
             false
          }
          _ => true,

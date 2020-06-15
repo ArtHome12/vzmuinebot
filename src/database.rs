@@ -1075,7 +1075,7 @@ pub async fn add_dish_to_basket(rest_num: i32, group_num: i32, dish_num: i32, us
    let old_amount = amount_in_basket(rest_num, group_num, dish_num, user_id).await;
 
    // Если такая запись уже есть, надо увеличить на единицу количество, иначе создать новую запись
-   /*if old_amount > 0 {
+   if old_amount > 0 {
       // Выполняем запрос
       let query = DB.get().unwrap()
       .execute("UPDATE orders SET amount = amount + 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER", &[&rest_num, &group_num, &dish_num, &user_id])
@@ -1088,14 +1088,13 @@ pub async fn add_dish_to_basket(rest_num: i32, group_num: i32, dish_num: i32, us
       // Выполняем запрос
       let query = DB.get().unwrap()
       .execute("INSERT INTO orders (rest_num, group_num, dish_num, user_id, amount) 
-         VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, 1", &[&rest_num, &group_num, &dish_num, &user_id])
+         VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, 1)", &[&rest_num, &group_num, &dish_num, &user_id])
       .await;
       match query {
          Ok(_) => Ok(1),
          _ => Err(()),
       }
-   }*/
-   Ok(old_amount + 1)
+   }
 }
 
 
@@ -1106,7 +1105,7 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
    let old_amount = amount_in_basket(rest_num, group_num, dish_num, user_id).await;
 
    // Если остался только один экземпляр или меньше, удаляем запись, иначе редактируем.
-   /*if old_amount > 1 {
+   if old_amount > 1 {
       // Выполняем запрос
       let query = DB.get().unwrap()
       .execute("UPDATE orders SET amount = amount - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER", &[&rest_num, &group_num, &dish_num, &user_id])
@@ -1124,7 +1123,6 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
          Ok(_) => Ok(0),
          _ => Err(()),
       }
-   }*/
-   Ok(old_amount - 1)
+   }
 }
 
