@@ -1068,9 +1068,9 @@ pub async fn amount_in_basket(rest_num: i32, group_num: i32, dish_num: i32, user
    }
 }
 
-// Добавляет блюдо в корзину
+// Добавляет блюдо в корзину, возвращая новое количество
 //
-pub async fn add_dish_to_basket(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> bool {
+pub async fn add_dish_to_basket(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> Result<i32, ()> {
    // Текущее количество экземпляров в корзине
    let old_amount = amount_in_basket(rest_num, group_num, dish_num, user_id).await;
 
@@ -1081,8 +1081,8 @@ pub async fn add_dish_to_basket(rest_num: i32, group_num: i32, dish_num: i32, us
       .execute("UPDATE orders SET amount = amount + 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER", &[&rest_num, &group_num, &dish_num, &user_id])
       .await;
       match query {
-         Ok(_) => true,
-         _ => false,
+         Ok(_) => Ok(old_amount + 1),
+         _ => Err(()),
       }
    } else {
       // Выполняем запрос
@@ -1091,8 +1091,8 @@ pub async fn add_dish_to_basket(rest_num: i32, group_num: i32, dish_num: i32, us
          VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, 1", &[&rest_num, &group_num, &dish_num, &user_id])
       .await;
       match query {
-         Ok(_) => true,
-         _ => false,
+         Ok(_) => Ok(1),
+         _ => Err(()),
       }
    }
 }
@@ -1100,7 +1100,7 @@ pub async fn add_dish_to_basket(rest_num: i32, group_num: i32, dish_num: i32, us
 
 // Удаляет блюдо из корзины
 //
-pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> bool {
+pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> Result<i32, ()> {
    // Текущее количество экземпляров в корзине
    let old_amount = amount_in_basket(rest_num, group_num, dish_num, user_id).await;
 
@@ -1111,8 +1111,8 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
       .execute("UPDATE orders SET amount = amount - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER", &[&rest_num, &group_num, &dish_num, &user_id])
       .await;
       match query {
-         Ok(_) => true,
-         _ => false,
+         Ok(_) => Ok(old_amount - 1),
+         _ => Err(()),
       }
    } else {
       // Выполняем запрос
@@ -1120,8 +1120,8 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
       .execute("DELETE FROM orders WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER", &[&rest_num, &group_num, &dish_num, &user_id])
       .await;
       match query {
-         Ok(_) => true,
-         _ => false,
+         Ok(_) => Ok(0),
+         _ => Err(()),
       }
    }
 }

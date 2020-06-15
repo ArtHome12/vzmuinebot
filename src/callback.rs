@@ -41,11 +41,11 @@ impl OrdersCommand {
 }
 
 pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
-   let query = cx.update;
-   let query_id = query.id;
+   let query = &cx.update;
+   let query_id = &query.id;
 
    // Сообщение для отправки обратно
-   let msg = match query.data {
+   let msg = match &query.data {
       None => {
          String::from("Error handle_message None")
       }
@@ -56,26 +56,13 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
          // Идентифицируем и исполним команду
          match OrdersCommand::from(&data) {
             OrdersCommand::UnknownCommand => format!("Error handle_message {}", &data),
-            OrdersCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {}:{}:{} {}", rest_num, group_num, dish_num, db::is_success(add_dish(rest_num, group_num, dish_num, user_id).await)),
-            OrdersCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}:{}:{} {}", rest_num, group_num, dish_num, db::is_success(remove_dish(rest_num, group_num, dish_num, user_id).await)),
+            OrdersCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {}:{}:{} {}", rest_num, group_num, dish_num, db::is_success(add_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
+            OrdersCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}:{}:{} {}", rest_num, group_num, dish_num, db::is_success(remove_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
          }
       }
    };
 
    // Обновляем исходное сообщение
-   let message = query.message.unwrap();
-   let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_dish_key(1, 2, 3), 99);
-   let chat_message = ChatOrInlineMessage::Chat {
-      chat_id: ChatId::Id(message.chat_id()),
-      message_id: message.id,
-   };
-   match cx.bot.edit_message_reply_markup(chat_message)
-      .reply_markup(inline_keyboard)
-      .send()
-      .await {
-         Err(_) => log::info!("Error edit_message_reply_markup"),
-         _ => (),
-   }
 
    // Отправляем ответ
    match cx.bot.answer_callback_query(query_id)
@@ -89,25 +76,43 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
 
 // Добавляет блюдо в корзину
 //
-async fn add_dish(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> bool {
+async fn add_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> bool {
    // Если операция с БД успешна, надо отредактировать пост
-   if db::add_dish_to_basket(rest_num, group_num, dish_num, user_id).await {
-      true
-   } else {
-      false
+   match db::add_dish_to_basket(rest_num, group_num, dish_num, user_id).await {
+      Ok(new_amount) => update_keyboard(cx, rest_num, group_num, dish_num, new_amount).await,
+      Err(_) => false,
    }
 }
 
 
 // Удаляет блюдо из корзины
 //
-async fn remove_dish(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> bool {
+async fn remove_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> bool {
    // Если операция с БД успешна, надо отредактировать пост
-   if db::remove_dish_from_basket(rest_num, group_num, dish_num, user_id).await {
-      true
-   } else {
-      false
+   match db::remove_dish_from_basket(rest_num, group_num, dish_num, user_id).await {
+      Ok(new_amount) => update_keyboard(cx, rest_num, group_num, dish_num, new_amount).await,
+      Err(_) => false,
    }
 }
 
 
+// Обновляет инлайн-клавиатуру для правки количества
+//
+async fn update_keyboard(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32, new_amount: i32) -> bool {
+   let message = cx.update.message.as_ref().unwrap();
+   let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_dish_key(rest_num, group_num, dish_num), new_amount);
+   let chat_message = ChatOrInlineMessage::Chat {
+      chat_id: ChatId::Id(message.chat_id()),
+      message_id: message.id,
+   };
+   match cx.bot.edit_message_reply_markup(chat_message)
+      .reply_markup(inline_keyboard)
+      .send()
+      .await {
+         Err(_) => {
+            log::info!("Error edit_message_reply_markup");
+            false
+         }
+         _ => true,
+   }
+}
