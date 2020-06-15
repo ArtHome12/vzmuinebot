@@ -1126,3 +1126,42 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
    }
 }
 
+
+// Возвращает содержимое корзины
+//
+pub async fn basket_contents(user_id: i32) -> String {
+   // .query("SELECT r.title, r.info, g.title, d.title FROM orders as o 
+   // INNER JOIN restaurants r ON o.rest_num = r.rest_num 
+   // INNER JOIN groups g ON o.rest_num = g.rest_num AND o.group_num = g.group_num 
+   // INNER JOIN dishes d ON o.rest_num = d.rest_num AND o.group_num = d.group_num AND o.dish_num = d.dish_num", 
+
+   // Выберем все упомянутые рестораны
+   let rows = DB.get().unwrap()
+      .query("SELECT r.title, r.info, r.rest_num FROM orders as o 
+         INNER JOIN restaurants r ON o.rest_num = r.rest_num 
+         WHERE o.user_id = $1::INTEGER
+         ORDER BY r.rest_num", 
+      &[&user_id])
+      .await;
+
+   // Строка для возврата результата
+   let mut res = String::default();
+
+   // Проверяем результат
+   if let Ok(data) = rows {
+      for record in data {
+         let title: String = record.get(0);
+         let info: String = record.get(1);
+         let rest_num: i32 = record.get(2);
+         res.push_str(&format!("{}. {}. {} /bask\n", rest_num, title, info));
+      }
+   }
+
+   // На случай пустого списка сообщим об этом
+   if res.is_empty() {
+      String::from("   пусто :(")
+   } else {
+      res
+   }
+}
+

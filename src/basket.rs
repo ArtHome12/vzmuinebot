@@ -12,7 +12,7 @@ use teloxide::{
 };
 
 use crate::commands as cmd;
-//use crate::database as db;
+use crate::database as db;
 use crate::eater;
 
 // Показывает список закзов для user_id
@@ -22,10 +22,10 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    let user_id = cx.dialogue;
    
    // Получаем информацию из БД
-   // let rest_list = db::restaurant_by_category_from_db(cat_id).await;
+    let basket = db::basket_contents(user_id).await;
 
    // Отображаем информацию и кнопки меню
-   cx.answer(format!("Уточните количество отобранных позиций и перешлите сообщение в заведение или независимую доставку:\nКоманда в разработке"))
+   cx.answer(format!("Перешлите сообщения по указанным контактам или в независимую доставку:\n{}", basket))
    .reply_markup(cmd::Basket::markup())
        .send()
        .await?;
