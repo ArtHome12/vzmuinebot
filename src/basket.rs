@@ -26,7 +26,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 
    // Отображаем информацию и кнопки меню
    cx.answer(format!("Уточните количество отобранных позиций и перешлите сообщение в заведение или независимую доставку:\nКоманда в разработке"))
-   .reply_markup(cmd::EaterRest::markup())
+   .reply_markup(cmd::Basket::markup())
        .send()
        .await?;
 
@@ -37,7 +37,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
 async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
    cx.answer(text)
-   .reply_markup(cmd::EaterRest::markup())
+   .reply_markup(cmd::Basket::markup())
    .send()
    .await?;
 

@@ -445,4 +445,14 @@ impl Basket {
          _ => Basket::UnknownCommand,
       }
    }
+
+   pub fn markup() -> ReplyKeyboardMarkup {
+      ReplyKeyboardMarkup::default()
+      .append_row(vec![
+         KeyboardButton::new("В начало"),
+         KeyboardButton::new("Очистить"),
+      ])
+      .resize_keyboard(true)
+   }
+
 }
