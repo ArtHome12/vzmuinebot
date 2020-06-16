@@ -55,8 +55,8 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
          // Идентифицируем и исполним команду
          match OrdersCommand::from(&data) {
             OrdersCommand::UnknownCommand => format!("Error handle_message {}", &data),
-            OrdersCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {}:{}:{} {}", rest_num, group_num, dish_num, db::is_success(add_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
-            OrdersCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}:{}:{} {}", rest_num, group_num, dish_num, db::is_success(remove_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
+            OrdersCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {} {}", db::make_dish_key(rest_num, group_num, dish_num), db::is_success(add_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
+            OrdersCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {} {}", db::make_dish_key(rest_num, group_num, dish_num), db::is_success(remove_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
          }
       }
    };

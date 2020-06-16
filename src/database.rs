@@ -830,7 +830,7 @@ pub async fn rest_group_remove(rest_num: i32, group_num: i32) -> bool {
 async fn dish_titles(rest_num: i32, group_num: i32) -> String {
     // Выполняем запрос
     let rows = DB.get().unwrap()
-        .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
+        .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER ORDER BY dish_num", &[&rest_num, &group_num])
         .await;
 
     // Строка для возврата результата
@@ -842,7 +842,7 @@ async fn dish_titles(rest_num: i32, group_num: i32) -> String {
             let dish_num: i32 = record.get(0);
             let title: String = record.get(1);
             let price: i32 = record.get(2);
-            res.push_str(&format!("   {} {}000 vnd /EdDi{}\n", 
+            res.push_str(&format!("   {} {} 000 vnd /EdDi{}\n", 
                 title, price, dish_num
             ));
         }
@@ -1024,10 +1024,18 @@ pub async fn rest_dish_remove(rest_num: i32, group_num: i32, dish_num: i32) -> b
       Ok(_) => {
          // Номера оставшихся блюд перенумеровываем для исключения дырки
          let query = DB.get().unwrap()
-         .execute("UPDATE dishes SET dish_num = dish_num - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
+         .execute("UPDATE dishes SET dish_num = dish_num - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num > $3::INTEGER", &[&rest_num, &group_num, &dish_num])
          .await;
          match query {
-         Ok(_) => true,
+         Ok(_) => {
+            // Удалим блюдо из корзины всех пользователей
+            let query = DB.get().unwrap()
+            .execute("DELETE FROM orders WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
+            .await;
+            match query {
+               _ => true,  // На результат этой операции внимания не обращаем
+            }
+         }
          _ => false,
          }
       }
