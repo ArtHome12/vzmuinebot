@@ -1132,6 +1132,7 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
 pub struct Basket {
    pub restaurant: String,
    pub dishes: Vec<String>,
+   pub total: i32,
 }
 
 // Возвращает содержимое корзины
@@ -1162,9 +1163,12 @@ pub async fn basket_contents(user_id: i32) -> Vec<Basket> {
          let rest_info: String = record.get(1);
          let rest_num: i32 = record.get(2);
 
+         // Для общей суммы заказа по ресторану
+         let mut total: i32 = 0;
+
          // Теперь заправшиваем информацию о блюдах ресторана
          let rows = DB.get().unwrap()
-         .query("SELECT d.title, d.price, o.amount FROM orders as o 
+         .query("SELECT d.title, d.price, o.amount, o.group_num, o.dish_num FROM orders as o 
             INNER JOIN groups g ON o.rest_num = g.rest_num AND o.group_num = g.group_num
             INNER JOIN dishes d ON o.rest_num = d.rest_num AND o.group_num = d.group_num AND o.dish_num = d.dish_num
             WHERE o.user_id = $1::INTEGER AND o.rest_num = $2::INTEGER", 
@@ -1179,16 +1183,22 @@ pub async fn basket_contents(user_id: i32) -> Vec<Basket> {
                let title: String = record.get(0);
                let price: i32 = record.get(1);
                let amount: i32 = record.get(2);
+               let group_num: i32 = record.get(3);
+               let dish_num: i32 = record.get(4);
+
+               // Добавляем стоимость в итог
+               total += price * amount;
 
                // Помещаем блюдо в список
-               dishes.push(format!("{}: {} 000 vnd x {} шт. = {} 000 vnd /bask", title, price, amount, price * amount));
+               dishes.push(format!("{}:{}. {}: {} 000 vnd x {} шт. = {} 000 vnd /del", group_num, dish_num, title, price, amount, price * amount));
             }
          }
 
          // Создаём корзину текущего ресторана
          let basket = Basket {
-            restaurant: format!("{}. {}. {} /bask\n", rest_num, rest_title, rest_info),
-            dishes: dishes,
+            restaurant: format!("{}. {}. {}\n", rest_num, rest_title, rest_info),
+            dishes,
+            total,
          };
 
          // Помещаем ресторан в список

@@ -47,6 +47,9 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             s.push_str(&format!("\n{}", dish))
          }
 
+         // Итоговая стоимость
+         s.push_str(&format!("Всего: {} тыс. vnd", basket.total));
+
          cx.answer(s)
          .reply_markup(cmd::Basket::markup())
          .send()
