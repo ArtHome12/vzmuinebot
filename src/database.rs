@@ -130,7 +130,7 @@ pub async fn dishes_by_restaurant_and_group_from_db(rest_num: i32, group_num: i3
                   let dish_num: i32 = record.get(0);
                   let title: String = record.get(1);
                   let price: i32 = record.get(2);
-                  res.push_str(&format!("   {} {} k₫ /dish{}\n", title, price, dish_num));
+                  res.push_str(&format!("   {} {} 000 vnd /dish{}\n", title, price, dish_num));
                }
             }
 
@@ -829,7 +829,7 @@ async fn dish_titles(rest_num: i32, group_num: i32) -> String {
             let dish_num: i32 = record.get(0);
             let title: String = record.get(1);
             let price: i32 = record.get(2);
-            res.push_str(&format!("   {} {}k₫ /EdDi{}\n", 
+            res.push_str(&format!("   {} {}000 vnd /EdDi{}\n", 
                 title, price, dish_num
             ));
         }
@@ -858,7 +858,7 @@ pub async fn dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Option<(
                 let price: i32 = data[0].get(4);
                 let image_id: Option<String> = data[0].get(5);
                 Some((
-                  String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nГруппа: {} /EditGroup\nСтатус: {} /Toggle\nЦена: {} k₫ /EditPrice\nЗагрузить фото /EditImg\nУдалить блюдо /Remove",
+                  String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nГруппа: {} /EditGroup\nСтатус: {} /Toggle\nЦена: {} 000 vnd /EditPrice\nЗагрузить фото /EditImg\nУдалить блюдо /Remove",
                   title, info, group_num, active_to_str(active), price)), image_id
                ))
             } else {
@@ -1138,11 +1138,6 @@ pub struct Basket {
 // Возвращает содержимое корзины и итоговую сумму заказа
 //
 pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
-   // .query("SELECT r.title, r.info, g.title, d.title FROM orders as o 
-   // INNER JOIN restaurants r ON o.rest_num = r.rest_num 
-   // INNER JOIN groups g ON o.rest_num = g.rest_num AND o.group_num = g.group_num 
-   // INNER JOIN dishes d ON o.rest_num = d.rest_num AND o.group_num = d.group_num AND o.dish_num = d.dish_num", 
-
    // Для возврата результата
    let mut res = Vec::<Basket>::new();
    let mut grand_total: i32 = 0;
@@ -1191,7 +1186,7 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
                total += price * amount;
 
                // Помещаем блюдо в список
-               dishes.push(format!("{}:{}. {}: {} 000 vnd x {} шт. = {} 000 vnd /del", group_num, dish_num, title, price, amount, price * amount));
+               dishes.push(format!("{}: {} 000 vnd x {} шт. = {} 000 vnd /del{}:{}:{}", title, price, amount, price * amount, rest_num, group_num, dish_num));
             }
          }
 
@@ -1211,5 +1206,18 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
    }
    // Возвращаем результат
    (res, grand_total)
+}
+
+// Очищает корзину указанного пользователя
+//
+pub async fn clear_basket(user_id: i32) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("DELETE FROM orders WHERE user_id = $1::INTEGER", &[&user_id])
+   .await;
+   match query {
+      Ok(_) => true,
+      _ => false,
+   }
 }
 

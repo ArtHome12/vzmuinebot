@@ -11,6 +11,7 @@ use teloxide::{
     prelude::*, 
     types::{KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton},
 };
+use text_io::scan;
 
 
 // ============================================================================
@@ -435,6 +436,8 @@ impl EaterDish {
 #[derive(Copy, Clone)]
 pub enum Basket {
    Main,
+   Clear,
+   Delete(i32, i32, i32),  // rest_num, group_num, dish_num
    UnknownCommand,
 }
 
@@ -442,7 +445,22 @@ impl Basket {
    pub fn from(input: &str) -> Basket {
       match input {
          "В начало" => Basket::Main,
-         _ => Basket::UnknownCommand,
+         "Очистить" => Basket::Clear,
+         _ => {
+            // Ищем среди команд с аргументами
+            match input.get(..4).unwrap_or_default() {
+               "/del" => {
+                  // Попытаемся извлечь аргументы
+                  let rest_num: i32;
+                  let group_num: i32;
+                  let dish_num: i32;
+                  let r_part = input.get(4..).unwrap_or_default();
+                  scan!(r_part.bytes() => "{}:{}:{}", rest_num, group_num, dish_num);
+                  Basket::Delete(rest_num, group_num, dish_num)
+                }
+               _ => Basket::UnknownCommand,
+            }
+         }
       }
    }
 

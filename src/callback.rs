@@ -36,7 +36,7 @@ impl OrdersCommand {
          "add" => OrdersCommand::Add(rest_num, group_num, dish_num),
          "del" => OrdersCommand::Remove(rest_num, group_num, dish_num),
          _ => OrdersCommand::UnknownCommand,
-     }
+      }
    }
 }
 

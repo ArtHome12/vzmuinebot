@@ -32,7 +32,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          .await?;
    } else {
       // Отображаем приветствие
-      cx.answer(format!("Общая сумма заказа {} тыс. vnd. Перешлите сообщения ниже по указанным контактам или в независимую доставку:", grand_total))
+      cx.answer(format!("Общая сумма заказа {} 000 vnd. Перешлите сообщения ниже по указанным контактам или в независимую доставку, а потом очистите корзину:", grand_total))
       .reply_markup(cmd::Basket::markup())
       .send()
       .await?;
@@ -48,7 +48,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          }
 
          // Итоговая стоимость
-         s.push_str(&format!("\nВсего: {} тыс. vnd", basket.total));
+         s.push_str(&format!("\nВсего: {} 000 vnd", basket.total));
 
          cx.answer(s)
          .reply_markup(cmd::Basket::markup())
@@ -97,9 +97,36 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
                eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
             }
 
+            // Неизвестная команда
             cmd::Basket::UnknownCommand => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: неизвестная команда").await
+            }
+
+            // Очистить корзину
+            cmd::Basket::Clear => {
+               if db::clear_basket(user_id).await {
+                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                  next_with_info(DialogueDispatcherHandlerCx::new(bot, update, user_id)).await
+               } else {
+                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: ошибка очистки корзины").await
+               }
+            }
+
+            // Удалить одну позицию
+            cmd::Basket::Delete(rest_num, group_num, dish_num) => {
+               // Запрос к базе данных
+               match db::remove_dish_from_basket(rest_num, group_num, dish_num, user_id).await {
+                  Ok(_) => {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     next_with_info(DialogueDispatcherHandlerCx::new(bot, update, user_id)).await
+                  }
+                  _ => {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: ошибка удаления блюда").await
+                  }
+               }
             }
          }
       }
