@@ -1027,21 +1027,42 @@ pub async fn rest_dish_remove(rest_num: i32, group_num: i32, dish_num: i32) -> b
          .execute("UPDATE dishes SET dish_num = dish_num - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num > $3::INTEGER", &[&rest_num, &group_num, &dish_num])
          .await;
          match query {
-         Ok(_) => {
-            // Удалим блюдо из корзины всех пользователей
-            let query = DB.get().unwrap()
-            .execute("DELETE FROM orders WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
-            .await;
-            match query {
-               _ => true,  // На результат этой операции внимания не обращаем
+            _ => {
+               // Удаляем блюдо из заказов пользователей
+               dish_remove_from_orders(rest_num, group_num, dish_num).await;
+               true
             }
-         }
-         _ => false,
          }
       }
       _ => false,
    }
  }
+
+
+// Удаление блюда из заказов пользователей
+//
+async fn dish_remove_from_orders(rest_num: i32, group_num: i32, dish_num: i32) {
+   // Удалим блюдо из корзины всех пользователей
+   let query = DB.get().unwrap()
+   .execute("DELETE FROM orders WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
+   .await;
+   match query {
+      Ok(_) => {
+         // Обновим номера блюд в корзине согласно перенумерации самих блюд
+         let query = DB.get().unwrap()
+         .execute("UPDATE orders SET dish_num = dish_num - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num > $3::INTEGER", &[&rest_num, &group_num, &dish_num])
+         .await;
+         if let Err(_) = query {
+               // Сообщим об ошибке
+               log::info!("Error dish_remove_from_orders while recounting {}", make_dish_key(rest_num, group_num, dish_num));
+         }
+      }
+      Err(_) => {
+         // Сообщим об ошибке
+         log::info!("Error dish_remove_from_orders {}", make_dish_key(rest_num, group_num, dish_num));
+      }
+   }
+}
 
 
 // Изменение цены блюда
