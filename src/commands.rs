@@ -78,7 +78,7 @@ impl User {
          "Алкоголь" => User::Category(3),
          "Развлечения" => User::Category(4),
          "Сейчас" => User::OpenedNow,
-         "Корзина" => User::Basket,
+         "🛒Корзина" => User::Basket,
          "Добавить" => User::CatererMode,
          "/list" => User::List,
          _ => {
@@ -94,20 +94,20 @@ impl User {
    }
 
     pub fn main_menu_markup() -> ReplyKeyboardMarkup {
-        ReplyKeyboardMarkup::default()
-            .append_row(vec![
-                KeyboardButton::new("Соки воды"),
-                KeyboardButton::new("Еда"),
-                KeyboardButton::new("Алкоголь"),
-                KeyboardButton::new("Развлечения"),
-            ])
-            .append_row(vec![
-                KeyboardButton::new("Сейчас"),
-                KeyboardButton::new("Корзина"),
-                KeyboardButton::new("Добавить"),
-            ])
-            .resize_keyboard(true)
-    }
+      ReplyKeyboardMarkup::default()
+         .append_row(vec![
+            KeyboardButton::new("Соки воды"),
+            KeyboardButton::new("Еда"),
+            KeyboardButton::new("Алкоголь"),
+            KeyboardButton::new("Развлечения"),
+         ])
+         .append_row(vec![
+            KeyboardButton::new("🛒Корзина"),
+            KeyboardButton::new("Сейчас"),
+            KeyboardButton::new("Добавить"),
+         ])
+         .resize_keyboard(true)
+   }
 }
 
 // ============================================================================

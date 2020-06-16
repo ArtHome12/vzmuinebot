@@ -1209,7 +1209,8 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
          .query("SELECT d.title, d.price, o.amount, o.group_num, o.dish_num FROM orders as o 
             INNER JOIN groups g ON o.rest_num = g.rest_num AND o.group_num = g.group_num
             INNER JOIN dishes d ON o.rest_num = d.rest_num AND o.group_num = d.group_num AND o.dish_num = d.dish_num
-            WHERE o.user_id = $1::INTEGER AND o.rest_num = $2::INTEGER", 
+            WHERE o.user_id = $1::INTEGER AND o.rest_num = $2::INTEGER
+            ORDER BY o.group_num, o.dish_num", 
          &[&user_id, &rest_num])
          .await;
    
