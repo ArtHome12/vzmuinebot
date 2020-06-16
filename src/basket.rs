@@ -39,7 +39,15 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 
       // Отдельными сообщениями выводим рестораны
       for basket in baskets {
-         cx.answer(basket.restaurant)
+         // Заголовок с информацией о ресторане
+         let mut s = basket.restaurant;
+
+         // Дополняем данными о блюдах
+         for dish in basket.dishes {
+            s.push_str(&format!("\n{}", dish))
+         }
+
+         cx.answer(s)
          .reply_markup(cmd::Basket::markup())
          .send()
          .await?;
