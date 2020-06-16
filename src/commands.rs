@@ -11,8 +11,8 @@ use teloxide::{
     prelude::*, 
     types::{KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton},
 };
-use text_io::scan;
 
+use crate::database as db;
 
 // ============================================================================
 // [Common]
@@ -451,12 +451,11 @@ impl Basket {
             match input.get(..4).unwrap_or_default() {
                "/del" => {
                   // Попытаемся извлечь аргументы
-                  let rest_num: i32;
-                  let group_num: i32;
-                  let dish_num: i32;
                   let r_part = input.get(4..).unwrap_or_default();
-                  scan!(r_part.bytes() => "{}:{}:{}", rest_num, group_num, dish_num);
-                  Basket::Delete(rest_num, group_num, dish_num)
+                  match db::parse_dish_key(r_part) {
+                     Ok((rest_num, group_num, dish_num)) => Basket::Delete(rest_num, group_num, dish_num),
+                     _ => Basket::UnknownCommand,
+                  }
                 }
                _ => Basket::UnknownCommand,
             }

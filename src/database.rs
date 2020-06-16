@@ -9,6 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use chrono::{NaiveTime};
 use once_cell::sync::{OnceCell};
+use text_io::try_scan;
 
 // Клиент БД
 pub static DB: OnceCell<tokio_postgres::Client> = OnceCell::new();
@@ -507,6 +508,18 @@ pub async fn create_tables() -> bool {
 //
 pub fn make_dish_key(rest_num: i32, group_num: i32, dish_num: i32) -> String {
    format!("{}:{}:{}", rest_num, group_num, dish_num)
+}
+
+// Разбор ключа блюда на аргументы
+//
+pub fn parse_dish_key(text: &str) -> Result<(i32, i32, i32), Box<dyn std::error::Error>> {
+   let rest_num: i32;
+   let group_num: i32;
+   let dish_num: i32;
+
+   try_scan!(text.bytes() => "{}:{}:{}", rest_num, group_num, dish_num);
+
+   Ok((rest_num, group_num, dish_num))
 }
 
 // ============================================================================
@@ -1186,7 +1199,7 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
                total += price * amount;
 
                // Помещаем блюдо в список
-               dishes.push(format!("{}: {} 000 vnd x {} шт. = {} 000 vnd /del{}:{}:{}", title, price, amount, price * amount, rest_num, group_num, dish_num));
+               dishes.push(format!("{}: {} 000 vnd x {} шт. = {} 000 vnd /del{}", title, price, amount, price * amount, make_dish_key(rest_num, group_num, dish_num)));
             }
          }
 
