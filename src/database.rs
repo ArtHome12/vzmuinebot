@@ -169,7 +169,7 @@ pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Op
               let info: String = data[0].get(1);
               let price: i32 = data[0].get(2);
               let image_id: Option<String> = data[0].get(3);
-              Some((String::from(format!("Название: {}\nИнформация: {}\nЦена: {} тыс.₫", title, info, price)), image_id))
+              Some((String::from(format!("Название: {}\nИнформация: {}\nЦена: {} 000 vnd", title, info, price)), image_id))
           } else {
             None
           }
