@@ -31,8 +31,9 @@ pub async fn next_with_info(cx: cmd::Cx<()>) -> cmd::Res {
    // Отображаем информацию и кнопки меню
    cx.answer(format!("Рестораны, открытые сейчас ({}):\n{}", now.format("%H:%M"), rest_list))
    .reply_markup(cmd::EaterRest::markup())
-       .send()
-       .await?;
+   .disable_notification(true)
+   .send()
+      .await?;
 
    // Переходим (остаёмся) в режим выбора ресторана
    next(cmd::Dialogue::EatRestNowSelectionMode)
@@ -42,6 +43,7 @@ pub async fn next_with_info(cx: cmd::Cx<()>) -> cmd::Res {
 async fn next_with_cancel(cx: cmd::Cx<()>, text: &str) -> cmd::Res {
    cx.answer(text)
    .reply_markup(cmd::EaterRest::markup())
+   .disable_notification(true)
    .send()
    .await?;
 

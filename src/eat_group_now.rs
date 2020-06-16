@@ -45,11 +45,13 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       cx.answer_photo(image)
       .caption(info)
       .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::EaterGroup::markup()))
+      .disable_notification(true)
       .send()
       .await?;
    } else {
          cx.answer(info)
          .reply_markup(cmd::EaterGroup::markup())
+         .disable_notification(true)
          .send()
          .await?;
    }
@@ -62,6 +64,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
    cx.answer(text)
    .reply_markup(cmd::EaterGroup::markup())
+   .disable_notification(true)
    .send()
    .await?;
 

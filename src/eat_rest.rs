@@ -29,8 +29,9 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    // Отображаем информацию и кнопки меню
    cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
    .reply_markup(cmd::EaterRest::markup())
-       .send()
-       .await?;
+   .disable_notification(true)
+   .send()
+   .await?;
 
    // Переходим (остаёмся) в режим выбора ресторана
    next(cmd::Dialogue::EatRestSelectionMode(cat_id))
@@ -40,6 +41,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
    cx.answer(text)
    .reply_markup(cmd::EaterRest::markup())
+   .disable_notification(true)
    .send()
    .await?;
 

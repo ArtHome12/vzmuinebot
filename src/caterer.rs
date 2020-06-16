@@ -58,11 +58,13 @@ pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
       cx.answer_photo(image)
       .caption(info)
       .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
+      .disable_notification(true)
       .send()
       .await?;
    } else {
       cx.answer(info)
       .reply_markup(cmd::Caterer::main_menu_markup())
+      .disable_notification(true)
       .send()
       .await?;
    }
@@ -74,6 +76,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
 async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
     cx.answer(text)
     .reply_markup(cmd::Caterer::main_menu_markup())
+    .disable_notification(true)
     .send()
     .await?;
 
@@ -93,8 +96,8 @@ pub async fn caterer_mode(cx: cmd::Cx<i32>) -> cmd::Res {
    // Разбираем команду.
    match cx.update.text() {
       None => {
-         cx.answer("Текстовое сообщение, пожалуйста!").send().await?;
-         next(cmd::Dialogue::CatererMode(rest_id))
+         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+         next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), "Текстовое сообщение, пожалуйста!").await
       }
       Some(command) => {
          match cmd::Caterer::from(rest_id, command) {
@@ -117,6 +120,7 @@ pub async fn caterer_mode(cx: cmd::Cx<i32>) -> cmd::Res {
                // Отправляем приглашение ввести строку со слешем в меню для отмены
                cx.answer(format!("Введите название (/ для отмены)"))
                .reply_markup(cmd::Caterer::slash_markup())
+               .disable_notification(true)
                .send()
                .await?;
 
@@ -129,6 +133,7 @@ pub async fn caterer_mode(cx: cmd::Cx<i32>) -> cmd::Res {
                // Отправляем приглашение ввести строку со слешем в меню для отмены
                cx.answer(format!("Введите описание (адрес, контакты)"))
                .reply_markup(cmd::Caterer::slash_markup())
+               .disable_notification(true)
                .send()
                .await?;
 
@@ -152,6 +157,7 @@ pub async fn caterer_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             // Отправляем приглашение ввести строку с категориями в меню для выбора
             cx.answer(format!("Загрузите картинку"))
             .reply_markup(cmd::Caterer::main_menu_markup())
+            .disable_notification(true)
             .send()
             .await?;
 
@@ -172,6 +178,7 @@ pub async fn caterer_mode(cx: cmd::Cx<i32>) -> cmd::Res {
                // Отправляем приглашение ввести строку со слешем в меню для отмены
                cx.answer(format!("Введите название (/ для отмены)"))
                .reply_markup(cmd::Caterer::slash_markup())
+               .disable_notification(true)
                .send()
                .await?;
 
@@ -183,7 +190,7 @@ pub async fn caterer_mode(cx: cmd::Cx<i32>) -> cmd::Res {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), "Вы в главном меню: неизвестная команда").await
             }
-      }
+         }
       }
    }
 }

@@ -34,8 +34,9 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
    // Отображаем информацию и кнопки меню
    cx.answer(group_list)
    .reply_markup(cmd::EaterDish::markup())
-      .send()
-      .await?;
+   .disable_notification(true)
+   .send()
+   .await?;
 
    // Переходим (остаёмся) в режим выбора ресторана
    next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
@@ -45,6 +46,7 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 async fn next_with_cancel(cx: cmd::Cx<(i32, i32, i32)>, text: &str) -> cmd::Res {
    cx.answer(text)
    .reply_markup(cmd::EaterDish::markup())
+   .disable_notification(true)
    .send()
    .await?;
 
@@ -125,6 +127,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                   cx.answer_photo(image)
                   .caption(info)
                   .reply_markup(ReplyMarkup::InlineKeyboardMarkup(inline_keyboard))
+                  .disable_notification(true)
                   .send()
                   .await?;
                   
@@ -132,6 +135,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                } else {
                   cx.answer(info)
                   .reply_markup(inline_keyboard)
+                  .disable_notification(true)
                   .send()
                   .await?;
 

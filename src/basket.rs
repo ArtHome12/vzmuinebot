@@ -28,12 +28,14 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       // Отображаем информацию и кнопки меню
       cx.answer("Корзина пуста")
       .reply_markup(cmd::Basket::markup())
-         .send()
-         .await?;
+      .disable_notification(true)
+      .send()
+      .await?;
    } else {
       // Отображаем приветствие
       cx.answer(format!("Общая сумма заказа {} 000 vnd. Перешлите сообщения ниже по указанным контактам или в независимую доставку, а потом очистите корзину:", grand_total))
       .reply_markup(cmd::Basket::markup())
+      .disable_notification(true)
       .send()
       .await?;
 
@@ -52,6 +54,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 
          cx.answer(s)
          .reply_markup(cmd::Basket::markup())
+         .disable_notification(true)
          .send()
          .await?;
       }
@@ -65,6 +68,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
    cx.answer(text)
    .reply_markup(cmd::Basket::markup())
+   .disable_notification(true)
    .send()
    .await?;
 
