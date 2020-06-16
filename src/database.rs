@@ -507,7 +507,7 @@ pub async fn create_tables() -> bool {
 // Формирование ключа блюда на основе аргументов
 //
 pub fn make_dish_key(rest_num: i32, group_num: i32, dish_num: i32) -> String {
-   format!("{}:{}:{}", rest_num, group_num, dish_num)
+   format!("{}_{}_{}", rest_num, group_num, dish_num)
 }
 
 // Разбор ключа блюда на аргументы
@@ -517,7 +517,7 @@ pub fn parse_dish_key(text: &str) -> Result<(i32, i32, i32), Box<dyn std::error:
    let group_num: i32;
    let dish_num: i32;
 
-   try_scan!(text.bytes() => "{}:{}:{}", rest_num, group_num, dish_num);
+   try_scan!(text.bytes() => "{}_{}_{}", rest_num, group_num, dish_num);
 
    Ok((rest_num, group_num, dish_num))
 }
