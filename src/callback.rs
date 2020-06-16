@@ -12,7 +12,6 @@ use teloxide::{
    types::{CallbackQuery, ChatOrInlineMessage, ChatId},
 };
 
-use text_io::scan;
 use crate::database as db;
 use crate::commands as cmd;
 
@@ -26,15 +25,15 @@ enum OrdersCommand {
 impl OrdersCommand {
    pub fn from(input: &str) -> OrdersCommand {
       // Попытаемся извлечь аргументы
-      let rest_num: i32;
-      let group_num: i32;
-      let dish_num: i32;
       let r_part = input.get(3..).unwrap_or_default();
-      scan!(r_part.bytes() => "{}:{}:{}", rest_num, group_num, dish_num);
-
-      match input.get(..3).unwrap_or_default() {
-         "add" => OrdersCommand::Add(rest_num, group_num, dish_num),
-         "del" => OrdersCommand::Remove(rest_num, group_num, dish_num),
+      match db::parse_dish_key(r_part) {
+         Ok((rest_num, group_num, dish_num)) => {
+            match input.get(..3).unwrap_or_default() {
+               "add" => OrdersCommand::Add(rest_num, group_num, dish_num),
+               "del" => OrdersCommand::Remove(rest_num, group_num, dish_num),
+               _ => OrdersCommand::UnknownCommand,
+            }
+         }
          _ => OrdersCommand::UnknownCommand,
       }
    }

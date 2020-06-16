@@ -456,7 +456,7 @@ impl Basket {
                      Ok((rest_num, group_num, dish_num)) => Basket::Delete(rest_num, group_num, dish_num),
                      _ => Basket::UnknownCommand,
                   }
-                }
+               }
                _ => Basket::UnknownCommand,
             }
          }
