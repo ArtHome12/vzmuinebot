@@ -119,7 +119,7 @@ pub async fn dishes_by_restaurant_and_group_from_db(rest_num: i32, group_num: i3
 
             // Выполняем запрос списка блюд
             let rows = DB.get().unwrap()
-               .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE", &[&rest_num, &group_num])
+               .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE ORDER BY dish_num", &[&rest_num, &group_num])
                .await;
 
             // Строка для возврата результата
