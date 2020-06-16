@@ -15,7 +15,7 @@ extern crate smart_default;
 use teloxide::{
    dispatching::update_listeners, 
    prelude::*, 
-   types::{CallbackQuery},
+   types::{CallbackQuery, InlineQuery},
 };
 
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
@@ -37,6 +37,7 @@ mod eat_rest_now;
 mod eat_group_now;
 mod callback;
 mod basket;
+mod inline;
 
 use commands as cmd;
 
@@ -159,6 +160,13 @@ async fn handle_callback_query(rx: DispatcherHandlerRx<CallbackQuery>) {
   .await;
 }
 
+async fn handle_inline_query(rx: DispatcherHandlerRx<InlineQuery>) {
+   rx.for_each_concurrent(None, |cx| async move {
+      inline::handle_message(cx).await
+   })
+  .await;
+}
+
 
 // ============================================================================
 // [Run!]
@@ -270,6 +278,10 @@ async fn run() {
       _ => log::info!("Something wrong with admin id"),
    }
 
+   // Имя группы/чата для вывода лога
+   let log_group_name = env::var("LOG_GROUP_NAME").expect("LOG_GROUP_NAME env variable missing");
+   
+
    // Проверим существование таблиц и если их нет, создадим
    //
    if database::is_tables_exist().await {
@@ -283,6 +295,7 @@ async fn run() {
       handle_message(cx).await.expect("Something wrong with the bot!")
    }))
    .callback_queries_handler(handle_callback_query)
+   .inline_queries_handler(handle_inline_query)
    .dispatch_with_listener(
       webhook(bot).await,
       LoggingErrorHandler::with_custom_text("An error from the update listener"),
