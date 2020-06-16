@@ -22,13 +22,29 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    let user_id = cx.dialogue;
    
    // Получаем информацию из БД
-    let basket = db::basket_contents(user_id).await;
+   let baskets = db::basket_contents(user_id).await;
 
-   // Отображаем информацию и кнопки меню
-   cx.answer(format!("Перешлите сообщения по указанным контактам или в независимую доставку:\n{}", basket))
-   .reply_markup(cmd::Basket::markup())
-       .send()
-       .await?;
+   if baskets.is_empty() {
+      // Отображаем информацию и кнопки меню
+      cx.answer("Корзина пуста")
+      .reply_markup(cmd::Basket::markup())
+         .send()
+         .await?;
+   } else {
+      // Отображаем приветствие
+      cx.answer("Перешлите сообщения по указанным контактам или в независимую доставку:")
+      .reply_markup(cmd::Basket::markup())
+      .send()
+      .await?;
+
+      // Отдельными сообщениями выводим рестораны
+      for basket in baskets {
+         cx.answer(basket.restaurant)
+         .reply_markup(cmd::Basket::markup())
+         .send()
+         .await?;
+      }
+   }
 
    // Переходим (остаёмся) в режим выбора ресторана
    next(cmd::Dialogue::BasketMode(user_id))

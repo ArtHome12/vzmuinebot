@@ -1127,13 +1127,23 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
 }
 
 
+// Содержимое корзины
+//
+pub struct Basket {
+   pub restaurant: String,
+   pub dishes: Vec<String>,
+}
+
 // Возвращает содержимое корзины
 //
-pub async fn basket_contents(user_id: i32) -> String {
+pub async fn basket_contents(user_id: i32) -> Vec<Basket> {
    // .query("SELECT r.title, r.info, g.title, d.title FROM orders as o 
    // INNER JOIN restaurants r ON o.rest_num = r.rest_num 
    // INNER JOIN groups g ON o.rest_num = g.rest_num AND o.group_num = g.group_num 
    // INNER JOIN dishes d ON o.rest_num = d.rest_num AND o.group_num = d.group_num AND o.dish_num = d.dish_num", 
+
+   // Для возврата результата
+   let mut res = Vec::<Basket>::new();
 
    // Выберем все упомянутые рестораны
    let rows = DB.get().unwrap()
@@ -1144,24 +1154,24 @@ pub async fn basket_contents(user_id: i32) -> String {
       &[&user_id])
       .await;
 
-   // Строка для возврата результата
-   let mut res = String::default();
-
-   // Проверяем результат
+   // Двигаемся по каждому ресторану
    if let Ok(data) = rows {
       for record in data {
+         // Данные из запроса
          let title: String = record.get(0);
          let info: String = record.get(1);
          let rest_num: i32 = record.get(2);
-         res.push_str(&format!("{}. {}. {} /bask\n", rest_num, title, info));
+
+         // Создаём элемент вектора
+         let basket = Basket {
+            restaurant: format!("{}. {}. {} /bask\n", rest_num, title, info),
+            dishes: Vec::<String>::new(),
+         };
+
+         // Помещаем его в список
+         res.push(basket);
       }
    }
-
-   // На случай пустого списка сообщим об этом
-   if res.is_empty() {
-      String::from("   пусто :(")
-   } else {
-      res
-   }
+   res
 }
 
