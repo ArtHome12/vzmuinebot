@@ -22,7 +22,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    let user_id = cx.dialogue;
    
    // Получаем информацию из БД
-   let baskets = db::basket_contents(user_id).await;
+   let (baskets, grand_total) = db::basket_contents(user_id).await;
 
    if baskets.is_empty() {
       // Отображаем информацию и кнопки меню
@@ -32,7 +32,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          .await?;
    } else {
       // Отображаем приветствие
-      cx.answer("Перешлите сообщения по указанным контактам или в независимую доставку:")
+      cx.answer(format!("Общая сумма заказа {} тыс. vnd. Перешлите сообщения ниже по указанным контактам или в независимую доставку:", grand_total))
       .reply_markup(cmd::Basket::markup())
       .send()
       .await?;
@@ -48,7 +48,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          }
 
          // Итоговая стоимость
-         s.push_str(&format!("Всего: {} тыс. vnd", basket.total));
+         s.push_str(&format!("\nВсего: {} тыс. vnd", basket.total));
 
          cx.answer(s)
          .reply_markup(cmd::Basket::markup())

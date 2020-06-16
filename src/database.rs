@@ -1135,9 +1135,9 @@ pub struct Basket {
    pub total: i32,
 }
 
-// Возвращает содержимое корзины
+// Возвращает содержимое корзины и итоговую сумму заказа
 //
-pub async fn basket_contents(user_id: i32) -> Vec<Basket> {
+pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
    // .query("SELECT r.title, r.info, g.title, d.title FROM orders as o 
    // INNER JOIN restaurants r ON o.rest_num = r.rest_num 
    // INNER JOIN groups g ON o.rest_num = g.rest_num AND o.group_num = g.group_num 
@@ -1145,6 +1145,7 @@ pub async fn basket_contents(user_id: i32) -> Vec<Basket> {
 
    // Для возврата результата
    let mut res = Vec::<Basket>::new();
+   let mut grand_total: i32 = 0;
 
    // Выберем все упомянутые рестораны
    let rows = DB.get().unwrap()
@@ -1201,10 +1202,14 @@ pub async fn basket_contents(user_id: i32) -> Vec<Basket> {
             total,
          };
 
+         // Обновляем общий итог
+         grand_total += total;
+
          // Помещаем ресторан в список
          res.push(basket);
       }
    }
-   res
+   // Возвращаем результат
+   (res, grand_total)
 }
 
