@@ -23,7 +23,7 @@ pub static TELEGRAM_ADMIN_NAME: OnceCell<String> = OnceCell::new();
 pub static TELEGRAM_ADMIN_ID: OnceCell<i32> = OnceCell::new();
 
 // Телеграм ник группы для вывода лога
-pub static TELEGRAM_LOG_GROUP: OnceCell<String> = OnceCell::new();
+pub static TELEGRAM_LOG_GROUP: OnceCell<i64> = OnceCell::new();
 
 // Бот для отправки сообщений в группу лога
 pub static TELEGRAM_LOG_BOT: OnceCell<std::sync::Arc<Bot>> = OnceCell::new();
@@ -535,7 +535,7 @@ pub fn parse_dish_key(text: &str) -> Result<(i32, i32, i32), Box<dyn std::error:
 //
 pub async fn log(text: &str) {
    if let Some(bot) = TELEGRAM_LOG_BOT.get() {
-      let chat_id = ChatId::ChannelUsername(String::from(TELEGRAM_LOG_GROUP.get().unwrap()));
+      let chat_id = ChatId::Id(*TELEGRAM_LOG_GROUP.get().unwrap());
       if let Err(err) = bot.send_message(chat_id, text).send().await {
          log::info!("Error log({}): {}", text, err);
       }

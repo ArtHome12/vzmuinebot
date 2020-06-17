@@ -279,11 +279,14 @@ async fn run() {
    }
 
    // Имя группы/чата для вывода лога
-   let log_group_name = env::var("LOG_GROUP_NAME").expect("LOG_GROUP_NAME env variable missing");
-   match database::TELEGRAM_LOG_GROUP.set(log_group_name) {
+   let log_group_id: i64 = env::var("LOG_GROUP_ID")
+      .expect("LOG_GROUP_ID env variable missing")
+      .parse()
+      .expect("LOG_GROUP_ID value to be integer");
+   match database::TELEGRAM_LOG_GROUP.set(log_group_id) {
       Ok(_) => {
          match database::TELEGRAM_LOG_BOT.set(Arc::clone(&bot)) {
-            Ok(_) => database::log(&format!("Бот перезапущен, группа для лога {}", database::TELEGRAM_LOG_GROUP.get().unwrap())).await,
+            Ok(_) => database::log(&format!("Бот перезапущен, группа для лога {}", log_group_id)).await,
             _ => log::info!("Something wrong with TELEGRAM_LOG_BOT"),
          }
       }
