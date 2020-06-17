@@ -10,6 +10,10 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use chrono::{NaiveTime};
 use once_cell::sync::{OnceCell};
 use text_io::try_scan;
+use teloxide::{
+   prelude::*,
+   types::{ChatId},
+};
 
 // Клиент БД
 pub static DB: OnceCell<tokio_postgres::Client> = OnceCell::new();
@@ -18,6 +22,11 @@ pub static DB: OnceCell<tokio_postgres::Client> = OnceCell::new();
 pub static TELEGRAM_ADMIN_NAME: OnceCell<String> = OnceCell::new();
 pub static TELEGRAM_ADMIN_ID: OnceCell<i32> = OnceCell::new();
 
+// Телеграм ник группы для вывода лога
+pub static TELEGRAM_LOG_GROUP: OnceCell<String> = OnceCell::new();
+
+// Бот для отправки сообщений в группу лога
+pub static TELEGRAM_LOG_BOT: OnceCell<std::sync::Arc<Bot>> = OnceCell::new();
 
 // ============================================================================
 // [User]
@@ -522,6 +531,17 @@ pub fn parse_dish_key(text: &str) -> Result<(i32, i32, i32), Box<dyn std::error:
    Ok((rest_num, group_num, dish_num))
 }
 
+// Отправляет сообщение в телеграм группу для лога
+//
+pub async fn log(text: &str) {
+   if let Some(bot) = TELEGRAM_LOG_BOT.get() {
+      let chat_id = ChatId::ChannelUsername(String::from(TELEGRAM_LOG_GROUP.get().unwrap()));
+      if let Err(_) = bot.send_message(chat_id, text).send().await {
+         log::info!("Error database::log({})", text);
+      }
+   }
+}
+
 // ============================================================================
 // [Caterer]
 // ============================================================================
@@ -659,34 +679,33 @@ async fn group_titles(rest_num: i32) -> String {
 // Возвращает информацию о группе
 //
 pub async fn group_info(rest_num: i32, group_num: i32) -> Option<String> {
-     // Выполняем запрос
-     let rows = DB.get().unwrap()
-     .query("SELECT title, info, active, cat_id, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
-     .await;
+   // Выполняем запрос
+   let rows = DB.get().unwrap()
+   .query("SELECT title, info, active, cat_id, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
+   .await;
 
-    // Проверяем результат
-    match rows {
-        Ok(data) => {
-            if !data.is_empty() {
-                // Параметры ресторана
-                let title: String = data[0].get(0);
-                let info: String = data[0].get(1);
-                let active: bool = data[0].get(2);
-                let cat_id: i32 = data[0].get(3);
-                let opening_time: NaiveTime = data[0].get(4);
-                let closing_time: NaiveTime = data[0].get(5);
-                let dishes: String = dish_titles(rest_num, group_num).await;
-                Some(
-                    String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime
-Удалить группу /Remove\nНовое блюдо /AddDish\n{}",
-                    title, info, id_to_category(cat_id), active_to_str(active), opening_time.format("%H:%M"), closing_time.format("%H:%M"), dishes))
-                )
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
+   // Проверяем результат
+   match rows {
+      Ok(data) => {
+         if !data.is_empty() {
+               // Параметры ресторана
+               let title: String = data[0].get(0);
+               let info: String = data[0].get(1);
+               let active: bool = data[0].get(2);
+               let cat_id: i32 = data[0].get(3);
+               let opening_time: NaiveTime = data[0].get(4);
+               let closing_time: NaiveTime = data[0].get(5);
+               let dishes: String = dish_titles(rest_num, group_num).await;
+               Some(
+                  String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime\nУдалить группу /Remove\nНовое блюдо /AddDish\n{}",
+                  title, info, id_to_category(cat_id), active_to_str(active), opening_time.format("%H:%M"), closing_time.format("%H:%M"), dishes))
+               )
+         } else {
+               None
+         }
+      }
+      _ => None,
+   }
 }
 
 // Добавляет новую группу

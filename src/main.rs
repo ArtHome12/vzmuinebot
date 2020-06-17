@@ -280,6 +280,15 @@ async fn run() {
 
    // Имя группы/чата для вывода лога
    let log_group_name = env::var("LOG_GROUP_NAME").expect("LOG_GROUP_NAME env variable missing");
+   match database::TELEGRAM_LOG_GROUP.set(log_group_name) {
+      Ok(_) => {
+         match database::TELEGRAM_LOG_BOT.set(Arc::clone(&bot)) {
+            Ok(_) => database::log("Бот перезапущен").await,
+            _ => log::info!("Something wrong with TELEGRAM_LOG_BOT"),
+         }
+      }
+      _ => log::info!("Something wrong with TELEGRAM_LOG_GROUP"),
+   }
    
 
    // Проверим существование таблиц и если их нет, создадим
