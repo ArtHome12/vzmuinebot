@@ -248,7 +248,7 @@ async fn run() {
    match database::TELEGRAM_LOG_GROUP.set(log_group_id) {
       Ok(_) => {
          match database::TELEGRAM_LOG_BOT.set(Arc::clone(&bot)) {
-            Ok(_) => database::log("Бот перезапущен").await,
+            Ok(_) => database::log("Бот перезапущен", false).await,
             _ => log::info!("Something wrong with TELEGRAM_LOG_BOT"),
          }
       }
@@ -266,7 +266,7 @@ async fn run() {
    // so spawn it off to run on its own.
    tokio::spawn(async move {
       if let Err(e) = connection.await {
-         database::log(&format!("Database connection error: {}", e)).await;
+         database::log(&format!("Database connection error: {}", e), true).await;
       }
    });
 
@@ -275,7 +275,7 @@ async fn run() {
       Ok(_) => log::info!("Database connected"),
       _ => {
          log::info!("Something wrong with database");
-         database::log("Something wrong with database").await;
+         database::log("Something wrong with database", true).await;
       }
    }
 

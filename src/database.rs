@@ -533,10 +533,10 @@ pub fn parse_dish_key(text: &str) -> Result<(i32, i32, i32), Box<dyn std::error:
 
 // Отправляет сообщение в телеграм группу для лога
 //
-pub async fn log(text: &str) {
+pub async fn log(text: &str, silence: bool) {
    if let Some(bot) = TELEGRAM_LOG_BOT.get() {
       let chat_id = ChatId::Id(*TELEGRAM_LOG_GROUP.get().unwrap());
-      if let Err(err) = bot.send_message(chat_id, text).send().await {
+      if let Err(err) = bot.send_message(chat_id, text).disable_notification(silence).send().await {
          log::info!("Error log({}): {}", text, err);
       }
    }
@@ -551,7 +551,7 @@ pub fn user_info(user: Option<&User>) -> String {
          s.push_str(&format!(" {}", last_name));
       }
       if let Some(username) = &u.username {
-         s.push_str(&format!(" {}", username));
+         s.push_str(&format!(" @{}", username));
       }
       if let Some(language_code) = &u.language_code {
          s.push_str(&format!(" lang={}", language_code));

@@ -39,7 +39,7 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    // Различаем перезапуск и возврат из меню ресторатора
    let s = if after_restart {
       // Это первый вход пользователя после перезапуска, сообщим об этом
-      db::log(&format!("Пользователь {} начал сеанс", db::user_info(cx.update.from()))).await;
+      db::log(&format!("{} начал сеанс", db::user_info(cx.update.from())), true).await;
 
       String::from("Бот перезапущен. Пожалуйста, выберите в основном меню снизу какие заведения показать.")
    } else {
