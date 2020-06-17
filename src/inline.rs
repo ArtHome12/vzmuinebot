@@ -28,9 +28,10 @@ impl InlineCommand {
 pub async fn handle_message(cx: DispatcherHandlerCx<InlineQuery>) {
    let query = &cx.update.query;
 
+
    // Распознаем полученную команду
    match InlineCommand::from(&query) {
-      InlineCommand::UnknownCommand => log::error!("Unknown inline message: {}", &query)
+      InlineCommand::UnknownCommand => log::error!("Unknown inline message: {} from {}", &query, cx.update.from.username.unwrap_or_default())
    }
 
 
