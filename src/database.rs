@@ -12,7 +12,7 @@ use once_cell::sync::{OnceCell};
 use text_io::try_scan;
 use teloxide::{
    prelude::*,
-   types::{ChatId},
+   types::{ChatId, User},
 };
 
 // Клиент БД
@@ -539,6 +539,26 @@ pub async fn log(text: &str) {
       if let Err(err) = bot.send_message(chat_id, text).send().await {
          log::info!("Error log({}): {}", text, err);
       }
+   }
+}
+
+// Формирование информации о пользователе для лога
+//
+pub fn user_info(user: Option<&User>) -> String {
+   if let Some(u) = user {
+      let mut s = format!("{}:{}", u.id, u.first_name);
+      if let Some(last_name) = &u.last_name {
+         s.push_str(&format!(" {}", last_name));
+      }
+      if let Some(username) = &u.username {
+         s.push_str(&format!(" {}", username));
+      }
+      if let Some(language_code) = &u.language_code {
+         s.push_str(&format!(" lang={}", language_code));
+      }
+      s
+   } else {
+      String::from("None user info")
    }
 }
 

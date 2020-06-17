@@ -240,6 +240,21 @@ async fn run() {
 
    let bot = Bot::from_env();
 
+   // Имя группы/чата для вывода лога
+   let log_group_id: i64 = env::var("LOG_GROUP_ID")
+      .expect("LOG_GROUP_ID env variable missing")
+      .parse()
+      .expect("LOG_GROUP_ID value to be integer");
+   match database::TELEGRAM_LOG_GROUP.set(log_group_id) {
+      Ok(_) => {
+         match database::TELEGRAM_LOG_BOT.set(Arc::clone(&bot)) {
+            Ok(_) => database::log("Бот перезапущен").await,
+            _ => log::info!("Something wrong with TELEGRAM_LOG_BOT"),
+         }
+      }
+      _ => log::info!("Something wrong with TELEGRAM_LOG_GROUP"),
+   }
+   
    // Логин к БД
    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL env variable missing");    
    // Откроем БД
@@ -251,14 +266,17 @@ async fn run() {
    // so spawn it off to run on its own.
    tokio::spawn(async move {
       if let Err(e) = connection.await {
-         eprintln!("connection error: {}", e);
+         database::log(&format!("Database connection error: {}", e)).await;
       }
    });
 
    // Сохраним доступ к БД
    match database::DB.set(client) {
       Ok(_) => log::info!("Database connected"),
-      _ => log::info!("Something wrong with database"),
+      _ => {
+         log::info!("Something wrong with database");
+         database::log("Something wrong with database").await;
+      }
    }
 
    // Учётные данные админа бота - контактное имя
@@ -277,22 +295,6 @@ async fn run() {
       Ok(_) => log::info!("admin id is {}", *database::TELEGRAM_ADMIN_ID.get().unwrap()),
       _ => log::info!("Something wrong with admin id"),
    }
-
-   // Имя группы/чата для вывода лога
-   let log_group_id: i64 = env::var("LOG_GROUP_ID")
-      .expect("LOG_GROUP_ID env variable missing")
-      .parse()
-      .expect("LOG_GROUP_ID value to be integer");
-   match database::TELEGRAM_LOG_GROUP.set(log_group_id) {
-      Ok(_) => {
-         match database::TELEGRAM_LOG_BOT.set(Arc::clone(&bot)) {
-            Ok(_) => database::log(&format!("Бот перезапущен, группа для лога {}", log_group_id)).await,
-            _ => log::info!("Something wrong with TELEGRAM_LOG_BOT"),
-         }
-      }
-      _ => log::info!("Something wrong with TELEGRAM_LOG_GROUP"),
-   }
-   
 
    // Проверим существование таблиц и если их нет, создадим
    //
