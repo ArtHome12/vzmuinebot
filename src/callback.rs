@@ -77,7 +77,7 @@ async fn add_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_
    // Если операция с БД успешна, надо отредактировать пост
    match db::add_dish_to_basket(rest_num, group_num, dish_num, user_id).await {
       Ok(new_amount) => {
-         db::log(&format!("{} блюдо {} +1", db::user_info(Some(&cx.update.from)), db::make_dish_key(rest_num, group_num, dish_num)), true).await;
+         db::log(&format!("{} блюдо {} +1", db::user_info(Some(&cx.update.from), false), db::make_dish_key(rest_num, group_num, dish_num)), true).await;
          update_keyboard(cx, rest_num, group_num, dish_num, new_amount).await
       }
       Err(_) => false,
@@ -91,7 +91,7 @@ async fn remove_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, gro
    // Если операция с БД успешна, надо отредактировать пост
    match db::remove_dish_from_basket(rest_num, group_num, dish_num, user_id).await {
       Ok(new_amount) => {
-         db::log(&format!("{} блюдо {} -1", db::user_info(Some(&cx.update.from)), db::make_dish_key(rest_num, group_num, dish_num)), true).await;
+         db::log(&format!("{} блюдо {} -1", db::user_info(Some(&cx.update.from), false), db::make_dish_key(rest_num, group_num, dish_num)), true).await;
          update_keyboard(cx, rest_num, group_num, dish_num, new_amount).await
       }
       Err(_) => false,

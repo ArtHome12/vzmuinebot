@@ -39,7 +39,7 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    // Различаем перезапуск и возврат из меню ресторатора
    let s = if after_restart {
       // Это первый вход пользователя после перезапуска, сообщим об этом
-      db::log(&format!("{} начал сеанс", db::user_info(cx.update.from())), true).await;
+      db::log(&format!("{} начал сеанс", db::user_info(cx.update.from(), true)), true).await;
 
       String::from("Бот перезапущен. Пожалуйста, выберите в основном меню снизу какие заведения показать.")
    } else {
@@ -80,10 +80,13 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                   let rest_num = db::rest_num(user_id).await;
 
                   if rest_num > 0 {
+                     db::log(&format!("{} вошёл в режим ресторатора для {}", db::user_info(cx.update.from(), false), rest_num), true).await;
+
                      // Отображаем информацию о ресторане и переходим в режим её редактирования
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                      return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_num), true).await;
                   } else {
+                     db::log(&format!("{} доступ в режим ресторатора запрещён", db::user_info(cx.update.from(), false)), true).await;
                      send_text(&cx, &format!("Для доступа в режим рестораторов обратитесь к {} и сообщите свой Id={}", db::TELEGRAM_ADMIN_NAME.get().unwrap(), user_id)).await
                   }
                }

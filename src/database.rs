@@ -544,17 +544,21 @@ pub async fn log(text: &str, silence: bool) {
 
 // Формирование информации о пользователе для лога
 //
-pub fn user_info(user: Option<&User>) -> String {
+pub fn user_info(user: Option<&User>, detail: bool) -> String {
    if let Some(u) = user {
       let mut s = format!("{}:{}", u.id, u.first_name);
-      if let Some(last_name) = &u.last_name {
-         s.push_str(&format!(" {}", last_name));
-      }
-      if let Some(username) = &u.username {
-         s.push_str(&format!(" @{}", username));
-      }
-      if let Some(language_code) = &u.language_code {
-         s.push_str(&format!(" lang={}", language_code));
+
+      // Эту информацию выводим только для полного описания
+      if detail {
+         if let Some(last_name) = &u.last_name {
+            s.push_str(&format!(" {}", last_name));
+         }
+         if let Some(username) = &u.username {
+            s.push_str(&format!(" @{}", username));
+         }
+         if let Some(language_code) = &u.language_code {
+            s.push_str(&format!(" lang={}", language_code));
+         }
       }
       s
    } else {
@@ -584,7 +588,6 @@ pub async fn rest_num(user_id : i32) -> i32 {
       _ => 0,
    }
 }
-
 
 // Возвращает строку с информацией о ресторане
 //
@@ -649,7 +652,6 @@ pub async fn rest_toggle(rest_num: i32) -> bool {
        _ => false,
    }
 }
-
 
 // Изменение фото ресторана
 //

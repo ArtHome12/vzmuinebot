@@ -335,7 +335,9 @@ pub async fn add_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             let (rest_id, group_id) = cx.dialogue;
         
             // Сохраним новое значение в БД
-            if db::rest_add_dish(rest_id, group_id, s).await {
+            if db::rest_add_dish(rest_id, group_id, s.clone()).await {
+               db::log(&format!("{} добавил {} для {}", db::user_info(cx.update.from(), false), s, db::make_dish_key(rest_id, group_id, 0)), true).await;
+
                // Покажем изменённую информацию о группе
                next_with_info(cx).await
             } else {
