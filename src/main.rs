@@ -283,7 +283,7 @@ async fn run() {
    match database::TELEGRAM_LOG_GROUP.set(log_group_name) {
       Ok(_) => {
          match database::TELEGRAM_LOG_BOT.set(Arc::clone(&bot)) {
-            Ok(_) => database::log("Бот перезапущен").await,
+            Ok(_) => database::log(&format!("Бот перезапущен, группа для лога {}", database::TELEGRAM_LOG_GROUP.get().unwrap())).await,
             _ => log::info!("Something wrong with TELEGRAM_LOG_BOT"),
          }
       }
