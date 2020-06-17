@@ -130,6 +130,11 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                      send_text(&cx, "Недостаточно прав").await;
                   }
                }
+               cmd::User::ChatId => {
+                  // Отправим информацию о чате
+                  let id = cx.chat_id();
+                  send_text(&cx, &format!("Chat id={}", id)).await;
+               }
          }
       }
    }

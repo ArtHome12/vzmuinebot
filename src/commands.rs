@@ -67,6 +67,7 @@ pub enum User {
     HoldCaterer(i32), // user_id
     Sudo(i32), // rest_num
     List,
+    ChatId
 }
 
 impl User {
@@ -81,6 +82,7 @@ impl User {
          "🛒Корзина" => User::Basket,
          "Добавить" => User::CatererMode,
          "/list" => User::List,
+         "/chat_id" => User::ChatId,
          _ => {
             // Ищем среди команд с цифровыми суффиксами - аргументами
             match input.get(..5).unwrap_or_default() {
