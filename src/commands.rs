@@ -88,7 +88,7 @@ impl User {
                "/regi" => User::RegisterCaterer(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                "/hold" => User::HoldCaterer(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                "/sudo" => User::Sudo(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
-               "/chat" => User::ChatId,
+               "/chat" => User::ChatId, // правее может быть имя бота, игнорируем это.
                _ => User::UnknownCommand,
             }
          }

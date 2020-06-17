@@ -34,6 +34,9 @@ For contact with you from caterers
 To identify you as an admin - you can see your user_id when press button "Добавить"
 `TELEGRAM_ADMIN_ID=40966...`
 
+To specify service chat id - you can see it after add bot to group and send command /chat (/chat@yourbotname)
+`LOG_GROUP_ID=-100123...`
+
 # Commands
 All commands should be entered only in the main (first) menu.
 
@@ -41,6 +44,8 @@ All commands should be entered only in the main (first) menu.
 * To disable restaurant `/hold12345...` 
 * To enter as owner some restaurant `/sudo123`, where 123 is the serial number (not user_id!) of the restaurant.
 * To see the list of restaurants `/list`
+* To see id of current chat `/chat`. Bot shows your Id if you in private chat with bot or group id (negative number)
+
 
 Note. This is my first experience in learning the rust programming language and in bots, so the code is not very beautiful, it contains an excessive amount of copy-paste.
 The code is written using https://github.com/teloxide/teloxide and deployed with https://github.com/emk/heroku-buildpack-rust
