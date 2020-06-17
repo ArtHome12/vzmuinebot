@@ -534,16 +534,12 @@ pub fn parse_dish_key(text: &str) -> Result<(i32, i32, i32), Box<dyn std::error:
 // Отправляет сообщение в телеграм группу для лога
 //
 pub async fn log(text: &str) {
-   log::info!("Enter database::log({})", text);
    if let Some(bot) = TELEGRAM_LOG_BOT.get() {
       let chat_id = ChatId::ChannelUsername(String::from(TELEGRAM_LOG_GROUP.get().unwrap()));
-      if let Err(_) = bot.send_message(chat_id, text).send().await {
-         log::info!("Error database::log({})", text);
-      } else {
-         log::info!("Here database::log({})", text);
+      if let Err(err) = bot.send_message(chat_id, text).send().await {
+         log::info!("Error log({}): {}", text, err);
       }
    }
-   log::info!("Exit database::log({})", text);
 }
 
 // ============================================================================
