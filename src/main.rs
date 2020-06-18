@@ -240,19 +240,19 @@ async fn run() {
 
    let bot = Bot::from_env();
 
-   // Имя группы/чата для вывода лога
-   let log_group_id: i64 = env::var("LOG_GROUP_ID")
-      .expect("LOG_GROUP_ID env variable missing")
-      .parse()
-      .expect("LOG_GROUP_ID value to be integer");
-   match database::TELEGRAM_LOG_GROUP.set(log_group_id) {
-      Ok(_) => {
-         match database::TELEGRAM_LOG_BOT.set(Arc::clone(&bot)) {
-            Ok(_) => database::log("Бот перезапущен", false).await,
-            _ => log::info!("Something wrong with TELEGRAM_LOG_BOT"),
+   // GroupId группы/чата для вывода лога
+   if let Ok(log_group_id_env) = env::var("LOG_GROUP_ID") {
+      if let Ok(log_group_id) = log_group_id_env.parse::<i64>() {
+         // Сохраняем id и копию экземпляра бота в глобальной переменной
+         let log = database::ServiceChat {
+            id: log_group_id,
+            bot: Arc::clone(&bot),
+         };
+         match database::TELEGRAM_LOG_CHAT.set(log) {
+            Ok(_) => database::log_and_notify("Бот перезапущен").await,
+            _ => log::info!("Something wrong with TELEGRAM_LOG_CHAT"),
          }
       }
-      _ => log::info!("Something wrong with TELEGRAM_LOG_GROUP"),
    }
    
    // Логин к БД
@@ -266,7 +266,7 @@ async fn run() {
    // so spawn it off to run on its own.
    tokio::spawn(async move {
       if let Err(e) = connection.await {
-         database::log(&format!("Database connection error: {}", e), true).await;
+         database::log(&format!("Database connection error: {}", e)).await;
       }
    });
 
@@ -275,7 +275,7 @@ async fn run() {
       Ok(_) => log::info!("Database connected"),
       _ => {
          log::info!("Something wrong with database");
-         database::log("Something wrong with database", true).await;
+         database::log("Something wrong with database").await;
       }
    }
 

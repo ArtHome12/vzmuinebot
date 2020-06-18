@@ -110,7 +110,11 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             // Очистить корзину
             cmd::Basket::Clear => {
                if db::clear_basket(user_id).await {
-                  db::log(&format!("{} корзина очищена", db::user_info(cx.update.from(), false)), true).await;
+                  // Сообщение в лог
+                  let text = format!("{} корзина очищена", db::user_info(cx.update.from(), false));
+                  db::log(&text).await;
+
+                  // Отображаем пустую корзину
                   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                   next_with_info(DialogueDispatcherHandlerCx::new(bot, update, user_id)).await
                } else {
@@ -124,7 +128,11 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
                // Запрос к базе данных
                match db::remove_dish_from_basket(rest_num, group_num, dish_num, user_id).await {
                   Ok(_) => {
-                     db::log(&format!("{} корзина {} удалено", db::user_info(cx.update.from(), false), db::make_dish_key(rest_num, group_num, dish_num)), true).await;
+                     // Сообщение в лог
+                     let text = format!("{} корзина {} удалено", db::user_info(cx.update.from(), false), db::make_dish_key(rest_num, group_num, dish_num));
+                     db::log(&text).await;
+
+                     // Отображаем изменённую корзину
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                      next_with_info(DialogueDispatcherHandlerCx::new(bot, update, user_id)).await
                   }

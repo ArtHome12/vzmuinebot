@@ -12,7 +12,7 @@ use once_cell::sync::{OnceCell};
 use text_io::try_scan;
 use teloxide::{
    prelude::*,
-   types::{ChatId, User},
+   types::{User},
 };
 
 // Клиент БД
@@ -23,10 +23,8 @@ pub static TELEGRAM_ADMIN_NAME: OnceCell<String> = OnceCell::new();
 pub static TELEGRAM_ADMIN_ID: OnceCell<i32> = OnceCell::new();
 
 // Телеграм ник группы для вывода лога
-pub static TELEGRAM_LOG_GROUP: OnceCell<i64> = OnceCell::new();
+pub static TELEGRAM_LOG_CHAT: OnceCell<ServiceChat> = OnceCell::new();
 
-// Бот для отправки сообщений в группу лога
-pub static TELEGRAM_LOG_BOT: OnceCell<std::sync::Arc<Bot>> = OnceCell::new();
 
 // ============================================================================
 // [User]
@@ -531,16 +529,39 @@ pub fn parse_dish_key(text: &str) -> Result<(i32, i32, i32), Box<dyn std::error:
    Ok((rest_num, group_num, dish_num))
 }
 
+// Хранит данные для работы логирования в чат
+//
+pub struct ServiceChat {
+   pub id: i64,
+   pub bot: std::sync::Arc<Bot>,
+}
+
 // Отправляет сообщение в телеграм группу для лога
 //
-pub async fn log(text: &str, silence: bool) {
-   if let Some(bot) = TELEGRAM_LOG_BOT.get() {
-      let chat_id = ChatId::Id(*TELEGRAM_LOG_GROUP.get().unwrap());
-      if let Err(err) = bot.send_message(chat_id, text).disable_notification(silence).send().await {
+impl ServiceChat {
+   // Непосредственно отправляет сообщение
+   async fn send(&self, text: &str, silence: bool) {
+      if let Err(err) = self.bot.send_message(self.id, text).disable_notification(silence).send().await {
          log::info!("Error log({}): {}", text, err);
       }
    }
 }
+
+// Отправляет в служебный чат сообщение в молчаливом режиме
+pub async fn log(text: &str) {
+   if let Some(chat) = TELEGRAM_LOG_CHAT.get() {
+      chat.send(text, true).await;
+   }
+}
+
+// Отправляет в служебный чат сообщение с уведомлением
+pub async fn log_and_notify(text: &str) {
+   if let Some(chat) = TELEGRAM_LOG_CHAT.get() {
+      chat.send(text, false).await;
+   }
+}
+
+
 
 // Формирование информации о пользователе для лога
 //
