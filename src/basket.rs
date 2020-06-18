@@ -33,7 +33,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       .await?;
    } else {
       // Отображаем приветствие
-      cx.answer(format!("Общая сумма заказа {} 000 vnd. Перешлите сообщения ниже по указанным контактам или в независимую доставку, а потом очистите корзину:", grand_total))
+      cx.answer(format!("Общая сумма заказа {} 000 vnd. Перешлите эти сообщения по указанным контактам или в независимую доставку, а потом очистите корзину:", grand_total))
       .reply_markup(cmd::Basket::markup())
       .disable_notification(true)
       .send()
