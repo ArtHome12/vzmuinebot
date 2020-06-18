@@ -42,7 +42,12 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
       let text = format!("{} начал сеанс", db::user_info(cx.update.from(), true));
       db::log(&text).await;
 
-      String::from("Начат новый сеанс. Пожалуйста, выберите в основном меню снизу какие заведения показать.")
+      // Для администратора отдельное приветствие
+      if db::is_admin(cx.update.from()) {
+         String::from("Начат новый сеанс. Команды только для администратора в описании актуальной версии https://github.com/ArtHome12/vzmuinebot")
+      } else {
+         String::from("Начат новый сеанс. Пожалуйста, выберите в основном меню снизу какие заведения показать.")
+      }
    } else {
       String::from("Пожалуйста, выберите в основном меню снизу какие заведения показать.")
    };
