@@ -25,6 +25,7 @@ pub async fn send_text(cx: &cmd::Cx<()>, text: &str) {
    let res = cx.answer(text)
    .reply_markup(cmd::User::main_menu_markup())
    .disable_notification(true)
+   .disable_web_page_preview(true)
    .send()
    .await;
 
