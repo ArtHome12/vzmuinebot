@@ -117,67 +117,70 @@ impl User {
 // ============================================================================
 #[derive(Copy, Clone)]
 pub enum Caterer {
-    // Команды главного меню
-    Main(i32), // rest_id
-    Exit, 
-    UnknownCommand,
-    // Добавляет нового ресторатора user_id или возобновляет его доступ.
-    //Registration(u32),
-    // Приостанавливает доступ ресторатора user_id и скрывает его меню.
-    //Hold(u32),
-    // Изменить название ресторана
-    EditTitle(i32), // rest_id
-    // Изменить описание ресторана
-    EditInfo(i32), // rest_id
-    // Доступность меню, определяемая самим пользователем
-    TogglePause(i32), // rest_id
-    // Фото престорана
-    EditImage(i32), // rest_id
-    // Переход к редактированию указанной группы блюд.
-    EditGroup(i32, i32), // rest_id, group_id
-    // Добавляет новую группу
-    AddGroup(i32), // rest_id
+   // Команды главного меню
+   Main(i32), // rest_id
+   Exit, 
+   UnknownCommand,
+   // Добавляет нового ресторатора user_id или возобновляет его доступ.
+   //Registration(u32),
+   // Приостанавливает доступ ресторатора user_id и скрывает его меню.
+   //Hold(u32),
+   // Изменить название ресторана
+   EditTitle(i32), // rest_id
+   // Изменить описание ресторана
+   EditInfo(i32), // rest_id
+   // Доступность меню, определяемая самим пользователем
+   TogglePause(i32), // rest_id
+   // Фото престорана
+   EditImage(i32), // rest_id
+   // Переход к редактированию указанной группы блюд.
+   EditGroup(i32, i32), // rest_id, group_id
+   // Добавляет новую группу
+   AddGroup(i32), // rest_id
+   // Передача владения новому ресторатору
+   TransferOwnership(i32, i32), // rest_id, user_id
 }
 
 impl Caterer {
 
-    pub fn from(rest_id: i32, input: &str) -> Caterer {
-        match input {
-            // Сначала проверим на цельные команды.
-            "Главная" => Caterer::Main(rest_id),
-            "Выход" => Caterer::Exit,
-            "/EditTitle" => Caterer::EditTitle(rest_id),
-            "/EditInfo" => Caterer::EditInfo(rest_id),
-            "/Toggle" => Caterer::TogglePause(rest_id),
-            "/EditImg" => Caterer::EditImage(rest_id),
-            "/AddGroup" => Caterer::AddGroup(rest_id),
-            _ => {
-                // Ищем среди команд с цифровыми суффиксами - аргументами
-                match input.get(..5).unwrap_or_default() {
-                    "/EdGr" => Caterer::EditGroup(rest_id, input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
-                    _ => Caterer::UnknownCommand,
-                }
-            }
-        }
-    }
+   pub fn from(rest_id: i32, input: &str) -> Caterer {
+      match input {
+         // Сначала проверим на цельные команды.
+         "Главная" => Caterer::Main(rest_id),
+         "Выход" => Caterer::Exit,
+         "/EditTitle" => Caterer::EditTitle(rest_id),
+         "/EditInfo" => Caterer::EditInfo(rest_id),
+         "/Toggle" => Caterer::TogglePause(rest_id),
+         "/EditImg" => Caterer::EditImage(rest_id),
+         "/AddGroup" => Caterer::AddGroup(rest_id),
+         _ => {
+               // Ищем среди команд с цифровыми суффиксами - аргументами
+               match input.get(..5).unwrap_or_default() {
+                  "/EdGr" => Caterer::EditGroup(rest_id, input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                  "/move" => Caterer::TransferOwnership(rest_id, input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                  _ => Caterer::UnknownCommand,
+               }
+         }
+      }
+   }
 
-    pub fn main_menu_markup() -> ReplyKeyboardMarkup {
-        ReplyKeyboardMarkup::default()
-            .append_row(vec![
-                KeyboardButton::new("Главная"),
-                KeyboardButton::new("Выход"),
-            ])
-            .resize_keyboard(true)
-            //.one_time_keyboard(true)
-    }
+   pub fn main_menu_markup() -> ReplyKeyboardMarkup {
+      ReplyKeyboardMarkup::default()
+         .append_row(vec![
+               KeyboardButton::new("Главная"),
+               KeyboardButton::new("Выход"),
+         ])
+         .resize_keyboard(true)
+         //.one_time_keyboard(true)
+   }
 
-    pub fn slash_markup() -> ReplyKeyboardMarkup {
-        ReplyKeyboardMarkup::default()
-            .append_row(vec![
-                KeyboardButton::new("/"),
-            ])
-            .resize_keyboard(true)
-    }
+   pub fn slash_markup() -> ReplyKeyboardMarkup {
+      ReplyKeyboardMarkup::default()
+         .append_row(vec![
+               KeyboardButton::new("/"),
+         ])
+         .resize_keyboard(true)
+   }
 }
 
 // ============================================================================

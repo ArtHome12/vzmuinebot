@@ -600,7 +600,7 @@ pub fn price_with_unit(price: i32) -> String {
       Some(data) => data,
       None => "",
    };
-   
+
    format!("{}{}", price, unit)
 }
 
@@ -697,6 +697,19 @@ pub async fn rest_edit_image(rest_num: i32, image_id: &String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap()
    .execute("UPDATE restaurants SET image_id = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER", &[&image_id, &rest_num])
+   .await;
+   match query {
+       Ok(_) => true,
+       _ => false,
+   }
+}
+
+// Изменяет владельца ресторана
+//
+pub async fn transfer_ownership(rest_num: i32, new_user_id: i32) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE restaurants SET user_id = $1::INTEGER WHERE rest_num=$2::INTEGER", &[&new_user_id, &rest_num])
    .await;
    match query {
        Ok(_) => true,

@@ -45,14 +45,15 @@ Optional. To specify service chat id - you can see it after add bot to group and
 `LOG_GROUP_ID=-100123...`
 
 # Commands
-All commands should be entered only in the main (first) menu.
-
+This commands should be entered only in the main (first) menu.
 * To register (or enable) a new restaurant, enter the command `/regi12345...`, where 12345 is user id of new caterer.
 * To disable restaurant `/hold12345...` 
 * To enter as owner some restaurant `/sudo123`, where 123 is the serial number (not user_id!) of the restaurant.
 * To see the list of restaurants `/list`
 * To see id of current chat `/chat`. Bot shows your Id if you in private chat with bot or group id (negative number)
 
+This commands should be entered only in the caterer (where editing restaraunt title, info etc.) menu.
+* Transfer ownership of the restaurant to another user `/move12345...`, where 12345 is user id of new caterer.
 
 Note. This is my first experience in learning the rust programming language and in bots, so the code is not very beautiful, it contains an excessive amount of copy-paste.
 The code is written using https://github.com/teloxide/teloxide and deployed with https://github.com/emk/heroku-buildpack-rust

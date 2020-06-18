@@ -115,6 +115,19 @@ pub async fn caterer_mode(cx: cmd::Cx<i32>) -> cmd::Res {
                eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
             }
 
+            // Передать управление рестораном
+            cmd::Caterer::TransferOwnership(rest_id, user_id) => {
+               // Проверим права
+               if db::is_admin(cx.update.from()) {
+                  let res = db::is_success(db::transfer_ownership(rest_id, user_id).await);
+                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), &format!("Передача управления новому ресторатору {}: {}", user_id, res)).await
+               } else {
+                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), "Недостаточно прав").await
+               }
+            }
+
             // Изменение названия ресторана
             cmd::Caterer::EditTitle(rest_id) => {
                // Отправляем приглашение ввести строку со слешем в меню для отмены
