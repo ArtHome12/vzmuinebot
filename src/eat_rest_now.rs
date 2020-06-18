@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use chrono::{Utc, FixedOffset};
+use chrono::{Utc};
 use teloxide::{
    prelude::*, 
 };
@@ -22,8 +22,8 @@ use crate::basket;
 //
 pub async fn next_with_info(cx: cmd::Cx<()>) -> cmd::Res {
    // Текущее время
-   let our_timezone = FixedOffset::east(7 * 3600);
-   let now = Utc::now().with_timezone(&our_timezone).naive_local().time();
+   let our_timezone = db::TIME_ZONE.get().unwrap();
+   let now = Utc::now().with_timezone(our_timezone).naive_local().time();
    
    // Получаем информацию из БД
    let rest_list = db::restaurant_by_now_from_db(now).await;

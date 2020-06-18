@@ -23,6 +23,7 @@ use tokio::sync::mpsc;
 use tokio_postgres::{NoTls};
 use warp::Filter;
 use reqwest::StatusCode;
+use chrono::{FixedOffset};
 
 mod database;
 mod commands;
@@ -299,6 +300,39 @@ async fn run() {
       Ok(_) => log::info!("admin id is {}", *database::TELEGRAM_ADMIN_ID.get().unwrap()),
       _ => log::info!("Something wrong with admin id"),
    }
+
+   // Единица измерения цены
+   if let Ok(price_unit) = env::var("PRICE_UNIT") {
+      if let Err(_) = database::PRICE_UNIT.set(price_unit) {
+         let s = "Something wrong with PRICE_UNIT";
+         log::info!("{}", s);
+         database::log(s).await;
+      }
+   } else {
+      let s = "There is no environment variable PRICE_UNIT";
+      log::info!("{}", s);
+      database::log(s).await;
+   }
+
+   // Часовой пояс
+   if let Ok(time_zone_str) = env::var("TIME_ZONE") {
+      // Зона как число
+      let time_zone_num = time_zone_str.parse::<i32>().unwrap_or_default();
+
+      // Создадим нужный объект
+      let time_zone = FixedOffset::east(time_zone_num * 3600);
+
+      if let Err(_) = database::TIME_ZONE.set(time_zone) {
+         let s = "Something wrong with TIME_ZONE";
+         log::info!("{}", s);
+         database::log(s).await;
+      }
+   } else {
+      let s = "There is no environment variable TIME_ZONE";
+      log::info!("{}", s);
+      database::log(s).await;
+   }
+
 
    // Проверим существование таблиц и если их нет, создадим
    //

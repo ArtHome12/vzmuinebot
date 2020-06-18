@@ -34,7 +34,14 @@ For contact with you from caterers
 To identify you as an admin - you can see your user_id when press button "Добавить"
 `TELEGRAM_ADMIN_ID=40966...`
 
-To specify service chat id - you can see it after add bot to group and send command /chat (/chat@yourbotname)
+To specify unit of price
+`PRICE_UNIT=$`
+
+To indicate the time zone
+`TIME_ZONE=+7`
+
+
+Optional. To specify service chat id - you can see it after add bot to group and send command /chat (/chat@yourbotname)
 `LOG_GROUP_ID=-100123...`
 
 # Commands

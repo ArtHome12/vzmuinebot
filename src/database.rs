@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use chrono::{NaiveTime};
+use chrono::{NaiveTime, FixedOffset};
 use once_cell::sync::{OnceCell};
 use text_io::try_scan;
 use teloxide::{
@@ -24,6 +24,12 @@ pub static TELEGRAM_ADMIN_ID: OnceCell<i32> = OnceCell::new();
 
 // Телеграм ник группы для вывода лога
 pub static TELEGRAM_LOG_CHAT: OnceCell<ServiceChat> = OnceCell::new();
+
+// Единица измерения цены
+pub static PRICE_UNIT: OnceCell<String> = OnceCell::new();
+
+// Часовой пояс
+pub static TIME_ZONE: OnceCell<FixedOffset> = OnceCell::new();
 
 
 // ============================================================================
@@ -586,6 +592,7 @@ pub fn user_info(user: Option<&User>, detail: bool) -> String {
       String::from("None user info")
    }
 }
+
 
 // ============================================================================
 // [Caterer]
