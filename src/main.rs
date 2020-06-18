@@ -253,6 +253,8 @@ async fn run() {
             _ => log::info!("Something wrong with TELEGRAM_LOG_CHAT"),
          }
       }
+   } else {
+      log::info!("There is no environment variable LOG_GROUP_ID, no service chat")
    }
    
    // Логин к БД
