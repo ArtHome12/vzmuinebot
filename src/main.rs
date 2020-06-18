@@ -252,6 +252,8 @@ async fn run() {
             Ok(_) => database::log_and_notify("Бот перезапущен").await,
             _ => log::info!("Something wrong with TELEGRAM_LOG_CHAT"),
          }
+      } else {
+         log::info!("Environment variable LOG_GROUP_ID must be integer")
       }
    } else {
       log::info!("There is no environment variable LOG_GROUP_ID, no service chat")
