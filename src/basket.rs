@@ -33,7 +33,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       .await?;
    } else {
       // Отображаем приветствие
-      cx.answer(format!("Общая сумма заказа {} 000 vnd. Перешлите эти сообщения по указанным контактам или в независимую доставку, а потом очистите корзину:", grand_total))
+      cx.answer(format!("Общая сумма заказа {}. Перешлите эти сообщения по указанным контактам или в независимую доставку, а потом очистите корзину:", db::price_with_unit(grand_total)))
       .reply_markup(cmd::Basket::markup())
       .disable_notification(true)
       .send()
@@ -50,7 +50,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          }
 
          // Итоговая стоимость
-         s.push_str(&format!("\nВсего: {} 000 vnd", basket.total));
+         s.push_str(&format!("\nВсего: {}", db::price_with_unit(basket.total)));
 
          cx.answer(s)
          .reply_markup(cmd::Basket::markup())

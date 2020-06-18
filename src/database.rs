@@ -144,7 +144,7 @@ pub async fn dishes_by_restaurant_and_group_from_db(rest_num: i32, group_num: i3
                   let dish_num: i32 = record.get(0);
                   let title: String = record.get(1);
                   let price: i32 = record.get(2);
-                  res.push_str(&format!("   {} {} 000 vnd /dish{}\n", title, price, dish_num));
+                  res.push_str(&format!("   {} {} /dish{}\n", title, price_with_unit(price), dish_num));
                }
             }
 
@@ -182,7 +182,7 @@ pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Op
               let info: String = data[0].get(1);
               let price: i32 = data[0].get(2);
               let image_id: Option<String> = data[0].get(3);
-              Some((String::from(format!("Название: {}\nИнформация: {}\nЦена: {} 000 vnd", title, info, price)), image_id))
+              Some((String::from(format!("Название: {}\nИнформация: {}\nЦена: {}", title, info, price_with_unit(price))), image_id))
           } else {
             None
           }
@@ -593,6 +593,16 @@ pub fn user_info(user: Option<&User>, detail: bool) -> String {
    }
 }
 
+// Форматирование цены с единицей измерения
+//
+pub fn price_with_unit(price: i32) -> String {
+   let unit = match PRICE_UNIT.get() {
+      Some(data) => data,
+      None => "",
+   };
+   
+   format!("{}{}", price, unit)
+}
 
 // ============================================================================
 // [Caterer]
@@ -911,8 +921,8 @@ async fn dish_titles(rest_num: i32, group_num: i32) -> String {
             let dish_num: i32 = record.get(0);
             let title: String = record.get(1);
             let price: i32 = record.get(2);
-            res.push_str(&format!("   {} {} 000 vnd /EdDi{}\n", 
-                title, price, dish_num
+            res.push_str(&format!("   {} {} /EdDi{}\n", 
+                title, price_with_unit(price), dish_num
             ));
         }
     }
@@ -940,8 +950,8 @@ pub async fn dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Option<(
                 let price: i32 = data[0].get(4);
                 let image_id: Option<String> = data[0].get(5);
                 Some((
-                  String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nГруппа: {} /EditGroup\nСтатус: {} /Toggle\nЦена: {} 000 vnd /EditPrice\nЗагрузить фото /EditImg\nУдалить блюдо /Remove",
-                  title, info, group_num, active_to_str(active), price)), image_id
+                  String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nГруппа: {} /EditGroup\nСтатус: {} /Toggle\nЦена: {} /EditPrice\nЗагрузить фото /EditImg\nУдалить блюдо /Remove",
+                  title, info, group_num, active_to_str(active), price_with_unit(price))), image_id
                ))
             } else {
                 None
@@ -1298,7 +1308,7 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
                total += price * amount;
 
                // Помещаем блюдо в список
-               dishes.push(format!("{}: {} 000 vnd x {} шт. = {} 000 vnd /del{}", title, price, amount, price * amount, make_dish_key(rest_num, group_num, dish_num)));
+               dishes.push(format!("{}: {} x {} шт. = {} /del{}", title, price, amount, price_with_unit(price * amount), make_dish_key(rest_num, group_num, dish_num)));
             }
          }
 
