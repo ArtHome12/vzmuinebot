@@ -24,6 +24,7 @@ parse-display = "0.1.2"
 enum-utils = "*"
 chrono = "*"
 text_io = "0.1.8"
+runtime-fmt = "0.4.0"
 
 # Database
 once_cell = "*"

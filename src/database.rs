@@ -14,6 +14,9 @@ use teloxide::{
    prelude::*,
    types::{User},
 };
+extern crate runtime_fmt;
+
+use crate::language as lang;
 
 // Клиент БД
 pub static DB: OnceCell<tokio_postgres::Client> = OnceCell::new();
@@ -58,7 +61,7 @@ pub async fn restaurant_by_category_from_db(cat_id: i32) -> String {
 
    // На случай пустого списка сообщим об этом
    if res.is_empty() {
-      String::from("   пусто :(")
+      String::from(lang::t("ru", lang::Res::DatabaseEmpty))
    } else {
       res
    }
@@ -101,13 +104,14 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
 
             // На случай пустого списка сообщим об этом
             let res = if res.is_empty() {
-               String::from("   пусто :(")
+               String::from(lang::t("ru", lang::Res::DatabaseEmpty))
             } else {
                res
             };
 
             // Окончательный результат
-            Some((format!("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}", title, info, id_to_category(cat_id), res), image_id))
+            let res = lang::t("ru", lang::Res::DatabaseRestInfo);
+            Some((rt_format!(res, title, info, id_to_category(cat_id), res), image_id))
          } else {
             None
          }

@@ -39,6 +39,7 @@ mod eat_group_now;
 mod callback;
 mod basket;
 mod inline;
+mod language;
 
 use commands as cmd;
 
@@ -250,7 +251,7 @@ async fn run() {
             bot: Arc::clone(&bot),
          };
          match database::TELEGRAM_LOG_CHAT.set(log) {
-            Ok(_) => database::log_and_notify("Бот перезапущен").await,
+            Ok(_) => database::log_and_notify("Bot restarted").await,
             _ => log::info!("Something wrong with TELEGRAM_LOG_CHAT"),
          }
       } else {
