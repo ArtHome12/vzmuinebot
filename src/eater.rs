@@ -11,6 +11,7 @@ use teloxide::{
     prelude::*,
 };
 
+use chrono::{Utc};
 
 use crate::commands as cmd;
 use crate::database as db;
@@ -56,6 +57,11 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    // Отображаем приветственное сообщение и меню с кнопками.
    send_text(&cx, &s).await;
     
+   // Обновим время последнего входа в БД
+   let our_timezone = db::TIME_ZONE.get().unwrap();
+   let now = Utc::now().with_timezone(our_timezone).naive_local();
+   db::user_last_seen(cx.update.from(), now).await;
+
     // Переходим в режим получения выбранного пункта в главном меню.
     next(cmd::Dialogue::UserMode)
 }

@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use chrono::{NaiveTime, FixedOffset};
+use chrono::{NaiveTime, FixedOffset, NaiveDateTime};
 use once_cell::sync::{OnceCell};
 use text_io::try_scan;
 use teloxide::{
@@ -317,6 +317,9 @@ pub async fn hold_caterer(user_id: i32) -> bool {
    }
 }
 
+
+// Возвращает список ресторанов
+//
 pub async fn restaurant_list() -> String {
    // Выполняем запрос информации о ресторане
    let rows = DB.get().unwrap()
@@ -340,6 +343,29 @@ pub async fn restaurant_list() -> String {
         res
       }
       _ => String::default(),
+   }
+}
+
+
+// Обновляет временную отметку последнего входа пользователя
+//
+pub async fn user_last_seen(user: Option<&User>, dt: NaiveDateTime) {
+   if let Some(u) = user {
+      // Выполняем запрос на обновление
+      let query = DB.get().unwrap()
+      .execute("UPDATE users SET last_seen = $1::TIMESTAMP WHERE user_id=$2::INTEGER", &[&dt, &u.id])
+      .await;
+
+      // Если обновили 0 записей, вставим новую
+      if let Ok(num) = query {
+         // Информация о пользователе
+         let info = format!("{}{}", u.first_name, user_info_optional_part(u));
+         if num == 0 {
+            let _query = DB.get().unwrap()
+            .execute("INSERT INTO users (user_id, user_name, last_seen) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::TIMESTAMP", &[&u.id, &info, &dt])
+            .await;
+         }
+      }
    }
 }
 
@@ -481,7 +507,8 @@ pub async fn create_tables() -> bool {
                      .execute("CREATE TABLE users (
                         PRIMARY KEY (user_id),
                         user_id     INTEGER        NOT NULL,
-                        user_name   VARCHAR(100))", &[])
+                        user_name   VARCHAR(100)   NOT NULL,
+                        last_seen   TIMESTAMP      NOT NULL)", &[])
                      .await;
                      
                      match query {
@@ -568,24 +595,31 @@ pub async fn log_and_notify(text: &str) {
 }
 
 
-
 // Формирование информации о пользователе для лога
 //
+fn user_info_optional_part(user: &User) -> String {
+   // Строка для возврата результата
+   let mut s = String::default();
+
+   if let Some(last_name) = &user.last_name {
+      s.push_str(&format!(" {}", last_name));
+   }
+   if let Some(username) = &user.username {
+      s.push_str(&format!(" @{}", username));
+   }
+   if let Some(language_code) = &user.language_code {
+      s.push_str(&format!(" lang={}", language_code));
+   }
+   s
+}
+
 pub fn user_info(user: Option<&User>, detail: bool) -> String {
    if let Some(u) = user {
       let mut s = format!("{}:{}", u.id, u.first_name);
 
       // Эту информацию выводим только для полного описания
       if detail {
-         if let Some(last_name) = &u.last_name {
-            s.push_str(&format!(" {}", last_name));
-         }
-         if let Some(username) = &u.username {
-            s.push_str(&format!(" @{}", username));
-         }
-         if let Some(language_code) = &u.language_code {
-            s.push_str(&format!(" lang={}", language_code));
-         }
+         s.push_str(&user_info_optional_part(u));
       }
       s
    } else {
