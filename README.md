@@ -11,7 +11,7 @@ The person who deployed the bot is its administrator. Further:
 * he registers them in the system and restaurateurs manage their own menu
 
 # Installation
-Tested on hosting heroku.com, demo sample in telegram @Muine_vzbot
+Tested on hosting heroku.com, demo sample in telegram @Muine_vzbot - https://t.me/Muine_vzbot
 To use the algorithm with another bot, you just need to specify a token.
 
 At the first start, the algorithm creates the necessary tables on its own, but the database must already exist. The following environment variables must be set:
@@ -20,7 +20,7 @@ Connection to PostgeSQL database
 `DATABASE_URL=postgres://ciiqzyjmfs...`
 
 URL for webhook
-`HOST=vzmuinebot.herokuapp.com`
+`HOST=your_app_name.herokuapp.com`
 
 Port of your https
 `PORT=443`
@@ -48,13 +48,13 @@ Optional. To specify service chat id - you can see it after add bot to group and
 This commands should be entered only in the main (first) menu.
 * To register (or enable) a new restaurant, enter the command `/regi12345...`, where 12345 is user id of new caterer.
 * To disable restaurant `/hold12345...` 
-* To enter as owner some restaurant `/sudo123`, where 123 is the serial number (not user_id!) of the restaurant.
+* To enter as owner some restaurant `/sudo12`, where 12 is the serial number (not user_id!) of the restaurant.
 * To see the list of restaurants `/list`
 * To see id of current chat `/chat`. Bot shows your Id if you in private chat with bot or group id (negative number)
 
 This commands should be entered only in the caterer (where editing restaraunt title, info etc.) menu.
 * Transfer ownership of the restaurant to another user `/move12345...`, where 12345 is user id of new caterer.
 
-Note. This is my first experience in learning the rust programming language and in bots, so the code is not very beautiful, it contains an excessive amount of copy-paste.
+Note. This is my first experience in learning the Rust programming language and in bots, so the code is not very beautiful, and not a good example for Rust-way.
 The code is written using https://github.com/teloxide/teloxide and deployed with https://github.com/emk/heroku-buildpack-rust
 Good luck!
