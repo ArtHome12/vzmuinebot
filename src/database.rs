@@ -350,7 +350,9 @@ pub async fn restaurant_list() -> String {
 // Обновляет временную отметку последнего входа пользователя
 //
 pub async fn user_last_seen(user: Option<&User>, dt: NaiveDateTime) {
+   log("Here1").await;
    if let Some(u) = user {
+      log("Here2").await;
       // Выполняем запрос на обновление
       let query = DB.get().unwrap()
       .execute("UPDATE users SET last_seen = $1::TIMESTAMP WHERE user_id=$2::INTEGER", &[&dt, &u.id])
@@ -358,10 +360,12 @@ pub async fn user_last_seen(user: Option<&User>, dt: NaiveDateTime) {
 
       // Если обновили 0 записей, вставим новую
       if let Ok(num) = query {
-         // Информация о пользователе
-         let info = format!("{}{}", u.first_name, user_info_optional_part(u));
+         log("Here3").await;
          if num == 0 {
-            let _query = DB.get().unwrap()
+            log("Here4").await;
+            // Информация о пользователе
+            let info = format!("{}{}", u.first_name, user_info_optional_part(u));
+            let _ = DB.get().unwrap()
             .execute("INSERT INTO users (user_id, user_name, last_seen) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::TIMESTAMP", &[&u.id, &info, &dt])
             .await;
          }
