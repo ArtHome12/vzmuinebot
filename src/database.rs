@@ -365,9 +365,13 @@ pub async fn user_last_seen(user: Option<&User>, dt: NaiveDateTime) {
             log("Here4").await;
             // Информация о пользователе
             let info = format!("{}{}", u.first_name, user_info_optional_part(u));
-            let _ = DB.get().unwrap()
+            let query = DB.get().unwrap()
             .execute("INSERT INTO users (user_id, user_name, last_seen) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::TIMESTAMP", &[&u.id, &info, &dt])
             .await;
+
+            if let Err(e) = query {
+               log(&format!("Error inser last seen record for {}:{}", info, e)).await;
+            }
          }
       }
    }
