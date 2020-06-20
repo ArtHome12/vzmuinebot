@@ -14,7 +14,7 @@ use teloxide::{
    prelude::*,
    types::{User},
 };
-extern crate runtime_fmt;
+// extern crate runtime_fmt;
 
 use crate::language as lang;
 
@@ -110,8 +110,8 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
             };
 
             // Окончательный результат
-            let res = lang::t("ru", lang::Res::DatabaseRestInfo);
-            Some((rt_format!(res, title, info, id_to_category(cat_id), res), image_id))
+            // let res = lang::t("ru", lang::Res::DatabaseRestInfo);
+            Some((format!("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}", title, info, id_to_category(cat_id), res), image_id))
          } else {
             None
          }
@@ -346,7 +346,35 @@ pub async fn restaurant_list() -> String {
         }
         res
       }
-      _ => String::default(),
+      _ => String::from(lang::t("ru", lang::Res::DatabaseEmpty)),
+   }
+}
+
+
+// Возвращает список ресторанов с командой для входа
+//
+pub async fn restaurant_list_sudo() -> String {
+   // Выполняем запрос информации о ресторане
+   let rows = DB.get().unwrap()
+      .query("SELECT rest_num, user_id, title FROM restaurants ORDER BY rest_num", &[])
+      .await;
+
+   match rows {
+      Ok(data) => {
+         // Строка для возврата результата
+         let mut res = String::default();
+
+         for record in data {
+            let rest_num: i32 = record.get(0);
+            let user_id: i32 = record.get(1);
+            let title: String = record.get(2);
+            res.push_str(&format!("{} '{}' /sudo{}\n", 
+                user_id, title, rest_num
+            ));
+        }
+        res
+      }
+      _ => String::from(lang::t("ru", lang::Res::DatabaseEmpty)),
    }
 }
 
@@ -392,9 +420,9 @@ fn active_to_str(active : bool) -> &'static str {
 
 fn enabled_to_str(enabled : bool) -> &'static str {
    if enabled {
-       "разр."
+       "доступен"
    } else {
-       "блок."
+       "в бане"
    }
 }
 

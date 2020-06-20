@@ -89,20 +89,29 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                      None => 0,
                   };
 
-                  // По коду пользователя получим код ресторана, если 0 то доступ запрещён
-                  let rest_num = db::rest_num(user_id).await;
+                  // Если это администратор, то выводим для него команды sudo
+                  if db::is_admin(cx.update.from()) {
+                     // Получим список ресторанов с командой входа
+                     let sudo_list = db::restaurant_list_sudo().await;
 
-                  if rest_num > 0 {
-                     let text = format!("{} вошёл в режим ресторатора для {}", db::user_info(cx.update.from(), false), rest_num);
-                     db::log(&text).await;
-
-                     // Отображаем информацию о ресторане и переходим в режим её редактирования
-                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                     return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_num), true).await;
+                     // Отправим информацию
+                     send_text(&cx, &format!("Выберите ресторан для входа\n{}", sudo_list)).await;
                   } else {
-                     let text = format!("{} доступ в режим ресторатора запрещён", db::user_info(cx.update.from(), false));
-                     db::log(&text).await;
-                     send_text(&cx, &format!("Для доступа в режим рестораторов обратитесь к {} и сообщите свой Id={}", db::TELEGRAM_ADMIN_NAME.get().unwrap(), user_id)).await
+                     // По коду пользователя получим код ресторана, если 0 то доступ запрещён
+                     let rest_num = db::rest_num(user_id).await;
+
+                     if rest_num > 0 {
+                        let text = format!("{} вошёл в режим ресторатора для {}", db::user_info(cx.update.from(), false), rest_num);
+                        db::log(&text).await;
+
+                        // Отображаем информацию о ресторане и переходим в режим её редактирования
+                        let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                        return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_num), true).await;
+                     } else {
+                        let text = format!("{} доступ в режим ресторатора запрещён", db::user_info(cx.update.from(), false));
+                        db::log(&text).await;
+                        send_text(&cx, &format!("Для доступа в режим рестораторов обратитесь к {} и сообщите свой Id={}", db::TELEGRAM_ADMIN_NAME.get().unwrap(), user_id)).await
+                     }
                   }
                }
                cmd::User::Basket => {

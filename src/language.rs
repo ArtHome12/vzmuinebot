@@ -14,14 +14,14 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 pub enum Res {
    DatabaseEmpty, // "   пусто :("
-   DatabaseRestInfo, // "Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}"
+   // DatabaseRestInfo, // "Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}"
 }
 
 // Возвращает шаблон на нужном языке
 //
 pub fn t(_lang: &str, resource: Res) -> String {
    match resource {
-      DatabaseEmpty => String::from("   пусто :("),
-      DatabaseRestInfo => String::from("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}"),
+      Res::DatabaseEmpty => String::from("   пусто :("),
+      // DatabaseRestInfo => String::from("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}"),
    }
 }
