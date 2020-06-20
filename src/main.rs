@@ -49,8 +49,11 @@ use commands as cmd;
 async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
    let DialogueDispatcherHandlerCx { bot, update, dialogue } = cx;
 
+   // Для различения, в личку или в группу пишут
+   let chat_id = update.chat_id();
+
    // Обрабатываем команду, если она пришла в личку
-   if update.chat_id() > 0 {
+   if chat_id > 0 {
       match dialogue {
          cmd::Dialogue::Start => {
             eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), true).await
@@ -153,9 +156,13 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
          }
       } 
    } else {
-      // Если команда пришла не в личке, игнорируем её
-      let text = update.text().unwrap();
-      database::log(&format!("Команда не из лички {}", text)).await;
+      // Для сообщений не в личке обрабатываем только команду вывода id группы
+      if let Some(input) = update.text() {
+         match input.get(..5).unwrap_or_default() {
+            "/chat" => eater::send_text(&DialogueDispatcherHandlerCx::new(bot, update, ()), &format!("Chat id={}", chat_id)).await,
+            _ => (),
+         }
+      }
       exit()
    }
 }
