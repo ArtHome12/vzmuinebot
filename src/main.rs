@@ -49,108 +49,114 @@ use commands as cmd;
 async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
    let DialogueDispatcherHandlerCx { bot, update, dialogue } = cx;
 
-   // You need handle the error instead of panicking in real-world code, maybe
-   // send diagnostics to a development chat.
-   match dialogue {
-      cmd::Dialogue::Start => {
-         eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), true).await
-      }
-      cmd::Dialogue::UserMode => {
-         eater::user_mode(DialogueDispatcherHandlerCx::new(bot, update, ())).await
-      }
-      cmd::Dialogue::CatererMode(rest_id) => {
-         caterer::caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
-               .await
-      }
-      cmd::Dialogue::CatEditRestTitle(rest_id) => {
-         caterer::edit_rest_title_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
-               .await
-      }
-      cmd::Dialogue::CatEditRestInfo(rest_id) => {
-         caterer::edit_rest_info_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
-               .await
-      }
-      cmd::Dialogue::CatEditRestImage(rest_id) => {
-         caterer::edit_rest_image_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
-               .await
-      }
-      cmd::Dialogue::CatEditGroup(rest_id, s) => {
-         cat_group::edit_rest_group_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, s)))
-               .await
-      }
-      cmd::Dialogue::CatAddGroup(rest_id) => {
-         caterer::add_rest_group(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
-               .await
-      }
-      cmd::Dialogue::CatEditGroupTitle(rest_id, group_id) => {
-         cat_group::edit_title_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
-               .await
-      }
-      cmd::Dialogue::CatEditGroupInfo(rest_id, group_id) => {
-         cat_group::edit_info_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
-               .await
-      }
-      cmd::Dialogue::CatEditGroupCategory(rest_id, group_id) => {
-         cat_group::edit_category_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
-               .await
-      }
-      cmd::Dialogue::CatEditGroupTime(rest_id, group_id) => {
-         cat_group::edit_time_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
-               .await
-      }
-      cmd::Dialogue::CatAddDish(rest_id, group_id) => {
-         cat_group::add_dish_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
-               .await
-      }
-      cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id) => {
-         dish::edit_dish_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
-               .await
-      }
-      cmd::Dialogue::CatEditDishTitle(rest_id, group_id, dish_id) => {
-         dish::edit_title_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
-               .await
-      }
-      cmd::Dialogue::CatEditDishInfo(rest_id, group_id, dish_id) => {
-         dish::edit_info_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
-               .await
-      }
-      cmd::Dialogue::CatEditDishGroup(rest_id, group_id, dish_id) => {
-         dish::edit_dish_group_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
-               .await
-      }
-      cmd::Dialogue::CatEditDishPrice(rest_id, group_id, dish_id) => {
-         dish::edit_price_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
-               .await
-      }
-      cmd::Dialogue::CatEditDishImage(rest_id, group_id, dish_id) => {
-         dish::edit_image_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
-               .await
-      }
+   // Обрабатываем команду, если она пришла в личку
+   if update.chat_id() > 0 {
+      match dialogue {
+         cmd::Dialogue::Start => {
+            eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), true).await
+         }
+         cmd::Dialogue::UserMode => {
+            eater::user_mode(DialogueDispatcherHandlerCx::new(bot, update, ())).await
+         }
+         cmd::Dialogue::CatererMode(rest_id) => {
+            caterer::caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+                  .await
+         }
+         cmd::Dialogue::CatEditRestTitle(rest_id) => {
+            caterer::edit_rest_title_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+                  .await
+         }
+         cmd::Dialogue::CatEditRestInfo(rest_id) => {
+            caterer::edit_rest_info_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+                  .await
+         }
+         cmd::Dialogue::CatEditRestImage(rest_id) => {
+            caterer::edit_rest_image_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+                  .await
+         }
+         cmd::Dialogue::CatEditGroup(rest_id, s) => {
+            cat_group::edit_rest_group_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, s)))
+                  .await
+         }
+         cmd::Dialogue::CatAddGroup(rest_id) => {
+            caterer::add_rest_group(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+                  .await
+         }
+         cmd::Dialogue::CatEditGroupTitle(rest_id, group_id) => {
+            cat_group::edit_title_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
+                  .await
+         }
+         cmd::Dialogue::CatEditGroupInfo(rest_id, group_id) => {
+            cat_group::edit_info_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
+                  .await
+         }
+         cmd::Dialogue::CatEditGroupCategory(rest_id, group_id) => {
+            cat_group::edit_category_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
+                  .await
+         }
+         cmd::Dialogue::CatEditGroupTime(rest_id, group_id) => {
+            cat_group::edit_time_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
+                  .await
+         }
+         cmd::Dialogue::CatAddDish(rest_id, group_id) => {
+            cat_group::add_dish_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
+                  .await
+         }
+         cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id) => {
+            dish::edit_dish_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
+                  .await
+         }
+         cmd::Dialogue::CatEditDishTitle(rest_id, group_id, dish_id) => {
+            dish::edit_title_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
+                  .await
+         }
+         cmd::Dialogue::CatEditDishInfo(rest_id, group_id, dish_id) => {
+            dish::edit_info_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
+                  .await
+         }
+         cmd::Dialogue::CatEditDishGroup(rest_id, group_id, dish_id) => {
+            dish::edit_dish_group_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
+                  .await
+         }
+         cmd::Dialogue::CatEditDishPrice(rest_id, group_id, dish_id) => {
+            dish::edit_price_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
+                  .await
+         }
+         cmd::Dialogue::CatEditDishImage(rest_id, group_id, dish_id) => {
+            dish::edit_image_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
+                  .await
+         }
 
-      cmd::Dialogue::EatRestSelectionMode(cat_id) => {
-         eat_rest::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, cat_id))
-               .await
-      }
-      cmd::Dialogue::EatRestGroupSelectionMode(cat_id, rest_id) => {
-         eat_group::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id)))
-               .await
-      }
-      cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id) => {
-         eat_dish::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)))
-               .await
-      }
-      cmd::Dialogue::EatRestNowSelectionMode => {
-         eat_rest_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
-               .await
-      }
-      cmd::Dialogue::EatRestGroupNowSelectionMode(rest_id) => {
-         eat_group_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
-               .await
-      }
-      cmd::Dialogue::BasketMode(user_id) => {
-         basket::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
-               .await
-      }
+         cmd::Dialogue::EatRestSelectionMode(cat_id) => {
+            eat_rest::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, cat_id))
+                  .await
+         }
+         cmd::Dialogue::EatRestGroupSelectionMode(cat_id, rest_id) => {
+            eat_group::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id)))
+                  .await
+         }
+         cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id) => {
+            eat_dish::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)))
+                  .await
+         }
+         cmd::Dialogue::EatRestNowSelectionMode => {
+            eat_rest_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
+                  .await
+         }
+         cmd::Dialogue::EatRestGroupNowSelectionMode(rest_id) => {
+            eat_group_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+                  .await
+         }
+         cmd::Dialogue::BasketMode(user_id) => {
+            basket::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
+                  .await
+         }
+      } 
+   } else {
+      // Если команда пришла не в личке, игнорируем её
+      let text = update.text().unwrap();
+      database::log(&format!("Команда не из лички {}", text)).await;
+      exit()
    }
 }
 
