@@ -311,12 +311,12 @@ async fn run() {
       .parse()
       .expect("TELEGRAM_ADMIN_ID value to be integer");
 
-   let admin_id2 = if let Ok(env_var) = env::var("TELEGRAM_ADMIN_ID1") {
+   let admin_id2 = if let Ok(env_var) = env::var("TELEGRAM_ADMIN_ID2") {
       env_var.parse::<i32>().unwrap_or_default()
    } else {
       0
    };
-   let admin_id3 = if let Ok(env_var) = env::var("TELEGRAM_ADMIN_ID1") {
+   let admin_id3 = if let Ok(env_var) = env::var("TELEGRAM_ADMIN_ID3") {
       env_var.parse::<i32>().unwrap_or_default()
    } else {
       0
