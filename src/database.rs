@@ -210,7 +210,7 @@ pub async fn restaurant_by_now_from_db(time: NaiveTime) -> String {
    let rows = DB.get().unwrap()
       .query("SELECT DISTINCT r.title, r.rest_num FROM restaurants AS r INNER JOIN groups g ON r.rest_num = g.rest_num 
       WHERE r.active = TRUE AND g.active = TRUE AND
-      ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)", &[&time, &time])
+      ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)", &[&time])
       .await;
 
    // Строка для возврата результата
