@@ -69,7 +69,7 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
 
 pub async fn user_mode(cx: cmd::Cx<bool>) -> cmd::Res {
    // Режим интерфейса
-   let compact_mode = cx.dialogue;
+   let mut compact_mode = cx.dialogue;
 
    // Разбираем команду.
    match cx.update.text() {
@@ -89,8 +89,9 @@ pub async fn user_mode(cx: cmd::Cx<bool>) -> cmd::Res {
             cmd::User::ToggleInterface => {
                // Переключим настройку интерфейса
                db::user_toggle_interface(cx.update.from()).await;
+               compact_mode = !compact_mode;
                let s = db::interface_mode(compact_mode);
-               send_text(&cx, &format!("Режим интерфейса изменён на {} (пояснение - режим с кнопками может быть удобнее, а со ссылками экономнее к трафику)", s)).await
+               send_text(&cx, &format!("Режим интерфейса изменён на '{}' (пояснение - режим с кнопками может быть удобнее, а со ссылками экономнее к трафику)", s)).await
             }
             cmd::User::CatererMode => {
                // Код пользователя
