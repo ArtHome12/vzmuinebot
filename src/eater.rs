@@ -79,7 +79,7 @@ pub async fn user_mode(cx: cmd::Cx<bool>) -> cmd::Res {
             cmd::User::Category(cat_id) => {
                // Отобразим все рестораны, у которых есть в меню выбранная категория и переходим в режим выбора ресторана
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               return eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, cat_id)).await;
+               return eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id))).await;
             }
             cmd::User::OpenedNow => {
                // Отобразим рестораны, открытые сейчас и перейдём в режим их выбора

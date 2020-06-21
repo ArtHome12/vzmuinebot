@@ -21,9 +21,9 @@ use crate::basket;
 
 // Основную информацию режима
 //
-pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
+pub async fn next_with_info(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
    // Извлечём параметры
-   let (cat_id, rest_id, group_id) = cx.dialogue;
+   let (compact_mode, cat_id, rest_id, group_id) = cx.dialogue;
    
    // Получаем информацию из БД
    let group_list = match db::dishes_by_restaurant_and_group_from_db(rest_id, group_id).await {
@@ -39,11 +39,11 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
    .await?;
 
    // Переходим (остаёмся) в режим выбора ресторана
-   next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
+   next(cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_id, group_id))
 }
 
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
-async fn next_with_cancel(cx: cmd::Cx<(i32, i32, i32)>, text: &str) -> cmd::Res {
+async fn next_with_cancel(cx: cmd::Cx<(bool, i32, i32, i32)>, text: &str) -> cmd::Res {
    cx.answer(text)
    .reply_markup(cmd::EaterDish::markup())
    .disable_notification(true)
@@ -51,19 +51,19 @@ async fn next_with_cancel(cx: cmd::Cx<(i32, i32, i32)>, text: &str) -> cmd::Res 
    .await?;
 
    // Извлечём параметры
-   let (cat_id, rest_id, group_id) = cx.dialogue;
+   let (compact_mode, cat_id, rest_id, group_id) = cx.dialogue;
 
    // Остаёмся в прежнем режиме.
-   next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
+   next(cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_id, group_id))
 }
 
 
 
 // Обработчик команд
 //
-pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
+pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
    // Извлечём параметры
-   let (cat_id, rest_id, group_id) = cx.dialogue;
+   let (compact_mode, cat_id, rest_id, group_id) = cx.dialogue;
 
    // Разбираем команду.
    match cx.update.text() {
@@ -95,9 +95,9 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 
                // Попасть сюда могли двумя путями и это видно по коду категории
                if cat_id > 0 {
-                  eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id))).await
+                  eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id))).await
                } else {
-                  eat_group_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id)).await
+                  eat_group_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, rest_id))).await
                }
             }
 
@@ -131,7 +131,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                   .send()
                   .await?;
                   
-                  next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
+                  next(cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_id, group_id))
                } else {
                   cx.answer(info)
                   .reply_markup(inline_keyboard)
@@ -139,13 +139,13 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                   .send()
                   .await?;
 
-                  next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
+                  next(cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_id, group_id))
                }
             }
 
             cmd::EaterDish::UnknownCommand => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)), "Вы в меню выбора блюда: неизвестная команда").await
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id, group_id)), "Вы в меню выбора блюда: неизвестная команда").await
             }
          }
       }

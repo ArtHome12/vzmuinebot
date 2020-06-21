@@ -19,9 +19,9 @@ use crate::basket;
 
 // Показывает список ресторанов с группами заданной категории
 //
-pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
+pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    // Извлечём параметры
-   let cat_id = cx.dialogue;
+   let (compact_mode, cat_id) = cx.dialogue;
    
    // Получаем информацию из БД
    let rest_list = db::restaurant_by_category_from_db(cat_id).await;
@@ -34,11 +34,11 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    .await?;
 
    // Переходим (остаёмся) в режим выбора ресторана
-   next(cmd::Dialogue::EatRestSelectionMode(cat_id))
+   next(cmd::Dialogue::EatRestSelectionMode(compact_mode, cat_id))
 }
 
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
-async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
+async fn next_with_cancel(cx: cmd::Cx<(bool, i32)>, text: &str) -> cmd::Res {
    cx.answer(text)
    .reply_markup(cmd::EaterRest::markup())
    .disable_notification(true)
@@ -46,19 +46,18 @@ async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
    .await?;
 
    // Код категории
-   let cat_id = cx.dialogue;
+   let (compact_mode, cat_id) = cx.dialogue;
 
    // Остаёмся в прежнем режиме.
-   next(cmd::Dialogue::EatRestSelectionMode(cat_id))
+   next(cmd::Dialogue::EatRestSelectionMode(compact_mode, cat_id))
 }
-
 
 
 // Обработчик команд
 //
-pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
+pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    // Код категории
-   let cat_id = cx.dialogue;
+   let (compact_mode, cat_id) = cx.dialogue;
 
    // Разбираем команду.
    match cx.update.text() {
@@ -66,7 +65,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
          next_with_cancel(cx, "Текстовое сообщение, пожалуйста!").await
       }
       Some(command) => {
-         match cmd::EaterRest::from(command) {
+         match cmd::EaterRest::from(compact_mode, command) {
             // В корзину
             cmd::EaterRest::Basket => {
                // Код едока
@@ -84,14 +83,14 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             }
 
             // Выбор ресторана
-            cmd::EaterRest::Restaurant(rest_id) => {
+            cmd::EaterRest::Restaurant(compact_mode, rest_id) => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id))).await
+               eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id))).await
             }
 
             cmd::EaterRest::UnknownCommand => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, cat_id), "Вы в меню выбора ресторана: неизвестная команда").await
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id)), "Вы в меню выбора ресторана: неизвестная команда").await
             }
          }
       }

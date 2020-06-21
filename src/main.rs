@@ -130,24 +130,24 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
                   .await
          }
 
-         cmd::Dialogue::EatRestSelectionMode(cat_id) => {
-            eat_rest::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, cat_id))
+         cmd::Dialogue::EatRestSelectionMode(compact_mode, cat_id) => {
+            eat_rest::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id)))
                   .await
          }
-         cmd::Dialogue::EatRestGroupSelectionMode(cat_id, rest_id) => {
-            eat_group::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id)))
+         cmd::Dialogue::EatRestGroupSelectionMode(compact_mode, cat_id, rest_id) => {
+            eat_group::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id)))
                   .await
          }
-         cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id) => {
-            eat_dish::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)))
+         cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_id, group_id) => {
+            eat_dish::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id, group_id)))
                   .await
          }
          cmd::Dialogue::EatRestNowSelectionMode => {
-            eat_rest_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, ()))
+            eat_rest_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, compact_mode))
                   .await
          }
-         cmd::Dialogue::EatRestGroupNowSelectionMode(rest_id) => {
-            eat_group_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+         cmd::Dialogue::EatRestGroupNowSelectionMode(compact_mode, rest_id) => {
+            eat_group_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, rest_id)))
                   .await
          }
          cmd::Dialogue::BasketMode(user_id) => {

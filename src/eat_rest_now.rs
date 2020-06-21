@@ -40,7 +40,7 @@ pub async fn next_with_info(cx: cmd::Cx<()>) -> cmd::Res {
 }
 
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
-async fn next_with_cancel(cx: cmd::Cx<()>, text: &str) -> cmd::Res {
+async fn next_with_cancel(cx: cmd::Cx<bool>, text: &str) -> cmd::Res {
    cx.answer(text)
    .reply_markup(cmd::EaterRest::markup())
    .disable_notification(true)
@@ -55,14 +55,17 @@ async fn next_with_cancel(cx: cmd::Cx<()>, text: &str) -> cmd::Res {
 
 // Обработчик команд
 //
-pub async fn handle_selection_mode(cx: cmd::Cx<()>) -> cmd::Res {
+pub async fn handle_selection_mode(cx: cmd::Cx<bool>) -> cmd::Res {
+   // Режим меню
+   let compact_mode = cx.dialogue;
+
    // Разбираем команду.
    match cx.update.text() {
       None => {
          next_with_cancel(cx, "Текстовое сообщение, пожалуйста!").await
       }
       Some(command) => {
-         match cmd::EaterRest::from(command) {
+         match cmd::EaterRest::from(compact_mode, command) {
             // В корзину
             cmd::EaterRest::Basket => {
                // Код едока
@@ -80,14 +83,14 @@ pub async fn handle_selection_mode(cx: cmd::Cx<()>) -> cmd::Res {
             }
 
             // Выбор ресторана
-            cmd::EaterRest::Restaurant(rest_id) => {
+            cmd::EaterRest::Restaurant(compact_mode, rest_id) => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               eat_group_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id)).await
+               eat_group_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, rest_id))).await
             }
 
             cmd::EaterRest::UnknownCommand => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, ()), "Вы в меню выбора ресторана: неизвестная команда").await
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, compact_mode), "Вы в меню выбора ресторана: неизвестная команда").await
             }
          }
       }
