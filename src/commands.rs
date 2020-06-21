@@ -21,7 +21,7 @@ use crate::database as db;
 pub enum Dialogue {
     #[default]
     Start,
-    UserMode,
+    UserMode(bool), // compact_mode
     EatRestSelectionMode(i32), // cat_id
     EatRestGroupSelectionMode(i32, i32), // cat_id, rest_id
     EatRestGroupDishSelectionMode(i32, i32, i32), // cat_id, rest_id, group_id

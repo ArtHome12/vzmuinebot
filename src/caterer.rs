@@ -30,7 +30,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
    
    
    // Код ресторана
-    let rest_id = cx.dialogue;
+   let rest_id = cx.dialogue;
 
    // Получаем информацию о ресторане из БД
    let (info, image_id) = match db::rest_info(rest_id).await {

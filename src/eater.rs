@@ -22,7 +22,7 @@ use crate::basket;
 
 // Отправляет текстовое сообщение
 //
-pub async fn send_text(cx: &cmd::Cx<()>, text: &str) {
+pub async fn send_text(cx: &cmd::Cx<bool>, text: &str) {
    let res = cx.answer(text)
    .reply_markup(cmd::User::main_menu_markup())
    .disable_notification(true)
@@ -60,13 +60,17 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    let is_compact = db::user_compact_interface(cx.update.from(), now).await;
 
    // Отображаем приветственное сообщение и меню с кнопками.
-   send_text(&cx, &format!("{}\nРежим интерфейса: {} /toggle", s, db::interface_mode(is_compact))).await;
+   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+   send_text(&DialogueDispatcherHandlerCx::new(bot, update, is_compact), &format!("{}\nРежим интерфейса: {} /toggle", s, db::interface_mode(is_compact))).await;
     
     // Переходим в режим получения выбранного пункта в главном меню.
-    next(cmd::Dialogue::UserMode)
+    next(cmd::Dialogue::UserMode(is_compact))
 }
 
-pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
+pub async fn user_mode(cx: cmd::Cx<bool>) -> cmd::Res {
+   // Режим интерфейса
+   let compact_mode = cx.dialogue;
+
    // Разбираем команду.
    match cx.update.text() {
       None => send_text(&cx, "Текстовое сообщение, пожалуйста!").await,
@@ -85,7 +89,8 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
             cmd::User::ToggleInterface => {
                // Переключим настройку интерфейса
                db::user_toggle_interface(cx.update.from()).await;
-               send_text(&cx, &format!("Режим интерфейса изменён (режим с кнопками может быть удобнее, а со ссылками экономнее к трафику)")).await
+               let s = db::interface_mode(compact_mode);
+               send_text(&cx, &format!("Режим интерфейса изменён на {} (пояснение - режим с кнопками может быть удобнее, а со ссылками экономнее к трафику)", s)).await
             }
             cmd::User::CatererMode => {
                // Код пользователя
@@ -175,6 +180,6 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
    }
 
    // Остаёмся в пользовательском режиме.
-   next(cmd::Dialogue::UserMode)
+   next(cmd::Dialogue::UserMode(compact_mode))
 }
 

@@ -58,8 +58,8 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
          cmd::Dialogue::Start => {
             eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), true).await
          }
-         cmd::Dialogue::UserMode => {
-            eater::user_mode(DialogueDispatcherHandlerCx::new(bot, update, ())).await
+         cmd::Dialogue::UserMode(compact_mode) => {
+            eater::user_mode(DialogueDispatcherHandlerCx::new(bot, update, compact_mode)).await
          }
          cmd::Dialogue::CatererMode(rest_id) => {
             caterer::caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
@@ -159,7 +159,7 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
       // Для сообщений не в личке обрабатываем только команду вывода id группы
       if let Some(input) = update.text() {
          match input.get(..5).unwrap_or_default() {
-            "/chat" => eater::send_text(&DialogueDispatcherHandlerCx::new(bot, update, ()), &format!("Chat id={}", chat_id)).await,
+            "/chat" => eater::send_text(&DialogueDispatcherHandlerCx::new(bot, update, false), &format!("Chat id={}", chat_id)).await,
             _ => (),
          }
       }
