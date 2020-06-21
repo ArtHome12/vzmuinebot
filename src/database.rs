@@ -389,9 +389,9 @@ pub async fn restaurant_list_sudo() -> String {
 }
 
 
-// Обновляет временную отметку последнего входа пользователя
+// Возвращает настройку пользователя и временную отметку последнего входа
 //
-pub async fn user_last_seen(user: Option<&User>, dt: NaiveDateTime) {
+pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> bool {
    if let Some(u) = user {
       // Выполняем запрос на обновление
       let query = DB.get().unwrap()
@@ -404,15 +404,32 @@ pub async fn user_last_seen(user: Option<&User>, dt: NaiveDateTime) {
             // Информация о пользователе
             let info = format!("{}{}", u.first_name, user_info_optional_part(u));
             let query = DB.get().unwrap()
-            .execute("INSERT INTO users (user_id, user_name, last_seen) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::TIMESTAMP)", &[&u.id, &info, &dt])
+            .execute("INSERT INTO users (user_id, user_name, last_seen, compact) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::TIMESTAMP, FALSE)", &[&u.id, &info, &dt])
             .await;
 
             if let Err(e) = query {
                log(&format!("Error insert last seen record for {}\n{}", info, e)).await;
             }
+         } else {
+            // Раз обновление было успешным, прочитаем настройку
+            let rows = DB.get().unwrap()
+            .query("SELECT compact FROM restaurants WHERE user_id=$1::INTEGER", &[&u.id])
+            .await;
+      
+            match rows {
+               Ok(data) => {
+                  if !data.is_empty() {
+                     return data[0].get(0);
+                  }
+               }
+               Err(e) => log(&format!("Error reading interface settings: {}", e)).await,
+            }
          }
       }
    }
+         
+   // Возвращаем значение по-умолчанию
+   false
 }
 
 // ============================================================================
@@ -472,6 +489,16 @@ pub fn category_to_id(category: &str) -> i32 {
       "Алкоголь" => 3,
       "Развлечения" => 4,
       _ => 0,
+   }
+}
+
+// Режим интерфейса
+//
+pub fn interface_mode(is_compact: bool) -> String {
+   if is_compact {
+      String::from("со ссылками")
+   } else {
+      String::from("с кнопками")
    }
 }
 
@@ -558,7 +585,8 @@ pub async fn create_tables() -> bool {
                         PRIMARY KEY (user_id),
                         user_id     INTEGER        NOT NULL,
                         user_name   VARCHAR(100)   NOT NULL,
-                        last_seen   TIMESTAMP      NOT NULL)", &[])
+                        last_seen   TIMESTAMP      NOT NULL,
+                        compact     BOOLEAN        NOT NULL)", &[])
                      .await;
                      
                      match query {

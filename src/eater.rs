@@ -54,14 +54,14 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
       String::from("Пожалуйста, выберите в основном меню снизу какие заведения показать.")
    };
    
-   // Отображаем приветственное сообщение и меню с кнопками.
-   send_text(&cx, &s).await;
-    
-   // Обновим время последнего входа в БД
+   // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
    let our_timezone = db::TIME_ZONE.get().unwrap();
    let now = Utc::now().with_timezone(our_timezone).naive_local();
-   db::user_last_seen(cx.update.from(), now).await;
+   let is_compact = db::user_compact_interface(cx.update.from(), now).await;
 
+   // Отображаем приветственное сообщение и меню с кнопками.
+   send_text(&cx, &format!("{}\nРежим интерфейса: {} /toggle", s, db::interface_mode(is_compact))).await;
+    
     // Переходим в режим получения выбранного пункта в главном меню.
     next(cmd::Dialogue::UserMode)
 }
