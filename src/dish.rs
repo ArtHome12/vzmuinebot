@@ -114,7 +114,7 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                cmd::CatDish::EditInfo(rest_id, group_id, dish_id) => {
 
                   // Отправляем приглашение ввести строку со слешем в меню для отмены
-                  cx.answer(format!("Введите пояснения для блюда"))
+                  cx.answer(format!("Введите пояснения для блюда (пояснения короче 3 символов клиентам показываться не будут)"))
                   .reply_markup(cmd::Caterer::slash_markup())
                   .disable_notification(true)
                   .send()

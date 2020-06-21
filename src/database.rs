@@ -186,7 +186,15 @@ pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Op
               let info: String = data[0].get(1);
               let price: i32 = data[0].get(2);
               let image_id: Option<String> = data[0].get(3);
-              Some((String::from(format!("Название: {}\nИнформация: {}\nЦена: {}", title, info, price_with_unit(price))), image_id))
+              
+              // Если описание слишком короткое, не выводим его
+              let info_str = if info.len() < 3 {
+                 String::default()
+              } else {
+                 format!("Информация: {}\n", info)
+              };
+              
+              Some((String::from(format!("Название: {}\n{}Цена: {}", title, info_str, price_with_unit(price))), image_id))
           } else {
             None
           }
