@@ -299,20 +299,31 @@ async fn run() {
    }
 
    // Учётные данные админа бота - контактное имя
-   let admin_name = env::var("TELEGRAM_ADMIN_NAME").expect("TELEGRAM_ADMIN_NAME env variable missing");
-   match database::TELEGRAM_ADMIN_NAME.set(admin_name) {
-      Ok(_) => log::info!("admin name is {}", database::TELEGRAM_ADMIN_NAME.get().unwrap()),
+   let admin_name = env::var("CONTACT_INFO").expect("CONTACT_INFO env variable missing");
+   match database::CONTACT_INFO.set(admin_name) {
+      Ok(_) => log::info!("admin name is {}", database::CONTACT_INFO.get().unwrap()),
       _ => log::info!("Something wrong with admin name"),
    }
 
-   // Учётные данные админа бота - user id
-   let admin_id: i32 = env::var("TELEGRAM_ADMIN_ID")
-      .expect("TELEGRAM_ADMIN_ID env variable missing")
+   // Учётные данные админа бота до трёх человек - user id
+   let admin_id1: i32 = env::var("TELEGRAM_ADMIN_ID1")
+      .expect("TELEGRAM_ADMIN_ID1 env variable missing")
       .parse()
       .expect("TELEGRAM_ADMIN_ID value to be integer");
-   match database::TELEGRAM_ADMIN_ID.set(admin_id) {
-      Ok(_) => log::info!("admin id is {}", *database::TELEGRAM_ADMIN_ID.get().unwrap()),
-      _ => log::info!("Something wrong with admin id"),
+
+   let admin_id2 = if let Ok(env_var) = env::var("TELEGRAM_ADMIN_ID1") {
+      env_var.parse::<i32>().unwrap_or_default()
+   } else {
+      0
+   };
+   let admin_id3 = if let Ok(env_var) = env::var("TELEGRAM_ADMIN_ID1") {
+      env_var.parse::<i32>().unwrap_or_default()
+   } else {
+      0
+   };
+   match database::TELEGRAM_ADMIN_ID.set((admin_id1, admin_id2, admin_id3)) {
+      Ok(_) => log::info!("admins id is {}, {}, {}", admin_id1, admin_id2, admin_id3),
+      _ => log::info!("Something wrong with admins id"),
    }
 
    // Единица измерения цены

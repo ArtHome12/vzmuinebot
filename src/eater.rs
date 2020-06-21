@@ -110,7 +110,7 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                   } else {
                      let text = format!("{} доступ в режим ресторатора запрещён", db::user_info(cx.update.from(), false));
                      db::log(&text).await;
-                     send_text(&cx, &format!("Для доступа в режим рестораторов обратитесь к {} и сообщите свой Id={}", db::TELEGRAM_ADMIN_NAME.get().unwrap(), user_id)).await
+                     send_text(&cx, &format!("Для доступа в режим рестораторов обратитесь к {} и сообщите свой Id={}", db::CONTACT_INFO.get().unwrap(), user_id)).await
                   }
                }
             }

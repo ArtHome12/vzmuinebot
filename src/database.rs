@@ -22,8 +22,8 @@ use crate::language as lang;
 pub static DB: OnceCell<tokio_postgres::Client> = OnceCell::new();
 
 // Телеграм ник администратора бота для связи
-pub static TELEGRAM_ADMIN_NAME: OnceCell<String> = OnceCell::new();
-pub static TELEGRAM_ADMIN_ID: OnceCell<i32> = OnceCell::new();
+pub static CONTACT_INFO: OnceCell<String> = OnceCell::new();
+pub static TELEGRAM_ADMIN_ID: OnceCell<(i32, i32, i32)> = OnceCell::new();
 
 // Телеграм ник группы для вывода лога
 pub static TELEGRAM_LOG_CHAT: OnceCell<ServiceChat> = OnceCell::new();
@@ -469,7 +469,11 @@ pub fn category_to_id(category: &str) -> i32 {
 //
 pub fn is_admin(user_id: Option<&teloxide::types::User>) -> bool {
    match user_id { 
-      Some(user) => user.id == *TELEGRAM_ADMIN_ID.get().unwrap(),
+      Some(user) => {
+         let (admin1, admin2, admin3) = *TELEGRAM_ADMIN_ID.get().unwrap();
+         let test = user.id;
+         test == admin1 || test == admin2 || test == admin3
+      }
       None => false,
    }
 }
