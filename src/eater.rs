@@ -82,6 +82,11 @@ pub async fn user_mode(cx: cmd::Cx<()>) -> cmd::Res {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                return eat_rest_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, ())).await;
             }
+            cmd::User::ToggleInterface => {
+               // Переключим настройку интерфейса
+               db::user_toggle_interface(cx.update.from()).await;
+               send_text(&cx, &format!("Режим интерфейса изменён (режим с кнопками может быть удобнее, а со ссылками экономнее к трафику)")).await
+            }
             cmd::User::CatererMode => {
                // Код пользователя
                let user_id: i32 = match cx.update.from() {

@@ -63,6 +63,7 @@ pub enum User {
     Basket,
     CatererMode, 
     UnknownCommand,
+    ToggleInterface,
     RegisterCaterer(i32), // user_id
     HoldCaterer(i32), // user_id
     Sudo(i32), // rest_num
@@ -81,6 +82,7 @@ impl User {
          "Сейчас" => User::OpenedNow,
          "🛒Корзина" => User::Basket,
          "Добавить" => User::CatererMode,
+         "/toggle" => User::ToggleInterface,
          "/list" => User::List,
          _ => {
             // Ищем среди команд с цифровыми суффиксами - аргументами

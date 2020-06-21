@@ -413,7 +413,7 @@ pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> b
          } else {
             // Раз обновление было успешным, прочитаем настройку
             let rows = DB.get().unwrap()
-            .query("SELECT compact FROM restaurants WHERE user_id=$1::INTEGER", &[&u.id])
+            .query("SELECT compact FROM users WHERE user_id=$1::INTEGER", &[&u.id])
             .await;
       
             match rows {
@@ -430,6 +430,21 @@ pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> b
          
    // Возвращаем значение по-умолчанию
    false
+}
+
+// Переключает режим интерфейса
+//
+pub async fn user_toggle_interface(user: Option<&User>) {
+   if let Some(u) = user {
+      let query = DB.get().unwrap()
+      .execute("UPDATE users SET compact = NOT compact WHERE user_id=$1::INTEGER", &[&u.id])
+      .await;
+
+      // Если произошл ошибка, сообщим о ней
+      if let Err(e) = query {
+         log(&format!("Error toggle interface settings: {}", e)).await;
+      }
+   }
 }
 
 // ============================================================================
