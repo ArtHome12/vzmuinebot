@@ -192,6 +192,22 @@ pub async fn remove_slash(s: &str) -> String {
     s.replace("/", "")
 }
 
+// Отправляет текстовое сообщение
+//
+pub async fn send_text(cx: &Cx<bool>, text: &str, markup: ReplyKeyboardMarkup) {
+   let res = cx.answer(text)
+   .reply_markup(markup)
+   .disable_notification(true)
+   .disable_web_page_preview(true)
+   .send()
+   .await;
+
+   // Если не удалось отправить, выведем ошибку в лог
+   if let Err(err) = res {
+      log::info!("Error send_text({}): {}", text, err);
+   }
+}
+
 
 // ============================================================================
 // [Restaurant group editing menu]

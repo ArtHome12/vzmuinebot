@@ -29,34 +29,36 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    // Получаем информацию из БД
    let rest_list: HashMap<i32, String> = db::restaurant_by_category_from_db(cat_id).await;
 
-   // Выводим информацию либо ссылками, либо инлайн кнопками
-   if compact_mode {
-      // Сформируем строку вида "название /ссылка\n"
-      let s: String = if rest_list.is_empty() {
-         String::from(lang::t("ru", lang::Res::EatRestEmpty))
-      } else {
-         rest_list.into_iter().map(|(rest_num, title)| (format!("   {} /rest{}\n", title, rest_num))).collect()
-      };
-      
-      // Отображаем информацию и кнопки меню
-      let res = cx.answer(format!("Рестораны с подходящим меню:\n{}", s))
-      .reply_markup(cmd::EaterRest::markup())
-      .disable_notification(true)
-      .send()
-      .await;
+   // Если там пусто, то сообщим об этом
+   if rest_list.is_empty() {
+      let s = String::from(lang::t("ru", lang::Res::EatRestEmpty));
+      let s = format!("Рестораны с подходящим меню:\n{}", s);
+      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+      cmd::send_text(&DialogueDispatcherHandlerCx::new(bot, update, compact_mode), &s, cmd::User::main_menu_markup()).await;
 
-      if let Err(e) = res {
-         log::info!("Error eat_rest::next_with_info() compact: {}", e);
-      }
    } else {
-      let res = cx.answer(format!("Рестораны с подходящим меню:\nРежим 'с кнопками' находится в разработке"))
-      .reply_markup(cmd::EaterRest::markup())
-      .disable_notification(true)
-      .send()
-      .await;
 
-      if let Err(e) = res {
-         log::info!("Error eat_rest::next_with_info() with buttons: {}", e);
+      // Выводим информацию либо ссылками, либо инлайн кнопками
+      if compact_mode {
+         // Сформируем строку вида "название /ссылка\n"
+         let s: String = if rest_list.is_empty() {
+            String::from(lang::t("ru", lang::Res::EatRestEmpty))
+         } else {
+            rest_list.into_iter().map(|(rest_num, title)| (format!("   {} /rest{}\n", title, rest_num))).collect()
+         };
+         
+         // Отображаем информацию и кнопки меню
+         let s = format!("Рестораны с подходящим меню:\n{}", s);
+         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+         cmd::send_text(&DialogueDispatcherHandlerCx::new(bot, update, compact_mode), &s, cmd::User::main_menu_markup()).await;
+   
+      } else {
+         // Создадим кнопки под рестораны
+         // let buttons: InlineKeyboardButton = 
+
+         let s = String::from("Рестораны с подходящим меню:\nРежим 'с кнопками' находится в разработке");
+         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+         cmd::send_text(&DialogueDispatcherHandlerCx::new(bot, update, compact_mode), &s, cmd::User::main_menu_markup()).await;
       }
    }
 
