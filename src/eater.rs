@@ -84,7 +84,7 @@ pub async fn user_mode(cx: cmd::Cx<bool>) -> cmd::Res {
             cmd::User::OpenedNow => {
                // Отобразим рестораны, открытые сейчас и перейдём в режим их выбора
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               return eat_rest_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, ())).await;
+               return eat_rest_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, compact_mode)).await;
             }
             cmd::User::ToggleInterface => {
                // Переключим настройку интерфейса

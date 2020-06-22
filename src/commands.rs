@@ -25,7 +25,7 @@ pub enum Dialogue {
     EatRestSelectionMode(bool, i32), // compact_mode, cat_id
     EatRestGroupSelectionMode(bool, i32, i32), // compact_mode, cat_id, rest_id
     EatRestGroupDishSelectionMode(bool, i32, i32, i32), // compact_mode, cat_id, rest_id, group_id
-    EatRestNowSelectionMode,
+    EatRestNowSelectionMode(bool), // compact_mode, 
     EatRestGroupNowSelectionMode(bool, i32), // compact_mode, rest_id
     CatererMode(i32), // rest_id
     CatEditRestTitle(i32), // rest_id

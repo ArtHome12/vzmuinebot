@@ -20,7 +20,10 @@ use crate::basket;
 
 // Показывает список ресторанов с группами заданной категории
 //
-pub async fn next_with_info(cx: cmd::Cx<()>) -> cmd::Res {
+pub async fn next_with_info(cx: cmd::Cx<bool>) -> cmd::Res {
+   // Режим меню
+   let compact_mode = cx.dialogue;
+
    // Текущее время
    let our_timezone = db::TIME_ZONE.get().unwrap();
    let now = Utc::now().with_timezone(our_timezone).naive_local().time();
@@ -36,11 +39,14 @@ pub async fn next_with_info(cx: cmd::Cx<()>) -> cmd::Res {
       .await?;
 
    // Переходим (остаёмся) в режим выбора ресторана
-   next(cmd::Dialogue::EatRestNowSelectionMode)
+   next(cmd::Dialogue::EatRestNowSelectionMode(compact_mode))
 }
 
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
 async fn next_with_cancel(cx: cmd::Cx<bool>, text: &str) -> cmd::Res {
+   // Режим меню
+   let compact_mode = cx.dialogue;
+
    cx.answer(text)
    .reply_markup(cmd::EaterRest::markup())
    .disable_notification(true)
@@ -48,7 +54,7 @@ async fn next_with_cancel(cx: cmd::Cx<bool>, text: &str) -> cmd::Res {
    .await?;
 
    // Остаёмся в прежнем режиме.
-   next(cmd::Dialogue::EatRestNowSelectionMode)
+   next(cmd::Dialogue::EatRestNowSelectionMode(compact_mode))
 }
 
 

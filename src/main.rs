@@ -142,7 +142,7 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
             eat_dish::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id, group_id)))
                   .await
          }
-         cmd::Dialogue::EatRestNowSelectionMode => {
+         cmd::Dialogue::EatRestNowSelectionMode(compact_mode) => {
             eat_rest_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, compact_mode))
                   .await
          }

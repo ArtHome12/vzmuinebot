@@ -109,7 +109,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
             // В предыдущее меню
             cmd::EaterGroup::Return => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               eat_rest_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, ())).await
+               eat_rest_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, compact_mode)).await
             }
 
             // Выбор группы
