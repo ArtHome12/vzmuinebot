@@ -56,7 +56,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
       } else {
          // Создадим кнопки под рестораны
          let buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
-         .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("res{}", rest_num))))
+         .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("grc{}", db::make_key_3_int(rest_num, cat_id, 0)))))  // third argument always 0
          .collect();
 
          // Формируем меню

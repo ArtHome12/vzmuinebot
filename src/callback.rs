@@ -16,25 +16,27 @@ use crate::database as db;
 use crate::commands as cmd;
 
 #[derive(Copy, Clone)]
-enum OrdersCommand {
+enum CallbackCommand {
     Add(i32, i32, i32), // rest_num, group_num, dish_num
     Remove(i32, i32, i32), // rest_num, group_num, dish_num
+    GroupsByRestaurantAndCategory(i32, i32), // rest_num, cat_id
     UnknownCommand,
 }
 
-impl OrdersCommand {
-   pub fn from(input: &str) -> OrdersCommand {
+impl CallbackCommand {
+   pub fn from(input: &str) -> CallbackCommand {
       // Попытаемся извлечь аргументы
       let r_part = input.get(3..).unwrap_or_default();
-      match db::parse_dish_key(r_part) {
-         Ok((rest_num, group_num, dish_num)) => {
+      match db::parse_key_3_int(r_part) {
+         Ok((first, second, third)) => {
             match input.get(..3).unwrap_or_default() {
-               "add" => OrdersCommand::Add(rest_num, group_num, dish_num),
-               "del" => OrdersCommand::Remove(rest_num, group_num, dish_num),
-               _ => OrdersCommand::UnknownCommand,
+               "add" => CallbackCommand::Add(first, second, third),
+               "del" => CallbackCommand::Remove(first, second, third),
+               "grc" => CallbackCommand::GroupsByRestaurantAndCategory(first, second),
+               _ => CallbackCommand::UnknownCommand,
             }
          }
-         _ => OrdersCommand::UnknownCommand,
+         _ => CallbackCommand::UnknownCommand,
       }
    }
 }
@@ -53,10 +55,18 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
          let user_id = query.from.id;
 
          // Идентифицируем и исполним команду
-         match OrdersCommand::from(&data) {
-            OrdersCommand::UnknownCommand => format!("Error handle_message {}", &data),
-            OrdersCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {}: {}", db::make_dish_key(rest_num, group_num, dish_num), db::is_success(add_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
-            OrdersCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}: {}", db::make_dish_key(rest_num, group_num, dish_num), db::is_success(remove_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
+         match CallbackCommand::from(&data) {
+            CallbackCommand::UnknownCommand => format!("Error handle_message {}", &data),
+            CallbackCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {}: {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(add_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
+            CallbackCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}: {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(remove_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
+            CallbackCommand::GroupsByRestaurantAndCategory(rest_num, cat_id) => {
+               // Найдём нужный диалог в хранилище
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+
+               // Перейдём в режим отображения подходящих групп ресторана по заданной категории
+               eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id))).await
+               String::default()
+            }
          }
       }
    };
@@ -78,7 +88,7 @@ async fn add_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_
    match db::add_dish_to_basket(rest_num, group_num, dish_num, user_id).await {
       Ok(new_amount) => {
          // Сообщение в лог
-         let text = format!("{} блюдо {} +1", db::user_info(Some(&cx.update.from), false), db::make_dish_key(rest_num, group_num, dish_num));
+         let text = format!("{} блюдо {} +1", db::user_info(Some(&cx.update.from), false), db::make_key_3_int(rest_num, group_num, dish_num));
          db::log(&text).await;
 
          // Изменяем инлайн кнопки
@@ -96,7 +106,7 @@ async fn remove_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, gro
    match db::remove_dish_from_basket(rest_num, group_num, dish_num, user_id).await {
       Ok(new_amount) => {
          // Сообщение в лог
-         let text = format!("{} блюдо {} -1", db::user_info(Some(&cx.update.from), false), db::make_dish_key(rest_num, group_num, dish_num));
+         let text = format!("{} блюдо {} -1", db::user_info(Some(&cx.update.from), false), db::make_key_3_int(rest_num, group_num, dish_num));
          db::log(&text).await;
 
          // Изменяем инлайн кнопки
@@ -111,7 +121,7 @@ async fn remove_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, gro
 //
 async fn update_keyboard(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32, new_amount: i32) -> bool {
    let message = cx.update.message.as_ref().unwrap();
-   let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_dish_key(rest_num, group_num, dish_num), new_amount);
+   let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_key_3_int(rest_num, group_num, dish_num), new_amount);
    let chat_message = ChatOrInlineMessage::Chat {
       chat_id: ChatId::Id(message.chat_id()),
       message_id: message.id,

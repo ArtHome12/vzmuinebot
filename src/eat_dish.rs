@@ -116,7 +116,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::R
                let ordered_amount = db::amount_in_basket(rest_id, group_id, dish_num, user_id).await;
 
                // Создаём инлайн кнопки с указанием количества блюд
-               let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_dish_key(rest_id, group_id, dish_num), ordered_amount);
+               let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_key_3_int(rest_id, group_id, dish_num), ordered_amount);
 
                // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
                if let Some(image_id) = dish_image_id {

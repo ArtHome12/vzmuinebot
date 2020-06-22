@@ -478,7 +478,7 @@ impl Basket {
                "/del" => {
                   // Попытаемся извлечь аргументы
                   let r_part = input.get(4..).unwrap_or_default();
-                  match db::parse_dish_key(r_part) {
+                  match db::parse_key_3_int(r_part) {
                      Ok((rest_num, group_num, dish_num)) => Basket::Delete(rest_num, group_num, dish_num),
                      _ => Basket::UnknownCommand,
                   }

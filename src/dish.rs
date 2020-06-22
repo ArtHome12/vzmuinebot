@@ -183,7 +183,7 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                   db::rest_dish_remove(rest_id, group_id, dish_id).await;
 
                   // Сообщение в лог
-                  let text = format!("{} удалил блюдо {}", db::user_info(cx.update.from(), false), db::make_dish_key(rest_id, group_id, dish_id));
+                  let text = format!("{} удалил блюдо {}", db::user_info(cx.update.from(), false), db::make_key_3_int(rest_id, group_id, dish_id));
                   db::log(&text).await;
 
                   // Блюда больше нет, показываем меню группы

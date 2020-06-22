@@ -646,20 +646,20 @@ pub async fn create_tables() -> bool {
 
 // Формирование ключа блюда на основе аргументов
 //
-pub fn make_dish_key(rest_num: i32, group_num: i32, dish_num: i32) -> String {
-   format!("{}_{}_{}", rest_num, group_num, dish_num)
+pub fn make_key_3_int(first: i32, second: i32, third: i32) -> String {
+   format!("{}_{}_{}", first, second, third)
 }
 
-// Разбор ключа блюда на аргументы
+// Разбор строки на три числа, например ключа блюда на аргументы
 //
-pub fn parse_dish_key(text: &str) -> Result<(i32, i32, i32), Box<dyn std::error::Error>> {
-   let rest_num: i32;
-   let group_num: i32;
-   let dish_num: i32;
+pub fn parse_key_3_int(text: &str) -> Result<(i32, i32, i32), Box<dyn std::error::Error>> {
+   let first: i32;
+   let second: i32;
+   let third: i32;
 
-   try_scan!(text.bytes() => "{}_{}_{}", rest_num, group_num, dish_num);
+   try_scan!(text.bytes() => "{}_{}_{}", first, second, third);
 
-   Ok((rest_num, group_num, dish_num))
+   Ok((first, second, third))
 }
 
 // Хранит данные для работы логирования в чат
@@ -1280,12 +1280,12 @@ async fn dish_remove_from_orders(rest_num: i32, group_num: i32, dish_num: i32) {
          .await;
          if let Err(_) = query {
                // Сообщим об ошибке
-               log::info!("Error dish_remove_from_orders while recounting {}", make_dish_key(rest_num, group_num, dish_num));
+               log::info!("Error dish_remove_from_orders while recounting {}", make_key_3_int(rest_num, group_num, dish_num));
          }
       }
       Err(_) => {
          // Сообщим об ошибке
-         log::info!("Error dish_remove_from_orders {}", make_dish_key(rest_num, group_num, dish_num));
+         log::info!("Error dish_remove_from_orders {}", make_key_3_int(rest_num, group_num, dish_num));
       }
    }
 }
@@ -1455,7 +1455,7 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
                total += price * amount;
 
                // Помещаем блюдо в список
-               dishes.push(format!("{}: {} x {} шт. = {} /del{}", title, price, amount, price_with_unit(price * amount), make_dish_key(rest_num, group_num, dish_num)));
+               dishes.push(format!("{}: {} x {} шт. = {} /del{}", title, price, amount, price_with_unit(price * amount), make_key_3_int(rest_num, group_num, dish_num)));
             }
          }
 

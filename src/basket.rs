@@ -129,7 +129,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
                match db::remove_dish_from_basket(rest_num, group_num, dish_num, user_id).await {
                   Ok(_) => {
                      // Сообщение в лог
-                     let text = format!("{} корзина {} удалено", db::user_info(cx.update.from(), false), db::make_dish_key(rest_num, group_num, dish_num));
+                     let text = format!("{} корзина {} удалено", db::user_info(cx.update.from(), false), db::make_key_3_int(rest_num, group_num, dish_num));
                      db::log(&text).await;
 
                      // Отображаем изменённую корзину
