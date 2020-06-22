@@ -65,7 +65,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
 
          let s = String::from("Рестораны с подходящим меню:");
          cmd::send_text(&new_cx, &s, markup).await;
-         cmd::send_text(&new_cx, &format("Раздел {}", db::id_to_category(cat_id)), cmd::EaterRest::markup()).await;
+         cmd::send_text(&new_cx, &format!("Раздел {}", db::id_to_category(cat_id)), cmd::EaterRest::markup()).await;
       }
    }
 

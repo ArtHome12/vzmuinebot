@@ -494,7 +494,7 @@ pub fn is_success(flag : bool) -> &'static str {
 
 // Используется при редактировании категории группы
 //
-fn id_to_category(cat_id : i32) -> &'static str {
+pub fn id_to_category(cat_id : i32) -> &'static str {
    match cat_id {
       1 => "Соки воды",
       2 => "Еда",
