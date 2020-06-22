@@ -26,12 +26,29 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    // Получаем информацию из БД
    let rest_list = db::restaurant_by_category_from_db(cat_id).await;
 
-   // Отображаем информацию и кнопки меню
-   cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
-   .reply_markup(cmd::EaterRest::markup())
-   .disable_notification(true)
-   .send()
-   .await?;
+   // Выводим информацию либо ссылками, либо инлайн кнопками
+   if compact_mode {
+      // Отображаем информацию и кнопки меню
+      let res = cx.answer(format!("Рестораны с подходящим меню:\n{}", rest_list))
+      .reply_markup(cmd::EaterRest::markup())
+      .disable_notification(true)
+      .send()
+      .await;
+
+      if let Err(e) = res {
+         log::info!("Error eat_rest::next_with_info() compact: {}", e);
+      }
+   } else {
+      let res = cx.answer(format!("Рестораны с подходящим меню:\nРежим с кнопками находится в разработке"))
+      .reply_markup(cmd::EaterRest::markup())
+      .disable_notification(true)
+      .send()
+      .await;
+
+      if let Err(e) = res {
+         log::info!("Error eat_rest::next_with_info() with buttons: {}", e);
+      }
+   }
 
    // Переходим (остаёмся) в режим выбора ресторана
    next(cmd::Dialogue::EatRestSelectionMode(compact_mode, cat_id))
