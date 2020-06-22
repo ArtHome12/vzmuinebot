@@ -36,7 +36,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    if rest_list.is_empty() {
       let s = String::from(lang::t("ru", lang::Res::EatRestEmpty));
       let s = format!("Рестораны с подходящим меню:\n{}", s);
-      cmd::send_text(&new_cx, &s, cmd::User::main_menu_markup()).await;
+      cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
 
    } else {
 
@@ -51,7 +51,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
          
          // Отображаем информацию и кнопки меню
          let s = format!("Рестораны с подходящим меню:\n{}", s);
-         cmd::send_text(&new_cx, &s, cmd::User::main_menu_markup()).await;
+         cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
    
       } else {
          // Создадим кнопки под рестораны

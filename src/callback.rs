@@ -68,7 +68,7 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
                // Перейдём в режим отображения подходящих групп ресторана по заданной категории
                match eat_group::next_with_info(dialogue_handler).await {
                   Ok(_) => String::default(),
-                  Err(_) => String::from("Error"),
+                  Err(_) => String::from("Слишком старое сообщение"),
                }
             }
          }
