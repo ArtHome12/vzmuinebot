@@ -14,6 +14,7 @@ use teloxide::{
 
 use crate::database as db;
 use crate::commands as cmd;
+use crate::eat_group;
 
 #[derive(Copy, Clone)]
 enum CallbackCommand {
@@ -61,11 +62,14 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
             CallbackCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}: {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(remove_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
             CallbackCommand::GroupsByRestaurantAndCategory(rest_num, cat_id) => {
                // Найдём нужный диалог в хранилище
-               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               let msg = query.message.clone().unwrap();
+               let dialogue_handler = DialogueDispatcherHandlerCx::new(cx.bot.clone(), msg, (false, cat_id, rest_num)); 
 
                // Перейдём в режим отображения подходящих групп ресторана по заданной категории
-               eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id))).await
-               String::default()
+               match eat_group::next_with_info(dialogue_handler).await {
+                  Ok(_) => String::default(),
+                  Err(_) => String::from("Error"),
+               }
             }
          }
       }
