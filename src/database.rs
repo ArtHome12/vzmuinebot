@@ -14,6 +14,8 @@ use teloxide::{
    prelude::*,
    types::{User},
 };
+use std::collections::HashMap;
+//use tokio_postgres::{Row, Error};
 // extern crate runtime_fmt;
 
 use crate::language as lang;
@@ -41,30 +43,35 @@ pub static TIME_ZONE: OnceCell<FixedOffset> = OnceCell::new();
 
 // Возвращает список ресторанов с активными группами в данной категории
 //
-pub async fn restaurant_by_category_from_db(cat_id: i32) -> String {
+pub async fn restaurant_by_category_from_db(cat_id: i32) -> HashMap<i32, String> {
    // Выполняем запрос
    let rows = DB.get().unwrap()
-      .query("SELECT r.title, r.rest_num FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&cat_id])
+      .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&cat_id])
       .await;
 
-   // Строка для возврата результата
-   let mut res = String::default();
 
-   // Проверяем результат
-   if let Ok(data) = rows {
-      for record in data {
-         let title: String = record.get(0);
-         let rest_num: i32 = record.get(1);
-         res.push_str(&format!("   {} /rest{}\n", title, rest_num));
+   // Для возврата результата
+   match rows {
+      Ok(data) => data.into_iter().map(|row| (row.get(0), row.get(1))).collect(),
+      Err(e) => {
+         log(&format!("Error restaurant_by_category_from_db: {}", e)).await;
+         HashMap::<i32, String>::new()
       }
    }
+/*   
+      for record in data {
+         let rest_num: i32 = record.get(1);
+         let title: String = record.get(0);
+         res.push_str(&format!("   {} /rest{}\n", title, rest_num));
+      }
 
-   // На случай пустого списка сообщим об этом
+// На случай пустого списка сообщим об этом
    if res.is_empty() {
       String::from(lang::t("ru", lang::Res::DatabaseEmpty))
    } else {
       res
    }
+ */
 }
 
 // Возвращает описание, список групп выбранного ресторана и категории и фото, если есть

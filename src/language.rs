@@ -14,6 +14,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 pub enum Res {
    DatabaseEmpty, // "   пусто :("
+   EatRestEmpty, // "   пусто :("
    // DatabaseRestInfo, // "Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}"
 }
 
@@ -22,6 +23,7 @@ pub enum Res {
 pub fn t(_lang: &str, resource: Res) -> String {
    match resource {
       Res::DatabaseEmpty => String::from("   пусто :("),
+      Res::EatRestEmpty => String::from("   пусто :("),
       // DatabaseRestInfo => String::from("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}"),
    }
 }
