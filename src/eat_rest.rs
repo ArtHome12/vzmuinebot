@@ -9,6 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
+   types::{InlineKeyboardButton, InlineKeyboardMarkup},
 };
 use std::collections::HashMap;
 
@@ -25,6 +26,8 @@ use crate::language as lang;
 pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    // Извлечём параметры
    let (compact_mode, cat_id) = cx.dialogue;
+   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+   let new_cx = DialogueDispatcherHandlerCx::new(bot, update, compact_mode);
    
    // Получаем информацию из БД
    let rest_list: HashMap<i32, String> = db::restaurant_by_category_from_db(cat_id).await;
@@ -33,8 +36,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    if rest_list.is_empty() {
       let s = String::from(lang::t("ru", lang::Res::EatRestEmpty));
       let s = format!("Рестораны с подходящим меню:\n{}", s);
-      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-      cmd::send_text(&DialogueDispatcherHandlerCx::new(bot, update, compact_mode), &s, cmd::User::main_menu_markup()).await;
+      cmd::send_text(&new_cx, &s, cmd::User::main_menu_markup()).await;
 
    } else {
 
@@ -49,16 +51,20 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
          
          // Отображаем информацию и кнопки меню
          let s = format!("Рестораны с подходящим меню:\n{}", s);
-         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-         cmd::send_text(&DialogueDispatcherHandlerCx::new(bot, update, compact_mode), &s, cmd::User::main_menu_markup()).await;
+         cmd::send_text(&new_cx, &s, cmd::User::main_menu_markup()).await;
    
       } else {
          // Создадим кнопки под рестораны
-         // let buttons: InlineKeyboardButton = 
+         let buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
+         .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("res{}", rest_num))))
+         .collect();
 
-         let s = String::from("Рестораны с подходящим меню:\nРежим 'с кнопками' находится в разработке");
-         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-         cmd::send_text(&DialogueDispatcherHandlerCx::new(bot, update, compact_mode), &s, cmd::User::main_menu_markup()).await;
+         // Формируем меню
+         let markup = InlineKeyboardMarkup::default()
+         .append_row(buttons);
+
+         let s = String::from("Рестораны с подходящим меню:");
+         cmd::send_text(&new_cx, &s, markup).await;
       }
    }
 

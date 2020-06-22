@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
     prelude::*, 
-    types::{KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton},
+    types::{KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton, ReplyMarkup},
 };
 
 use crate::database as db;
@@ -194,7 +194,10 @@ pub async fn remove_slash(s: &str) -> String {
 
 // Отправляет текстовое сообщение
 //
-pub async fn send_text(cx: &Cx<bool>, text: &str, markup: ReplyKeyboardMarkup) {
+pub async fn send_text<T>(cx: &Cx<bool>, text: &str, markup: T) 
+where
+   T: Into<ReplyMarkup>,
+{
    let res = cx.answer(text)
    .reply_markup(markup)
    .disable_notification(true)
