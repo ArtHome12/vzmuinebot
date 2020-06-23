@@ -194,7 +194,7 @@ pub async fn remove_slash(s: &str) -> String {
 
 // Отправляет текстовое сообщение
 //
-pub async fn send_text<T>(cx: &Cx<bool>, text: &str, markup: T) 
+pub async fn send_text<T>(cx: &Cx<()>, text: &str, markup: T) 
 where
    T: Into<ReplyMarkup>,
 {

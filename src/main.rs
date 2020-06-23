@@ -159,7 +159,7 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
       // Для сообщений не в личке обрабатываем только команду вывода id группы
       if let Some(input) = update.text() {
          match input.get(..5).unwrap_or_default() {
-            "/chat" => cmd::send_text(&DialogueDispatcherHandlerCx::new(bot, update, false), &format!("Chat id={}", chat_id), cmd::User::main_menu_markup()).await,
+            "/chat" => cmd::send_text(&DialogueDispatcherHandlerCx::new(bot, update, ()), &format!("Chat id={}", chat_id), cmd::User::main_menu_markup()).await,
             _ => (),
          }
       }

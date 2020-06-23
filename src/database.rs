@@ -15,6 +15,7 @@ use teloxide::{
    types::{User},
 };
 use std::collections::HashMap;
+
 //use tokio_postgres::{Row, Error};
 // extern crate runtime_fmt;
 
@@ -43,7 +44,8 @@ pub static TIME_ZONE: OnceCell<FixedOffset> = OnceCell::new();
 
 // Возвращает список ресторанов с активными группами в данной категории
 //
-pub async fn restaurant_by_category_from_db(cat_id: i32) -> HashMap<i32, String> {
+pub type RestaurantList = HashMap<i32, String>;
+pub async fn restaurant_by_category_from_db(cat_id: i32) -> RestaurantList {
    // Выполняем запрос
    let rows = DB.get().unwrap()
       .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&cat_id])
@@ -321,20 +323,16 @@ pub async fn register_caterer(user_id: i32) -> bool {
 
 // Приостановка доступа ресторатора
 //
-pub async fn hold_caterer(user_id: i32) -> bool {
-   // Проверим, что такой пользователь зарегистрирован
-   let rest_num = rest_num(user_id).await;
-   if rest_num > 0 {
-      // Блокируем его
-      let query = DB.get().unwrap()
-      .execute("UPDATE restaurants SET enabled = FALSE, active = FALSE WHERE user_id=$1::INTEGER", &[&user_id])
-      .await;
-      match query {
-         Ok(_) => true,
-         _ => false,
-      }
-   } else {
-      false
+pub async fn hold_caterer(user_id: i32) -> Result<(), ()> {
+   // Блокируем пользователя
+   let query = DB.get().unwrap()
+   .execute("UPDATE restaurants SET enabled = FALSE, active = FALSE WHERE user_id=$1::INTEGER", &[&user_id])
+   .await;
+
+   // Если обновили 0 строк, значит такого пользователя не было зарегистрировано
+   match query {
+      Ok(1) => Ok(()),
+      _ => Err(()),
    }
 }
 
@@ -744,22 +742,28 @@ pub fn price_with_unit(price: i32) -> String {
 
 // Возвращает номер ресторана, если пользователю разрешён доступ в режим ресторатора
 //
-pub async fn rest_num(user_id : i32) -> i32 {
+pub async fn rest_num(user : Option<&teloxide::types::User>) -> Result<i32, ()> {
+   // Проверяем, передан ли пользователь.
+   let u = user.ok_or(())?;
+
    // Выполняем запрос
    let rows = DB.get().unwrap()
-      .query("SELECT rest_num FROM restaurants WHERE user_id=$1::INTEGER AND enabled = TRUE", &[&user_id])
+      .query("SELECT rest_num FROM restaurants WHERE user_id=$1::INTEGER AND enabled = TRUE", &[&u.id])
       .await;
 
-   // Проверяем результат
+   // Возвращаем номер ресторана, если такой есть.
    match rows {
-      Ok(data) => if !data.is_empty() {
-         data[0].get(0)
-      } else {
-         0
+      Ok(data) => {
+         if data.is_empty() {
+            Err(()) 
+         } else {
+            Ok(data[0].get(0))
+         }
       }
-      _ => 0,
+      _ => Err(()),
    }
 }
+
 
 // Возвращает строку с информацией о ресторане
 //
