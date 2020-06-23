@@ -9,7 +9,9 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
-   types::{InputFile, ReplyMarkup, CallbackQuery, InlineKeyboardButton, ChatOrInlineMessage, InlineKeyboardMarkup, ChatId},
+   types::{InputFile, ReplyMarkup, CallbackQuery, InlineKeyboardButton, ChatOrInlineMessage, InlineKeyboardMarkup, ChatId,
+      InputMedia
+   },
 };
 
 use crate::commands as cmd;
@@ -192,16 +194,40 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          .append_row(buttons);
 
          // Редактируем исходное сообщение
-         match cx.bot.edit_message_text(chat_message, info.info)
-         .reply_markup(markup)
-         .send()
-         .await {
-            Err(e) => {
-               log::info!("Error eat_group::show_inline_interface {}", e);
-               false
-            }
-            _ => true,
-            }
+         match info.image_id {
+            Some(image) => {
+               // Приготовим картинку к нужному формату
+               let media = InputMedia::Photo{
+                  media: InputFile::file_id(image),
+                  caption: Some(info.info),
+                  parse_mode: None,
+               };
+               
+               match cx.bot.edit_message_media(chat_message, media)
+               // .caption(info.info)
+               .reply_markup(markup)
+               .send()
+               .await {
+                  Err(e) => {
+                     log::info!("Error eat_group::show_inline_interface {}", e);
+                     false
+                  }
+                  _ => true,
+                  }
+                  }
+            None => {
+               match cx.bot.edit_message_text(chat_message, info.info)
+               .reply_markup(markup)
+               .send()
+               .await {
+                  Err(e) => {
+                     log::info!("Error eat_group::show_inline_interface {}", e);
+                     false
+                  }
+                  _ => true,
+                  }
+                  }
+         }
       }
    }
    // Создадим кнопки под рестораны
