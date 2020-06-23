@@ -166,7 +166,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          };
          
          // Редактируем исходное сообщение
-         match cx.bot.edit_message_reply_markup(chat_message.clone())
+         match cx.bot.edit_message_text(chat_message, s)
          .reply_markup(markup)
          .send()
          .await {
@@ -174,15 +174,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
                log::info!("Error eat_group::show_inline_interface {}", e);
                false
             }
-            _ =>  match cx.bot.edit_message_text(chat_message, s)
-               .send()
-               .await {
-                  Err(e) => {
-                     log::info!("Error eat_group::show_inline_interface {}", e);
-                     false
-                  }
-                  _ => true,
-               }
+            _ => true,
             }
       // }
       // Some(_info) => {
