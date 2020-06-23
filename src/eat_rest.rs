@@ -53,7 +53,11 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
          cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
    
       } else {
+         
          show_inline_interface(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), rest_list, cat_id).await;
+
+         // В инлайн-режиме всегда остаёмся в главном меню
+         return next(cmd::Dialogue::UserMode(compact_mode));
       }
    }
 
