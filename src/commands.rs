@@ -8,8 +8,8 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide::{
-    prelude::*, 
-    types::{KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton, ReplyMarkup},
+   prelude::*, 
+   types::{KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton, ReplyMarkup},
 };
 
 use crate::database as db;
@@ -440,9 +440,9 @@ impl EaterDish {
    pub fn inline_markup(key: &str, amount: i32) -> InlineKeyboardMarkup {
       // Если количество не пустое, добавим кнопку для убавления
       let buttons = if amount == 0 {
-         vec![
-            InlineKeyboardButton::callback(format!("+1 ({})", amount), format!("add{}", key)),
-         ]
+            vec![
+               InlineKeyboardButton::callback(format!("+1 ({})", amount), format!("add{}", key)),
+            ]
       } else {
          vec![
             InlineKeyboardButton::callback(format!("+1 ({})", amount), format!("add{}", key)),

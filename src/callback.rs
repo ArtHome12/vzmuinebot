@@ -60,17 +60,8 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
             CallbackCommand::UnknownCommand => format!("Error handle_message {}", &data),
             CallbackCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {}: {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(add_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
             CallbackCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}: {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(remove_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
-            CallbackCommand::GroupsByRestaurantAndCategory(rest_num, cat_id) => {
-               // Создадим сообщение
-               let msg = query.message.clone().unwrap();
-               let dialogue_handler = DialogueDispatcherHandlerCx::new(cx.bot.clone(), msg, (false, cat_id, rest_num)); 
-
-               // Перейдём в режим отображения подходящих групп ресторана по заданной категории
-               match eat_group::next_with_info(dialogue_handler).await {
-                  Ok(_) => String::from("Показываем группы"),
-                  Err(_) => String::from("Слишком старое сообщение"),
-               }
-            }
+            CallbackCommand::GroupsByRestaurantAndCategory(rest_num, cat_id) => 
+               format!("Группы '{}' {}", db::id_to_category(cat_id), db::is_success(eat_group::show_inline_interface(&cx, rest_num, cat_id).await)),
          }
       }
    };
@@ -141,3 +132,4 @@ async fn update_keyboard(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32,
          _ => true,
    }
 }
+

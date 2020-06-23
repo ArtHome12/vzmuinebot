@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
-   types::{InputFile, ReplyMarkup},
+   types::{InputFile, ReplyMarkup, CallbackQuery, InlineKeyboardButton, ChatOrInlineMessage, InlineKeyboardMarkup, ChatId},
 };
 
 use crate::commands as cmd;
@@ -37,44 +37,34 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32, i32)>) -> cmd::Res {
       }
       Some(info) => {
 
-         // Выводим информацию либо ссылками, либо инлайн кнопками
-         if compact_mode {
-            // Сформируем строку вида "название /ссылка\n"
-            let s: String = if info.groups.is_empty() {
-               String::from(lang::t("ru", lang::Res::EatRestEmpty))
-            } else {
-               info.groups.into_iter().map(|(key, value)| (format!("   {} /grou{}\n", value, key))).collect()
-            };
-            
-            // Добавляем к информации о ресторане информацию о группах
-            let s = format!("{}\n{}", info.info, s);
+         // Сформируем строку вида "название /ссылка\n"
+         let s: String = if info.groups.is_empty() {
+            String::from(lang::t("ru", lang::Res::EatRestEmpty))
+         } else {
+            info.groups.into_iter().map(|(key, value)| (format!("   {} /grou{}\n", value, key))).collect()
+         };
+         
+         // Добавляем к информации о ресторане информацию о группах
+         let s = format!("{}\n{}", info.info, s);
 
-            // Отображаем информацию о группах ресторана. Если для ресторана задана картинка, то текст будет комментарием
-            if let Some(image_id) = info.image_id {
-               // Создадим графический объект
-               let image = InputFile::file_id(image_id);
+         // Отображаем информацию о группах ресторана. Если для ресторана задана картинка, то текст будет комментарием
+         if let Some(image_id) = info.image_id {
+            // Создадим графический объект
+            let image = InputFile::file_id(image_id);
 
-               // Отправляем картинку и текст как комментарий
-               cx.answer_photo(image)
-               .caption(s)
-               .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::EaterGroup::markup()))
+            // Отправляем картинку и текст как комментарий
+            cx.answer_photo(image)
+            .caption(s)
+            .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::EaterGroup::markup()))
+            .disable_notification(true)
+            .send()
+            .await?;
+         } else {
+               cx.answer(s)
+               .reply_markup(cmd::EaterGroup::markup())
                .disable_notification(true)
                .send()
                .await?;
-            } else {
-                  cx.answer(s)
-                  .reply_markup(cmd::EaterGroup::markup())
-                  .disable_notification(true)
-                  .send()
-                  .await?;
-            }
-            
-
-         } else {
-            show_inline_interface(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), info, cat_id).await;
-
-            // В инлайн-режиме всегда остаёмся в главном меню
-            return next(cmd::Dialogue::UserMode(compact_mode));
          }
       }
    };
@@ -150,9 +140,55 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32)>) -> cmd::Res {
    }
 }
 
+
 // Выводит инлайн кнопки
 //
-pub async fn show_inline_interface(_cx: cmd::Cx<()>, _rest_list: db::GroupListWithRestaurantInfo, _cat_id: i32) {
+pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, cat_id: i32) -> bool {
+
+   // Получаем информацию из БД
+   // match db::groups_by_restaurant_and_category(rest_num, cat_id).await {
+      // None => {
+         // Такая ситуация может возникнуть, если ресторатор удалил группу только что
+         // let s = String::from(lang::t("ru", lang::Res::EatGroupsEmpty));
+         let s = format!("Подходящие группы исчезли");
+
+         // Кнопка назад
+         let buttons = vec![InlineKeyboardButton::callback(String::from("назад"), format!("ret{}", cat_id))];
+         // Формируем меню
+         let markup = InlineKeyboardMarkup::default()
+         .append_row(buttons);
+
+         // Достаём chat_id
+         let message = cx.update.message.as_ref().unwrap();
+         let chat_message = ChatOrInlineMessage::Chat {
+            chat_id: ChatId::Id(message.chat_id()),
+            message_id: message.id,
+         };
+         
+         // Редактируем исходное сообщение
+         match cx.bot.edit_message_reply_markup(chat_message.clone())
+         .reply_markup(markup)
+         .send()
+         .await {
+            Err(e) => {
+               log::info!("Error eat_group::show_inline_interface {}", e);
+               false
+            }
+            _ =>  match cx.bot.edit_message_text(chat_message, s)
+               .send()
+               .await {
+                  Err(e) => {
+                     log::info!("Error eat_group::show_inline_interface {}", e);
+                     false
+                  }
+                  _ => true,
+               }
+            }
+      // }
+      // Some(_info) => {
+         // false
+      // }
+   // }
    // Создадим кнопки под рестораны
 /*    let buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
    .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("grc{}", db::make_key_3_int(rest_num, cat_id, 0)))))  // third argument always 0
@@ -164,4 +200,5 @@ pub async fn show_inline_interface(_cx: cmd::Cx<()>, _rest_list: db::GroupListWi
 
    let s = String::from("Рестораны с подходящим меню:");
    cmd::send_text(&cx, &s, markup).await;
- */}
+ */
+}
