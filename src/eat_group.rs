@@ -10,7 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use teloxide::{
    prelude::*, 
    types::{InputFile, ReplyMarkup, CallbackQuery, InlineKeyboardButton, ChatOrInlineMessage, InlineKeyboardMarkup, ChatId,
-      InputMedia
+      // InputMedia
    },
 };
 
@@ -182,7 +182,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
       Some(info) => {
          // Создадим кнопки
          let mut buttons: Vec<InlineKeyboardButton> = info.groups.into_iter()
-         .map(|(key, value)| (InlineKeyboardButton::callback(value, format!("ttt{}", db::make_key_3_int(rest_num, key, 0)))))  // third argument always 0
+         .map(|(_key, value)| (InlineKeyboardButton::callback(value, format!("ret{}", cat_id))))  // third argument always 0
          .collect();
 
          // Кнопка назад
@@ -194,7 +194,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          .append_row(buttons);
 
          // Редактируем исходное сообщение
-         match info.image_id {
+         /*match info.image_id {
             Some(image) => {
                // Приготовим картинку к нужному формату
                let media = InputMedia::Photo{
@@ -213,9 +213,9 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
                      false
                   }
                   _ => true,
-                  }
-                  }
-            None => {
+               }
+            }
+            None => {*/
                match cx.bot.edit_message_text(chat_message, info.info)
                .reply_markup(markup)
                .send()
@@ -225,9 +225,9 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
                      false
                   }
                   _ => true,
-                  }
-                  }
-         }
+               }
+               // }
+         // }
       }
    }
    // Создадим кнопки под рестораны
