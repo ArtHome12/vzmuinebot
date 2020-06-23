@@ -26,9 +26,9 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
    let (compact_mode, cat_id, rest_id, group_id) = cx.dialogue;
    
    // Получаем информацию из БД
-   let group_list = match db::dishes_by_restaurant_and_group_from_db(rest_id, group_id).await {
+   let group_list = match db::dishes_by_restaurant_and_group(rest_id, group_id).await {
       Some(info) => info,
-      None => format!("Ошибка db::dishes_by_restaurant_and_group_from_db({}, {})", rest_id, group_id)
+      None => format!("Ошибка db::dishes_by_restaurant_and_group({}, {})", rest_id, group_id)
    };
 
    // Отображаем информацию и кнопки меню

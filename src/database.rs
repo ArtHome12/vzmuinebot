@@ -45,40 +45,57 @@ pub static TIME_ZONE: OnceCell<FixedOffset> = OnceCell::new();
 // Возвращает список ресторанов с активными группами в данной категории
 //
 pub type RestaurantList = HashMap<i32, String>;
-pub async fn restaurant_by_category_from_db(cat_id: i32) -> RestaurantList {
+pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
    // Выполняем запрос
    let rows = DB.get().unwrap()
       .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&cat_id])
       .await;
 
-
-   // Для возврата результата
+   // Возвращаем результат
    match rows {
       Ok(data) => data.into_iter().map(|row| (row.get(0), row.get(1))).collect(),
       Err(e) => {
-         log(&format!("Error restaurant_by_category_from_db: {}", e)).await;
+         // Сообщаем об ошибке и возвращаем пустой список
+         log(&format!("Error restaurant_by_category: {}", e)).await;
          HashMap::<i32, String>::new()
       }
    }
-/*   
-      for record in data {
-         let rest_num: i32 = record.get(1);
-         let title: String = record.get(0);
-         res.push_str(&format!("   {} /rest{}\n", title, rest_num));
-      }
-
-// На случай пустого списка сообщим об этом
-   if res.is_empty() {
-      String::from(lang::t("ru", lang::Res::DatabaseEmpty))
-   } else {
-      res
-   }
- */
 }
 
-// Возвращает описание, список групп выбранного ресторана и категории и фото, если есть
+// Возвращает описание, фото и список групп выбранного ресторана и категории
 //
-pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Option<(String, Option<String>)> {
+pub struct GroupListWithRestaurantInfo {
+   pub info: String, 
+   pub image_id: Option<String>,
+   pub groups: HashMap<i32, String>
+}
+
+async fn sub_select_groups(rest_num: i32, cat_id: i32) -> HashMap<i32, String> {
+   // Выполняем запрос групп
+   let rows = DB.get().unwrap()
+      .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND cat_id=$2::INTEGER AND active = TRUE", &[&rest_num, &cat_id])
+      .await;
+
+   // Возвращаем результат
+   match rows {
+      Ok(data) => data.into_iter().map(|row| -> (i32, String) {
+         let group_num: i32 = row.get(0);
+         let title: String = row.get(1);
+         let opening_time: NaiveTime = row.get(2);
+         let closing_time: NaiveTime = row.get(3);
+
+         // Возвращаем хешстроку
+         (group_num, format!("   {} ({}-{})", title, opening_time.format("%H:%M"), closing_time.format("%H:%M")))
+      }).collect(),
+      Err(e) => {
+         // Сообщаем об ошибке и возвращаем пустой список
+         log(&format!("Error restaurant_by_category: {}", e)).await;
+         HashMap::<i32, String>::new()
+      }
+   }
+}
+
+pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Option<GroupListWithRestaurantInfo> {
    // Выполняем запрос информации о ресторане
    let rows = DB.get().unwrap()
       .query("SELECT title, info, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
@@ -90,48 +107,29 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
             // Параметры ресторана
             let title: String = data[0].get(0);
             let info: String = data[0].get(1);
-            let image_id: Option<String> = data[0].get(2);
-
-            // Строка для возврата результата
-            let mut res = String::default();
-
-            // Выполняем запрос групп
-            let rows = DB.get().unwrap()
-               .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND cat_id=$2::INTEGER AND active = TRUE", &[&rest_num, &cat_id])
-               .await;
-
-            // Проверяем результат
-            if let Ok(data) = rows {
-               for record in data {
-                  let group_num: i32 = record.get(0);
-                  let title: String = record.get(1);
-                  let opening_time: NaiveTime = record.get(2);
-                  let closing_time: NaiveTime = record.get(3);
-                        res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening_time.format("%H:%M"), closing_time.format("%H:%M"), group_num));
-               }
-            };
-
-            // На случай пустого списка сообщим об этом
-            let res = if res.is_empty() {
-               String::from(lang::t("ru", lang::Res::DatabaseEmpty))
-            } else {
-               res
+            let res = GroupListWithRestaurantInfo {
+               info: format!("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}", title, info, id_to_category(cat_id)),
+               image_id: data[0].get(2),
+               groups: sub_select_groups(rest_num, cat_id).await,
             };
 
             // Окончательный результат
-            // let res = lang::t("ru", lang::Res::DatabaseRestInfo);
-            Some((format!("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}", title, info, id_to_category(cat_id), res), image_id))
+            Some(res)
          } else {
             None
          }
       }
-      _ => None,
+      Err(e) => {
+         // Сообщим об ошибке
+         log(&format!("Error groups_by_restaurant_and_category: {}", e)).await;
+         None
+      }
    }
 }
 
 // Возвращает список блюд выбранного ресторана и группы
 //
-pub async fn dishes_by_restaurant_and_group_from_db(rest_num: i32, group_num: i32) -> Option<String> {
+pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Option<String> {
    // Выполняем запрос информации о группе
    let rows = DB.get().unwrap()
       .query("SELECT info FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
@@ -214,7 +212,7 @@ pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Op
 
 // Возвращает список ресторанов с активными группами в указанное время
 //
-pub async fn restaurant_by_now_from_db(time: NaiveTime) -> String {
+pub async fn restaurant_by_now(time: NaiveTime) -> String {
    // Выполняем запрос
    let rows = DB.get().unwrap()
       .query("SELECT DISTINCT r.title, r.rest_num FROM restaurants AS r INNER JOIN groups g ON r.rest_num = g.rest_num 

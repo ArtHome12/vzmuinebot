@@ -13,8 +13,9 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 // pub static LANG: OnceCell<HashMap<String, HashMap<String, String>>> = OnceCell::new();
 
 pub enum Res {
-   DatabaseEmpty, // "   пусто :("
+   EatGroupsEmpty, // "   пусто :("
    EatRestEmpty, // "   пусто :("
+   DatabaseEmpty, // "   пусто :("
    // DatabaseRestInfo, // "Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}"
 }
 
@@ -22,8 +23,9 @@ pub enum Res {
 //
 pub fn t(_lang: &str, resource: Res) -> String {
    match resource {
-      Res::DatabaseEmpty => String::from("   пусто :("),
+      Res::EatGroupsEmpty => String::from("   пусто :("),
       Res::EatRestEmpty => String::from("   пусто :("),
+      Res::DatabaseEmpty => String::from("   пусто :("),
       // DatabaseRestInfo => String::from("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}"),
    }
 }

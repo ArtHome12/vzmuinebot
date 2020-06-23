@@ -25,16 +25,15 @@ use crate::language as lang;
 pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    // Извлечём параметры
    let (compact_mode, cat_id) = cx.dialogue;
-   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
    
    // Получаем информацию из БД
-   let rest_list = db::restaurant_by_category_from_db(cat_id).await;
+   let rest_list = db::restaurant_by_category(cat_id).await;
 
    // Если там пусто, то сообщим об этом
    if rest_list.is_empty() {
       let s = String::from(lang::t("ru", lang::Res::EatRestEmpty));
       let s = format!("Рестораны с подходящим меню:\n{}", s);
-      let new_cx = DialogueDispatcherHandlerCx::new(bot, update, ());
+      let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
       cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
 
    } else {
@@ -50,11 +49,11 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
          
          // Отображаем информацию и кнопки меню
          let s = format!("Рестораны с подходящим меню:\n{}", s);
-         let new_cx = DialogueDispatcherHandlerCx::new(bot, update, ());
+         let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
          cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
    
       } else {
-         show_inline_integrface(DialogueDispatcherHandlerCx::new(bot, update, ()), rest_list, cat_id).await;
+         show_inline_interface(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), rest_list, cat_id).await;
       }
    }
 
@@ -125,7 +124,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
 
 // Выводит инлайн кнопки
 //
-pub async fn show_inline_integrface(cx: cmd::Cx<()>, rest_list: db::RestaurantList, cat_id: i32) {
+pub async fn show_inline_interface(cx: cmd::Cx<()>, rest_list: db::RestaurantList, cat_id: i32) {
    // Создадим кнопки под рестораны
    let buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
    .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("grc{}", db::make_key_3_int(rest_num, cat_id, 0)))))  // third argument always 0
@@ -137,5 +136,4 @@ pub async fn show_inline_integrface(cx: cmd::Cx<()>, rest_list: db::RestaurantLi
 
    let s = String::from("Рестораны с подходящим меню:");
    cmd::send_text(&cx, &s, markup).await;
-   // cmd::send_text(&cx, &format!("Раздел {}", db::id_to_category(cat_id)), cmd::EaterRest::markup()).await;
 }

@@ -29,7 +29,7 @@ pub async fn next_with_info(cx: cmd::Cx<bool>) -> cmd::Res {
    let now = Utc::now().with_timezone(our_timezone).naive_local().time();
    
    // Получаем информацию из БД
-   let rest_list = db::restaurant_by_now_from_db(now).await;
+   let rest_list = db::restaurant_by_now(now).await;
 
    // Отображаем информацию и кнопки меню
    cx.answer(format!("Рестораны, открытые сейчас ({}):\n{}", now.format("%H:%M"), rest_list))
