@@ -61,13 +61,13 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
             CallbackCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {}: {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(add_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
             CallbackCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}: {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(remove_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
             CallbackCommand::GroupsByRestaurantAndCategory(rest_num, cat_id) => {
-               // Найдём нужный диалог в хранилище
+               // Создадим сообщение
                let msg = query.message.clone().unwrap();
                let dialogue_handler = DialogueDispatcherHandlerCx::new(cx.bot.clone(), msg, (false, cat_id, rest_num)); 
 
                // Перейдём в режим отображения подходящих групп ресторана по заданной категории
                match eat_group::next_with_info(dialogue_handler).await {
-                  Ok(_) => String::default(),
+                  Ok(_) => String::from("Показываем группы"),
                   Err(_) => String::from("Слишком старое сообщение"),
                }
             }
