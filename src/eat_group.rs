@@ -145,9 +145,16 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32)>) -> cmd::Res {
 //
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, cat_id: i32) -> bool {
 
+   // Достаём chat_id
+   let message = cx.update.message.as_ref().unwrap();
+   let chat_message = ChatOrInlineMessage::Chat {
+      chat_id: ChatId::Id(message.chat_id()),
+      message_id: message.id,
+   };
+         
    // Получаем информацию из БД
-   // match db::groups_by_restaurant_and_category(rest_num, cat_id).await {
-      // None => {
+   match db::groups_by_restaurant_and_category(rest_num, cat_id).await {
+      None => {
          // Такая ситуация может возникнуть, если ресторатор удалил группу только что
          // let s = String::from(lang::t("ru", lang::Res::EatGroupsEmpty));
          let s = format!("Подходящие группы исчезли");
@@ -158,13 +165,6 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          let markup = InlineKeyboardMarkup::default()
          .append_row(buttons);
 
-         // Достаём chat_id
-         let message = cx.update.message.as_ref().unwrap();
-         let chat_message = ChatOrInlineMessage::Chat {
-            chat_id: ChatId::Id(message.chat_id()),
-            message_id: message.id,
-         };
-         
          // Редактируем исходное сообщение
          match cx.bot.edit_message_text(chat_message, s)
          .reply_markup(markup)
@@ -176,11 +176,34 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
             }
             _ => true,
             }
-      // }
-      // Some(_info) => {
-         // false
-      // }
-   // }
+      }
+      Some(info) => {
+         // Создадим кнопки
+         let mut buttons: Vec<InlineKeyboardButton> = info.groups.into_iter()
+         .map(|(key, value)| (InlineKeyboardButton::callback(value, format!("ttt{}", db::make_key_3_int(rest_num, key, 0)))))  // third argument always 0
+         .collect();
+
+         // Кнопка назад
+         let button = InlineKeyboardButton::callback(String::from("назад"), format!("ret{}", cat_id));
+         buttons.push(button);
+
+         // Формируем меню
+         let markup = InlineKeyboardMarkup::default()
+         .append_row(buttons);
+
+         // Редактируем исходное сообщение
+         match cx.bot.edit_message_text(chat_message, info.info)
+         .reply_markup(markup)
+         .send()
+         .await {
+            Err(e) => {
+               log::info!("Error eat_group::show_inline_interface {}", e);
+               false
+            }
+            _ => true,
+            }
+      }
+   }
    // Создадим кнопки под рестораны
 /*    let buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
    .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("grc{}", db::make_key_3_int(rest_num, cat_id, 0)))))  // third argument always 0
