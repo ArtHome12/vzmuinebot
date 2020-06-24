@@ -108,7 +108,8 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
             let title: String = data[0].get(0);
             let info: String = data[0].get(1);
             let res = GroupListWithRestaurantInfo {
-               info: format!("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}", title, info, id_to_category(cat_id)),
+               // info: format!("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}", title, info, id_to_category(cat_id)),
+               info: format!("Заведение: {}\nОписание: {}", title, info),
                image_id: data[0].get(2),
                groups: sub_select_groups(rest_num, cat_id).await,
             };

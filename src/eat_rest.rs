@@ -130,14 +130,34 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
 //
 pub async fn show_inline_interface(cx: cmd::Cx<()>, rest_list: db::RestaurantList, cat_id: i32) {
    // Создадим кнопки под рестораны
-   let buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
+   let mut buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
    .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("grc{}", db::make_key_3_int(rest_num, cat_id, 0)))))  // third argument always 0
    .collect();
 
-   // Формируем меню
-   let markup = InlineKeyboardMarkup::default()
-   .append_row(buttons);
+   // // Если количество элементов нечётное, добавим к ним кнопку "назад"
+   // let num = buttons.iter().count();
+   // if num % 2 == 0 {
+   //    buttons.push(value: T)
+   // }
+
+   // Разделим кнопки пополам и преобразуем в пары
+   let num = buttons.iter().count();
+   let part1 = buttons.iter().take(num / 2);
+   let part2 = buttons.iter().skip(num / 2);
+   let pair = part1.zip(part2);
+   
+   // Формируем меню по две кнопки в ряд
+   // let mut markup = InlineKeyboardMarkup::default();
+   // let markup = markup.append_row(vec![*buttons.get(0).unwrap()]);
+   // pair.fold(markup, |item| markup.append_row(item));
+   // pair.for_each(|item| markup.append_row(item));
+   // buttons.iter().for_each(|button| markup.append_row(vec![*button.unwrap()]));
+   // let markup = buttons.iter().fold(InlineKeyboardMarkup::default(), InlineKeyboardMarkup::append_row);
+   let markup = pair.fold(InlineKeyboardMarkup::default(), |m, (left, right)| m.append_row(vec![left.clone(), right.clone()]));
+
+   // Если количество было нечётным, добавим последний элемент
 
    let s = String::from("Рестораны с подходящим меню:");
    cmd::send_text(&cx, &s, markup).await;
 }
+
