@@ -15,12 +15,14 @@ use teloxide::{
 use crate::database as db;
 use crate::commands as cmd;
 use crate::eat_group;
+use crate::eat_rest;
 
 #[derive(Copy, Clone)]
 enum CallbackCommand {
     Add(i32, i32, i32), // rest_num, group_num, dish_num
     Remove(i32, i32, i32), // rest_num, group_num, dish_num
     GroupsByRestaurantAndCategory(i32, i32), // rest_num, cat_id
+    ReturnToCategory(i32), // cat_id
     UnknownCommand,
 }
 
@@ -34,6 +36,7 @@ impl CallbackCommand {
                "add" => CallbackCommand::Add(first, second, third),
                "del" => CallbackCommand::Remove(first, second, third),
                "grc" => CallbackCommand::GroupsByRestaurantAndCategory(first, second),
+               "rca" => CallbackCommand::ReturnToCategory(first),
                _ => CallbackCommand::UnknownCommand,
             }
          }
@@ -62,6 +65,8 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
             CallbackCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}: {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(remove_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
             CallbackCommand::GroupsByRestaurantAndCategory(rest_num, cat_id) => 
                format!("Группы '{}' {}", db::id_to_category(cat_id), db::is_success(eat_group::show_inline_interface(&cx, rest_num, cat_id).await)),
+            CallbackCommand::ReturnToCategory(cat_id) => 
+               format!("Возврат к '{}' {}", db::id_to_category(cat_id), db::is_success(eat_rest::show_inline_interface(&cx, cat_id).await)),
          }
       }
    };

@@ -154,7 +154,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
       chat_id: ChatId::Id(message.chat_id()),
       message_id: message.id,
    };
-         
+
    // Получаем информацию из БД
    match db::groups_by_restaurant_and_category(rest_num, cat_id).await {
       None => {
@@ -183,7 +183,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
       Some(info) => {
          // Создадим кнопки
          let mut buttons: Vec<InlineKeyboardButton> = info.groups.into_iter()
-         .map(|(_key, value)| (InlineKeyboardButton::callback(value, format!("ret{}", cat_id))))  // third argument always 0
+         .map(|(_key, value)| (InlineKeyboardButton::callback(value, format!("rca{}", cat_id))))  // third argument always 0
          .collect();
 
          // Последняя непарная кнопка, если есть
@@ -194,7 +194,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
             .fold(InlineKeyboardMarkup::default(), |acc, [left, right]| acc.append_row(vec![left, right]));
 
          // Кнопка назад
-         let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("ret{}", cat_id));
+         let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rca{}", cat_id));
 
          // Добавляем последнюю непарную кнопку и кнопку назад
          let markup = if let Some(last_button) = last {

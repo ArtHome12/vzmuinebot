@@ -9,7 +9,9 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
-   types::{InlineKeyboardButton, InlineKeyboardMarkup},
+   types::{InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery, 
+      ChatOrInlineMessage, ChatId,
+   },
 };
 use arraylib::iter::IteratorExt;
 
@@ -54,8 +56,13 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
          cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
    
       } else {
-         
-         show_inline_interface(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), rest_list, cat_id).await;
+         // Создадим кнопки
+         let markup = make_markup(rest_list, cat_id);
+
+         // Отправляем сообщение
+         let s = String::from("Рестораны с подходящим меню:");
+         let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
+         cmd::send_text(&new_cx, &s, markup).await;
 
          // В инлайн-режиме всегда остаёмся в главном меню
          return next(cmd::Dialogue::UserMode(compact_mode));
@@ -126,10 +133,9 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    }
 }
 
-
-// Выводит инлайн кнопки
+// Формирует инлайн кнопки по данным из БД
 //
-pub async fn show_inline_interface(cx: cmd::Cx<()>, rest_list: db::RestaurantList, cat_id: i32) {
+fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMarkup {
    // Создадим кнопки под рестораны
    let mut buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
    .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("grc{}", db::make_key_3_int(rest_num, cat_id, 0)))))  // third argument always 0
@@ -141,13 +147,40 @@ pub async fn show_inline_interface(cx: cmd::Cx<()>, rest_list: db::RestaurantLis
    let markup = buttons.into_iter().array_chunks::<[_; 2]>()
       .fold(InlineKeyboardMarkup::default(), |acc, [left, right]| acc.append_row(vec![left, right]));
    
-   let markup = if let Some(last_button) = last {
+   // Возвращаем результат
+   if let Some(last_button) = last {
       markup.append_row(vec![last_button])
    } else {
       markup
+   }
+}
+
+// Выводит инлайн кнопки, делая новый пост или редактируя предыдущий
+//
+pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_id: i32) -> bool {
+   // Получаем информацию из БД
+   let rest_list = db::restaurant_by_category(cat_id).await;
+
+   // Создадим кнопки
+   let markup = make_markup(rest_list, cat_id);
+
+   // Достаём chat_id
+   let message = cx.update.message.as_ref().unwrap();
+   let chat_message = ChatOrInlineMessage::Chat {
+      chat_id: ChatId::Id(message.chat_id()),
+      message_id: message.id,
    };
 
-   let s = String::from("Рестораны с подходящим меню:");
-   cmd::send_text(&cx, &s, markup).await;
+   // Редактируем сообщение
+   match cx.bot.edit_message_text(chat_message, String::from("Рестораны с подходящим меню:"))
+   .reply_markup(markup)
+   .send()
+   .await {
+      Err(e) => {
+         log::info!("Error eat_rest::show_inline_interface {}", e);
+         false
+      }
+      _ => true,
+   }
 }
 
