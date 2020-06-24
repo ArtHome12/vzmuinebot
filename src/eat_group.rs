@@ -13,6 +13,7 @@ use teloxide::{
       // InputMedia
    },
 };
+use arraylib::iter::IteratorExt;
 
 use crate::commands as cmd;
 use crate::database as db;
@@ -162,7 +163,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          let s = format!("Подходящие группы исчезли");
 
          // Кнопка назад
-         let buttons = vec![InlineKeyboardButton::callback(String::from("назад"), format!("ret{}", cat_id))];
+         let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("ret{}", cat_id))];
          // Формируем меню
          let markup = InlineKeyboardMarkup::default()
          .append_row(buttons);
@@ -177,7 +178,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
                false
             }
             _ => true,
-            }
+         }
       }
       Some(info) => {
          // Создадим кнопки
@@ -185,13 +186,22 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          .map(|(_key, value)| (InlineKeyboardButton::callback(value, format!("ret{}", cat_id))))  // third argument always 0
          .collect();
 
-         // Кнопка назад
-         let button = InlineKeyboardButton::callback(String::from("назад"), format!("ret{}", cat_id));
-         buttons.push(button);
+         // Последняя непарная кнопка, если есть
+         let last = if buttons.len() % 2 == 1 { buttons.pop() } else { None };
 
-         // Формируем меню
-         let markup = InlineKeyboardMarkup::default()
-         .append_row(buttons);
+         // Поделим на две колонки
+         let markup = buttons.into_iter().array_chunks::<[_; 2]>()
+            .fold(InlineKeyboardMarkup::default(), |acc, [left, right]| acc.append_row(vec![left, right]));
+
+         // Кнопка назад
+         let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("ret{}", cat_id));
+
+         // Добавляем последнюю непарную кнопку и кнопку назад
+         let markup = if let Some(last_button) = last {
+            markup.append_row(vec![last_button, button_back])
+         } else {
+            markup.append_row(vec![button_back])
+         };
 
          // Редактируем исходное сообщение
          /*match info.image_id {
@@ -230,16 +240,4 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          // }
       }
    }
-   // Создадим кнопки под рестораны
-/*    let buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
-   .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("grc{}", db::make_key_3_int(rest_num, cat_id, 0)))))  // third argument always 0
-   .collect();
-
-   // Формируем меню
-   let markup = InlineKeyboardMarkup::default()
-   .append_row(buttons);
-
-   let s = String::from("Рестораны с подходящим меню:");
-   cmd::send_text(&cx, &s, markup).await;
- */
 }

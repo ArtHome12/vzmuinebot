@@ -138,7 +138,8 @@ pub async fn show_inline_interface(cx: cmd::Cx<()>, rest_list: db::RestaurantLis
    // Последняя непарная кнопка, если есть
    let last = if buttons.len() % 2 == 1 { buttons.pop() } else { None };
 
-   let markup = buttons.into_iter().array_chunks::<[_; 2]>().fold(InlineKeyboardMarkup::default(), |acc, [left, right]| acc.append_row(vec![left, right]));
+   let markup = buttons.into_iter().array_chunks::<[_; 2]>()
+      .fold(InlineKeyboardMarkup::default(), |acc, [left, right]| acc.append_row(vec![left, right]));
    
    let markup = if let Some(last_button) = last {
       markup.append_row(vec![last_button])
@@ -146,22 +147,6 @@ pub async fn show_inline_interface(cx: cmd::Cx<()>, rest_list: db::RestaurantLis
       markup
    };
 
-/*    // Разделим список кнопок пополам и преобразуем в пары
-   let num = buttons.iter().count();
-   let part1 = buttons.iter().take(num / 2);
-   let part2 = buttons.iter().skip(num / 2);
-   let pairs = part1.zip(part2);
-   
-   // Формируем меню по две кнопки в ряд
-   let markup = pairs.fold(InlineKeyboardMarkup::default(), |m, (left, right)| m.append_row(vec![left.clone(), right.clone()]));
-
-   // Если количество было нечётным, добавим последний элемент
-   let markup = if num % 2 == 1 {
-      markup.append_row(vec![buttons.last().unwrap().clone()])
-   } else {
-      markup
-   };
- */
    let s = String::from("Рестораны с подходящим меню:");
    cmd::send_text(&cx, &s, markup).await;
 }
