@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
-   types::{InputFile, ReplyMarkup},
+   types::{InputFile, ReplyMarkup, CallbackQuery},
 };
 
 use crate::commands as cmd;
@@ -150,4 +150,10 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::R
          }
       }
    }
+}
+
+// Выводит инлайн кнопки
+//
+pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, cat_id: i32) -> bool {
+   false
 }
