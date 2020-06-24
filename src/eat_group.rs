@@ -163,7 +163,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          let s = format!("Подходящие группы исчезли");
 
          // Кнопка назад
-         let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("ret{}", cat_id))];
+         let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("rca{}", db::make_key_3_int(cat_id, 0, 0)))];
          // Формируем меню
          let markup = InlineKeyboardMarkup::default()
          .append_row(buttons);
@@ -183,7 +183,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
       Some(info) => {
          // Создадим кнопки
          let mut buttons: Vec<InlineKeyboardButton> = info.groups.into_iter()
-         .map(|(_key, value)| (InlineKeyboardButton::callback(value, format!("rca{}", cat_id))))  // third argument always 0
+         .map(|(_key, value)| (InlineKeyboardButton::callback(value, format!("rca{}", db::make_key_3_int(cat_id, 0, 0)))))  // third argument always 0
          .collect();
 
          // Последняя непарная кнопка, если есть
@@ -194,7 +194,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
             .fold(InlineKeyboardMarkup::default(), |acc, [left, right]| acc.append_row(vec![left, right]));
 
          // Кнопка назад
-         let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rca{}", cat_id));
+         let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rca{}", db::make_key_3_int(cat_id, 0, 0)));
 
          // Добавляем последнюю непарную кнопку и кнопку назад
          let markup = if let Some(last_button) = last {
