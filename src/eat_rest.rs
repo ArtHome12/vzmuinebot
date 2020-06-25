@@ -141,9 +141,8 @@ fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMark
    .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("grc{}", db::make_key_3_int(rest_num, cat_id, 0)))))  // third argument always 0
    .collect();
 
-   buttons.into_iter().fold(InlineKeyboardMarkup::default(), |acc, item| acc.append_row(vec![item]))
    // Последняя непарная кнопка, если есть
-/*    let last = if buttons.len() % 2 == 1 { buttons.pop() } else { None };
+   let last = if buttons.len() % 2 == 1 { buttons.pop() } else { None };
 
    let markup = buttons.into_iter().array_chunks::<[_; 2]>()
       .fold(InlineKeyboardMarkup::default(), |acc, [left, right]| acc.append_row(vec![left, right]));
@@ -154,7 +153,7 @@ fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMark
    } else {
       markup
    }
- */}
+}
 
 // Выводит инлайн кнопки, делая новый пост или редактируя предыдущий
 //

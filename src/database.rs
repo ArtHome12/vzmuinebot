@@ -14,7 +14,7 @@ use teloxide::{
    prelude::*,
    types::{User},
 };
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 //use tokio_postgres::{Row, Error};
 // extern crate runtime_fmt;
@@ -44,7 +44,7 @@ pub static TIME_ZONE: OnceCell<FixedOffset> = OnceCell::new();
 
 // Возвращает список ресторанов с активными группами в данной категории
 //
-pub type RestaurantList = HashMap<i32, String>;
+pub type RestaurantList = BTreeMap<i32, String>;
 pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
    // Выполняем запрос
    let rows = DB.get().unwrap()
@@ -57,7 +57,7 @@ pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
       Err(e) => {
          // Сообщаем об ошибке и возвращаем пустой список
          log(&format!("Error restaurant_by_category: {}", e)).await;
-         HashMap::<i32, String>::new()
+         BTreeMap::<i32, String>::new()
       }
    }
 }
@@ -67,10 +67,10 @@ pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
 pub struct GroupListWithRestaurantInfo {
    pub info: String, 
    pub image_id: Option<String>,
-   pub groups: HashMap<i32, String>
+   pub groups: BTreeMap<i32, String>
 }
 
-async fn subselect_groups(rest_num: i32, cat_id: i32) -> HashMap<i32, String> {
+async fn subselect_groups(rest_num: i32, cat_id: i32) -> BTreeMap<i32, String> {
    // Выполняем запрос групп
    let rows = DB.get().unwrap()
       .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND cat_id=$2::INTEGER AND active = TRUE", &[&rest_num, &cat_id])
@@ -90,7 +90,7 @@ async fn subselect_groups(rest_num: i32, cat_id: i32) -> HashMap<i32, String> {
       Err(e) => {
          // Сообщаем об ошибке и возвращаем пустой список
          log(&format!("Error restaurant_by_category: {}", e)).await;
-         HashMap::<i32, String>::new()
+         BTreeMap::<i32, String>::new()
       }
    }
 }
@@ -132,10 +132,10 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
 //
 pub struct DishListWithGroupInfo {
    pub info: String, 
-   pub dishes: HashMap<i32, String>
+   pub dishes: BTreeMap<i32, String>
 }
 
-async fn subselect_dishes(rest_num: i32, group_num: i32) -> HashMap<i32, String> {
+async fn subselect_dishes(rest_num: i32, group_num: i32) -> BTreeMap<i32, String> {
    // Выполняем запрос списка блюд
    let rows = DB.get().unwrap()
       .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE ORDER BY dish_num", &[&rest_num, &group_num])
@@ -154,7 +154,7 @@ async fn subselect_dishes(rest_num: i32, group_num: i32) -> HashMap<i32, String>
       Err(e) => {
          // Сообщаем об ошибке и возвращаем пустой список
          log(&format!("Error restaurant_by_category: {}", e)).await;
-         HashMap::<i32, String>::new()
+         BTreeMap::<i32, String>::new()
       }
    }
 }
