@@ -10,7 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use teloxide::{
    prelude::*, 
    types::{InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery, 
-      ChatOrInlineMessage, ChatId,
+      ChatOrInlineMessage, ChatId, ReplyMarkup
    },
 };
 use arraylib::iter::IteratorExt;
@@ -59,10 +59,10 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
          // Создадим кнопки
          let markup = make_markup(rest_list, cat_id);
 
-         // Отправляем сообщение
+         // Отправляем сообщение с плашкой в качестве картинки
          let s = String::from("Рестораны с подходящим меню:");
          let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
-         cmd::send_text(&new_cx, &s, markup).await;
+         cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), db::default_photo_id()).await;
 
          // В инлайн-режиме всегда остаёмся в главном меню
          return next(cmd::Dialogue::UserMode(compact_mode));

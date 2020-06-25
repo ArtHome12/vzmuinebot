@@ -742,6 +742,10 @@ pub fn price_with_unit(price: i32) -> String {
    format!("{}{}", price, unit)
 }
 
+pub fn default_photo_id() -> String {
+   String::from("AgACAgUAAxkBAAIZDV70USDQoAlMkWHZvmllF785NhGLAAJLqTEbvzKhVwGpUSlOTahiYDRla3QAAwEAAwIAA20AA8RmAgABGgQ")
+}
+
 // ============================================================================
 // [Caterer]
 // ============================================================================

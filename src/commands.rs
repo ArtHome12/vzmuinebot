@@ -9,7 +9,9 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
-   types::{KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton, ReplyMarkup},
+   types::{KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, 
+      InlineKeyboardButton, ReplyMarkup, InputFile
+   },
 };
 
 use crate::database as db;
@@ -207,7 +209,25 @@ where
 
    // Если не удалось отправить, выведем ошибку в лог
    if let Err(err) = res {
-      log::info!("Error send_text({}): {}", text, err);
+      db::log(&format!("Error send_text({}): {}", text, err)).await;
+   }
+}
+
+// Отправляет картинку
+//
+pub async fn send_photo(cx: &Cx<()>, text: &str, markup: ReplyMarkup, image_id : String) 
+{
+   // Отправляем картинку и текст как комментарий
+   let res = cx.answer_photo(InputFile::file_id(image_id))
+   .caption(text)
+   .reply_markup(markup)
+   .disable_notification(true)
+   .send()
+   .await;
+
+   // Если не удалось отправить, выведем ошибку в лог
+   if let Err(err) = res {
+      db::log(&format!("Error send_photo({}): {}", text, err)).await;
    }
 }
 
