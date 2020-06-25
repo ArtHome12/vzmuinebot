@@ -9,7 +9,9 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
-   types::{InputFile, ReplyMarkup, CallbackQuery, InlineKeyboardButton, ChatOrInlineMessage, InlineKeyboardMarkup, ChatId,},
+   types::{InputFile, ReplyMarkup, CallbackQuery, InlineKeyboardButton, 
+      ChatOrInlineMessage, InlineKeyboardMarkup, ChatId, InputMedia
+   },
 };
 use arraylib::iter::IteratorExt;
 
@@ -175,18 +177,10 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::R
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, cat_id: i32) -> bool {
    // db::log(&format!("eat_dish::show_inline_interface ({}_{}_{})", rest_num, group_num, cat_id)).await;
 
-   // Достаём chat_id
-   let message = cx.update.message.as_ref().unwrap();
-   let chat_message = ChatOrInlineMessage::Chat {
-      chat_id: ChatId::Id(message.chat_id()),
-      message_id: message.id,
-   };
-
-   // Получаем информацию из БД
-   match db::dishes_by_restaurant_and_group(rest_num, group_num).await {
+   // Получаем информацию из БД - нужен текст, картинка и кнопки
+   let (text, markup) = match db::dishes_by_restaurant_and_group(rest_num, group_num).await {
       None => {
          // Такая ситуация может возникнуть, если ресторатор удалил группу только что
-         let s = String::from("Подходящие блюда исчезли");
 
          // Кнопка назад
          let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0)))];
@@ -194,17 +188,8 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          let markup = InlineKeyboardMarkup::default()
          .append_row(buttons);
 
-         // Редактируем исходное сообщение
-         match cx.bot.edit_message_text(chat_message, s)
-         .reply_markup(markup)
-         .send()
-         .await {
-            Err(e) => {
-               log::info!("Error eat_dish::show_inline_interface {}", e);
-               false
-            }
-            _ => true,
-         }
+         // Сформированные данные
+         (String::from("Подходящие блюда исчезли"), markup)
       }
       Some(info) => {
          // Создадим кнопки
@@ -230,41 +215,34 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
             markup.append_row(vec![button_back])
          };
 
-         // Редактируем исходное сообщение
-         /*match info.image_id {
-            Some(image) => {
-               // Приготовим картинку к нужному формату
-               let media = InputMedia::Photo{
-                  media: InputFile::file_id(image),
-                  caption: Some(info.info),
-                  parse_mode: None,
-               };
-               
-               match cx.bot.edit_message_media(chat_message, media)
-               // .caption(info.info)
-               .reply_markup(markup)
-               .send()
-               .await {
-                  Err(e) => {
-                     log::info!("Error eat_group::show_inline_interface {}", e);
-                     false
-                  }
-                  _ => true,
-               }
-            }
-            None => {*/
-               match cx.bot.edit_message_text(chat_message, info.info)
-               .reply_markup(markup)
-               .send()
-               .await {
-                  Err(e) => {
-                     log::info!("Error eat_dish::show_inline_interface {}", e);
-                     false
-                  }
-                  _ => true,
-               }
-               // }
-         // }
+         // Сформированные данные
+         (info.info, markup)
       }
+   };
+
+   // Достаём chat_id
+   let message = cx.update.message.as_ref().unwrap();
+   let chat_message = ChatOrInlineMessage::Chat {
+      chat_id: ChatId::Id(message.chat_id()),
+      message_id: message.id,
+   };
+
+   // Приготовим структуру для редактирования
+   let media = InputMedia::Photo{
+      media: InputFile::file_id(db::default_photo_id()),
+      caption: Some(text),
+      parse_mode: None,
+   };
+
+   // Отправляем изменения
+   match cx.bot.edit_message_media(chat_message, media)
+   .reply_markup(markup)
+   .send()
+   .await {
+      Err(e) => {
+         db::log(&format!("Error eat_dish::show_inline_interface {}", e)).await;
+         false
+      }
+      _ => true,
    }
 }

@@ -148,18 +148,10 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32)>) -> cmd::Res {
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, cat_id: i32) -> bool {
    // db::log(&format!("eat_groups::show_inline_interface ({}_{})", rest_num, cat_id)).await;
 
-   // Достаём chat_id
-   let message = cx.update.message.as_ref().unwrap();
-   let chat_message = ChatOrInlineMessage::Chat {
-      chat_id: ChatId::Id(message.chat_id()),
-      message_id: message.id,
-   };
-
    // Получаем информацию из БД - нужен текст, картинка и кнопки
    let (text, markup, photo_id) = match db::groups_by_restaurant_and_category(rest_num, cat_id).await {
       None => {
          // Такая ситуация может возникнуть, если ресторатор скрыл ресторан только что
-         let s = String::from("Подходящие группы исчезли");
 
          // Кнопка назад
          let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("rca{}", db::make_key_3_int(cat_id, 0, 0)))];
@@ -167,7 +159,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          .append_row(buttons);
 
          // Сформированные данные
-         (s, markup, db::default_photo_id())
+         (String::from("Подходящие группы исчезли"), markup, db::default_photo_id())
       }
       Some(info) => {
          // Создадим кнопки
@@ -201,6 +193,13 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          // Сформированные данные
          (info.info, markup, photo_id)
       }
+   };
+
+   // Достаём chat_id
+   let message = cx.update.message.as_ref().unwrap();
+   let chat_message = ChatOrInlineMessage::Chat {
+      chat_id: ChatId::Id(message.chat_id()),
+      message_id: message.id,
    };
 
    // Приготовим структуру для редактирования
