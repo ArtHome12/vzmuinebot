@@ -10,7 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use teloxide::{
    prelude::*, 
    types::{InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery, 
-      ChatOrInlineMessage, ChatId, ReplyMarkup
+      ChatOrInlineMessage, ChatId, ReplyMarkup, InputMedia, InputFile
    },
 };
 use arraylib::iter::IteratorExt;
@@ -171,13 +171,20 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_
       message_id: message.id,
    };
 
-   // Редактируем сообщение
-   match cx.bot.edit_message_text(chat_message, String::from("Рестораны с подходящим меню:"))
+   // Приготовим структуру для редактирования
+   let media = InputMedia::Photo{
+      media: InputFile::file_id(db::default_photo_id()),
+      caption: Some( String::from("Рестораны с подходящим меню:")),
+      parse_mode: None,
+   };
+
+   // Отправляем изменения
+   match cx.bot.edit_message_media(chat_message, media)
    .reply_markup(markup)
    .send()
    .await {
       Err(e) => {
-         log::info!("Error eat_rest::show_inline_interface {}", e);
+         db::log(&format!("Error eat_rest::show_inline_interface {}", e)).await;
          false
       }
       _ => true,
