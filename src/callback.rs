@@ -26,6 +26,7 @@ enum CallbackCommand {
     ReturnToCategory(i32), // cat_id
     Dishes(i32, i32, i32),  // rest_num, group_num, cat_id
     ReturnToGroups(i32, i32), // rest_num, cat_id
+    Dish(i32, i32, i32),  // rest_num, group_num, dish_num
     UnknownCommand,
 }
 
@@ -42,6 +43,7 @@ impl CallbackCommand {
                "rca" => CallbackCommand::ReturnToCategory(first),
                "drg" => CallbackCommand::Dishes(first, second, third),
                "rrg" => CallbackCommand::ReturnToGroups(first, second),
+               "dis" => CallbackCommand::Dish(first, second, third),
                _ => CallbackCommand::UnknownCommand,
             }
          }
@@ -76,6 +78,8 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
                format!("Блюда {}:{} {}", rest_num, group_num, db::is_success(eat_dish::show_inline_interface(&cx, rest_num, group_num, cat_id).await)),
             CallbackCommand::ReturnToGroups(rest_num, cat_id) => 
                format!("Группы '{}' {}", db::id_to_category(cat_id), db::is_success(eat_group::show_inline_interface(&cx, rest_num, cat_id).await)),
+            CallbackCommand::Dish(rest_num, group_num, dish_num) => 
+               format!("Блюдо '{}': {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(show_dish(&cx, rest_num, group_num, dish_num).await)),
          }
       }
    };
@@ -147,3 +151,11 @@ async fn update_keyboard(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32,
    }
 }
 
+async fn show_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32) -> bool {
+   // Достаём chat_id
+   let message = cx.update.message.as_ref().unwrap();
+   let chat_id = ChatId::Id(message.chat_id());
+
+   cx.bot.send_message(chat_id, "Hello");
+   true
+}

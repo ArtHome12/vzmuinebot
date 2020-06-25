@@ -62,10 +62,8 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32, i32)>) -> cmd::Res {
             .send()
             .await?;
          } else {
-               // cx.answer(s)
-               cx.answer_photo(InputFile::file_id(""))
-               .caption(s)
-               // .reply_markup(cmd::EaterGroup::markup())
+               cx.answer(s)
+               .reply_markup(cmd::EaterGroup::markup())
                .disable_notification(true)
                .send()
                .await?;
