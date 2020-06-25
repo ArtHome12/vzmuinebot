@@ -79,7 +79,7 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
             CallbackCommand::ReturnToGroups(rest_num, cat_id) => 
                format!("Группы '{}' {}", db::id_to_category(cat_id), db::is_success(eat_group::show_inline_interface(&cx, rest_num, cat_id).await)),
             CallbackCommand::Dish(rest_num, group_num, dish_num) => 
-               format!("Блюдо '{}': {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(show_dish(&cx, rest_num, group_num, dish_num).await)),
+               format!("Блюдо '{}': {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(eat_dish::show_dish(&cx, rest_num, group_num, dish_num).await)),
          }
       }
    };
@@ -149,20 +149,5 @@ async fn update_keyboard(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32,
             false
          }
          _ => true,
-   }
-}
-
-async fn show_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32) -> bool {
-   // Достаём chat_id
-   let message = cx.update.message.as_ref().unwrap();
-   let chat_id = ChatId::Id(message.chat_id());
-
-   match cx.bot.send_message(chat_id, "Hello").send().await {
-      Err(_) => {
-         let text = format!("Error edit_message_reply_markup {}:{}:{}", rest_num, group_num, dish_num);
-         db::log(&text).await;
-         false
-      }
-      _ => true,
    }
 }

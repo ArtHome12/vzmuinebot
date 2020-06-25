@@ -246,3 +246,52 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
       _ => true,
    }
 }
+
+// Показывает информацию о блюде
+//
+pub async fn show_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32) -> bool {
+   // Получаем информацию из БД
+   let (info, dish_image_id) = match db::eater_dish_info(rest_num, group_num, dish_num).await {
+      Some(dish_info) => dish_info,
+      None => {
+         db::log(&format!("Error eat_dish::show_dish_info({}, {}, {})", rest_num, group_num, dish_num)).await;
+         return false;
+      }
+   };
+
+   // Идентифицируем пользователя
+   let user_id = cx.update.from.id;
+
+   // Запросим из БД, сколько этих блюд пользователь уже выбрал
+   let ordered_amount = db::amount_in_basket(rest_num, group_num, dish_num, user_id).await;
+
+   // Создаём инлайн кнопки с указанием количества блюд
+   let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_key_3_int(rest_num, group_num, dish_num), ordered_amount);
+
+   // Картинка блюда
+   let photo_id = match dish_image_id {
+      Some(photo) => photo,
+      None => db::default_photo_id(),
+   };
+
+   // Создадим графический объект
+   let image = InputFile::file_id(photo_id);
+
+   // Достаём chat_id
+   let message = cx.update.message.as_ref().unwrap();
+   let chat_id = ChatId::Id(message.chat_id());
+
+   // Отображаем информацию о блюде
+   match cx.bot.send_photo(chat_id, image)
+   .caption(info)
+   .reply_markup(ReplyMarkup::InlineKeyboardMarkup(inline_keyboard))
+   .disable_notification(true)
+   .send()
+   .await {
+      Err(e) => {
+         db::log(&format!("Error eat_dish::show_inline_interface {}", e)).await;
+         false
+      }
+      _ => true,
+   }
+}
