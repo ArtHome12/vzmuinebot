@@ -155,36 +155,25 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
       message_id: message.id,
    };
 
-   // Получаем информацию из БД
-   match db::groups_by_restaurant_and_category(rest_num, cat_id).await {
+   // Получаем информацию из БД - нужен текст, картинка и кнопки
+   let (text, markup, photo_id) = match db::groups_by_restaurant_and_category(rest_num, cat_id).await {
       None => {
          // Такая ситуация может возникнуть, если ресторатор скрыл ресторан только что
          let s = String::from("Подходящие группы исчезли");
 
          // Кнопка назад
          let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("rca{}", db::make_key_3_int(cat_id, 0, 0)))];
-         // Формируем меню
          let markup = InlineKeyboardMarkup::default()
          .append_row(buttons);
 
-         // Редактируем исходное сообщение
-         match cx.bot.edit_message_text(chat_message, s)
-         .reply_markup(markup)
-         .send()
-         .await {
-            Err(e) => {
-               log::info!("Error eat_group::show_inline_interface {}", e);
-               false
-            }
-            _ => true,
-         }
+         // Сформированные данные
+         (s, markup, db::default_photo_id())
       }
       Some(info) => {
          // Создадим кнопки
          let mut buttons: Vec<InlineKeyboardButton> = info.groups.into_iter()
          .map(|(key, value)| (InlineKeyboardButton::callback(value, format!("drg{}", db::make_key_3_int(rest_num, key, cat_id)))))
          .collect();
-         // db::log(&format!("drg{}", db::make_key_3_int(rest_num, 99, cat_id))).await;
 
          // Последняя непарная кнопка, если есть
          let last = if buttons.len() % 2 == 1 { buttons.pop() } else { None };
@@ -209,84 +198,27 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
             None => db::default_photo_id(),
          };
 
-         // Приготовим структуру для редактирования
-         let media = InputMedia::Photo{
-            media: InputFile::file_id(photo_id),
-            caption: Some(info.info),
-            parse_mode: None,
-         };
+         // Сформированные данные
+         (info.info, markup, photo_id)
+      }
+   };
 
-         // Отправляем изменения
-         match cx.bot.edit_message_media(chat_message, media)
-         .reply_markup(markup)
-         .send()
-         .await {
-            Err(e) => {
-               db::log(&format!("Error eat_group::show_inline_interface {}", e)).await;
-               false
-            }
-            _ => true,
-         }
+   // Приготовим структуру для редактирования
+   let media = InputMedia::Photo{
+      media: InputFile::file_id(photo_id),
+      caption: Some(text),
+      parse_mode: None,
+   };
 
-         // Заменяем текст сообщения на информацию о ресторане
-/*         match cx.bot.edit_message_text(chat_message, info.info)
-         .reply_markup(markup)
-         .send()
-         .await {
-            Err(e) => {
-               log::info!("Error eat_group::show_inline_interface 1 {}", e);
-               false
-            }
-            _ => {
-               // Если у ресторана есть собственная картинка, вставим её вместо исходной
-               if let Some(image) = info.image_id {
-                  // Приготовим картинку к нужному формату
-                  let media = InputMedia::Photo{
-                     media: InputFile::file_id(image),
-                     caption: Some(info.info),
-                     parse_mode: None,
-                  };
-                  match cx.bot.edit_message_media(chat_message, media)
-                  .reply_markup(markup)
-                  .send()
-                  .await {
-                     Err(e) => {
-                        db::log(&format!("Error eat_group::show_inline_interface {}", e));
-                        false
-                     }
-                     _ => true,
-                  }
-               } else {
-                  true
-               }
-            }
-         }*/
-
-
-/*          // Редактируем исходное сообщение, должно быть с картинкой
-         if let Some(image) = info.image_id {
-            // Приготовим картинку к нужному формату
-            let media = InputMedia::Photo{
-               media: InputFile::file_id(photo_id),
-               caption: Some(info.info),
-               parse_mode: None,
-            };
-            
-            match cx.bot.edit_message_media(chat_message, media)
-            .caption(info.info)
-            .reply_markup(markup)
-            .send()
-            .await {
-               Err(e) => {
-                  db::log(format!("Error eat_group::show_inline_interface {}", e));
-                  false
-               }
-               _ => true,
-            }
-         } else {
-            db::log("Error eat_group::show_inline_interface - None image id");
-            false
-         }
- */      }
+   // Отправляем изменения
+   match cx.bot.edit_message_media(chat_message, media)
+   .reply_markup(markup)
+   .send()
+   .await {
+      Err(e) => {
+         db::log(&format!("Error eat_group::show_inline_interface {}", e)).await;
+         false
+      }
+      _ => true,
    }
 }
