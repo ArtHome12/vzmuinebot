@@ -9,8 +9,8 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
-   types::{InputFile, ReplyMarkup, CallbackQuery, InlineKeyboardButton, ChatOrInlineMessage, InlineKeyboardMarkup, ChatId,
-      // InputMedia
+   types::{InputFile, ReplyMarkup, CallbackQuery, InlineKeyboardButton, 
+      ChatOrInlineMessage, InlineKeyboardMarkup, ChatId, InputMedia
    },
 };
 use arraylib::iter::IteratorExt;
@@ -203,41 +203,90 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
             markup.append_row(vec![button_back])
          };
 
-         // Редактируем исходное сообщение
-         /*match info.image_id {
-            Some(image) => {
-               // Приготовим картинку к нужному формату
-               let media = InputMedia::Photo{
-                  media: InputFile::file_id(image),
-                  caption: Some(info.info),
-                  parse_mode: None,
-               };
-               
-               match cx.bot.edit_message_media(chat_message, media)
-               // .caption(info.info)
-               .reply_markup(markup)
-               .send()
-               .await {
-                  Err(e) => {
-                     log::info!("Error eat_group::show_inline_interface {}", e);
-                     false
+         // Если у ресторана есть собственная картинка, вставим её, иначе плашку
+         let photo_id = match info.image_id {
+            Some(photo) => photo,
+            None => db::default_photo_id(),
+         };
+
+         // Приготовим структуру для редактирования
+         let media = InputMedia::Photo{
+            media: InputFile::file_id(photo_id),
+            caption: Some(info.info),
+            parse_mode: None,
+         };
+
+         // Отправляем изменения
+         match cx.bot.edit_message_media(chat_message, media)
+         .reply_markup(markup)
+         .send()
+         .await {
+            Err(e) => {
+               db::log(&format!("Error eat_group::show_inline_interface {}", e)).await;
+               false
+            }
+            _ => true,
+         }
+
+         // Заменяем текст сообщения на информацию о ресторане
+/*         match cx.bot.edit_message_text(chat_message, info.info)
+         .reply_markup(markup)
+         .send()
+         .await {
+            Err(e) => {
+               log::info!("Error eat_group::show_inline_interface 1 {}", e);
+               false
+            }
+            _ => {
+               // Если у ресторана есть собственная картинка, вставим её вместо исходной
+               if let Some(image) = info.image_id {
+                  // Приготовим картинку к нужному формату
+                  let media = InputMedia::Photo{
+                     media: InputFile::file_id(image),
+                     caption: Some(info.info),
+                     parse_mode: None,
+                  };
+                  match cx.bot.edit_message_media(chat_message, media)
+                  .reply_markup(markup)
+                  .send()
+                  .await {
+                     Err(e) => {
+                        db::log(&format!("Error eat_group::show_inline_interface {}", e));
+                        false
+                     }
+                     _ => true,
                   }
-                  _ => true,
+               } else {
+                  true
                }
             }
-            None => {*/
-               match cx.bot.edit_message_text(chat_message, info.info)
-               .reply_markup(markup)
-               .send()
-               .await {
-                  Err(e) => {
-                     log::info!("Error eat_group::show_inline_interface {}", e);
-                     false
-                  }
-                  _ => true,
+         }*/
+
+
+/*          // Редактируем исходное сообщение, должно быть с картинкой
+         if let Some(image) = info.image_id {
+            // Приготовим картинку к нужному формату
+            let media = InputMedia::Photo{
+               media: InputFile::file_id(photo_id),
+               caption: Some(info.info),
+               parse_mode: None,
+            };
+            
+            match cx.bot.edit_message_media(chat_message, media)
+            .caption(info.info)
+            .reply_markup(markup)
+            .send()
+            .await {
+               Err(e) => {
+                  db::log(format!("Error eat_group::show_inline_interface {}", e));
+                  false
                }
-               // }
-         // }
-      }
+               _ => true,
+            }
+         } else {
+            db::log("Error eat_group::show_inline_interface - None image id");
+            false
+         }
+ */      }
    }
 }
