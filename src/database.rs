@@ -70,7 +70,7 @@ pub struct GroupListWithRestaurantInfo {
    pub groups: HashMap<i32, String>
 }
 
-async fn sub_select_groups(rest_num: i32, cat_id: i32) -> HashMap<i32, String> {
+async fn subselect_groups(rest_num: i32, cat_id: i32) -> HashMap<i32, String> {
    // Выполняем запрос групп
    let rows = DB.get().unwrap()
       .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND cat_id=$2::INTEGER AND active = TRUE", &[&rest_num, &cat_id])
@@ -111,7 +111,7 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
                // info: format!("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}", title, info, id_to_category(cat_id)),
                info: format!("Заведение: {}\nОписание: {}", title, info),
                image_id: data[0].get(2),
-               groups: sub_select_groups(rest_num, cat_id).await,
+               groups: subselect_groups(rest_num, cat_id).await,
             };
 
             // Окончательный результат
@@ -130,7 +130,36 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
 
 // Возвращает список блюд выбранного ресторана и группы
 //
-pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Option<String> {
+pub struct DishListWithGroupInfo {
+   pub info: String, 
+   pub dishes: HashMap<i32, String>
+}
+
+async fn subselect_dishes(rest_num: i32, group_num: i32) -> HashMap<i32, String> {
+   // Выполняем запрос списка блюд
+   let rows = DB.get().unwrap()
+      .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE ORDER BY dish_num", &[&rest_num, &group_num])
+      .await;
+
+   // Проверяем результат
+   match rows {
+      Ok(data) => data.into_iter().map(|row| -> (i32, String) {
+         let dish_num: i32 = row.get(0);
+         let title: String = row.get(1);
+         let price: i32 = row.get(2);
+
+         // Возвращаем хешстроку
+         (dish_num, format!("   {} {}", title, price_with_unit(price)))
+      }).collect(),
+      Err(e) => {
+         // Сообщаем об ошибке и возвращаем пустой список
+         log(&format!("Error restaurant_by_category: {}", e)).await;
+         HashMap::<i32, String>::new()
+      }
+   }
+}
+
+pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Option<DishListWithGroupInfo> {
    // Выполняем запрос информации о группе
    let rows = DB.get().unwrap()
       .query("SELECT info FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
@@ -140,35 +169,13 @@ pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Op
       Ok(data) => {
          if !data.is_empty() {
             // Информация о группе
-            let title: String = data[0].get(0);
-
-            // Выполняем запрос списка блюд
-            let rows = DB.get().unwrap()
-               .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE ORDER BY dish_num", &[&rest_num, &group_num])
-               .await;
-
-            // Строка для возврата результата
-            let mut res = String::default();
-
-            // Проверяем результат
-            if let Ok(data) = rows {
-               for record in data {
-                  let dish_num: i32 = record.get(0);
-                  let title: String = record.get(1);
-                  let price: i32 = record.get(2);
-                  res.push_str(&format!("   {} {} /dish{}\n", title, price_with_unit(price), dish_num));
-               }
-            }
-
-            // На случай пустого списка сообщим об этом
-            let res = if res.is_empty() {
-               String::from("   пусто :(")
-            } else {
-               res
+            let res = DishListWithGroupInfo{
+               info: data[0].get(0),
+               dishes: subselect_dishes(rest_num, group_num).await,
             };
 
             // Окончательный результат
-            Some(format!("Описание: {}\nБлюда выбранного раздела меню:\n{}", title, res))
+            Some(res)
          } else {
             None
          }

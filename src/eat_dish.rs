@@ -9,8 +9,9 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
-   types::{InputFile, ReplyMarkup, CallbackQuery},
+   types::{InputFile, ReplyMarkup, CallbackQuery, InlineKeyboardButton, ChatOrInlineMessage, InlineKeyboardMarkup, ChatId,},
 };
+use arraylib::iter::IteratorExt;
 
 use crate::commands as cmd;
 use crate::database as db;
@@ -18,6 +19,7 @@ use crate::eater;
 use crate::eat_group;
 use crate::eat_group_now;
 use crate::basket;
+use crate::language as lang;
 
 // Основную информацию режима
 //
@@ -26,17 +28,33 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
    let (compact_mode, cat_id, rest_id, group_id) = cx.dialogue;
    
    // Получаем информацию из БД
-   let group_list = match db::dishes_by_restaurant_and_group(rest_id, group_id).await {
-      Some(info) => info,
-      None => format!("Ошибка db::dishes_by_restaurant_and_group({}, {})", rest_id, group_id)
-   };
+   match db::dishes_by_restaurant_and_group(rest_id, group_id).await {
+      None => {
+         // Такая ситуация может возникнуть, если ресторатор удалил блюда только что
+         let s = String::from("Подходящие блюда исчезли");
+         let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
+         cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
+      }
+      Some(info) => {
 
-   // Отображаем информацию и кнопки меню
-   cx.answer(group_list)
-   .reply_markup(cmd::EaterDish::markup())
-   .disable_notification(true)
-   .send()
-   .await?;
+         // Сформируем строку вида "название /ссылка\n"
+         let s: String = if info.dishes.is_empty() {
+            String::from(lang::t("ru", lang::Res::EatDishEmpty))
+         } else {
+            info.dishes.into_iter().map(|(key, value)| (format!("   {} /dish{}\n", value, key))).collect()
+         };
+         
+         // Добавляем блюда к информации о группе
+         let s = format!("{}\n{}", info.info, s);
+
+         // Отображаем список блюд
+         cx.answer(s)
+         .reply_markup(cmd::EaterGroup::markup())
+         .disable_notification(true)
+         .send()
+         .await?;
+      }
+   };
 
    // Переходим (остаёмся) в режим выбора ресторана
    next(cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_id, group_id))
@@ -155,5 +173,96 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::R
 // Выводит инлайн кнопки
 //
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, cat_id: i32) -> bool {
-   false
+
+   // Достаём chat_id
+   let message = cx.update.message.as_ref().unwrap();
+   let chat_message = ChatOrInlineMessage::Chat {
+      chat_id: ChatId::Id(message.chat_id()),
+      message_id: message.id,
+   };
+
+   // Получаем информацию из БД
+   match db::groups_by_restaurant_and_category(rest_num, cat_id).await {
+      None => {
+         // Такая ситуация может возникнуть, если ресторатор удалил группу только что
+         let s = String::from("Подходящие блюда исчезли");
+
+         // Кнопка назад
+         let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("rrg{}", db::make_key_3_int(rest_num, group_num, cat_id)))];
+         // Формируем меню
+         let markup = InlineKeyboardMarkup::default()
+         .append_row(buttons);
+
+         // Редактируем исходное сообщение
+         match cx.bot.edit_message_text(chat_message, s)
+         .reply_markup(markup)
+         .send()
+         .await {
+            Err(e) => {
+               log::info!("Error eat_dish::show_inline_interface {}", e);
+               false
+            }
+            _ => true,
+         }
+      }
+      Some(info) => {
+         // Создадим кнопки
+         let mut buttons: Vec<InlineKeyboardButton> = info.groups.into_iter()
+         .map(|(key, value)| (InlineKeyboardButton::callback(value, format!("dis{}", db::make_key_3_int(rest_num, group_num, key)))))
+         .collect();
+
+         // Последняя непарная кнопка, если есть
+         let last = if buttons.len() % 2 == 1 { buttons.pop() } else { None };
+
+         // Поделим на две колонки
+         let markup = buttons.into_iter().array_chunks::<[_; 2]>()
+            .fold(InlineKeyboardMarkup::default(), |acc, [left, right]| acc.append_row(vec![left, right]));
+
+         // Кнопка назад
+         let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrg{}", db::make_key_3_int(rest_num, group_num, cat_id)));
+
+         // Добавляем последнюю непарную кнопку и кнопку назад
+         let markup = if let Some(last_button) = last {
+            markup.append_row(vec![last_button, button_back])
+         } else {
+            markup.append_row(vec![button_back])
+         };
+
+         // Редактируем исходное сообщение
+         /*match info.image_id {
+            Some(image) => {
+               // Приготовим картинку к нужному формату
+               let media = InputMedia::Photo{
+                  media: InputFile::file_id(image),
+                  caption: Some(info.info),
+                  parse_mode: None,
+               };
+               
+               match cx.bot.edit_message_media(chat_message, media)
+               // .caption(info.info)
+               .reply_markup(markup)
+               .send()
+               .await {
+                  Err(e) => {
+                     log::info!("Error eat_group::show_inline_interface {}", e);
+                     false
+                  }
+                  _ => true,
+               }
+            }
+            None => {*/
+               match cx.bot.edit_message_text(chat_message, info.info)
+               .reply_markup(markup)
+               .send()
+               .await {
+                  Err(e) => {
+                     log::info!("Error eat_dish::show_inline_interface {}", e);
+                     false
+                  }
+                  _ => true,
+               }
+               // }
+         // }
+      }
+   }
 }

@@ -32,9 +32,8 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32, i32)>) -> cmd::Res {
    // Получаем информацию из БД
    match db::groups_by_restaurant_and_category(rest_id, cat_id).await {
       None => {
-         // Такая ситуация может возникнуть, если ресторатор удалил группу только что
-         let s = String::from(lang::t("ru", lang::Res::EatGroupsEmpty));
-         let s = format!("Подходящие группы:\n{}", s);
+         // Такая ситуация может возникнуть, если ресторатор скрыл ресторан только что
+         let s = String::from("Подходящие группы исчезли");
          let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
          cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
       }
@@ -158,9 +157,8 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
    // Получаем информацию из БД
    match db::groups_by_restaurant_and_category(rest_num, cat_id).await {
       None => {
-         // Такая ситуация может возникнуть, если ресторатор удалил группу только что
-         // let s = String::from(lang::t("ru", lang::Res::EatGroupsEmpty));
-         let s = format!("Подходящие группы исчезли");
+         // Такая ситуация может возникнуть, если ресторатор скрыл ресторан только что
+         let s = String::from("Подходящие группы исчезли");
 
          // Кнопка назад
          let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("rca{}", db::make_key_3_int(cat_id, 0, 0)))];
