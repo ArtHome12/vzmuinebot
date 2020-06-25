@@ -181,7 +181,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
       Some(info) => {
          // Создадим кнопки
          let mut buttons: Vec<InlineKeyboardButton> = info.groups.into_iter()
-         .map(|(key, value)| (InlineKeyboardButton::callback(value, format!("drg{}", db::make_key_3_int(cat_id, rest_num, key)))))
+         .map(|(key, value)| (InlineKeyboardButton::callback(value, format!("drg{}", db::make_key_3_int(rest_num, key, cat_id)))))
          .collect();
 
          // Последняя непарная кнопка, если есть

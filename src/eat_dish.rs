@@ -173,7 +173,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::R
 // Выводит инлайн кнопки
 //
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, cat_id: i32) -> bool {
-   db::log(&format!("eat_dish::show_inline_interface ({}_{}_{})", rest_num, group_num, cat_id)).await;
+   // db::log(&format!("eat_dish::show_inline_interface ({}_{}_{})", rest_num, group_num, cat_id)).await;
 
    // Достаём chat_id
    let message = cx.update.message.as_ref().unwrap();
@@ -221,7 +221,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
 
          // Кнопка назад
          let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0)));
-         db::log(&format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0))).await;
+         // db::log(&format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0))).await;
 
          // Добавляем последнюю непарную кнопку и кнопку назад
          let markup = if let Some(last_button) = last {
