@@ -144,7 +144,8 @@ async fn update_keyboard(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32,
       .send()
       .await {
          Err(_) => {
-            log::info!("Error edit_message_reply_markup {}:{}:{}", rest_num, group_num, dish_num);
+            let text = format!("Error edit_message_reply_markup {}:{}:{}", rest_num, group_num, dish_num);
+            db::log(&text).await;
             false
          }
          _ => true,
@@ -156,6 +157,7 @@ async fn show_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group
    let message = cx.update.message.as_ref().unwrap();
    let chat_id = ChatId::Id(message.chat_id());
 
-   cx.bot.send_message(chat_id, "Hello");
+   cx.bot.send_message(chat_id, "Hello").
+   send();
    true
 }
