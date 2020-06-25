@@ -41,7 +41,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32, i32)>) -> cmd::Res {
 
          // Сформируем строку вида "название /ссылка\n"
          let s: String = if info.groups.is_empty() {
-            String::from(lang::t("ru", lang::Res::EatRestEmpty))
+            String::from(lang::t("ru", lang::Res::EatGroupsEmpty))
          } else {
             info.groups.into_iter().map(|(key, value)| (format!("   {} /grou{}\n", value, key))).collect()
          };
