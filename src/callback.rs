@@ -25,6 +25,7 @@ enum CallbackCommand {
     GroupsByRestaurantAndCategory(i32, i32), // rest_num, cat_id
     ReturnToCategory(i32), // cat_id
     Dishes(i32, i32, i32),  // rest_num, group_num, cat_id
+    ReturnToGroups(i32, i32), // rest_num, cat_id
     UnknownCommand,
 }
 
@@ -40,6 +41,7 @@ impl CallbackCommand {
                "grc" => CallbackCommand::GroupsByRestaurantAndCategory(first, second),
                "rca" => CallbackCommand::ReturnToCategory(first),
                "drg" => CallbackCommand::Dishes(first, second, third),
+               "rrg" => CallbackCommand::ReturnToGroups(first, second),
                _ => CallbackCommand::UnknownCommand,
             }
          }
@@ -72,6 +74,8 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
                format!("Возврат к '{}' {}", db::id_to_category(cat_id), db::is_success(eat_rest::show_inline_interface(&cx, cat_id).await)),
             CallbackCommand::Dishes(rest_num, group_num, cat_id) => 
                format!("Блюда {}:{} {}", rest_num, group_num, db::is_success(eat_dish::show_inline_interface(&cx, rest_num, group_num, cat_id).await)),
+            CallbackCommand::ReturnToGroups(rest_num, group_num) => 
+               format!("Группы '{}' {}", db::id_to_category(cat_id), db::is_success(eat_group::show_inline_interface(&cx, rest_num, cat_id).await)),
          }
       }
    };
