@@ -146,7 +146,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32)>) -> cmd::Res {
 // Выводит инлайн кнопки
 //
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, cat_id: i32) -> bool {
-   db::log(&format!("eat_groups::show_inline_interface ({}_{})", rest_num, cat_id)).await;
+   // db::log(&format!("eat_groups::show_inline_interface ({}_{})", rest_num, cat_id)).await;
 
    // Достаём chat_id
    let message = cx.update.message.as_ref().unwrap();
@@ -184,7 +184,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          let mut buttons: Vec<InlineKeyboardButton> = info.groups.into_iter()
          .map(|(key, value)| (InlineKeyboardButton::callback(value, format!("drg{}", db::make_key_3_int(rest_num, key, cat_id)))))
          .collect();
-         db::log(&format!("drg{}", db::make_key_3_int(rest_num, 99, cat_id))).await;
+         // db::log(&format!("drg{}", db::make_key_3_int(rest_num, 99, cat_id))).await;
 
          // Последняя непарная кнопка, если есть
          let last = if buttons.len() % 2 == 1 { buttons.pop() } else { None };

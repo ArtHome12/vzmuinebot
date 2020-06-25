@@ -183,7 +183,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
    };
 
    // Получаем информацию из БД
-   match db::dishes_by_restaurant_and_group(rest_num, cat_id).await {
+   match db::dishes_by_restaurant_and_group(rest_num, group_num).await {
       None => {
          // Такая ситуация может возникнуть, если ресторатор удалил группу только что
          let s = String::from("Подходящие блюда исчезли");
