@@ -358,6 +358,19 @@ async fn run() {
       database::log(s).await;
    }
 
+   // Картинка по-умолчанию
+   if let Ok(def_id) = env::var("DEFAULT_IMAGE_ID") {
+      if let Err(_) = database::DEFAULT_IMAGE_ID.set(def_id) {
+         let s = "Something wrong with DEFAULT_IMAGE_ID";
+         log::info!("{}", s);
+         database::log(s).await;
+      }
+   } else {
+      let s = "There is no environment variable DEFAULT_IMAGE_ID";
+      log::info!("{}", s);
+      database::log(s).await;
+   }
+
 
    // Проверим существование таблиц и если их нет, создадим
    //
