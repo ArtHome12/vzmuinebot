@@ -70,8 +70,8 @@ pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
 pub async fn restaurant_by_now(time: NaiveTime) -> RestaurantList {
    // Выполняем запрос
    let rows = DB.get().unwrap()
-      .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE) g ON r.rest_num = g.rest_num WHERE r.active = TRUE AND
-      ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)", &[&time])
+      .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
+         ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&time])
       .await;
 
    // Возвращаем результат

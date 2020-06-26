@@ -44,11 +44,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
       // Выводим информацию либо ссылками, либо инлайн кнопками
       if compact_mode {
          // Сформируем строку вида "название /ссылка\n"
-         let s: String = if rest_list.is_empty() {
-            String::from(lang::t("ru", lang::Res::EatRestEmpty))
-         } else {
-            rest_list.into_iter().map(|(rest_num, title)| (format!("   {} /rest{}\n", title, rest_num))).collect()
-         };
+         let s: String = rest_list.into_iter().map(|(rest_num, title)| (format!("   {} /rest{}\n", title, rest_num))).collect();
          
          // Отображаем информацию и кнопки меню
          let s = format!("Рестораны с подходящим меню:\n{}", s);
