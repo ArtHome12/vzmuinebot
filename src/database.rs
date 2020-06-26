@@ -38,7 +38,7 @@ pub static PRICE_UNIT: OnceCell<String> = OnceCell::new();
 pub static TIME_ZONE: OnceCell<FixedOffset> = OnceCell::new();
 
 // Картинка по-умолчанию
-pub static DEFAULT_IMAGE_ID: OnceCell<FixedOffset> = OnceCell::new();
+pub static DEFAULT_IMAGE_ID: OnceCell<String> = OnceCell::new();
 
 
 // ============================================================================
@@ -746,7 +746,10 @@ pub fn price_with_unit(price: i32) -> String {
 }
 
 pub fn default_photo_id() -> String {
-   DEFAULT_IMAGE_ID.get().unwrap()
+   match DEFAULT_IMAGE_ID.get() {
+      Some(image) => image.clone(),
+      None => String::from(""),
+   }
 }
 
 // ============================================================================
