@@ -217,11 +217,11 @@ where
 //
 pub async fn send_photo(cx: &Cx<()>, text: &str, markup: ReplyMarkup, image_id : String) 
 {
-   log::info!("Here image={}", image_id);
+   log::info!("Here no markup image={}", image_id);
    // Отправляем картинку и текст как комментарий
    let res = cx.answer_photo(InputFile::file_id(image_id))
    .caption(text)
-   .reply_markup(markup)
+   // .reply_markup(markup)
    .disable_notification(true)
    .send()
    .await;
