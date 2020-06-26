@@ -56,6 +56,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
          cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
    
       } else {
+         log::info!("Here1");
          // Создадим кнопки
          let markup = make_markup(rest_list, cat_id);
 
@@ -63,6 +64,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
          let s = String::from("Рестораны с подходящим меню:");
          let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
          cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), db::default_photo_id()).await;
+         log::info!("Here2");
 
          // В инлайн-режиме всегда остаёмся в главном меню
          return next(cmd::Dialogue::UserMode(compact_mode));
