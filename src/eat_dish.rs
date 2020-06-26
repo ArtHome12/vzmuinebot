@@ -206,7 +206,6 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
 
          // Кнопка назад
          let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0)));
-         // db::log(&format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0))).await;
 
          // Добавляем последнюю непарную кнопку и кнопку назад
          let markup = if let Some(last_button) = last {
@@ -266,7 +265,12 @@ pub async fn show_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, g
    let ordered_amount = db::amount_in_basket(rest_num, group_num, dish_num, user_id).await;
 
    // Создаём инлайн кнопки с указанием количества блюд
-   let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_key_3_int(rest_num, group_num, dish_num), ordered_amount);
+   let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrd{}", db::make_key_3_int(rest_num, group_num, 0)));
+   let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_key_3_int(rest_num, group_num, dish_num), ordered_amount)
+   .append_to_row(button_back, 0);
+   // db::log(&format!("rrg{}", db::make_key_3_int(est_num, group_num, cat_id))).await;
+
+
 
    // Картинка блюда
    let photo_id = match dish_image_id {
