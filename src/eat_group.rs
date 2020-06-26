@@ -144,7 +144,6 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32)>) -> cmd::Res {
 
 
 // Выводит инлайн кнопки
-//
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, cat_id: i32) -> bool {
    // db::log(&format!("eat_groups::show_inline_interface ({}_{})", rest_num, cat_id)).await;
 

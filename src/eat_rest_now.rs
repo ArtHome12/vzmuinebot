@@ -10,13 +10,18 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use chrono::{Utc};
 use teloxide::{
    prelude::*, 
+   types::{InlineKeyboardButton, InlineKeyboardMarkup, ReplyMarkup,
+      CallbackQuery, ChatOrInlineMessage, ChatId, InputMedia, InputFile
+   },
 };
+use arraylib::iter::IteratorExt;
 
 use crate::commands as cmd;
 use crate::database as db;
 use crate::eater;
 use crate::eat_group_now;
 use crate::basket;
+use crate::language as lang;
 
 // Показывает список ресторанов с группами заданной категории
 //
@@ -31,12 +36,42 @@ pub async fn next_with_info(cx: cmd::Cx<bool>) -> cmd::Res {
    // Получаем информацию из БД
    let rest_list = db::restaurant_by_now(now).await;
 
-   // Отображаем информацию и кнопки меню
-   cx.answer(format!("Рестораны, открытые сейчас ({}):\n{}", now.format("%H:%M"), rest_list))
-   .reply_markup(cmd::EaterRest::markup())
-   .disable_notification(true)
-   .send()
-      .await?;
+   // Если там пусто, то сообщим об этом
+   if rest_list.is_empty() {
+      let s = String::from(lang::t("ru", lang::Res::EatRestNowEmpty));
+      let s = format!("Рестораны, открытые сейчас ({}):\n{}", now.format("%H:%M"), s);
+      let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
+      cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
+
+   } else {
+
+      // Выводим информацию либо ссылками, либо инлайн кнопками
+      if compact_mode {
+         // Сформируем строку вида "название /ссылка\n"
+         let s: String = if rest_list.is_empty() {
+            String::from(lang::t("ru", lang::Res::EatRestNowEmpty))
+         } else {
+            rest_list.into_iter().map(|(rest_num, title)| (format!("   {} /rest{}\n", title, rest_num))).collect()
+         };
+         
+         // Отображаем информацию и кнопки меню
+         let s = format!("Рестораны, открытые сейчас ({}):\n{}", now.format("%H:%M"), s);
+         let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
+         cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
+   
+      } else {
+         // Создадим кнопки
+         let markup = make_markup(rest_list);
+
+         // Отправляем сообщение с плашкой в качестве картинки
+         let s = String::from(format!("Рестораны, открытые сейчас ({}):", now.format("%H:%M")));
+         let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
+         cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), db::default_photo_id()).await;
+
+         // В инлайн-режиме всегда остаёмся в главном меню
+         return next(cmd::Dialogue::UserMode(compact_mode));
+      }
+   }
 
    // Переходим (остаёмся) в режим выбора ресторана
    next(cmd::Dialogue::EatRestNowSelectionMode(compact_mode))
@@ -102,3 +137,65 @@ pub async fn handle_selection_mode(cx: cmd::Cx<bool>) -> cmd::Res {
       }
    }
 }
+
+// Формирует инлайн кнопки по данным из БД
+//
+fn make_markup(rest_list: db::RestaurantList) -> InlineKeyboardMarkup {
+   // Создадим кнопки под рестораны
+   let mut buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
+   .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("rng{}", db::make_key_3_int(rest_num, 0, 0)))))
+   .collect();
+
+   // Последняя непарная кнопка, если есть
+   let last = if buttons.len() % 2 == 1 { buttons.pop() } else { None };
+
+   let markup = buttons.into_iter().array_chunks::<[_; 2]>()
+      .fold(InlineKeyboardMarkup::default(), |acc, [left, right]| acc.append_row(vec![left, right]));
+   
+   // Возвращаем результат
+   if let Some(last_button) = last {
+      markup.append_row(vec![last_button])
+   } else {
+      markup
+   }
+}
+
+// Выводит инлайн кнопки, редактируя предыдущее сообщение
+pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>) -> bool {
+   // Текущее время
+   let our_timezone = db::TIME_ZONE.get().unwrap();
+   let now = Utc::now().with_timezone(our_timezone).naive_local().time();
+   
+   // Получаем информацию из БД
+   let rest_list = db::restaurant_by_now(now).await;
+
+   // Создадим кнопки
+   let markup = make_markup(rest_list);
+
+   // Достаём chat_id
+   let message = cx.update.message.as_ref().unwrap();
+   let chat_message = ChatOrInlineMessage::Chat {
+      chat_id: ChatId::Id(message.chat_id()),
+      message_id: message.id,
+   };
+
+   // Приготовим структуру для редактирования
+   let media = InputMedia::Photo{
+      media: InputFile::file_id(db::default_photo_id()),
+      caption: Some( format!("Рестораны, открытые сейчас ({}):", now.format("%H:%M"))),
+      parse_mode: None,
+   };
+
+   // Отправляем изменения
+   match cx.bot.edit_message_media(chat_message, media)
+   .reply_markup(markup)
+   .send()
+   .await {
+      Err(e) => {
+         db::log(&format!("Error eat_rest::show_inline_interface {}", e)).await;
+         false
+      }
+      _ => true,
+   }
+}
+

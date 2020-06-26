@@ -14,8 +14,10 @@ use teloxide::{
 
 use crate::database as db;
 use crate::commands as cmd;
-use crate::eat_group;
 use crate::eat_rest;
+use crate::eat_rest_now;
+use crate::eat_group;
+use crate::eat_group_now;
 use crate::eat_dish;
 
 #[derive(Copy, Clone)]
@@ -28,6 +30,8 @@ enum CallbackCommand {
     ReturnToGroups(i32, i32), // rest_num, cat_id
     Dish(i32, i32, i32),  // rest_num, group_num, dish_num
     ReturnToDishes(i32, i32, i32),  // rest_num, group_num, cat_id или 0 для автоопределения
+    GroupsByRestaurantNow(i32), // rest_num
+    ReturnToRestaurantsNow,
     UnknownCommand,
 }
 
@@ -46,6 +50,8 @@ impl CallbackCommand {
                "rrg" => CallbackCommand::ReturnToGroups(first, second),
                "dis" => CallbackCommand::Dish(first, second, third),
                "rrd" => CallbackCommand::ReturnToDishes(first, second, third),
+               "rng" => CallbackCommand::GroupsByRestaurantNow(first),
+               "rno" => CallbackCommand::ReturnToRestaurantsNow,
                _ => CallbackCommand::UnknownCommand,
             }
          }
@@ -84,6 +90,10 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
                format!("Блюдо '{}': {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(eat_dish::show_dish(&cx, rest_num, group_num, dish_num).await)),
             CallbackCommand::ReturnToDishes(rest_num, group_num, cat_id) =>
                format!("Блюда {}:{} {}", rest_num, group_num, db::is_success(eat_dish::show_inline_interface(&cx, rest_num, group_num, cat_id).await)),
+            CallbackCommand::GroupsByRestaurantNow(rest_num) => 
+               format!("Работающие: {}", db::is_success(eat_group_now::show_inline_interface(&cx, rest_num).await)),
+            CallbackCommand::ReturnToRestaurantsNow => 
+               format!("Работающие: {}", db::is_success(eat_rest_now::show_inline_interface(&cx).await)),
          }
       }
    };

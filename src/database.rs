@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use chrono::{NaiveTime, FixedOffset, NaiveDateTime, Timelike};
+use chrono::{NaiveTime, FixedOffset, NaiveDateTime, Timelike, Utc};
 use once_cell::sync::{OnceCell};
 use text_io::try_scan;
 use teloxide::{
@@ -51,7 +51,8 @@ pub type RestaurantList = BTreeMap<i32, String>;
 pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
    // Выполняем запрос
    let rows = DB.get().unwrap()
-      .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&cat_id])
+      .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER) g ON r.rest_num = g.rest_num 
+      WHERE r.active = TRUE AND g.active = TRUE", &[&cat_id])
       .await;
 
    // Возвращаем результат
@@ -65,8 +66,27 @@ pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
    }
 }
 
+// Возвращает список ресторанов с активными группами в указанное время
+pub async fn restaurant_by_now(time: NaiveTime) -> RestaurantList {
+   // Выполняем запрос
+   let rows = DB.get().unwrap()
+      .query("SELECT DISTINCT r.rest_num, r.title FROM restaurants AS r INNER JOIN groups g ON r.rest_num = g.rest_num 
+      WHERE r.active = TRUE AND g.active = TRUE AND
+      ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)", &[&time])
+      .await;
+
+   // Возвращаем результат
+   match rows {
+      Ok(data) => data.into_iter().map(|row| (row.get(0), row.get(1))).collect(),
+      Err(e) => {
+         // Сообщаем об ошибке и возвращаем пустой список
+         log(&format!("Error restaurant_by_now: {}", e)).await;
+         BTreeMap::<i32, String>::new()
+      }
+   }
+}
+
 // Возвращает описание, фото и список групп выбранного ресторана и категории
-//
 pub struct GroupListWithRestaurantInfo {
    pub info: String, 
    pub image_id: Option<String>,
@@ -96,7 +116,7 @@ async fn subselect_groups(rest_num: i32, cat_id: i32) -> BTreeMap<i32, String> {
       }).collect(),
       Err(e) => {
          // Сообщаем об ошибке и возвращаем пустой список
-         log(&format!("Error restaurant_by_category: {}", e)).await;
+         log(&format!("Error subselect_groups: {}", e)).await;
          BTreeMap::<i32, String>::new()
       }
    }
@@ -135,8 +155,107 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
    }
 }
 
+async fn subselect_groups_now(rest_num: i32, time: NaiveTime) -> BTreeMap<i32, String> {
+   // Выполняем запрос групп
+   let rows = DB.get().unwrap()
+      .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND active = TRUE AND $2::TIME BETWEEN opening_time AND closing_time", &[&rest_num, &time])
+      .await;
+
+   // Возвращаем результат
+   match rows {
+      Ok(data) => data.into_iter().map(|row| -> (i32, String) {
+         let group_num: i32 = row.get(0);
+         let title: String = row.get(1);
+         let opening_time: NaiveTime = row.get(2);
+         let closing_time: NaiveTime = row.get(3);
+
+         // Если время указано без минут, то выводим только часы
+         let opening = if opening_time.minute() == 0 { opening_time.format("%H") } else { opening_time.format("%H:%M") };
+         let closing = if closing_time.minute() == 0 { closing_time.format("%H") } else { closing_time.format("%H:%M") };
+
+         // Возвращаем хешстроку
+         (group_num, format!("   {} ({}-{})", title, opening, closing))
+      }).collect(),
+      Err(e) => {
+         // Сообщаем об ошибке и возвращаем пустой список
+         log(&format!("Error subselect_groups_now: {}", e)).await;
+         BTreeMap::<i32, String>::new()
+      }
+   }
+}
+
+// Возвращает описание, список групп выбранного ресторана, работающего в указанное время и фото, если есть
+pub async fn groups_by_restaurant_now(rest_num: i32) -> Option<GroupListWithRestaurantInfo> {
+   // Текущее время
+   let our_timezone = TIME_ZONE.get().unwrap();
+   let time = Utc::now().with_timezone(our_timezone).naive_local().time();
+
+   // Выполняем запрос информации о ресторане
+   let rows = DB.get().unwrap()
+      .query("SELECT title, info, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
+      .await;
+
+   match rows {
+      Ok(data) => {
+         if !data.is_empty() {
+            // Параметры ресторана
+            let title: String = data[0].get(0);
+            let info: String = data[0].get(1);
+            let res = GroupListWithRestaurantInfo {
+               info: format!("Заведение: {}\nОписание: {}", title, info),
+               image_id: data[0].get(2),
+               groups: subselect_groups_now(rest_num, time).await,
+            };
+
+            // Окончательный результат
+            Some(res)
+
+/*            // Строка для возврата результата
+            let mut res = String::default();
+
+            // Выполняем запрос групп
+            let rows = DB.get().unwrap()
+               .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND active = TRUE AND $2::TIME BETWEEN opening_time AND closing_time", &[&rest_num, &time])
+               .await;
+
+            // Проверяем результат
+            if let Ok(data) = rows {
+               for record in data {
+                  let group_num: i32 = record.get(0);
+                  let title: String = record.get(1);
+                  let opening_time: NaiveTime = record.get(2);
+                  let closing_time: NaiveTime = record.get(3);
+
+                  // Если время указано без минут, то выводим только часы
+                  let opening = if opening_time.minute() == 0 { opening_time.format("%H") } else { opening_time.format("%H:%M") };
+                  let closing = if closing_time.minute() == 0 { closing_time.format("%H") } else { closing_time.format("%H:%M") };
+
+                  res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening, closing, group_num));
+               }
+            };
+
+            // На случай пустого списка сообщим об этом
+            let res = if res.is_empty() {
+               String::from("   пусто :(")
+            } else {
+               res
+            };
+
+            // Окончательный результат
+            Some((format!("Заведение: {}\nОписание: {}\nРаботающие разделы меню на ({}):\n{}", title, info, time.format("%H:%M"), res), image_id))*/
+         } else {
+            None
+         }
+      }
+      Err(e) => {
+         // Сообщим об ошибке
+         log(&format!("Error groups_by_restaurant_now: {}", e)).await;
+         None
+      }
+   }
+}
+
 // Возвращает список блюд выбранного ресторана и группы
-//
 pub struct DishListWithGroupInfo {
    pub info: String, 
    pub dishes: BTreeMap<i32, String>
@@ -167,7 +286,6 @@ async fn subselect_dishes(rest_num: i32, group_num: i32) -> BTreeMap<i32, String
 }
 
 // Возвращает список блюд указанного ресторана и группы
-//
 pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Option<DishListWithGroupInfo> {
    // Выполняем запрос информации о группе
    let rows = DB.get().unwrap()
@@ -194,7 +312,6 @@ pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Op
 }
 
 // Возвращает категорию указанной группы
-//
 pub async fn category_by_restaurant_and_group(rest_num: i32, group_num: i32) -> i32 {
    // Выполняем запрос информации о группе
    let rows = DB.get().unwrap()
@@ -210,9 +327,7 @@ pub async fn category_by_restaurant_and_group(rest_num: i32, group_num: i32) -> 
    }
 }
 
-
 // Возвращает информацию о блюде - картинку, цену и описание.
-//
 pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Option<(String, Option<String>)> {
    // Выполняем запрос
    let rows = DB.get().unwrap()
@@ -245,96 +360,8 @@ pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Op
    }
 }
 
-// Возвращает список ресторанов с активными группами в указанное время
-//
-pub async fn restaurant_by_now(time: NaiveTime) -> String {
-   // Выполняем запрос
-   let rows = DB.get().unwrap()
-      .query("SELECT DISTINCT r.title, r.rest_num FROM restaurants AS r INNER JOIN groups g ON r.rest_num = g.rest_num 
-      WHERE r.active = TRUE AND g.active = TRUE AND
-      ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)", &[&time])
-      .await;
-
-   // Строка для возврата результата
-   let mut res = String::default();
-
-   // Проверяем результат
-   if let Ok(data) = rows {
-      for record in data {
-         let title: String = record.get(0);
-         let rest_num: i32 = record.get(1);
-         res.push_str(&format!("   {} /rest{}\n", title, rest_num));
-      }
-   }
-
-   // На случай пустого списка сообщим об этом
-   if res.is_empty() {
-      String::from("   пусто :(")
-   } else {
-      res
-   }
-}
-
-// Возвращает описание, список групп выбранного ресторана, работающего в указанное время и фото, если есть
-//
-pub async fn groups_by_restaurant_now(rest_num: i32, time: NaiveTime) -> Option<(String, Option<String>)> {
-   // Выполняем запрос информации о ресторане
-   let rows = DB.get().unwrap()
-      .query("SELECT title, info, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
-      .await;
-
-   match rows {
-      Ok(data) => {
-         if !data.is_empty() {
-            // Параметры ресторана
-            let title: String = data[0].get(0);
-            let info: String = data[0].get(1);
-            let image_id: Option<String> = data[0].get(2);
-
-            // Строка для возврата результата
-            let mut res = String::default();
-
-            // Выполняем запрос групп
-            let rows = DB.get().unwrap()
-               .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND active = TRUE AND $2::TIME BETWEEN opening_time AND closing_time", &[&rest_num, &time])
-               .await;
-
-            // Проверяем результат
-            if let Ok(data) = rows {
-               for record in data {
-                  let group_num: i32 = record.get(0);
-                  let title: String = record.get(1);
-                  let opening_time: NaiveTime = record.get(2);
-                  let closing_time: NaiveTime = record.get(3);
-
-                  // Если время указано без минут, то выводим только часы
-                  let opening = if opening_time.minute() == 0 { opening_time.format("%H") } else { opening_time.format("%H:%M") };
-                  let closing = if closing_time.minute() == 0 { closing_time.format("%H") } else { closing_time.format("%H:%M") };
-
-                  res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening, closing, group_num));
-               }
-            };
-
-            // На случай пустого списка сообщим об этом
-            let res = if res.is_empty() {
-               String::from("   пусто :(")
-            } else {
-               res
-            };
-
-            // Окончательный результат
-            Some((format!("Заведение: {}\nОписание: {}\nРаботающие разделы меню на ({}):\n{}", title, info, time.format("%H:%M"), res), image_id))
-         } else {
-            None
-         }
-      }
-      _ => None,
-   }
-}
-
 
 // Регистрация или разблокировка ресторатора
-//
 pub async fn register_caterer(user_id: i32) -> bool {
    // Попробуем разблокировать пользователя, тогда получим 1 в качестве обновлённых записей
    let query = DB.get().unwrap()
@@ -360,7 +387,6 @@ pub async fn register_caterer(user_id: i32) -> bool {
 
 
 // Приостановка доступа ресторатора
-//
 pub async fn hold_caterer(user_id: i32) -> Result<(), ()> {
    // Блокируем пользователя
    let query = DB.get().unwrap()
@@ -376,7 +402,6 @@ pub async fn hold_caterer(user_id: i32) -> Result<(), ()> {
 
 
 // Возвращает список ресторанов
-//
 pub async fn restaurant_list() -> String {
    // Выполняем запрос информации о ресторане
    let rows = DB.get().unwrap()

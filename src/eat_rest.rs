@@ -155,8 +155,7 @@ fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMark
    }
 }
 
-// Выводит инлайн кнопки, делая новый пост или редактируя предыдущий
-//
+// Выводит инлайн кнопки, редактируя предыдущее сообщение
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_id: i32) -> bool {
    // Получаем информацию из БД
    let rest_list = db::restaurant_by_category(cat_id).await;
