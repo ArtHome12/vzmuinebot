@@ -56,7 +56,15 @@ pub async fn user_mode(cx: cmd::Cx<bool>) -> cmd::Res {
 
    // Разбираем команду.
    match cx.update.text() {
-      None => cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Текстовое сообщение, пожалуйста!", cmd::User::main_menu_markup()).await,
+      // None => cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Текстовое сообщение, пожалуйста!", cmd::User::main_menu_markup()).await,
+      None => {
+         if let Some(photo_size) = cx.update.photo() {
+            let image = &photo_size[0].file_id;
+            log::info!("Image id={}", image);
+
+            // cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &format!("Image id={}", image), cmd::User::main_menu_markup()).await
+         }
+      }
       Some(command) => {
          match cmd::User::from(command) {
             cmd::User::Category(cat_id) => {
