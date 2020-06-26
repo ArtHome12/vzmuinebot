@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use chrono::{NaiveTime, FixedOffset, NaiveDateTime};
+use chrono::{NaiveTime, FixedOffset, NaiveDateTime, Timelike};
 use once_cell::sync::{OnceCell};
 use text_io::try_scan;
 use teloxide::{
@@ -282,7 +282,13 @@ pub async fn groups_by_restaurant_now(rest_num: i32, time: NaiveTime) -> Option<
                   let title: String = record.get(1);
                   let opening_time: NaiveTime = record.get(2);
                   let closing_time: NaiveTime = record.get(3);
-                        res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening_time.format("%H:%M"), closing_time.format("%H:%M"), group_num));
+
+                  // Если время указано без минут, то выводим только часы
+                  let opening = if opening_time.minute() == 0 { opening_time.format("%H") } else { opening_time.format("%H:%M") };
+                  let closing = if closing_time.minute() == 0 { closing_time.format("%H") } else { closing_time.format("%H:%M") };
+
+
+                  res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening, closing, group_num));
                }
             };
 
