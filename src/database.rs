@@ -51,8 +51,8 @@ pub type RestaurantList = BTreeMap<i32, String>;
 pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
    // Выполняем запрос
    let rows = DB.get().unwrap()
-      .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER) g ON r.rest_num = g.rest_num 
-      WHERE r.active = TRUE AND g.active = TRUE", &[&cat_id])
+      .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
+      WHERE r.active = TRUE", &[&cat_id])
       .await;
 
    // Возвращаем результат
@@ -70,8 +70,7 @@ pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
 pub async fn restaurant_by_now(time: NaiveTime) -> RestaurantList {
    // Выполняем запрос
    let rows = DB.get().unwrap()
-      .query("SELECT DISTINCT r.rest_num, r.title FROM restaurants AS r INNER JOIN groups g ON r.rest_num = g.rest_num 
-      WHERE r.active = TRUE AND g.active = TRUE AND
+      .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE) g ON r.rest_num = g.rest_num WHERE r.active = TRUE AND
       ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)", &[&time])
       .await;
 
