@@ -743,7 +743,8 @@ pub fn price_with_unit(price: i32) -> String {
 }
 
 pub fn default_photo_id() -> String {
-   String::from("AgACAgUAAxkBAAIZDV70USDQoAlMkWHZvmllF785NhGLAAJLqTEbvzKhVwGpUSlOTahiYDRla3QAAwEAAwIAA20AA8RmAgABGgQ")
+   // String::from("AgACAgUAAxkBAAIZDV70USDQoAlMkWHZvmllF785NhGLAAJLqTEbvzKhVwGpUSlOTahiYDRla3QAAwEAAwIAA20AA8RmAgABGgQ")
+   String::from("AgACAgUAAxkBAAIZ-F71R_ood-QkFTkctGA7UFkxPow9AAL5qTEbyH-wVy8R4dK554K7j7lma3QAAwEAAwIAA20AA5l1AgABGgQ")
 }
 
 // ============================================================================
