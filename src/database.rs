@@ -166,6 +166,8 @@ async fn subselect_dishes(rest_num: i32, group_num: i32) -> BTreeMap<i32, String
    }
 }
 
+// Возвращает список блюд указанного ресторана и группы
+//
 pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Option<DishListWithGroupInfo> {
    // Выполняем запрос информации о группе
    let rows = DB.get().unwrap()
@@ -190,6 +192,24 @@ pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Op
       _ => None,
    }
 }
+
+// Возвращает категорию указанной группы
+//
+pub async fn category_by_restaurant_and_group(rest_num: i32, group_num: i32) -> i32 {
+   // Выполняем запрос информации о группе
+   let rows = DB.get().unwrap()
+      .query("SELECT cat_id FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
+      .await;
+
+   match rows {
+      Ok(data) => {
+         if !data.is_empty() { data[0].get(0) }
+         else { 0 }
+      }
+      _ => 0,
+   }
+}
+
 
 // Возвращает информацию о блюде - картинку, цену и описание.
 //

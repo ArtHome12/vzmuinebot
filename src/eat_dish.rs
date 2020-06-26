@@ -177,6 +177,9 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::R
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, cat_id: i32) -> bool {
    // db::log(&format!("eat_dish::show_inline_interface ({}_{}_{})", rest_num, group_num, cat_id)).await;
 
+   // Если категория не задана, запросим её из базы
+   let cat_id = if cat_id == 0 { db::category_by_restaurant_and_group(rest_num, group_num).await } else { cat_id };
+
    // Получаем информацию из БД - нужен текст, картинка и кнопки
    let (text, markup) = match db::dishes_by_restaurant_and_group(rest_num, group_num).await {
       None => {
