@@ -58,7 +58,7 @@ pub async fn user_mode(cx: cmd::Cx<bool>) -> cmd::Res {
    match cx.update.text() {
       None => {
          let s = match cx.update.photo() {
-            Some(photo_size) => format!("Вы прислали картинку с id={}", &photo_size[0].file_id),
+            Some(photo_size) => format!("Вы прислали картинку с id\n{}", &photo_size[0].file_id),
             None => String::from("Текстовое сообщение, пожалуйста!"),
          };
          cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s, cmd::User::main_menu_markup()).await
