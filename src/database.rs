@@ -745,7 +745,7 @@ pub fn price_with_unit(price: i32) -> String {
    format!("{}{}", price, unit)
 }
 
-pub fn default_photo_id() -> String {
+pub fn default_photo_id() -> String { 
    match DEFAULT_IMAGE_ID.get() {
       Some(image) => image.clone(),
       None => String::from(""),

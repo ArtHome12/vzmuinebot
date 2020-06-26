@@ -56,7 +56,13 @@ pub async fn user_mode(cx: cmd::Cx<bool>) -> cmd::Res {
 
    // Разбираем команду.
    match cx.update.text() {
-      None => cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Текстовое сообщение, пожалуйста!", cmd::User::main_menu_markup()).await,
+      None => {
+         let s = match cx.update.text() {
+            Some(photo_id) => format!("Вы прислали картинку с id={}", photo_id),
+            None => String::from("Текстовое сообщение, пожалуйста!"),
+         };
+         cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s, cmd::User::main_menu_markup()).await
+      }
       Some(command) => {
          match cmd::User::from(command) {
             cmd::User::Category(cat_id) => {
