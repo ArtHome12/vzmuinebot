@@ -87,8 +87,12 @@ async fn subselect_groups(rest_num: i32, cat_id: i32) -> BTreeMap<i32, String> {
          let opening_time: NaiveTime = row.get(2);
          let closing_time: NaiveTime = row.get(3);
 
+         // Если время указано без минут, то выводим только часы
+         let opening = if opening_time.minute() == 0 { opening_time.format("%H") } else { opening_time.format("%H:%M") };
+         let closing = if closing_time.minute() == 0 { closing_time.format("%H") } else { closing_time.format("%H:%M") };
+
          // Возвращаем хешстроку
-         (group_num, format!("   {} ({}-{})", title, opening_time.format("%H:%M"), closing_time.format("%H:%M")))
+         (group_num, format!("   {} ({}-{})", title, opening, closing))
       }).collect(),
       Err(e) => {
          // Сообщаем об ошибке и возвращаем пустой список
@@ -286,7 +290,6 @@ pub async fn groups_by_restaurant_now(rest_num: i32, time: NaiveTime) -> Option<
                   // Если время указано без минут, то выводим только часы
                   let opening = if opening_time.minute() == 0 { opening_time.format("%H") } else { opening_time.format("%H:%M") };
                   let closing = if closing_time.minute() == 0 { closing_time.format("%H") } else { closing_time.format("%H:%M") };
-
 
                   res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening, closing, group_num));
                }
