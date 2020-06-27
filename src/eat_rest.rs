@@ -133,15 +133,24 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
 //
 fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMarkup {
    // Создадим кнопки под рестораны
-   let mut buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
+   let buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
    .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("grc{}", db::make_key_3_int(rest_num, cat_id, 0)))))  // third argument always 0
    .collect();
 
-   // Последняя непарная кнопка, если есть
-   let last = if buttons.len() % 2 == 1 { buttons.pop() } else { None };
+   let (long, mut short) : (Vec<_>, Vec<_>) = buttons
+   .into_iter()
+   .partition(|n| n.text.len() > 12);
 
-   let markup = buttons.into_iter().array_chunks::<[_; 2]>()
-      .fold(InlineKeyboardMarkup::default(), |acc, [left, right]| acc.append_row(vec![left, right]));
+   // Последняя непарная кнопка, если есть
+   let last = if short.len() % 2 == 1 { short.pop() } else { None };
+
+   // Сначала длинные кнопки
+   let markup = InlineKeyboardMarkup::default()
+   .append_row(long);
+
+   // Короткие по две в ряд
+   let markup = short.into_iter().array_chunks::<[_; 2]>()
+      .fold(markup, |acc, [left, right]| acc.append_row(vec![left, right]));
    
    // Возвращаем результат
    if let Some(last_button) = last {
