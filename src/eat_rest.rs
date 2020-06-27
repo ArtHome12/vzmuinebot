@@ -140,14 +140,14 @@ fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMark
    let (long, mut short) : (Vec<_>, Vec<_>) = buttons
    .into_iter()
    .partition(|n| n.text.chars().count() > 12);
-   log::info!("long:short {}:{}", long.len(), short.len());
+   // log::info!("long:short {}:{}", long.len(), short.len());
 
    // Последняя непарная кнопка, если есть
    let last = if short.len() % 2 == 1 { short.pop() } else { None };
 
-   // Сначала длинные кнопки
-   let markup = InlineKeyboardMarkup::default()
-   .append_row(long);
+   // Сначала длинные кнопки по одной
+   let markup = long.into_iter() 
+   .fold(InlineKeyboardMarkup::default(), |acc, [item]| acc.append_row(item);
 
    // Короткие по две в ряд
    let markup = short.into_iter().array_chunks::<[_; 2]>()
