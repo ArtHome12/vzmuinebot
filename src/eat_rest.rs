@@ -147,7 +147,7 @@ fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMark
 
    // Сначала длинные кнопки по одной
    let markup = long.into_iter() 
-   .fold(InlineKeyboardMarkup::default(), |acc, [item]| acc.append_row(item);
+   .fold(InlineKeyboardMarkup::default(), |acc, item| acc.append_row(vec![item]));
 
    // Короткие по две в ряд
    let markup = short.into_iter().array_chunks::<[_; 2]>()
