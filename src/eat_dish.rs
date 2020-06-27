@@ -196,17 +196,25 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
       }
       Some(info) => {
          // Создадим кнопки
-         let mut buttons: Vec<InlineKeyboardButton> = info.dishes.into_iter()
+         let buttons: Vec<InlineKeyboardButton> = info.dishes.into_iter()
          .map(|(key, value)| (InlineKeyboardButton::callback(value, format!("dis{}", db::make_key_3_int(rest_num, group_num, key)))))
          .collect();
 
+         let (long, mut short) : (Vec<_>, Vec<_>) = buttons
+         .into_iter()
+         .partition(|n| n.text.chars().count() > 21);
+      
          // Последняя непарная кнопка, если есть
-         let last = if buttons.len() % 2 == 1 { buttons.pop() } else { None };
-
-         // Поделим на две колонки
-         let markup = buttons.into_iter().array_chunks::<[_; 2]>()
-            .fold(InlineKeyboardMarkup::default(), |acc, [left, right]| acc.append_row(vec![left, right]));
-
+         let last = if short.len() % 2 == 1 { short.pop() } else { None };
+      
+         // Сначала длинные кнопки по одной
+         let markup = long.into_iter() 
+         .fold(InlineKeyboardMarkup::default(), |acc, item| acc.append_row(vec![item]));
+      
+         // Короткие по две в ряд
+         let markup = short.into_iter().array_chunks::<[_; 2]>()
+         .fold(markup, |acc, [left, right]| acc.append_row(vec![left, right]));
+      
          // Кнопка назад
          let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0)));
 

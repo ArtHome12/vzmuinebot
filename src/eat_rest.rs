@@ -140,7 +140,6 @@ fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMark
    let (long, mut short) : (Vec<_>, Vec<_>) = buttons
    .into_iter()
    .partition(|n| n.text.chars().count() > 21);
-   // log::info!("long:short {}:{}", long.len(), short.len());
 
    // Последняя непарная кнопка, если есть
    let last = if short.len() % 2 == 1 { short.pop() } else { None };
@@ -151,7 +150,7 @@ fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMark
 
    // Короткие по две в ряд
    let markup = short.into_iter().array_chunks::<[_; 2]>()
-      .fold(markup, |acc, [left, right]| acc.append_row(vec![left, right]));
+   .fold(markup, |acc, [left, right]| acc.append_row(vec![left, right]));
    
    // Возвращаем результат
    if let Some(last_button) = last {
