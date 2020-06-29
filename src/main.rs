@@ -154,16 +154,16 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
             basket::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
                   .await
          }
-         cmd::Dialogue::BasketEditName(rest_id) => {
-            caterer::edit_rest_title_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+         cmd::Dialogue::BasketEditName(user_id) => {
+            basket::edit_name_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
                   .await
          }
-         cmd::Dialogue::BasketEditContact(rest_id) => {
-            caterer::edit_rest_title_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+         cmd::Dialogue::BasketEditContact(user_id) => {
+            basket::edit_contact_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
                   .await
          }
-         cmd::Dialogue::BasketEditAddress(rest_id) => {
-            caterer::edit_rest_title_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+         cmd::Dialogue::BasketEditAddress(user_id) => {
+            basket::edit_address_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
                   .await
          }
       } 

@@ -161,20 +161,41 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
 
             // Редактировать имя
             cmd::Basket::EditName => {
-               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: неизвестная команда").await
+               // Отправляем приглашение ввести строку со слешем в меню для отмены
+               cx.answer(format!("Отправьте ваше имя (/ для отмены)"))
+               .reply_markup(cmd::Caterer::slash_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
+
+               // Переходим в режим ввода
+               next(cmd::Dialogue::BasketEditName(user_id))
             }
 
             // Редактировать контакт
             cmd::Basket::EditContact => {
-               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: неизвестная команда").await
+               // Отправляем приглашение ввести строку со слешем в меню для отмены
+               cx.answer(format!("Если хотите дать возможность ресторатору связаться с вами напрямую, укажите ник или телефон (/ для отмены)"))
+               .reply_markup(cmd::Caterer::slash_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
+
+               // Переходим в режим ввода
+               next(cmd::Dialogue::BasketEditContact(user_id))
             }
 
             // Редактировать адрес
             cmd::Basket::EditAddress => {
-               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: неизвестная команда").await
+               // Отправляем приглашение ввести строку со слешем в меню для отмены
+               cx.answer(format!("Адрес для доставки (/ для отмены)"))
+               .reply_markup(cmd::Caterer::slash_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
+
+               // Переходим в режим ввода
+               next(cmd::Dialogue::BasketEditAddress(user_id))
             }
 
             // Переключить способ доставки
@@ -202,4 +223,88 @@ pub async fn send_basket(rest_id: i32, user_id: i32, message_id: i32) -> bool {
    
    // Раз попали сюда, значит что-то пошло не так
    false
+}
+
+// Изменить имя едока
+pub async fn edit_name_mode(cx: cmd::Cx<i32>) -> cmd::Res {
+   // Извлечём параметры
+   let user_id = cx.dialogue;
+        
+   if let Some(text) = cx.update.text() {
+      // Удалим из строки слеши
+      let s = cmd::remove_slash(text).await;
+
+      // Если строка не пустая, продолжим
+      if !s.is_empty() {
+         // Сохраним новое значение в БД
+         if db::basket_edit_name(user_id, s).await {
+            // Покажем изменённую информацию
+            next_with_info(cx).await
+         } else {
+            // Сообщим об ошибке
+            next_with_cancel(cx, &format!("Ошибка edit_name_mode({})", user_id)).await
+         }
+      } else {
+         // Сообщим об отмене
+         next_with_cancel(cx, "Отмена").await
+      }
+   } else {
+      next(cmd::Dialogue::CatererMode(user_id))
+   }
+}
+
+// Изменить контакт едока
+pub async fn edit_contact_mode(cx: cmd::Cx<i32>) -> cmd::Res {
+   // Извлечём параметры
+   let user_id = cx.dialogue;
+        
+   if let Some(text) = cx.update.text() {
+      // Удалим из строки слеши
+      let s = cmd::remove_slash(text).await;
+
+      // Если строка не пустая, продолжим
+      if !s.is_empty() {
+         // Сохраним новое значение в БД
+         if db::basket_edit_contact(user_id, s).await {
+            // Покажем изменённую информацию
+            next_with_info(cx).await
+         } else {
+            // Сообщим об ошибке
+            next_with_cancel(cx, &format!("Ошибка edit_contact_mode({})", user_id)).await
+         }
+      } else {
+         // Сообщим об отмене
+         next_with_cancel(cx, "Отмена").await
+      }
+   } else {
+      next(cmd::Dialogue::CatererMode(user_id))
+   }
+}
+
+// Изменить адрес едока
+pub async fn edit_address_mode(cx: cmd::Cx<i32>) -> cmd::Res {
+   // Извлечём параметры
+   let user_id = cx.dialogue;
+        
+   if let Some(text) = cx.update.text() {
+      // Удалим из строки слеши
+      let s = cmd::remove_slash(text).await;
+
+      // Если строка не пустая, продолжим
+      if !s.is_empty() {
+         // Сохраним новое значение в БД
+         if db::basket_edit_address(user_id, s).await {
+            // Покажем изменённую информацию
+            next_with_info(cx).await
+         } else {
+            // Сообщим об ошибке
+            next_with_cancel(cx, &format!("Ошибка edit_address_mode({})", user_id)).await
+         }
+      } else {
+         // Сообщим об отмене
+         next_with_cancel(cx, "Отмена").await
+      }
+   } else {
+      next(cmd::Dialogue::CatererMode(user_id))
+   }
 }

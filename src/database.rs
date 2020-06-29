@@ -790,7 +790,6 @@ pub fn user_info(user: Option<&User>, detail: bool) -> String {
 }
 
 // Форматирование цены с единицей измерения
-//
 pub fn price_with_unit(price: i32) -> String {
    let unit = match PRICE_UNIT.get() {
       Some(data) => data,
@@ -804,6 +803,66 @@ pub fn default_photo_id() -> String {
    match DEFAULT_IMAGE_ID.get() {
       Some(image) => image.clone(),
       None => String::from(""),
+   }
+}
+
+// Изменение имени пользователя
+pub async fn basket_edit_name(user_id: i32, s: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE users SET user_name = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       Err(e) => {
+         log(&format!("Error db::basket_edit_name: {}", e)).await;
+         false
+       }
+   }
+}
+
+// Изменение имени пользователя
+pub async fn basket_edit_contact(user_id: i32, s: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE users SET contact = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       Err(e) => {
+         log(&format!("Error db::basket_edit_contact: {}", e)).await;
+         false
+       }
+   }
+}
+
+// Изменение имени пользователя
+pub async fn basket_edit_address(user_id: i32, s: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE users SET address = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       Err(e) => {
+         log(&format!("Error db::basket_edit_address: {}", e)).await;
+         false
+       }
+   }
+}
+
+// Изменение имени пользователя
+pub async fn basket_toggle_pickup(user_id: i32) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE users SET pickup = NOT pickup WHERE user_id=$1::INTEGER", &[&user_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       Err(e) => {
+         log(&format!("Error db::basket_toggle_pickup: {}", e)).await;
+         false
+       }
    }
 }
 

@@ -221,7 +221,6 @@ where
 pub async fn send_photo(cx: &Cx<()>, text: &str, markup: ReplyMarkup, image_id : String) 
 {
    // Отправляем картинку и текст как комментарий
-   let photo = InputFile::File::inner = "media/default.jpg";
    let res = cx.answer_photo(InputFile::file_id(image_id))
       .caption(text)
       .reply_markup(markup)
