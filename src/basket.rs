@@ -200,8 +200,8 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
 
             // Переключить способ доставки
             cmd::Basket::TogglePickup => {
-               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: неизвестная команда").await
+               db::basket_toggle_pickup(user_id).await;
+               next_with_info(cx).await
             }
          }
       }
