@@ -509,7 +509,8 @@ impl Basket {
       }
    }
 
-   pub fn markup() -> ReplyKeyboardMarkup {
+   // Кнопки для меню снизу
+   pub fn bottom_markup() -> ReplyKeyboardMarkup {
       ReplyKeyboardMarkup::default()
       .append_row(vec![
          KeyboardButton::new("В начало"),
@@ -518,4 +519,11 @@ impl Basket {
       .resize_keyboard(true)
    }
 
+   // Кнопки для меню снизу
+   pub fn inline_markup(data: String) -> InlineKeyboardMarkup {
+      let button = InlineKeyboardButton::callback(String::from("Отправить"), data);
+
+      InlineKeyboardMarkup::default()
+      .append_row(vec![button])
+   }
 }

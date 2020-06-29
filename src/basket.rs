@@ -27,14 +27,14 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    if baskets.is_empty() {
       // Отображаем информацию и кнопки меню
       cx.answer("Корзина пуста")
-      .reply_markup(cmd::Basket::markup())
+      .reply_markup(cmd::Basket::bottom_markup())
       .disable_notification(true)
       .send()
       .await?;
    } else {
       // Отображаем приветствие
-      cx.answer(format!("Общая сумма заказа {}. Перешлите эти сообщения по указанным контактам или в независимую доставку, а потом очистите корзину:", db::price_with_unit(grand_total)))
-      .reply_markup(cmd::Basket::markup())
+      cx.answer(format!("Общая сумма заказа {}. Вы можете скопировать эти сообщения и переслать по указанным контактам или в независимую доставку и уточнить все вопросы, а потом очистить корзину. Либо нажать на кнопку ниже и ждать ответа в личке от заведения", db::price_with_unit(grand_total)))
+      .reply_markup(cmd::Basket::bottom_markup())
       .disable_notification(true)
       .send()
       .await?;
@@ -52,8 +52,11 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          // Итоговая стоимость
          s.push_str(&format!("\nВсего: {}", db::price_with_unit(basket.total)));
 
+         // Для колбека
+         let data = format!("/bas{}", basket.rest_num);
+
          cx.answer(s)
-         .reply_markup(cmd::Basket::markup())
+         .reply_markup(cmd::Basket::inline_markup(data))
          .disable_notification(true)
          .send()
          .await?;
@@ -67,7 +70,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
 async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
    cx.answer(text)
-   .reply_markup(cmd::Basket::markup())
+   .reply_markup(cmd::Basket::bottom_markup())
    .disable_notification(true)
    .send()
    .await?;
@@ -145,4 +148,9 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
          }
       }
    }
+}
+
+// Отправляет сообщение ресторатору с корзиной пользователя
+pub async fn send_basket(rest_num: i32, user_id: i32) -> bool {
+   false
 }

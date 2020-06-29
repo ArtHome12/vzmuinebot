@@ -1471,6 +1471,7 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
 // Содержимое корзины
 //
 pub struct Basket {
+   pub rest_num: i32,
    pub restaurant: String,
    pub dishes: Vec<String>,
    pub total: i32,
@@ -1534,6 +1535,7 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
 
          // Создаём корзину текущего ресторана
          let basket = Basket {
+            rest_num,
             restaurant: format!("{}. {}. {}\n", rest_num, rest_title, rest_info),
             dishes,
             total,
