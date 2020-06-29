@@ -65,11 +65,10 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 
          // Для колбека по id ресторатора узнаем его имя
          let caption = String::from("Отправить");
-         let data1 = format!("bas{}", db::make_key_3_int(basket.rest_id, 0, 0));
-         let data2 = format!("blo{}", db::make_key_3_int(basket.rest_id, 0, 0));
+         let data = format!("bas{}", db::make_key_3_int(basket.rest_id, 0, 0));
 
          cx.answer(s)
-         .reply_markup(cmd::Basket::inline_markup(caption, data1, data2))
+         .reply_markup(cmd::Basket::inline_markup(caption, data))
          .disable_notification(true)
          .send()
          .await?;
@@ -188,8 +187,8 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             // Редактировать адрес
             cmd::Basket::EditAddress => {
                // Отправляем приглашение ввести строку со слешем в меню для отмены
-               cx.answer(format!("Адрес для доставки (/ для отмены)"))
-               .reply_markup(cmd::Caterer::slash_markup())
+               cx.answer(format!("Введите адрес для доставки или укажите точку на карте (/ для отмены)"))
+               .reply_markup(cmd::Basket::address_markup())
                .disable_notification(true)
                .send()
                .await?;
@@ -321,23 +320,6 @@ pub async fn send_basket(rest_id: i32, user_id: i32, message_id: i32) -> bool {
             }
          }
          Err(err) =>  { db::log(&format!("Error send_basket announcement({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
-      }
-   }
-   
-   // Раз попали сюда, значит что-то пошло не так
-   false
-}
-
-// Отправляет сообщение ресторатору с корзиной пользователя
-pub async fn send_basket_with_location(rest_id: i32, user_id: i32, message_id: i32) -> bool {
-   if let Some(chat) = db::TELEGRAM_LOG_CHAT.get() {
-      // Откуда и куда
-      let from = ChatId::Id(i64::from(user_id));
-      let to = ChatId::Id(i64::from(rest_id));
-
-      match chat.bot.forward_message(to, from, message_id).send().await {
-         Ok(_) => {return true; }
-         Err(err) =>  { db::log(&format!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
       }
    }
    

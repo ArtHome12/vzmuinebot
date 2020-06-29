@@ -10,7 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use teloxide::{
    prelude::*, 
    types::{KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, 
-      InlineKeyboardButton, ReplyMarkup, InputFile
+      InlineKeyboardButton, ReplyMarkup, InputFile, ButtonRequest,
    },
 };
 
@@ -530,12 +530,21 @@ impl Basket {
       .resize_keyboard(true)
    }
 
+   pub fn address_markup() -> ReplyKeyboardMarkup {
+      ReplyKeyboardMarkup::default()
+         .append_row(vec![
+            KeyboardButton::new("Геопозиция")
+            .request(ButtonRequest::Location),
+            KeyboardButton::new("/"),
+         ])
+         .resize_keyboard(true)
+   }
+
    // Кнопки для меню снизу
-   pub fn inline_markup(caption: String, data1: String, data2: String) -> InlineKeyboardMarkup {
-      let button1 = InlineKeyboardButton::callback(caption, data1);
-      let button2 = InlineKeyboardButton::callback(String::from("на карте"), data2);
+   pub fn inline_markup(caption: String, data: String) -> InlineKeyboardMarkup {
+      let button = InlineKeyboardButton::callback(caption, data);
 
       InlineKeyboardMarkup::default()
-      .append_row(vec![button1, button2])
+      .append_row(vec![button])
    }
 }

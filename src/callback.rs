@@ -34,7 +34,6 @@ enum CallbackCommand {
     GroupsByRestaurantNow(i32), // rest_num
     ReturnToRestaurantsNow,
     SendBasket(i32), // rest_id 
-    SendBasketWithLocation(i32), // rest_id 
     UnknownCommand,
 }
 
@@ -56,7 +55,6 @@ impl CallbackCommand {
                "rng" => CallbackCommand::GroupsByRestaurantNow(first),
                "rno" => CallbackCommand::ReturnToRestaurantsNow,
                "bas" => CallbackCommand::SendBasket(first),
-               "blo" => CallbackCommand::SendBasketWithLocation(first),
                _ => CallbackCommand::UnknownCommand,
             }
          }
@@ -102,13 +100,6 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
             CallbackCommand::SendBasket(rest_id) => {
                let res = match query.message.clone() {
                   Some(message) => basket::send_basket(rest_id, user_id, message.id).await,
-                  None => false,
-               };
-               format!("Отправка: {}", db::is_success(res))
-            }
-            CallbackCommand::SendBasketWithLocation(rest_id) => {
-               let res = match query.message.clone() {
-                  Some(message) => basket::send_basket_with_location(rest_id, user_id, message.id).await,
                   None => false,
                };
                format!("Отправка: {}", db::is_success(res))
