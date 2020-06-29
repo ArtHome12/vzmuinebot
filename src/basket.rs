@@ -9,6 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
+   types::{ChatId},
 };
 
 use crate::commands as cmd;
@@ -52,11 +53,12 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          // Итоговая стоимость
          s.push_str(&format!("\nВсего: {}", db::price_with_unit(basket.total)));
 
-         // Для колбека
-         let data = format!("/bas{}", basket.rest_num);
+         // Для колбека по id ресторатора узнаем его имя
+         let caption = String::from("Отправить");
+         let data = format!("/bas{}", db::make_key_3_int(basket.rest_id, 0, 0));
 
          cx.answer(s)
-         .reply_markup(cmd::Basket::inline_markup(data))
+         .reply_markup(cmd::Basket::inline_markup(caption, data))
          .disable_notification(true)
          .send()
          .await?;
@@ -151,6 +153,18 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
 }
 
 // Отправляет сообщение ресторатору с корзиной пользователя
-pub async fn send_basket(rest_num: i32, user_id: i32) -> bool {
+pub async fn send_basket(rest_id: i32, user_id: i32, message_id: i32) -> bool {
+   if let Some(chat) = db::TELEGRAM_LOG_CHAT.get() {
+      // Откуда и куда
+      let from = ChatId::Id(i64::from(user_id));
+      let to = ChatId::Id(i64::from(rest_id));
+
+      match chat.bot.forward_message(to, from, message_id).send().await {
+         Ok(_) => {return true; }
+         Err(err) =>  { log::info!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err);}
+      }
+   }
+   
+   // Раз попали сюда, значит что-то пошло не так
    false
 }

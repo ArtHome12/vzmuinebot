@@ -612,7 +612,6 @@ pub async fn is_tables_exist() -> bool {
 }
 
 // Создаёт новые таблицы
-//
 pub async fn create_tables() -> bool {
    // Таблица с данными о ресторанах
    let query = DB.get().unwrap()
@@ -705,13 +704,11 @@ pub async fn create_tables() -> bool {
 }
 
 // Формирование ключа блюда на основе аргументов
-//
 pub fn make_key_3_int(first: i32, second: i32, third: i32) -> String {
    format!("{}_{}_{}", first, second, third)
 }
 
 // Разбор строки на три числа, например ключа блюда на аргументы
-//
 pub fn parse_key_3_int(text: &str) -> Result<(i32, i32, i32), Box<dyn std::error::Error>> {
    let first: i32;
    let second: i32;
@@ -723,7 +720,6 @@ pub fn parse_key_3_int(text: &str) -> Result<(i32, i32, i32), Box<dyn std::error
 }
 
 // Хранит данные для работы логирования в чат
-//
 pub struct ServiceChat {
    pub id: i64,
    pub bot: std::sync::Arc<Bot>,
@@ -1471,7 +1467,7 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
 // Содержимое корзины
 //
 pub struct Basket {
-   pub rest_num: i32,
+   pub rest_id: i32,
    pub restaurant: String,
    pub dishes: Vec<String>,
    pub total: i32,
@@ -1486,7 +1482,7 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
 
    // Выберем все упомянутые рестораны
    let rows = DB.get().unwrap()
-      .query("SELECT DISTINCT r.title, r.info, r.rest_num FROM orders as o 
+      .query("SELECT DISTINCT r.title, r.info, r.rest_num, r.user_id FROM orders as o 
          INNER JOIN restaurants r ON o.rest_num = r.rest_num 
          WHERE o.user_id = $1::INTEGER
          ORDER BY r.rest_num", 
@@ -1500,6 +1496,7 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
          let rest_title: String = record.get(0);
          let rest_info: String = record.get(1);
          let rest_num: i32 = record.get(2);
+         let rest_id: i32 = record.get(3);
 
          // Для общей суммы заказа по ресторану
          let mut total: i32 = 0;
@@ -1535,7 +1532,7 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
 
          // Создаём корзину текущего ресторана
          let basket = Basket {
-            rest_num,
+            rest_id,
             restaurant: format!("{}. {}. {}\n", rest_num, rest_title, rest_info),
             dishes,
             total,

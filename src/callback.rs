@@ -33,7 +33,7 @@ enum CallbackCommand {
     ReturnToDishes(i32, i32, i32),  // rest_num, group_num, cat_id или 0 для автоопределения
     GroupsByRestaurantNow(i32), // rest_num
     ReturnToRestaurantsNow,
-    SendBasket(i32), // rest_num
+    SendBasket(i32), // rest_id 
     UnknownCommand,
 }
 
@@ -97,8 +97,13 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
                format!("Работающие: {}", db::is_success(eat_group_now::show_inline_interface(&cx, rest_num).await)),
             CallbackCommand::ReturnToRestaurantsNow => 
                format!("Работающие: {}", db::is_success(eat_rest_now::show_inline_interface(&cx).await)),
-            CallbackCommand::SendBasket(rest_num) => 
-               format!("Отправка: {}", db::is_success(basket::send_basket(rest_num, user_id).await)),
+            CallbackCommand::SendBasket(rest_id) => {
+               let res = match query.message.clone() {
+                  Some(message) => basket::send_basket(rest_id, user_id, message.id).await,
+                  None => false,
+               };
+               format!("Отправка: {}", db::is_success(res))
+            }
          }
       }
    };
