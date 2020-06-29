@@ -30,7 +30,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    let basket_info = db::user_basket_info(user).await;
    let eater_info = if let Some(info) = basket_info {
       let method = if info.pickup {String::from("самовывоз")} else {String::from("курьером по адресу")};
-      format!("Ваши контактные данные: {} /edit_name\nКонтакт: {} /edit_contact\nАдрес: {} /edit_address\nМетод доставки: {} /toggle", info.name, info.contact, info.address, method)
+      format!("Ваши контактные данные (для редактирования жмите на ссылки рядом): {} /edit_name\nКонтакт: {} /edit_contact\nАдрес: {} /edit_address\nМетод доставки: {} /toggle", info.name, info.contact, info.address, method)
    } else {
       String::from("Информации о пользователе нет")
    };
@@ -157,6 +157,30 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
                      next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: ошибка удаления блюда").await
                   }
                }
+            }
+
+            // Редактировать имя
+            cmd::Basket::EditName => {
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: неизвестная команда").await
+            }
+
+            // Редактировать контакт
+            cmd::Basket::EditContact => {
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: неизвестная команда").await
+            }
+
+            // Редактировать адрес
+            cmd::Basket::EditAddress => {
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: неизвестная команда").await
+            }
+
+            // Переключить способ доставки
+            cmd::Basket::TogglePickup => {
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: неизвестная команда").await
             }
          }
       }
