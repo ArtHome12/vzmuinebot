@@ -55,7 +55,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 
          // Для колбека по id ресторатора узнаем его имя
          let caption = String::from("Отправить");
-         let data = format!("/bas{}", db::make_key_3_int(basket.rest_id, 0, 0));
+         let data = format!("bas{}", db::make_key_3_int(basket.rest_id, 0, 0));
 
          cx.answer(s)
          .reply_markup(cmd::Basket::inline_markup(caption, data))
