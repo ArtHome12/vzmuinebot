@@ -40,6 +40,9 @@ pub static TIME_ZONE: OnceCell<FixedOffset> = OnceCell::new();
 // Картинка по-умолчанию
 pub static DEFAULT_IMAGE_ID: OnceCell<String> = OnceCell::new();
 
+// Бот для отправки сообщений между ресторатором и едоком
+pub static BOT: OnceCell<std::sync::Arc<Bot>> = OnceCell::new();
+
 
 // ============================================================================
 // [User]
@@ -491,26 +494,24 @@ pub struct UserBasketInfo {
    pub pickup: bool,
 }
 
-pub async fn user_basket_info(user: Option<&User>) -> Option<UserBasketInfo> {
-   if let Some(u) = user {
-      let query = DB.get().unwrap()
-      .query("SELECT user_name, contact, address, pickup from users WHERE user_id=$1::INTEGER", &[&u.id])
-      .await;
+pub async fn user_basket_info(user_id: i32) -> Option<UserBasketInfo> {
+   let query = DB.get().unwrap()
+   .query("SELECT user_name, contact, address, pickup from users WHERE user_id=$1::INTEGER", &[&user_id])
+   .await;
 
-      match query {
-         Ok(data) => {
-            if !data.is_empty() {
-               return Some(UserBasketInfo {
-                  name: data[0].get(0),
-                  contact: data[0].get(1),
-                  address: data[0].get(2),
-                  pickup: data[0].get(3),
-               });
-            }
+   match query {
+      Ok(data) => {
+         if !data.is_empty() {
+            return Some(UserBasketInfo {
+               name: data[0].get(0),
+               contact: data[0].get(1),
+               address: data[0].get(2),
+               pickup: data[0].get(3),
+            });
          }
-         // Если произошл ошибка, сообщим о ней
-         Err(e) => log(&format!("Error toggle interface settings: {}", e)).await,
       }
+      // Если произошл ошибка, сообщим о ней
+      Err(e) => log(&format!("Error toggle interface settings: {}", e)).await,
    }
    
    // Если попали сюда, значит была ошибка

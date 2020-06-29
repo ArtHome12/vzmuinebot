@@ -26,8 +26,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    let (baskets, grand_total) = db::basket_contents(user_id).await;
 
    // Информация о едоке
-   let user = cx.update.from();
-   let basket_info = db::user_basket_info(user).await;
+   let basket_info = db::user_basket_info(user_id).await;
    let eater_info = if let Some(info) = basket_info {
       let method = if info.pickup {String::from("самовывоз")} else {String::from("курьером по адресу")};
       format!("Ваши контактные данные (для редактирования жмите на ссылки рядом): {} /edit_name\nКонтакт: {} /edit_contact\nАдрес: {} /edit_address\nМетод доставки: {} /toggle", info.name, info.contact, info.address, method)
@@ -44,7 +43,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       .await?;
    } else {
       // Отображаем приветствие
-      let s = format!("{}\n\nОбщая сумма заказа {}. Вы можете самостоятельно скопировать сообщения с заказом и переслать напрямую в заведение или в независимую доставку, а потом очистить корзину. Либо нажать на кнопку под заказом (перепроверьте ваши контактные данные)", eater_info, db::price_with_unit(grand_total));
+      let s = format!("{}\n\nОбщая сумма заказа {}. Вы можете самостоятельно скопировать сообщения с заказом и переслать напрямую в заведение или в независимую доставку, а потом очистить корзину. Либо воспользоваться кнопками под заказом (перепроверьте ваши контактные данные)", eater_info, db::price_with_unit(grand_total));
       cx.answer(s)
       .reply_markup(cmd::Basket::bottom_markup())
       .disable_notification(true)
@@ -66,10 +65,11 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 
          // Для колбека по id ресторатора узнаем его имя
          let caption = String::from("Отправить");
-         let data = format!("bas{}", db::make_key_3_int(basket.rest_id, 0, 0));
+         let data1 = format!("bas{}", db::make_key_3_int(basket.rest_id, 0, 0));
+         let data2 = format!("blo{}", db::make_key_3_int(basket.rest_id, 0, 0));
 
          cx.answer(s)
-         .reply_markup(cmd::Basket::inline_markup(caption, data))
+         .reply_markup(cmd::Basket::inline_markup(caption, data1, data2))
          .disable_notification(true)
          .send()
          .await?;
@@ -208,23 +208,6 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
    }
 }
 
-// Отправляет сообщение ресторатору с корзиной пользователя
-pub async fn send_basket(rest_id: i32, user_id: i32, message_id: i32) -> bool {
-   if let Some(chat) = db::TELEGRAM_LOG_CHAT.get() {
-      // Откуда и куда
-      let from = ChatId::Id(i64::from(user_id));
-      let to = ChatId::Id(i64::from(rest_id));
-
-      match chat.bot.forward_message(to, from, message_id).send().await {
-         Ok(_) => {return true; }
-         Err(err) =>  { db::log(&format!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
-      }
-   }
-   
-   // Раз попали сюда, значит что-то пошло не так
-   false
-}
-
 // Изменить имя едока
 pub async fn edit_name_mode(cx: cmd::Cx<i32>) -> cmd::Res {
    // Извлечём параметры
@@ -308,3 +291,57 @@ pub async fn edit_address_mode(cx: cmd::Cx<i32>) -> cmd::Res {
       next(cmd::Dialogue::CatererMode(user_id))
    }
 }
+
+// Отправляет сообщение ресторатору с корзиной пользователя
+pub async fn send_basket(rest_id: i32, user_id: i32, message_id: i32) -> bool {
+   // Используем специально выделенный экземпляр бота
+   if let Some(bot) = db::BOT.get() {
+      // Откуда и куда
+      let from = ChatId::Id(i64::from(user_id));
+      let to = ChatId::Id(i64::from(rest_id));
+
+      // Информация о едоке
+      let basket_info = db::user_basket_info(user_id).await;
+      let eater_info = if let Some(info) = basket_info {
+         let method = if info.pickup {String::from("Cамовывоз")} else {format!("Курьером по адресу {}", info.address)};
+         format!("Заказ от {}\nКонтакт: {}\n{}", info.name, info.contact, method)
+      } else {
+         String::from("Информации о пользователе нет")
+      };
+
+      // Отправим сообщение с контактными данными
+      match bot.send_message(to.clone(), eater_info).send().await {
+         Ok(_) => {
+            // Перешлём сообщение с заказом
+            match bot.forward_message(to, from, message_id).send().await {
+               Ok(_) => {
+                  return true;
+               }
+               Err(err) =>  { db::log(&format!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
+            }
+         }
+         Err(err) =>  { db::log(&format!("Error send_basket announcement({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
+      }
+   }
+   
+   // Раз попали сюда, значит что-то пошло не так
+   false
+}
+
+// Отправляет сообщение ресторатору с корзиной пользователя
+pub async fn send_basket_with_location(rest_id: i32, user_id: i32, message_id: i32) -> bool {
+   if let Some(chat) = db::TELEGRAM_LOG_CHAT.get() {
+      // Откуда и куда
+      let from = ChatId::Id(i64::from(user_id));
+      let to = ChatId::Id(i64::from(rest_id));
+
+      match chat.bot.forward_message(to, from, message_id).send().await {
+         Ok(_) => {return true; }
+         Err(err) =>  { db::log(&format!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
+      }
+   }
+   
+   // Раз попали сюда, значит что-то пошло не так
+   false
+}
+

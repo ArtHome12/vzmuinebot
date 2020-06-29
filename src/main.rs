@@ -383,6 +383,12 @@ async fn run() {
       database::log(s).await;
    }
 
+   // Бот для общения между ресторатором и едоком
+   if let Err(_) = database::BOT.set(Arc::clone(&bot)) {
+      let s = "Something wrong with BOT";
+      log::info!("{}", s);
+      database::log(s).await;
+   }
 
    // Проверим существование таблиц и если их нет, создадим
    //

@@ -502,7 +502,7 @@ impl Basket {
          "/edit_name" => Basket::EditName,
          "/edit_contact" => Basket::EditContact,
          "/edit_address" => Basket::EditAddress,
-         "/togle" => Basket::TogglePickup,
+         "/toggle" => Basket::TogglePickup,
          _ => {
             // Ищем среди команд с аргументами
             match input.get(..4).unwrap_or_default() {
@@ -531,11 +531,11 @@ impl Basket {
    }
 
    // Кнопки для меню снизу
-   pub fn inline_markup(caption: String, data: String) -> InlineKeyboardMarkup {
-      let button = InlineKeyboardButton::callback(caption, data);
-      // let button = Butto
+   pub fn inline_markup(caption: String, data1: String, data2: String) -> InlineKeyboardMarkup {
+      let button1 = InlineKeyboardButton::callback(caption, data1);
+      let button2 = InlineKeyboardButton::callback(String::from("на карте"), data2);
 
       InlineKeyboardMarkup::default()
-      .append_row(vec![button])
+      .append_row(vec![button1, button2])
    }
 }
