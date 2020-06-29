@@ -30,7 +30,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    let basket_info = db::user_basket_info(user).await;
    let eater_info = if let Some(info) = basket_info {
       let method = if info.pickup {String::from("самовывоз")} else {String::from("курьером по адресу")};
-      format!("Ваши контактные данные:\nВаше имя: {} /name\nКонтакт: {} /contact\nАдрес: {} /address\nМетод доставки: {} /toggle", info.name, info.contact, info.address, method)
+      format!("Ваши контактные данные: {} /edit_name\nКонтакт: {} /edit_contact\nАдрес: {} /edit_address\nМетод доставки: {} /toggle", info.name, info.contact, info.address, method)
    } else {
       String::from("Информации о пользователе нет")
    };
@@ -44,7 +44,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       .await?;
    } else {
       // Отображаем приветствие
-      let s = format!("{}\n\nОбщая сумма заказа {}. Вы можете скопировать эти сообщения и переслать напрямую в заведение или в независимую доставку, а потом очистить корзину. Либо нажать на кнопку ниже (перепроверьте ваши контактные данные)", eater_info, db::price_with_unit(grand_total));
+      let s = format!("{}\n\nОбщая сумма заказа {}. Вы можете самостоятельно скопировать сообщения с заказом и переслать напрямую в заведение или в независимую доставку, а потом очистить корзину. Либо нажать на кнопку под заказом (перепроверьте ваши контактные данные)", eater_info, db::price_with_unit(grand_total));
       cx.answer(s)
       .reply_markup(cmd::Basket::bottom_markup())
       .disable_notification(true)
