@@ -161,7 +161,7 @@ pub async fn send_basket(rest_id: i32, user_id: i32, message_id: i32) -> bool {
 
       match chat.bot.forward_message(to, from, message_id).send().await {
          Ok(_) => {return true; }
-         Err(err) =>  { log::info!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err);}
+         Err(err) =>  { db::log(&format!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
       }
    }
    
