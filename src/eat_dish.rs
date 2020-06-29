@@ -177,6 +177,9 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::R
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, cat_id: i32) -> bool {
    // db::log(&format!("eat_dish::show_inline_interface ({}_{}_{})", rest_num, group_num, cat_id)).await;
 
+   // Если категория не задана, запросим её из базы
+   let cat_id = if cat_id == 0 { db::category_by_restaurant_and_group(rest_num, group_num).await } else { cat_id };
+
    // Получаем информацию из БД - нужен текст, картинка и кнопки
    let (text, markup) = match db::dishes_by_restaurant_and_group(rest_num, group_num).await {
       None => {
@@ -193,20 +196,27 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
       }
       Some(info) => {
          // Создадим кнопки
-         let mut buttons: Vec<InlineKeyboardButton> = info.dishes.into_iter()
+         let buttons: Vec<InlineKeyboardButton> = info.dishes.into_iter()
          .map(|(key, value)| (InlineKeyboardButton::callback(value, format!("dis{}", db::make_key_3_int(rest_num, group_num, key)))))
          .collect();
 
+         let (long, mut short) : (Vec<_>, Vec<_>) = buttons
+         .into_iter()
+         .partition(|n| n.text.chars().count() > 21);
+      
          // Последняя непарная кнопка, если есть
-         let last = if buttons.len() % 2 == 1 { buttons.pop() } else { None };
-
-         // Поделим на две колонки
-         let markup = buttons.into_iter().array_chunks::<[_; 2]>()
-            .fold(InlineKeyboardMarkup::default(), |acc, [left, right]| acc.append_row(vec![left, right]));
-
+         let last = if short.len() % 2 == 1 { short.pop() } else { None };
+      
+         // Сначала длинные кнопки по одной
+         let markup = long.into_iter() 
+         .fold(InlineKeyboardMarkup::default(), |acc, item| acc.append_row(vec![item]));
+      
+         // Короткие по две в ряд
+         let markup = short.into_iter().array_chunks::<[_; 2]>()
+         .fold(markup, |acc, [left, right]| acc.append_row(vec![left, right]));
+      
          // Кнопка назад
          let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0)));
-         // db::log(&format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0))).await;
 
          // Добавляем последнюю непарную кнопку и кнопку назад
          let markup = if let Some(last_button) = last {
@@ -266,7 +276,12 @@ pub async fn show_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, g
    let ordered_amount = db::amount_in_basket(rest_num, group_num, dish_num, user_id).await;
 
    // Создаём инлайн кнопки с указанием количества блюд
-   let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_key_3_int(rest_num, group_num, dish_num), ordered_amount);
+   let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrd{}", db::make_key_3_int(rest_num, group_num, 0)));
+   let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_key_3_int(rest_num, group_num, dish_num), ordered_amount)
+   .append_to_row(button_back, 0);
+   // db::log(&format!("rrg{}", db::make_key_3_int(est_num, group_num, cat_id))).await;
+
+
 
    // Картинка блюда
    let photo_id = match dish_image_id {

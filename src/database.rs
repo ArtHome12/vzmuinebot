@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use chrono::{NaiveTime, FixedOffset, NaiveDateTime};
+use chrono::{NaiveTime, FixedOffset, NaiveDateTime, Timelike, Utc};
 use once_cell::sync::{OnceCell};
 use text_io::try_scan;
 use teloxide::{
@@ -37,6 +37,9 @@ pub static PRICE_UNIT: OnceCell<String> = OnceCell::new();
 // Часовой пояс
 pub static TIME_ZONE: OnceCell<FixedOffset> = OnceCell::new();
 
+// Картинка по-умолчанию
+pub static DEFAULT_IMAGE_ID: OnceCell<String> = OnceCell::new();
+
 
 // ============================================================================
 // [User]
@@ -48,7 +51,8 @@ pub type RestaurantList = BTreeMap<i32, String>;
 pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
    // Выполняем запрос
    let rows = DB.get().unwrap()
-      .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&cat_id])
+      .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
+      WHERE r.active = TRUE", &[&cat_id])
       .await;
 
    // Возвращаем результат
@@ -62,8 +66,26 @@ pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
    }
 }
 
+// Возвращает список ресторанов с активными группами в указанное время
+pub async fn restaurant_by_now(time: NaiveTime) -> RestaurantList {
+   // Выполняем запрос
+   let rows = DB.get().unwrap()
+      .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
+         ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&time])
+      .await;
+
+   // Возвращаем результат
+   match rows {
+      Ok(data) => data.into_iter().map(|row| (row.get(0), row.get(1))).collect(),
+      Err(e) => {
+         // Сообщаем об ошибке и возвращаем пустой список
+         log(&format!("Error restaurant_by_now: {}", e)).await;
+         BTreeMap::<i32, String>::new()
+      }
+   }
+}
+
 // Возвращает описание, фото и список групп выбранного ресторана и категории
-//
 pub struct GroupListWithRestaurantInfo {
    pub info: String, 
    pub image_id: Option<String>,
@@ -84,12 +106,16 @@ async fn subselect_groups(rest_num: i32, cat_id: i32) -> BTreeMap<i32, String> {
          let opening_time: NaiveTime = row.get(2);
          let closing_time: NaiveTime = row.get(3);
 
+         // Если время указано без минут, то выводим только часы
+         let opening = if opening_time.minute() == 0 { opening_time.format("%H") } else { opening_time.format("%H:%M") };
+         let closing = if closing_time.minute() == 0 { closing_time.format("%H") } else { closing_time.format("%H:%M") };
+
          // Возвращаем хешстроку
-         (group_num, format!("   {} ({}-{})", title, opening_time.format("%H:%M"), closing_time.format("%H:%M")))
+         (group_num, format!("   {} ({}-{})", title, opening, closing))
       }).collect(),
       Err(e) => {
          // Сообщаем об ошибке и возвращаем пустой список
-         log(&format!("Error restaurant_by_category: {}", e)).await;
+         log(&format!("Error subselect_groups: {}", e)).await;
          BTreeMap::<i32, String>::new()
       }
    }
@@ -128,8 +154,71 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
    }
 }
 
+async fn subselect_groups_now(rest_num: i32, time: NaiveTime) -> BTreeMap<i32, String> {
+   // Выполняем запрос групп
+   let rows = DB.get().unwrap()
+      .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND active = TRUE AND $2::TIME BETWEEN opening_time AND closing_time", &[&rest_num, &time])
+      .await;
+
+   // Возвращаем результат
+   match rows {
+      Ok(data) => data.into_iter().map(|row| -> (i32, String) {
+         let group_num: i32 = row.get(0);
+         let title: String = row.get(1);
+         let opening_time: NaiveTime = row.get(2);
+         let closing_time: NaiveTime = row.get(3);
+
+         // Если время указано без минут, то выводим только часы
+         let opening = if opening_time.minute() == 0 { opening_time.format("%H") } else { opening_time.format("%H:%M") };
+         let closing = if closing_time.minute() == 0 { closing_time.format("%H") } else { closing_time.format("%H:%M") };
+
+         // Возвращаем хешстроку
+         (group_num, format!("   {} ({}-{})", title, opening, closing))
+      }).collect(),
+      Err(e) => {
+         // Сообщаем об ошибке и возвращаем пустой список
+         log(&format!("Error subselect_groups_now: {}", e)).await;
+         BTreeMap::<i32, String>::new()
+      }
+   }
+}
+
+// Возвращает описание, список групп выбранного ресторана, работающего в указанное время и фото, если есть
+pub async fn groups_by_restaurant_now(rest_num: i32) -> Option<GroupListWithRestaurantInfo> {
+   // Текущее время
+   let our_timezone = TIME_ZONE.get().unwrap();
+   let time = Utc::now().with_timezone(our_timezone).naive_local().time();
+
+   // Выполняем запрос информации о ресторане
+   let rows = DB.get().unwrap()
+      .query("SELECT title, info, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
+      .await;
+
+   match rows {
+      Ok(data) => {
+         if !data.is_empty() {
+            // Параметры ресторана
+            let title: String = data[0].get(0);
+            let info: String = data[0].get(1);
+            let res = GroupListWithRestaurantInfo {
+               info: format!("Заведение: {}\nОписание: {}", title, info),
+               image_id: data[0].get(2),
+               groups: subselect_groups_now(rest_num, time).await,
+            };
+
+            // Окончательный результат
+            Some(res)
+         } else {None}
+      }
+      Err(e) => {
+         // Сообщим об ошибке
+         log(&format!("Error groups_by_restaurant_now: {}", e)).await;
+         None
+      }
+   }
+}
+
 // Возвращает список блюд выбранного ресторана и группы
-//
 pub struct DishListWithGroupInfo {
    pub info: String, 
    pub dishes: BTreeMap<i32, String>
@@ -159,6 +248,7 @@ async fn subselect_dishes(rest_num: i32, group_num: i32) -> BTreeMap<i32, String
    }
 }
 
+// Возвращает список блюд указанного ресторана и группы
 pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Option<DishListWithGroupInfo> {
    // Выполняем запрос информации о группе
    let rows = DB.get().unwrap()
@@ -184,8 +274,23 @@ pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Op
    }
 }
 
+// Возвращает категорию указанной группы
+pub async fn category_by_restaurant_and_group(rest_num: i32, group_num: i32) -> i32 {
+   // Выполняем запрос информации о группе
+   let rows = DB.get().unwrap()
+      .query("SELECT cat_id FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
+      .await;
+
+   match rows {
+      Ok(data) => {
+         if !data.is_empty() { data[0].get(0) }
+         else { 0 }
+      }
+      _ => 0,
+   }
+}
+
 // Возвращает информацию о блюде - картинку, цену и описание.
-//
 pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Option<(String, Option<String>)> {
    // Выполняем запрос
    let rows = DB.get().unwrap()
@@ -218,91 +323,8 @@ pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Op
    }
 }
 
-// Возвращает список ресторанов с активными группами в указанное время
-//
-pub async fn restaurant_by_now(time: NaiveTime) -> String {
-   // Выполняем запрос
-   let rows = DB.get().unwrap()
-      .query("SELECT DISTINCT r.title, r.rest_num FROM restaurants AS r INNER JOIN groups g ON r.rest_num = g.rest_num 
-      WHERE r.active = TRUE AND g.active = TRUE AND
-      ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)", &[&time])
-      .await;
-
-   // Строка для возврата результата
-   let mut res = String::default();
-
-   // Проверяем результат
-   if let Ok(data) = rows {
-      for record in data {
-         let title: String = record.get(0);
-         let rest_num: i32 = record.get(1);
-         res.push_str(&format!("   {} /rest{}\n", title, rest_num));
-      }
-   }
-
-   // На случай пустого списка сообщим об этом
-   if res.is_empty() {
-      String::from("   пусто :(")
-   } else {
-      res
-   }
-}
-
-// Возвращает описание, список групп выбранного ресторана, работающего в указанное время и фото, если есть
-//
-pub async fn groups_by_restaurant_now(rest_num: i32, time: NaiveTime) -> Option<(String, Option<String>)> {
-   // Выполняем запрос информации о ресторане
-   let rows = DB.get().unwrap()
-      .query("SELECT title, info, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
-      .await;
-
-   match rows {
-      Ok(data) => {
-         if !data.is_empty() {
-            // Параметры ресторана
-            let title: String = data[0].get(0);
-            let info: String = data[0].get(1);
-            let image_id: Option<String> = data[0].get(2);
-
-            // Строка для возврата результата
-            let mut res = String::default();
-
-            // Выполняем запрос групп
-            let rows = DB.get().unwrap()
-               .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND active = TRUE AND $2::TIME BETWEEN opening_time AND closing_time", &[&rest_num, &time])
-               .await;
-
-            // Проверяем результат
-            if let Ok(data) = rows {
-               for record in data {
-                  let group_num: i32 = record.get(0);
-                  let title: String = record.get(1);
-                  let opening_time: NaiveTime = record.get(2);
-                  let closing_time: NaiveTime = record.get(3);
-                        res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening_time.format("%H:%M"), closing_time.format("%H:%M"), group_num));
-               }
-            };
-
-            // На случай пустого списка сообщим об этом
-            let res = if res.is_empty() {
-               String::from("   пусто :(")
-            } else {
-               res
-            };
-
-            // Окончательный результат
-            Some((format!("Заведение: {}\nОписание: {}\nРаботающие разделы меню на ({}):\n{}", title, info, time.format("%H:%M"), res), image_id))
-         } else {
-            None
-         }
-      }
-      _ => None,
-   }
-}
-
 
 // Регистрация или разблокировка ресторатора
-//
 pub async fn register_caterer(user_id: i32) -> bool {
    // Попробуем разблокировать пользователя, тогда получим 1 в качестве обновлённых записей
    let query = DB.get().unwrap()
@@ -328,7 +350,6 @@ pub async fn register_caterer(user_id: i32) -> bool {
 
 
 // Приостановка доступа ресторатора
-//
 pub async fn hold_caterer(user_id: i32) -> Result<(), ()> {
    // Блокируем пользователя
    let query = DB.get().unwrap()
@@ -344,7 +365,6 @@ pub async fn hold_caterer(user_id: i32) -> Result<(), ()> {
 
 
 // Возвращает список ресторанов
-//
 pub async fn restaurant_list() -> String {
    // Выполняем запрос информации о ресторане
    let rows = DB.get().unwrap()
@@ -373,7 +393,6 @@ pub async fn restaurant_list() -> String {
 
 
 // Возвращает список ресторанов с командой для входа
-//
 pub async fn restaurant_list_sudo() -> String {
    // Выполняем запрос информации о ресторане
    let rows = DB.get().unwrap()
@@ -401,7 +420,6 @@ pub async fn restaurant_list_sudo() -> String {
 
 
 // Возвращает настройку пользователя и временную отметку последнего входа
-//
 pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> bool {
    if let Some(u) = user {
       // Выполняем запрос на обновление
@@ -413,13 +431,21 @@ pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> b
       if let Ok(num) = query {
          if num == 0 {
             // Информация о пользователе
-            let info = format!("{}{}", u.first_name, user_info_optional_part(u));
+            let name = if let Some(last_name) = &u.last_name {
+               format!("{} {}", u.first_name, last_name)
+            } else {u.first_name.clone()};
+
+            let contact = if let Some(username) = &u.username {
+               format!(" @{}", username)
+            } else {String::from("-")};
+
             let query = DB.get().unwrap()
-            .execute("INSERT INTO users (user_id, user_name, last_seen, compact) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::TIMESTAMP, FALSE)", &[&u.id, &info, &dt])
+            .execute("INSERT INTO users (user_id, user_name, contact, address, last_seen, compact, pickup) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::VARCHAR(100), '-', $4::TIMESTAMP, FALSE, TRUE)"
+               , &[&u.id, &name, &contact, &dt])
             .await;
 
             if let Err(e) = query {
-               log(&format!("Error insert last seen record for {}\n{}", info, e)).await;
+               log(&format!("Error insert last seen record for {}\n{}", name, e)).await;
             }
          } else {
             // Раз обновление было успешным, прочитаем настройку
@@ -444,18 +470,51 @@ pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> b
 }
 
 // Переключает режим интерфейса
-//
 pub async fn user_toggle_interface(user: Option<&User>) {
    if let Some(u) = user {
       let query = DB.get().unwrap()
       .execute("UPDATE users SET compact = NOT compact WHERE user_id=$1::INTEGER", &[&u.id])
       .await;
 
-      // Если произошл ошибка, сообщим о ней
+      // Если произошлa ошибка, сообщим о ней
       if let Err(e) = query {
          log(&format!("Error toggle interface settings: {}", e)).await;
       }
    }
+}
+
+// Информация о пользователе для корзины
+pub struct UserBasketInfo {
+   pub name: String, 
+   pub contact: String, 
+   pub address: String, 
+   pub pickup: bool,
+}
+
+pub async fn user_basket_info(user: Option<&User>) -> Option<UserBasketInfo> {
+   if let Some(u) = user {
+      let query = DB.get().unwrap()
+      .query("SELECT user_name, contact, address, pickup from users WHERE user_id=$1::INTEGER", &[&u.id])
+      .await;
+
+      match query {
+         Ok(data) => {
+            if !data.is_empty() {
+               return Some(UserBasketInfo {
+                  name: data[0].get(0),
+                  contact: data[0].get(1),
+                  address: data[0].get(2),
+                  pickup: data[0].get(3),
+               });
+            }
+         }
+         // Если произошл ошибка, сообщим о ней
+         Err(e) => log(&format!("Error toggle interface settings: {}", e)).await,
+      }
+   }
+   
+   // Если попали сюда, значит была ошибка
+   None
 }
 
 // ============================================================================
@@ -556,7 +615,6 @@ pub async fn is_tables_exist() -> bool {
 }
 
 // Создаёт новые таблицы
-//
 pub async fn create_tables() -> bool {
    // Таблица с данными о ресторанах
    let query = DB.get().unwrap()
@@ -611,8 +669,11 @@ pub async fn create_tables() -> bool {
                         PRIMARY KEY (user_id),
                         user_id     INTEGER        NOT NULL,
                         user_name   VARCHAR(100)   NOT NULL,
+                        contact     VARCHAR(100)   NOT NULL,
+                        address     VARCHAR(100)   NOT NULL,
                         last_seen   TIMESTAMP      NOT NULL,
-                        compact     BOOLEAN        NOT NULL)", &[])
+                        compact     BOOLEAN        NOT NULL,
+                        pickup      BOOLEAN        NOT NULL)", &[])
                      .await;
                      
                      match query {
@@ -649,13 +710,11 @@ pub async fn create_tables() -> bool {
 }
 
 // Формирование ключа блюда на основе аргументов
-//
 pub fn make_key_3_int(first: i32, second: i32, third: i32) -> String {
    format!("{}_{}_{}", first, second, third)
 }
 
 // Разбор строки на три числа, например ключа блюда на аргументы
-//
 pub fn parse_key_3_int(text: &str) -> Result<(i32, i32, i32), Box<dyn std::error::Error>> {
    let first: i32;
    let second: i32;
@@ -667,7 +726,6 @@ pub fn parse_key_3_int(text: &str) -> Result<(i32, i32, i32), Box<dyn std::error
 }
 
 // Хранит данные для работы логирования в чат
-//
 pub struct ServiceChat {
    pub id: i64,
    pub bot: std::sync::Arc<Bot>,
@@ -742,8 +800,11 @@ pub fn price_with_unit(price: i32) -> String {
    format!("{}{}", price, unit)
 }
 
-pub fn default_photo_id() -> String {
-   String::from("AgACAgUAAxkBAAIZDV70USDQoAlMkWHZvmllF785NhGLAAJLqTEbvzKhVwGpUSlOTahiYDRla3QAAwEAAwIAA20AA8RmAgABGgQ")
+pub fn default_photo_id() -> String { 
+   match DEFAULT_IMAGE_ID.get() {
+      Some(image) => image.clone(),
+      None => String::from(""),
+   }
 }
 
 // ============================================================================
@@ -1412,6 +1473,7 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
 // Содержимое корзины
 //
 pub struct Basket {
+   pub rest_id: i32,
    pub restaurant: String,
    pub dishes: Vec<String>,
    pub total: i32,
@@ -1426,7 +1488,7 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
 
    // Выберем все упомянутые рестораны
    let rows = DB.get().unwrap()
-      .query("SELECT DISTINCT r.title, r.info, r.rest_num FROM orders as o 
+      .query("SELECT DISTINCT r.title, r.info, r.rest_num, r.user_id FROM orders as o 
          INNER JOIN restaurants r ON o.rest_num = r.rest_num 
          WHERE o.user_id = $1::INTEGER
          ORDER BY r.rest_num", 
@@ -1440,6 +1502,7 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
          let rest_title: String = record.get(0);
          let rest_info: String = record.get(1);
          let rest_num: i32 = record.get(2);
+         let rest_id: i32 = record.get(3);
 
          // Для общей суммы заказа по ресторану
          let mut total: i32 = 0;
@@ -1475,6 +1538,7 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
 
          // Создаём корзину текущего ресторана
          let basket = Basket {
+            rest_id,
             restaurant: format!("{}. {}. {}\n", rest_num, rest_title, rest_info),
             dishes,
             total,

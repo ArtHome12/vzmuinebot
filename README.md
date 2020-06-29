@@ -44,6 +44,9 @@ To specify unit of price
 To indicate the time zone
 `TIME_ZONE=+7`
 
+Default image for inline interface mode. It can find out if send a picture to the bot in the main menu
+`DEFAULT_IMAGE_ID=AgACAg...`
+
 Optional. To specify service chat id - you can see it after add bot to group and send command /chat (/chat@yourbotname)
 `LOG_GROUP_ID=-100123...`
 

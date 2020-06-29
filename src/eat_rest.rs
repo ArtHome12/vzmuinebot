@@ -44,11 +44,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
       // Выводим информацию либо ссылками, либо инлайн кнопками
       if compact_mode {
          // Сформируем строку вида "название /ссылка\n"
-         let s: String = if rest_list.is_empty() {
-            String::from(lang::t("ru", lang::Res::EatRestEmpty))
-         } else {
-            rest_list.into_iter().map(|(rest_num, title)| (format!("   {} /rest{}\n", title, rest_num))).collect()
-         };
+         let s: String = rest_list.into_iter().map(|(rest_num, title)| (format!("   {} /rest{}\n", title, rest_num))).collect();
          
          // Отображаем информацию и кнопки меню
          let s = format!("Рестораны с подходящим меню:\n{}", s);
@@ -137,15 +133,24 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
 //
 fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMarkup {
    // Создадим кнопки под рестораны
-   let mut buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
+   let buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
    .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("grc{}", db::make_key_3_int(rest_num, cat_id, 0)))))  // third argument always 0
    .collect();
 
-   // Последняя непарная кнопка, если есть
-   let last = if buttons.len() % 2 == 1 { buttons.pop() } else { None };
+   let (long, mut short) : (Vec<_>, Vec<_>) = buttons
+   .into_iter()
+   .partition(|n| n.text.chars().count() > 21);
 
-   let markup = buttons.into_iter().array_chunks::<[_; 2]>()
-      .fold(InlineKeyboardMarkup::default(), |acc, [left, right]| acc.append_row(vec![left, right]));
+   // Последняя непарная кнопка, если есть
+   let last = if short.len() % 2 == 1 { short.pop() } else { None };
+
+   // Сначала длинные кнопки по одной
+   let markup = long.into_iter() 
+   .fold(InlineKeyboardMarkup::default(), |acc, item| acc.append_row(vec![item]));
+
+   // Короткие по две в ряд
+   let markup = short.into_iter().array_chunks::<[_; 2]>()
+   .fold(markup, |acc, [left, right]| acc.append_row(vec![left, right]));
    
    // Возвращаем результат
    if let Some(last_button) = last {
@@ -155,8 +160,7 @@ fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMark
    }
 }
 
-// Выводит инлайн кнопки, делая новый пост или редактируя предыдущий
-//
+// Выводит инлайн кнопки, редактируя предыдущее сообщение
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_id: i32) -> bool {
    // Получаем информацию из БД
    let rest_list = db::restaurant_by_category(cat_id).await;

@@ -47,6 +47,9 @@ pub enum Dialogue {
     CatEditDishPrice(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
     CatEditDishImage(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
     BasketMode(i32), // user_id
+    BasketEditName(i32), // user_id
+    BasketEditContact(i32), // user_id
+    BasketEditAddress(i32), // user_id
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
@@ -486,6 +489,10 @@ pub enum Basket {
    Clear,
    Delete(i32, i32, i32),  // rest_num, group_num, dish_num
    UnknownCommand,
+   EditName,
+   EditContact,
+   EditAddress,
+   TogglePickup,
 }
 
 impl Basket {
@@ -493,6 +500,10 @@ impl Basket {
       match input {
          "В начало" => Basket::Main,
          "Очистить" => Basket::Clear,
+         "/edit_name" => Basket::EditName,
+         "/edit_contact" => Basket::EditContact,
+         "/edit_address" => Basket::EditAddress,
+         "/togle" => Basket::TogglePickup,
          _ => {
             // Ищем среди команд с аргументами
             match input.get(..4).unwrap_or_default() {
@@ -510,7 +521,8 @@ impl Basket {
       }
    }
 
-   pub fn markup() -> ReplyKeyboardMarkup {
+   // Кнопки для меню снизу
+   pub fn bottom_markup() -> ReplyKeyboardMarkup {
       ReplyKeyboardMarkup::default()
       .append_row(vec![
          KeyboardButton::new("В начало"),
@@ -519,4 +531,12 @@ impl Basket {
       .resize_keyboard(true)
    }
 
+   // Кнопки для меню снизу
+   pub fn inline_markup(caption: String, data: String) -> InlineKeyboardMarkup {
+      let button = InlineKeyboardButton::callback(caption, data);
+      // let button = Butto
+
+      InlineKeyboardMarkup::default()
+      .append_row(vec![button])
+   }
 }

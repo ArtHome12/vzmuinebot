@@ -154,8 +154,20 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
             basket::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
                   .await
          }
+         cmd::Dialogue::BasketEditName(rest_id) => {
+            caterer::edit_rest_title_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+                  .await
+         }
+         cmd::Dialogue::BasketEditContact(rest_id) => {
+            caterer::edit_rest_title_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+                  .await
+         }
+         cmd::Dialogue::BasketEditAddress(rest_id) => {
+            caterer::edit_rest_title_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+                  .await
+         }
       } 
-   } else {
+} else {
       // Для сообщений не в личке обрабатываем только команду вывода id группы
       if let Some(input) = update.text() {
          match input.get(..5).unwrap_or_default() {
@@ -354,6 +366,19 @@ async fn run() {
       }
    } else {
       let s = "There is no environment variable TIME_ZONE";
+      log::info!("{}", s);
+      database::log(s).await;
+   }
+
+   // Картинка по-умолчанию
+   if let Ok(def_id) = env::var("DEFAULT_IMAGE_ID") {
+      if let Err(_) = database::DEFAULT_IMAGE_ID.set(def_id) {
+         let s = "Something wrong with DEFAULT_IMAGE_ID";
+         log::info!("{}", s);
+         database::log(s).await;
+      }
+   } else {
+      let s = "There is no environment variable DEFAULT_IMAGE_ID";
       log::info!("{}", s);
       database::log(s).await;
    }
