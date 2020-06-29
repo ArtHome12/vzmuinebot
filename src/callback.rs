@@ -19,6 +19,7 @@ use crate::eat_rest_now;
 use crate::eat_group;
 use crate::eat_group_now;
 use crate::eat_dish;
+use crate::basket;
 
 #[derive(Copy, Clone)]
 enum CallbackCommand {
