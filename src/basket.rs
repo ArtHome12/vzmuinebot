@@ -187,7 +187,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             // Редактировать адрес
             cmd::Basket::EditAddress => {
                // Отправляем приглашение ввести строку со слешем в меню для отмены
-               cx.answer(format!("Введите адрес для доставки или укажите точку на карте (/ для отмены)"))
+               cx.answer(format!("Введите адрес для доставки или укажите точку на карте (/ для отмены). Также вы можете отправить произвольную точку или даже транслировать её изменение, для этого нажмите скрепку и выберите геопозицию."))
                .reply_markup(cmd::Basket::address_markup())
                .disable_notification(true)
                .send()
@@ -231,7 +231,7 @@ pub async fn edit_name_mode(cx: cmd::Cx<i32>) -> cmd::Res {
          next_with_cancel(cx, "Отмена").await
       }
    } else {
-      next(cmd::Dialogue::CatererMode(user_id))
+      next(cmd::Dialogue::BasketMode(user_id))
    }
 }
 
@@ -259,7 +259,7 @@ pub async fn edit_contact_mode(cx: cmd::Cx<i32>) -> cmd::Res {
          next_with_cancel(cx, "Отмена").await
       }
    } else {
-      next(cmd::Dialogue::CatererMode(user_id))
+      next(cmd::Dialogue::BasketMode(user_id))
    }
 }
 
@@ -268,7 +268,13 @@ pub async fn edit_address_mode(cx: cmd::Cx<i32>) -> cmd::Res {
    // Извлечём параметры
    let user_id = cx.dialogue;
         
-   if let Some(text) = cx.update.text() {
+   // Ожидаем либо текстовое сообщение, либо локацию
+   let option_text = cx.update.text();
+   let option_location = cx.update.location();
+
+
+   // Проверяем на текстовое сообщение
+   if let Some(text) = option_text {
       // Удалим из строки слеши
       let s = cmd::remove_slash(text).await;
 
@@ -287,7 +293,20 @@ pub async fn edit_address_mode(cx: cmd::Cx<i32>) -> cmd::Res {
          next_with_cancel(cx, "Отмена").await
       }
    } else {
-      next(cmd::Dialogue::CatererMode(user_id))
+      // Проверяем на геометку
+      if let Some(location) = option_location {
+         // Сохраним новое значение в БД
+         if db::basket_edit_address(user_id, String::from("на карте")).await {
+            // Покажем изменённую информацию
+            next_with_info(cx).await
+         } else {
+            // Сообщим об ошибке
+            next_with_cancel(cx, &format!("Ошибка basket_edit_address2({})", user_id)).await
+         }
+      } else {
+         // Сообщим об отмене
+         next_with_cancel(cx, "Отмена, ожидался либо текст либо геометка").await
+      } 
    }
 }
 
