@@ -494,6 +494,25 @@ pub struct UserBasketInfo {
    pub pickup: bool,
 }
 
+impl UserBasketInfo {
+   // Возвращает либо сам адрес либо надпись, что задана точка
+   pub fn address_label(&self) -> String {
+      // Если адрес начинается с ключевого слова, значит там id сообщения с локацией
+      if "Location" == self.address.get(..8).unwrap_or_default() {String::from("на карте")} else {self.address.clone()}
+   }
+
+   // Возвращает id сообщения с локацией, если имеется
+   pub fn address_message_id(&self) -> Option<i32> {
+      if "Location" == self.address.get(..8).unwrap_or_default() {
+         // Пытаемся получить продолжение строки
+         if let Some(s) = self.address.get(8..) {
+            // Пытаемся преобразовать в число.
+            if let Ok(res) = s.parse::<i32>() {Some(res)} else {None}
+         } else {None}
+      } else {None}
+   } 
+}
+
 pub async fn user_basket_info(user_id: i32) -> Option<UserBasketInfo> {
    let query = DB.get().unwrap()
    .query("SELECT user_name, contact, address, pickup from users WHERE user_id=$1::INTEGER", &[&user_id])

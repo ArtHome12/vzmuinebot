@@ -29,7 +29,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    let basket_info = db::user_basket_info(user_id).await;
    let eater_info = if let Some(info) = basket_info {
       let method = if info.pickup {String::from("самовывоз")} else {String::from("курьером по адресу")};
-      format!("Ваши контактные данные (для редактирования жмите на ссылки рядом): {} /edit_name\nКонтакт: {} /edit_contact\nАдрес: {} /edit_address\nМетод доставки: {} /toggle", info.name, info.contact, info.address, method)
+      format!("Ваши контактные данные (для редактирования жмите на ссылки рядом): {} /edit_name\nКонтакт: {} /edit_contact\nАдрес: {} /edit_address\nМетод доставки: {} /toggle", info.name, info.contact, info.address_label(), method)
    } else {
       String::from("Информации о пользователе нет")
    };
@@ -271,7 +271,7 @@ pub async fn edit_address_mode(cx: cmd::Cx<i32>) -> cmd::Res {
    // Ожидаем либо текстовое сообщение, либо локацию
    let option_text = cx.update.text();
    let option_location = cx.update.location();
-
+   let message_id = cx.update.id;
 
    // Проверяем на текстовое сообщение
    if let Some(text) = option_text {
@@ -294,9 +294,9 @@ pub async fn edit_address_mode(cx: cmd::Cx<i32>) -> cmd::Res {
       }
    } else {
       // Проверяем на геометку
-      if let Some(location) = option_location {
-         // Сохраним новое значение в БД
-         if db::basket_edit_address(user_id, String::from("на карте")).await {
+      if let Some(_location) = option_location {
+         // Сохраним код сообщения
+         if db::basket_edit_address(user_id, format!("Location{}", message_id)).await {
             // Покажем изменённую информацию
             next_with_info(cx).await
          } else {
@@ -320,16 +320,23 @@ pub async fn send_basket(rest_id: i32, user_id: i32, message_id: i32) -> bool {
 
       // Информация о едоке
       let basket_info = db::user_basket_info(user_id).await;
-      let eater_info = if let Some(info) = basket_info {
+      let (eater_info, location_message_id) = if let Some(info) = basket_info {
          let method = if info.pickup {String::from("Cамовывоз")} else {format!("Курьером по адресу {}", info.address)};
-         format!("Заказ от {}\nКонтакт: {}\n{}", info.name, info.contact, method)
+         (format!("Заказ от {}\nКонтакт: {}\n{}", info.name, info.contact, method), info.address_message_id())
       } else {
-         String::from("Информации о пользователе нет")
+         (String::from("Информации о пользователе нет"), None)
       };
 
       // Отправим сообщение с контактными данными
       match bot.send_message(to.clone(), eater_info).send().await {
          Ok(_) => {
+            // Перешлём сообщение с геолокацией, если она задана
+            if let Some(location_message) = location_message_id {
+               if let Err(e) = bot.forward_message(to.clone(), from.clone(), location_message).send().await {
+                  db::log(&format!("Error send_basket forward location({}, {}, {}): {}", user_id, rest_id, message_id, e)).await;
+               }
+            }
+
             // Перешлём сообщение с заказом
             match bot.forward_message(to, from, message_id).send().await {
                Ok(_) => {
