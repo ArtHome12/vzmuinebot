@@ -522,6 +522,7 @@ impl Basket {
    // Кнопки для меню снизу
    pub fn inline_markup(caption: String, data: String) -> InlineKeyboardMarkup {
       let button = InlineKeyboardButton::callback(caption, data);
+      // let button = Butto
 
       InlineKeyboardMarkup::default()
       .append_row(vec![button])

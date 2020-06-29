@@ -208,43 +208,7 @@ pub async fn groups_by_restaurant_now(rest_num: i32) -> Option<GroupListWithRest
 
             // Окончательный результат
             Some(res)
-
-/*            // Строка для возврата результата
-            let mut res = String::default();
-
-            // Выполняем запрос групп
-            let rows = DB.get().unwrap()
-               .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND active = TRUE AND $2::TIME BETWEEN opening_time AND closing_time", &[&rest_num, &time])
-               .await;
-
-            // Проверяем результат
-            if let Ok(data) = rows {
-               for record in data {
-                  let group_num: i32 = record.get(0);
-                  let title: String = record.get(1);
-                  let opening_time: NaiveTime = record.get(2);
-                  let closing_time: NaiveTime = record.get(3);
-
-                  // Если время указано без минут, то выводим только часы
-                  let opening = if opening_time.minute() == 0 { opening_time.format("%H") } else { opening_time.format("%H:%M") };
-                  let closing = if closing_time.minute() == 0 { closing_time.format("%H") } else { closing_time.format("%H:%M") };
-
-                  res.push_str(&format!("   {} ({}-{}) /grou{}\n", title, opening, closing, group_num));
-               }
-            };
-
-            // На случай пустого списка сообщим об этом
-            let res = if res.is_empty() {
-               String::from("   пусто :(")
-            } else {
-               res
-            };
-
-            // Окончательный результат
-            Some((format!("Заведение: {}\nОписание: {}\nРаботающие разделы меню на ({}):\n{}", title, info, time.format("%H:%M"), res), image_id))*/
-         } else {
-            None
-         }
+         } else {None}
       }
       Err(e) => {
          // Сообщим об ошибке
@@ -429,7 +393,6 @@ pub async fn restaurant_list() -> String {
 
 
 // Возвращает список ресторанов с командой для входа
-//
 pub async fn restaurant_list_sudo() -> String {
    // Выполняем запрос информации о ресторане
    let rows = DB.get().unwrap()
@@ -457,7 +420,6 @@ pub async fn restaurant_list_sudo() -> String {
 
 
 // Возвращает настройку пользователя и временную отметку последнего входа
-//
 pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> bool {
    if let Some(u) = user {
       // Выполняем запрос на обновление
@@ -469,13 +431,21 @@ pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> b
       if let Ok(num) = query {
          if num == 0 {
             // Информация о пользователе
-            let info = format!("{}{}", u.first_name, user_info_optional_part(u));
+            let name = if let Some(last_name) = &u.last_name {
+               format!("{} {}", u.first_name, last_name)
+            } else {u.first_name.clone()};
+
+            let contact = if let Some(username) = &u.username {
+               format!(" @{}", username)
+            } else {String::from("-")};
+
             let query = DB.get().unwrap()
-            .execute("INSERT INTO users (user_id, user_name, last_seen, compact) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::TIMESTAMP, FALSE)", &[&u.id, &info, &dt])
+            .execute("INSERT INTO users (user_id, user_name, contact, address, last_seen, compact, pickup) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::VARCHAR(100), '-', $4::TIMESTAMP, FALSE, TRUE)"
+               , &[&u.id, &name, &contact, &dt])
             .await;
 
             if let Err(e) = query {
-               log(&format!("Error insert last seen record for {}\n{}", info, e)).await;
+               log(&format!("Error insert last seen record for {}\n{}", name, e)).await;
             }
          } else {
             // Раз обновление было успешным, прочитаем настройку
@@ -500,18 +470,51 @@ pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> b
 }
 
 // Переключает режим интерфейса
-//
 pub async fn user_toggle_interface(user: Option<&User>) {
    if let Some(u) = user {
       let query = DB.get().unwrap()
       .execute("UPDATE users SET compact = NOT compact WHERE user_id=$1::INTEGER", &[&u.id])
       .await;
 
-      // Если произошл ошибка, сообщим о ней
+      // Если произошлa ошибка, сообщим о ней
       if let Err(e) = query {
          log(&format!("Error toggle interface settings: {}", e)).await;
       }
    }
+}
+
+// Информация о пользователе для корзины
+pub struct UserBasketInfo {
+   pub name: String, 
+   pub contact: String, 
+   pub address: String, 
+   pub pickup: bool,
+}
+
+pub async fn user_basket_info(user: Option<&User>) -> Option<UserBasketInfo> {
+   if let Some(u) = user {
+      let query = DB.get().unwrap()
+      .query("SELECT user_name, contact, address, pickup from users WHERE user_id=$1::INTEGER", &[&u.id])
+      .await;
+
+      match query {
+         Ok(data) => {
+            if !data.is_empty() {
+               return Some(UserBasketInfo {
+                  name: data[0].get(0),
+                  contact: data[0].get(1),
+                  address: data[0].get(2),
+                  pickup: data[0].get(3),
+               });
+            }
+         }
+         // Если произошл ошибка, сообщим о ней
+         Err(e) => log(&format!("Error toggle interface settings: {}", e)).await,
+      }
+   }
+   
+   // Если попали сюда, значит была ошибка
+   None
 }
 
 // ============================================================================
@@ -666,8 +669,11 @@ pub async fn create_tables() -> bool {
                         PRIMARY KEY (user_id),
                         user_id     INTEGER        NOT NULL,
                         user_name   VARCHAR(100)   NOT NULL,
+                        contact     VARCHAR(100)   NOT NULL,
+                        address     VARCHAR(100)   NOT NULL,
                         last_seen   TIMESTAMP      NOT NULL,
-                        compact     BOOLEAN        NOT NULL)", &[])
+                        compact     BOOLEAN        NOT NULL,
+                        pickup      BOOLEAN        NOT NULL)", &[])
                      .await;
                      
                      match query {
