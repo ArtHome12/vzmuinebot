@@ -415,7 +415,7 @@ pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
          if !s.is_empty() {
             // Текст для отправки
             let user_name = if let Some(u) = cx.update.from() {&u.first_name} else {""};
-            let s = format!("Сообщение от {}\n{}\n Ответить /snd{}", user_name, s, user_id);
+            let s = format!("Сообщение от {}\n{}\n Для ответа нажмите ссылку /snd{}", user_name, s, user_id);
 
             // Отправляем сообщение и сообщаем результат
             let res = if let Err(e) = bot.send_message(to, s).send().await {
