@@ -92,29 +92,6 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             if let Err(e) = res {
                db::log(&format!("Error next_with_info send ticket(): {}", e)).await
             }
-
-            // Для стадии подтверждения доствки - дополнительная кнопка, чтобы закрыть заказ
-            // if ticket.stage == 4 {
-            //    let button = InlineKeyboardButton::callback("Подтвердить", String::from("???"));
-            //    markup.append_to_row(button, 0);
-            // }
-
-            // match bot.forward_message(to.clone(), to.clone(), ticket.message_id).send().await {
-            //    Ok(message) => {
-            //       let chat_message = ChatOrInlineMessage::Chat {
-            //          chat_id: to.clone(),
-            //          message_id: message.id,
-            //       };
-            //       let res = cx.bot.edit_message_reply_markup(chat_message)
-            //       .reply_markup(markup)
-            //       .send()
-            //       .await;
-            //        if let Err(e) = res {
-            //          db::log(&format!("Error next_with_info edit_message_reply_markup(): {}", e)).await
-            //       }
-            //    }
-            //    Err(e) => db::log(&format!("Error next_with_info forward ticket(): {}", e)).await
-            // }
          }
       }
    }
@@ -245,6 +222,19 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             cmd::Basket::TogglePickup => {
                db::basket_toggle_pickup(user_id).await;
                next_with_info(cx).await
+            }
+
+            // Редактировать сообщение для отправки ресторатору
+            cmd::Basket::Send(rest_id) => {
+               // Отправляем приглашение ввести строку со слешем в меню для отмены
+               cx.answer(format!("Введите сообщение (/ для отмены)"))
+               .reply_markup(cmd::Caterer::slash_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
+
+               // Переходим в режим ввода
+               next(cmd::Dialogue::BasketMessageToCaterer(user_id, rest_id))
             }
          }
       }
@@ -402,3 +392,56 @@ pub async fn send_basket(rest_id: i32, user_id: i32, message_id: i32) -> bool {
    false
 }
 
+
+
+// Отправить сообщение ресторатору
+pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
+   // Извлечём параметры
+   let (user_id, caterer_id) = cx.dialogue;
+
+   // Используем специально выделенный экземпляр бота
+   if let Some(bot) = db::BOT.get() {
+      let to = ChatId::Id(i64::from(caterer_id));
+         
+      if let Some(text) = cx.update.text() {
+         // Удалим из строки слеши
+         let s = cmd::remove_slash(text).await;
+
+         // Если строка не пустая, продолжим
+         if !s.is_empty() {
+            // Текст для отправки
+            let user_info = db::user_info(cx.update.from(), false);
+            let s = format!("Сообщение от {}\n{}", user_info, s);
+
+            // Отправляем сообщение и сообщаем результат
+            let res = if let Err(e) = bot.send_message(to, s).send().await {
+               format!("Ошибка {}", e)
+            } else {String::from("Сообщение отправлено")};
+
+            let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+            next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), &res).await
+         } else {
+            // Сообщим об отмене
+            let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+            next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Отмена").await
+         }
+      } else {next(cmd::Dialogue::BasketMode(user_id))}
+   } else {next(cmd::Dialogue::BasketMode(user_id))}
+}
+
+// Отправляет сообщение ресторатору с корзиной пользователя
+pub async fn prepare_to_send_message(user_id: i32, rest_id: i32) -> bool {
+   // Используем специально выделенный экземпляр бота
+   if let Some(bot) = db::BOT.get() {
+      // Приглашающее сообщение
+      let s = format!("Для ввода сообщения к '{}' нажмите на ссылку /snd{}", db::restaurant_title_by_id(rest_id).await, rest_id);
+      let to = ChatId::Id(i64::from(user_id));
+      match bot.send_message(to, s).send().await {
+         Ok(_) => {true}
+         Err(err) =>  {
+            db::log(&format!("Error prepare_to_send_message({}, {}): {}", user_id, rest_id, err)).await;
+            false
+         }
+      }
+   } else {false}
+}

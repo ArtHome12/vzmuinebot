@@ -166,6 +166,10 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
             basket::edit_address_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
                   .await
          }
+         cmd::Dialogue::BasketMessageToCaterer(user_id, caterer_id) => {
+            basket::edit_message_to_caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, (user_id, caterer_id)))
+                  .await
+         }
       } 
 } else {
       // Для сообщений не в личке обрабатываем только команду вывода id группы

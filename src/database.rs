@@ -970,7 +970,22 @@ pub fn default_photo_id() -> String {
    }
 }
 
+// Возращает ресторан по user_id или пустую строку
+pub async fn restaurant_title_by_id(user_id: i32) -> String {
+   // Выполняем запрос
+   let rows = DB.get().unwrap()
+   .query("SELECT title FROM restaurants WHERE user_id=$1::INTEGER", &[&user_id])
+   .await;
 
+   // Возвращаем результат, если такой есть.
+   match rows {
+      Ok(data) => {
+         if data.is_empty() {String::default()}
+         else {data[0].get(0)}
+      }
+      _ => String::default(),
+   }
+}
 
 // ============================================================================
 // [Caterer]
@@ -984,8 +999,8 @@ pub async fn rest_num(user : Option<&teloxide::types::User>) -> Result<i32, ()> 
 
    // Выполняем запрос
    let rows = DB.get().unwrap()
-      .query("SELECT rest_num FROM restaurants WHERE user_id=$1::INTEGER AND enabled = TRUE", &[&u.id])
-      .await;
+   .query("SELECT rest_num FROM restaurants WHERE user_id=$1::INTEGER AND enabled = TRUE", &[&u.id])
+   .await;
 
    // Возвращаем номер ресторана, если такой есть.
    match rows {

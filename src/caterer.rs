@@ -167,18 +167,18 @@ pub async fn caterer_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             // Изменить картинку
             cmd::Caterer::EditImage(rest_id) => {
 
-            // Отправляем приглашение ввести строку с категориями в меню для выбора
-            cx.answer(format!("Загрузите картинку"))
-            .reply_markup(cmd::Caterer::main_menu_markup())
-            .disable_notification(true)
-            .send()
-            .await?;
+               // Отправляем приглашение ввести строку с категориями в меню для выбора
+               cx.answer(format!("Загрузите картинку"))
+               .reply_markup(cmd::Caterer::main_menu_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
 
-            // Переходим в режим ввода картинки ресторана
-            next(cmd::Dialogue::CatEditRestImage(rest_id))
-         }
+               // Переходим в режим ввода картинки ресторана
+               next(cmd::Dialogue::CatEditRestImage(rest_id))
+            }
 
-         // Команда редактирования групп ресторана
+            // Команда редактирования групп ресторана
             cmd::Caterer::EditGroup(rest_id, group_id) => {
                // Отображаем информацию о группе и переходим в режим её редактирования
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;

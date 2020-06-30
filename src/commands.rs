@@ -50,6 +50,7 @@ pub enum Dialogue {
     BasketEditName(i32), // user_id
     BasketEditContact(i32), // user_id
     BasketEditAddress(i32), // user_id
+    BasketMessageToCaterer(i32, i32), // user_id, caterer_id
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
@@ -492,6 +493,7 @@ pub enum Basket {
    EditContact,
    EditAddress,
    TogglePickup,
+   Send(i32), // rest_id
 }
 
 impl Basket {
@@ -505,15 +507,16 @@ impl Basket {
          "/toggle" => Basket::TogglePickup,
          _ => {
             // Ищем среди команд с аргументами
+            let r_part = input.get(4..).unwrap_or_default();
             match input.get(..4).unwrap_or_default() {
                "/del" => {
                   // Попытаемся извлечь аргументы
-                  let r_part = input.get(4..).unwrap_or_default();
                   match db::parse_key_3_int(r_part) {
                      Ok((rest_num, group_num, dish_num)) => Basket::Delete(rest_num, group_num, dish_num),
                      _ => Basket::UnknownCommand,
                   }
                }
+               "/snd" => Basket::Send(r_part.parse().unwrap_or_default()),
                _ => Basket::UnknownCommand,
             }
          }
