@@ -558,10 +558,10 @@ impl Basket {
    pub fn inline_markup_message_cancel(rest_id: i32) -> InlineKeyboardMarkup {
       // Аргументы для колбек команды
       let args = db::make_key_3_int(rest_id, 0, 0);
-      let button1 = InlineKeyboardButton::callback(String::from("Написать"), format!("bse{}", args));
+      // let button1 = InlineKeyboardButton::callback(String::from("Написать"), format!("bse{}", args));
       let button2 = InlineKeyboardButton::callback(String::from("Отмена заказа"), format!("bca{}", args));
 
       InlineKeyboardMarkup::default()
-      .append_row(vec![button1, button2])
+      .append_row(vec![button2])
    }
 }

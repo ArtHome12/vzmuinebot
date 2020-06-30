@@ -82,8 +82,12 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             // Извлечём данные
             let (caterer_id, ticket) = ticket_item;
 
+            // Текст сообщения
+            let rest_name = db::restaurant_title_by_id(caterer_id).await;
+            let stage = db::stage_to_str(ticket.stage);
+            let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, caterer_id);
             // Отправляем стадию выполнения с цитированием заказа
-            let res = bot.send_message(to.clone(), db::stage_to_str(ticket.stage))
+            let res = bot.send_message(to.clone(), s)
             .reply_to_message_id(ticket.message_id)
             .reply_markup(cmd::Basket::inline_markup_message_cancel(caterer_id))
             .send()
@@ -430,18 +434,18 @@ pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 }
 
 // Отправляет сообщение ресторатору с корзиной пользователя
-pub async fn prepare_to_send_message(user_id: i32, rest_id: i32) -> bool {
-   // Используем специально выделенный экземпляр бота
-   if let Some(bot) = db::BOT.get() {
-      // Приглашающее сообщение
-      let s = format!("Для ввода сообщения к '{}' нажмите на ссылку /snd{}", db::restaurant_title_by_id(rest_id).await, rest_id);
-      let to = ChatId::Id(i64::from(user_id));
-      match bot.send_message(to, s).send().await {
-         Ok(_) => {true}
-         Err(err) =>  {
-            db::log(&format!("Error prepare_to_send_message({}, {}): {}", user_id, rest_id, err)).await;
-            false
-         }
-      }
-   } else {false}
-}
+// pub async fn prepare_to_send_message(user_id: i32, rest_id: i32) -> bool {
+//    // Используем специально выделенный экземпляр бота
+//    if let Some(bot) = db::BOT.get() {
+//       // Приглашающее сообщение
+//       let s = format!("Для ввода сообщения к '{}' нажмите на ссылку /snd{}", db::restaurant_title_by_id(rest_id).await, rest_id);
+//       let to = ChatId::Id(i64::from(user_id));
+//       match bot.send_message(to, s).send().await {
+//          Ok(_) => {true}
+//          Err(err) =>  {
+//             db::log(&format!("Error prepare_to_send_message({}, {}): {}", user_id, rest_id, err)).await;
+//             false
+//          }
+//       }
+//    } else {false}
+// }
