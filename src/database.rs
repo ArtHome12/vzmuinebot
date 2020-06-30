@@ -537,6 +537,114 @@ pub async fn user_basket_info(user_id: i32) -> Option<UserBasketInfo> {
    None
 }
 
+// Изменение имени пользователя
+pub async fn basket_edit_name(user_id: i32, s: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE users SET user_name = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       Err(e) => {
+         log(&format!("Error db::basket_edit_name: {}", e)).await;
+         false
+       }
+   }
+}
+
+// Изменение имени пользователя
+pub async fn basket_edit_contact(user_id: i32, s: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE users SET contact = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       Err(e) => {
+         log(&format!("Error db::basket_edit_contact: {}", e)).await;
+         false
+       }
+   }
+}
+
+// Изменение имени пользователя
+pub async fn basket_edit_address(user_id: i32, s: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE users SET address = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       Err(e) => {
+         log(&format!("Error db::basket_edit_address: {}", e)).await;
+         false
+       }
+   }
+}
+
+// Изменение имени пользователя
+pub async fn basket_toggle_pickup(user_id: i32) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap()
+   .execute("UPDATE users SET pickup = NOT pickup WHERE user_id=$1::INTEGER", &[&user_id])
+   .await;
+   match query {
+       Ok(_) => true,
+       Err(e) => {
+         log(&format!("Error db::basket_toggle_pickup: {}", e)).await;
+         false
+       }
+   }
+}
+
+// Перемещает заказ из таблицы orders в tickets
+pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, message_id: i32) -> bool {
+   // Удаляем все блюда ресторана из orders
+   let query = DB.get().unwrap()
+   .execute("DELETE FROM orders o USING restaurants r WHERE o.rest_num = r.rest_num AND o.user_id = $1::INTEGER AND r.user_id = $2::INTEGER", &[&eater_id, &caterer_id])
+   .await;
+   match query {
+      Ok(_) => {
+         // Создаём запись в tickets
+         let query = DB.get().unwrap()
+         .execute("INSERT INTO tickets (eater_id, caterer_id, message_id, stage) VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, 1)", &[&eater_id, &caterer_id, &message_id])
+         .await;
+         match query {
+            Ok(_) => {true}
+            Err(e) => {
+               log(&format!("Error db::order_to_ticket insert into tickets: {}", e)).await;
+               false
+            }
+         }
+      }
+      Err(e) => {
+         log(&format!("Error db::order_to_ticket delete from orders: {}", e)).await;
+         false
+      }
+   }
+}
+
+pub struct Ticket {
+   pub message_id: i32,
+   pub stage: i32,
+} 
+pub type TicketInfo = BTreeMap<i32, Ticket>;
+pub async fn ticket_info(eater_id: i32) -> TicketInfo {
+   // Выполняем запрос
+   let rows = DB.get().unwrap()
+      .query("SELECT caterer_id, message_id, stage FROM tickets WHERE eater_id=$1::INTEGER", &[&eater_id])
+      .await;
+
+   match rows {
+      Ok(data) => data.into_iter().map(|row| (row.get(0), Ticket{message_id: row.get(1), stage: row.get(2)})).collect(),
+      Err(e) => {
+         // Сообщаем об ошибке и возвращаем пустой список
+         log(&format!("Error db::ticket_info({}): {}", eater_id, e)).await;
+         TicketInfo::new()
+      }
+   }
+}
+
 // ============================================================================
 // [Misc]
 // ============================================================================
@@ -850,92 +958,7 @@ pub fn default_photo_id() -> String {
    }
 }
 
-// Изменение имени пользователя
-pub async fn basket_edit_name(user_id: i32, s: String) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap()
-   .execute("UPDATE users SET user_name = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
-   .await;
-   match query {
-       Ok(_) => true,
-       Err(e) => {
-         log(&format!("Error db::basket_edit_name: {}", e)).await;
-         false
-       }
-   }
-}
 
-// Изменение имени пользователя
-pub async fn basket_edit_contact(user_id: i32, s: String) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap()
-   .execute("UPDATE users SET contact = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
-   .await;
-   match query {
-       Ok(_) => true,
-       Err(e) => {
-         log(&format!("Error db::basket_edit_contact: {}", e)).await;
-         false
-       }
-   }
-}
-
-// Изменение имени пользователя
-pub async fn basket_edit_address(user_id: i32, s: String) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap()
-   .execute("UPDATE users SET address = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
-   .await;
-   match query {
-       Ok(_) => true,
-       Err(e) => {
-         log(&format!("Error db::basket_edit_address: {}", e)).await;
-         false
-       }
-   }
-}
-
-// Изменение имени пользователя
-pub async fn basket_toggle_pickup(user_id: i32) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap()
-   .execute("UPDATE users SET pickup = NOT pickup WHERE user_id=$1::INTEGER", &[&user_id])
-   .await;
-   match query {
-       Ok(_) => true,
-       Err(e) => {
-         log(&format!("Error db::basket_toggle_pickup: {}", e)).await;
-         false
-       }
-   }
-}
-
-// Перемещает заказ из таблицы orders в tickets
-pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, message_id: i32) -> bool {
-   // Удаляем все блюда ресторана из orders
-   let query = DB.get().unwrap()
-   .execute("DELETE FROM orders o USING restaurants r WHERE o.rest_num = r.rest_num AND o.user_id = $1::INTEGER AND r.user_id = $2::INTEGER", &[&eater_id, &caterer_id])
-   .await;
-   match query {
-      Ok(_) => {
-         // Создаём запись в tickets
-         let query = DB.get().unwrap()
-         .execute("INSERT INTO tickets (eater_id, caterer_id, message_id, stage) VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, 1)", &[&eater_id, &caterer_id, &message_id])
-         .await;
-         match query {
-            Ok(_) => {true}
-            Err(e) => {
-               log(&format!("Error db::order_to_ticket insert into tickets: {}", e)).await;
-               false
-            }
-         }
-      }
-      Err(e) => {
-         log(&format!("Error db::order_to_ticket delete from orders: {}", e)).await;
-         false
-      }
-   }
-}
 
 // ============================================================================
 // [Caterer]

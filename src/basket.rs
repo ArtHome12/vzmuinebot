@@ -73,6 +73,32 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          .send()
          .await?;
       }
+
+      // Теперь выводим заказы в обработке
+      if let Some(bot) = db::BOT.get() {
+         // Данные в базе
+         let ticket_info = db::ticket_info(user_id).await;
+
+         // Чат назначения - собственный
+         let to = ChatId::Id(i64::from(user_id));
+
+         for ticket_item in ticket_info {
+            // Извлечём данные
+            let (caterer_id, ticket) = ticket_item;
+
+            // Попробуем переслать сюда своё же сообщение, ранее отправленное в чат ресторатору
+            let from = ChatId::Id(i64::from(caterer_id));
+
+            match bot.forward_message(to.clone(), from, ticket.message_id).send().await {
+               Ok(_) => {
+                  // Переместим заказ из корзины в обработку
+                  ()
+                  // return db::order_to_ticket(user_id, rest_id, message_id).await;
+               }
+               Err(e) =>  { db::log(&format!("Error next_with_info forward ticket(): {}", e)).await;}
+            }
+         }
+      }
    }
 
    // Переходим (остаёмся) в режим выбора ресторана
