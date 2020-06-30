@@ -35,6 +35,7 @@ enum CallbackCommand {
     ReturnToRestaurantsNow,
     SendBasket(i32), // rest_id
     BasketMessageToCaterer(i32), // rest_id
+    BasketCancel(i32), // rest_id
     UnknownCommand,
 }
 
@@ -57,6 +58,7 @@ impl CallbackCommand {
                "rno" => CallbackCommand::ReturnToRestaurantsNow,
                "bas" => CallbackCommand::SendBasket(first),
                "bse" => CallbackCommand::BasketMessageToCaterer(first),
+               "bca" => CallbackCommand::BasketCancel(first),
                _ => CallbackCommand::UnknownCommand,
             }
          }
@@ -107,6 +109,7 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
                format!("Отправка: {}", db::is_success(res))
             }
             CallbackCommand::BasketMessageToCaterer(rest_id) => format!("{}", db::is_success(basket::prepare_to_send_message(user_id, rest_id).await)),
+            CallbackCommand::BasketCancel(_rest_id) => format!("{}", db::is_success(false)),
          }
       }
    };
