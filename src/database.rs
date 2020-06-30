@@ -914,7 +914,7 @@ pub async fn basket_toggle_pickup(user_id: i32) -> bool {
 pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, message_id: i32) -> bool {
    // Удаляем все блюда ресторана из orders
    let query = DB.get().unwrap()
-   .execute("DELETE FROM orders o USING restaurants r WHERE o.rest_num = r.rest_num AND o.user_id = $1::INTEGER AND r.user_id = $1::INTEGER", &[&eater_id, &caterer_id])
+   .execute("DELETE FROM orders o USING restaurants r WHERE o.rest_num = r.rest_num AND o.user_id = $1::INTEGER AND r.user_id = $2::INTEGER", &[&eater_id, &caterer_id])
    .await;
    match query {
       Ok(_) => {
