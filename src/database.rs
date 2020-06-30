@@ -698,7 +698,7 @@ pub async fn create_tables() -> bool {
                      
                      match query {
                         Ok(_) => {
-                           // Таблица с данными о заказах
+                           // Таблица с данными о заказах в корзине
                            let query = DB.get().unwrap()
                            .execute("CREATE TABLE orders (
                               PRIMARY KEY (user_id, rest_num, group_num, dish_num),
@@ -711,7 +711,23 @@ pub async fn create_tables() -> bool {
                            
                            match query {
                               Ok(_) => {
-                                 true
+                                 // Таблица с данными о заказах в обработке
+                                 let query = DB.get().unwrap()
+                                 .execute("CREATE TABLE tickets (
+                                    PRIMARY KEY (ticket_id),
+                                    ticket_id   SERIAL         NOT NULL,
+                                    eater_id    INTEGER        NOT NULL,
+                                    caterer_id  INTEGER        NOT NULL,
+                                    message_id  INTEGER        NOT NULL,
+                                    stage       INTEGER        NOT NULL)", &[])
+                                 .await;
+                                 
+                                 match query {
+                                    Ok(_) => {
+                                       true
+                                    }
+                                    _ => false,
+                                 }
                               }
                               _ => false,
                            }
@@ -891,6 +907,33 @@ pub async fn basket_toggle_pickup(user_id: i32) -> bool {
          log(&format!("Error db::basket_toggle_pickup: {}", e)).await;
          false
        }
+   }
+}
+
+// Перемещает заказ из таблицы orders в tickets
+pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, message_id: i32) -> bool {
+   // Удаляем все блюда ресторана из orders
+   let query = DB.get().unwrap()
+   .execute("DELETE FROM orders INNER JOIN (SELECT rest_num FROM restaurants WHERE user_id = user_id=$1::INTEGER) r ON o.rest_num = r.rest_num WHERE user_id=$2::INTEGER", &[&caterer_id, &eater_id])
+   .await;
+   match query {
+      Ok(_) => {
+         // Создаём запись в tickets
+         let query = DB.get().unwrap()
+         .execute("INSERT INTO tickets (eater_id, caterer_id, message_id, stage) VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, 1)", &[&eater_id, &caterer_id, &message_id])
+         .await;
+         match query {
+            Ok(_) => {true}
+            Err(e) => {
+               log(&format!("Error db::order_to_ticket insert into tickets: {}", e)).await;
+               false
+            }
+         }
+      }
+      Err(e) => {
+         log(&format!("Error db::order_to_ticket delete from orders: {}", e)).await;
+         false
+      }
    }
 }
 
