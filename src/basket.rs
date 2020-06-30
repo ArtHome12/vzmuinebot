@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
-   types::{ChatId},
+   types::{ChatId, ChatOrInlineMessage},
 };
 
 use crate::commands as cmd;
@@ -89,13 +89,30 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             // Попробуем переслать сюда своё же сообщение, ранее отправленное в чат ресторатору
             let from = ChatId::Id(i64::from(caterer_id));
 
+            // Кнопки под сообщением
+            let markup = cmd::Basket::inline_markup(db::stage_to_str(ticket.stage), String::from("???"));
+
+            // Для стадии подтверждения доствки - дополнительная кнопка, чтобы закрыть заказ
+            // if ticket.stage == 4 {
+            //    let button = InlineKeyboardButton::callback("Подтвердить", String::from("???"));
+            //    markup.append_to_row(button, 0);
+            // }
+
             match bot.forward_message(to.clone(), from, ticket.message_id).send().await {
-               Ok(_) => {
-                  // Переместим заказ из корзины в обработку
-                  ()
-                  // return db::order_to_ticket(user_id, rest_id, message_id).await;
+               Ok(message) => {
+                  let chat_message = ChatOrInlineMessage::Chat {
+                     chat_id: to.clone(),
+                     message_id: message.id,
+                  };
+                  let res = cx.bot.edit_message_reply_markup(chat_message)
+                  .reply_markup(markup)
+                  .send()
+                  .await;
+                   if let Err(e) = res {
+                     db::log(&format!("Error next_with_info edit_message_reply_markup(): {}", e)).await
+                  }
                }
-               Err(e) =>  { db::log(&format!("Error next_with_info forward ticket(): {}", e)).await;}
+               Err(e) => db::log(&format!("Error next_with_info forward ticket(): {}", e)).await
             }
          }
       }
