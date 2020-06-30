@@ -540,11 +540,25 @@ impl Basket {
          .resize_keyboard(true)
    }
 
-   // Кнопки для меню снизу
-   pub fn inline_markup(caption: String, data: String) -> InlineKeyboardMarkup {
-      let button = InlineKeyboardButton::callback(caption, data);
+   // Меню при отправке нового заказа из корзины
+   pub fn inline_markup_send(rest_id: i32) -> InlineKeyboardMarkup {
+      // Колбек команда
+      let data = format!("bas{}", db::make_key_3_int(rest_id, 0, 0));
+
+      let button = InlineKeyboardButton::callback(String::from("Отправить"), data);
 
       InlineKeyboardMarkup::default()
       .append_row(vec![button])
+   }
+
+   // Меню для заказов в обработке
+   pub fn inline_markup_message_cancel(rest_id: i32) -> InlineKeyboardMarkup {
+      // Аргументы для колбек команды
+      let args = db::make_key_3_int(rest_id, 0, 0);
+      let button1 = InlineKeyboardButton::callback(String::from("Написать"), format!("bse{}", args));
+      let button2 = InlineKeyboardButton::callback(String::from("Отмена заказа"), format!("bca{}", args));
+
+      InlineKeyboardMarkup::default()
+      .append_row(vec![button1, button2])
    }
 }

@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*, 
-   types::{ChatId, ChatOrInlineMessage},
+   types::{ChatId},
 };
 
 use crate::commands as cmd;
@@ -63,12 +63,8 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          // Итоговая стоимость
          s.push_str(&format!("\nВсего: {}", db::price_with_unit(basket.total)));
 
-         // Для колбека по id ресторатора узнаем его имя
-         let caption = String::from("Отправить");
-         let data = format!("bas{}", db::make_key_3_int(basket.rest_id, 0, 0));
-
          cx.answer(s)
-         .reply_markup(cmd::Basket::inline_markup(caption, data))
+         .reply_markup(cmd::Basket::inline_markup_send(basket.rest_id))
          .disable_notification(true)
          .send()
          .await?;
@@ -86,15 +82,10 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             // Извлечём данные
             let (caterer_id, ticket) = ticket_item;
 
-            // Попробуем переслать сюда своё же сообщение, ранее отправленное в чат ресторатору
-            // let from = ChatId::Id(i64::from(caterer_id));
-
-            // Кнопки под сообщением
-            let markup = cmd::Basket::inline_markup(db::stage_to_str(ticket.stage), String::from("???"));
-
-            let res = bot.send_message(to.clone(), "В обработке")
+            // Отправляем стадию выполнения с цитированием заказа
+            let res = bot.send_message(to.clone(), db::stage_to_str(ticket.stage))
             .reply_to_message_id(ticket.message_id)
-            .reply_markup(markup)
+            .reply_markup(cmd::Basket::inline_markup_message_cancel(caterer_id))
             .send()
             .await;
 
