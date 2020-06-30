@@ -98,7 +98,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             //    markup.append_to_row(button, 0);
             // }
 
-            match bot.forward_message(to.clone(), from, ticket.message_id).send().await {
+            match bot.forward_message(to.clone(), to.clone(), ticket.message_id).send().await {
                Ok(message) => {
                   let chat_message = ChatOrInlineMessage::Chat {
                      chat_id: to.clone(),
