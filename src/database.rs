@@ -12,7 +12,7 @@ use once_cell::sync::{OnceCell};
 use text_io::try_scan;
 use teloxide::{
    prelude::*,
-   types::{User},
+   types::{User, ChatId},
 };
 use std::collections::BTreeMap;
 
@@ -776,6 +776,14 @@ pub async fn log_and_notify(text: &str) {
    }
 }
 
+// Пересылает в служебный чат сообщение
+pub async fn log_forward(from_chat: ChatId, message_id: i32) {
+   if let Some(chat) = TELEGRAM_LOG_CHAT.get() {
+      if let Err(e) = chat.bot.forward_message(chat.id, from_chat, message_id).send().await {
+         log::info!("Error log_forward(): {}", e);
+      }
+   }
+}
 
 // Формирование информации о пользователе для лога
 //
