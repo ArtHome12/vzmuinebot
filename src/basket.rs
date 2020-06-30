@@ -87,10 +87,20 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             let (caterer_id, ticket) = ticket_item;
 
             // Попробуем переслать сюда своё же сообщение, ранее отправленное в чат ресторатору
-            let from = ChatId::Id(i64::from(caterer_id));
+            // let from = ChatId::Id(i64::from(caterer_id));
 
             // Кнопки под сообщением
             let markup = cmd::Basket::inline_markup(db::stage_to_str(ticket.stage), String::from("???"));
+
+            let res = bot.send_message(to.clone(), "В обработке")
+            .reply_to_message_id(ticket.message_id)
+            .reply_markup(markup)
+            .send()
+            .await;
+
+            if let Err(e) = res {
+               db::log(&format!("Error next_with_info send ticket(): {}", e)).await
+            }
 
             // Для стадии подтверждения доствки - дополнительная кнопка, чтобы закрыть заказ
             // if ticket.stage == 4 {
@@ -98,22 +108,22 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             //    markup.append_to_row(button, 0);
             // }
 
-            match bot.forward_message(to.clone(), to.clone(), ticket.message_id).send().await {
-               Ok(message) => {
-                  let chat_message = ChatOrInlineMessage::Chat {
-                     chat_id: to.clone(),
-                     message_id: message.id,
-                  };
-                  let res = cx.bot.edit_message_reply_markup(chat_message)
-                  .reply_markup(markup)
-                  .send()
-                  .await;
-                   if let Err(e) = res {
-                     db::log(&format!("Error next_with_info edit_message_reply_markup(): {}", e)).await
-                  }
-               }
-               Err(e) => db::log(&format!("Error next_with_info forward ticket(): {}", e)).await
-            }
+            // match bot.forward_message(to.clone(), to.clone(), ticket.message_id).send().await {
+            //    Ok(message) => {
+            //       let chat_message = ChatOrInlineMessage::Chat {
+            //          chat_id: to.clone(),
+            //          message_id: message.id,
+            //       };
+            //       let res = cx.bot.edit_message_reply_markup(chat_message)
+            //       .reply_markup(markup)
+            //       .send()
+            //       .await;
+            //        if let Err(e) = res {
+            //          db::log(&format!("Error next_with_info edit_message_reply_markup(): {}", e)).await
+            //       }
+            //    }
+            //    Err(e) => db::log(&format!("Error next_with_info forward ticket(): {}", e)).await
+            // }
          }
       }
    }
