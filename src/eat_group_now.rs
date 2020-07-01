@@ -70,35 +70,6 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
          }
       }
    };
-/*   // Текущее время
-   let our_timezone = FixedOffset::east(7 * 3600);
-   let now = Utc::now().with_timezone(&our_timezone).naive_local().time();
-   
-   // Получаем информацию из БД
-   let (info, rest_image_id) = match db::groups_by_restaurant_now(rest_id, now).await {
-      Some(dish_info) => dish_info,
-      None => (format!("Ошибка db::groups_by_restaurant_now({}, {})", rest_id, now.format("%H:%M")), None)
-   };
-
-   // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
-   if let Some(image_id) = rest_image_id {
-      // Создадим графический объект
-      let image = InputFile::file_id(image_id);
-
-      // Отправляем картинку и текст как комментарий
-      cx.answer_photo(image)
-      .caption(info)
-      .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::EaterGroup::markup()))
-      .disable_notification(true)
-      .send()
-      .await?;
-   } else {
-         cx.answer(info)
-         .reply_markup(cmd::EaterGroup::markup())
-         .disable_notification(true)
-         .send()
-         .await?;
-   }*/
 
    // Переходим (остаёмся) в режим выбора группы
    next(cmd::Dialogue::EatRestGroupNowSelectionMode(compact_mode, rest_id))
@@ -177,7 +148,7 @@ pub async fn handle_commands(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
                      .await?;
       
                      // Переходим в режим ввода
-                     next(cmd::Dialogue::MessageToCaterer(rest_id, caterer_id, Box::new(cmd::Dialogue::EatRestGroupNowSelectionMode(compact_mode, rest_id))))
+                     next(cmd::Dialogue::MessageToCaterer(rest_id, caterer_id, Box::new(cmd::Dialogue::EatRestGroupNowSelectionMode(compact_mode, rest_id)), Box::new(cmd::EaterGroup::markup())))
                   }
                   cmd::Common::UnknownCommand => {
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;

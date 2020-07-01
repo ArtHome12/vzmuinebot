@@ -92,7 +92,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                      let user_id = cx.update.from().unwrap().id;
 
                      // Переходим в режим ввода
-                     return next(cmd::Dialogue::MessageToCaterer(user_id, caterer_id, Box::new(cmd::Dialogue::UserMode(compact_mode))));
+                     return next(cmd::Dialogue::MessageToCaterer(user_id, caterer_id, Box::new(cmd::Dialogue::UserMode(compact_mode)), Box::new(cmd::User::main_menu_markup())));
                   }
                   cmd::Common::UnknownCommand => {
                      let s = &format!("Вы в главном меню: неизвестная команда {}", command);

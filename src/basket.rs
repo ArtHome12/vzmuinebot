@@ -158,7 +158,7 @@ pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
                      .await?;
       
                      // Переходим в режим ввода
-                     next(cmd::Dialogue::MessageToCaterer(user_id, caterer_id, Box::new(cmd::Dialogue::BasketMode(user_id))))
+                     next(cmd::Dialogue::MessageToCaterer(user_id, caterer_id, Box::new(cmd::Dialogue::BasketMode(user_id)), Box::new(cmd::Basket::bottom_markup())))
                   }
                   cmd::Common::UnknownCommand => {
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;

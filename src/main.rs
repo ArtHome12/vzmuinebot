@@ -15,7 +15,7 @@ extern crate smart_default;
 use teloxide::{
    dispatching::update_listeners, 
    prelude::*, 
-   types::{CallbackQuery, InlineQuery, ChatId},
+   types::{CallbackQuery, InlineQuery, ChatId, ReplyKeyboardMarkup,},
 };
 
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
@@ -166,8 +166,8 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
             basket::edit_address_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
                   .await
          }
-         cmd::Dialogue::MessageToCaterer(user_id, caterer_id, previous_mode) => {
-            edit_message_to_caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, (user_id, caterer_id, previous_mode)))
+         cmd::Dialogue::MessageToCaterer(user_id, caterer_id, previous_mode, reply_markup) => {
+            edit_message_to_caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, (user_id, caterer_id, previous_mode, reply_markup)))
                   .await
          }
       } 
@@ -417,7 +417,7 @@ async fn run() {
 
 
 // Отправить сообщение ресторатору
-pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::Dialogue>)>) -> cmd::Res {
+pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::Dialogue>, Box<ReplyKeyboardMarkup>)>) -> cmd::Res {
    // Извлечём параметры
    let user_id = cx.dialogue.0;
    let caterer_id = cx.dialogue.1;
@@ -445,10 +445,9 @@ pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::Dialog
          };
 
          // Уведомим о результате
-         // let from = ChatId::Id(i64::from(user_id));
-         // bot.send_message(from, text).send().await?;
+         let markup = *cx.dialogue.3.clone();
          cx.answer(text)
-         .reply_markup(cmd::Caterer::main_menu_markup())
+         .reply_markup(markup)
          .disable_notification(true)
          .send()
          .await?;
