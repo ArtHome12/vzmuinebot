@@ -419,7 +419,8 @@ async fn run() {
 // Отправить сообщение ресторатору
 pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::Dialogue>)>) -> cmd::Res {
    // Извлечём параметры
-   let (user_id, caterer_id, previous_dialogue) = cx.dialogue;
+   let user_id = cx.dialogue.0;
+   let caterer_id = cx.dialogue.1;
 
    // Используем специально выделенный экземпляр бота
    if let Some(bot) = database::BOT.get() {
@@ -444,12 +445,19 @@ pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::Dialog
          };
 
          // Уведомим о результате
-         let from = ChatId::Id(i64::from(user_id));
-         bot.send_message(from, text).send().await?;
+         // let from = ChatId::Id(i64::from(user_id));
+         // bot.send_message(from, text).send().await?;
+         cx.answer(text)
+         .reply_markup(cmd::Caterer::main_menu_markup())
+         .disable_notification(true)
+         .send()
+         .await?;
       }
    }
 
-   // Возвращаемся в предыдущий режим
+   // Возвращаемся в предыдущий режим c обновлением кнопок
+   // match
+   let previous_dialogue = cx.dialogue.2;
    next(*previous_dialogue)
 }
 
