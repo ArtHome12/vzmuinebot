@@ -86,10 +86,12 @@ async fn next_with_cancel(cx: cmd::Cx<(bool, i32)>, text: &str) -> cmd::Res {
 
 
 // Обработчик команд
-//
-pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
+pub async fn handle_commands(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    // Код категории
    let (compact_mode, cat_id) = cx.dialogue;
+
+   // Код едока
+   let user_id = cx.update.from().unwrap().id;
 
    // Разбираем команду.
    match cx.update.text() {
@@ -100,9 +102,6 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
          match cmd::EaterRest::from(compact_mode, command) {
             // В корзину
             cmd::EaterRest::Basket => {
-               // Код едока
-               let user_id = cx.update.from().unwrap().id;
-               
                // Переходим в корзину
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                return basket::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, user_id)).await;
@@ -121,8 +120,28 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
             }
 
             cmd::EaterRest::UnknownCommand => {
-               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id)), "Вы в меню выбора ресторана: неизвестная команда").await
+               // Возможно это общая команда
+               match cmd::Common::from(command) {
+                  cmd::Common::Start => {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
+                  }
+                  cmd::Common::SendMessage(caterer_id) => {
+                     // Отправляем приглашение ввести строку со слешем в меню для отмены
+                     cx.answer(format!("Введите сообщение (/ для отмены)"))
+                     .reply_markup(cmd::Caterer::slash_markup())
+                     .disable_notification(true)
+                     .send()
+                     .await?;
+      
+                     // Переходим в режим ввода
+                     next(cmd::Dialogue::MessageToCaterer(user_id, caterer_id, Box::new(cmd::Dialogue::EatRestSelectionMode(compact_mode, cat_id))))
+                  }
+                  cmd::Common::UnknownCommand => {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id)), "Вы в меню выбора ресторана: неизвестная команда").await
+                  }
+               }
             }
          }
       }

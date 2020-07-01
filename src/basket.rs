@@ -123,7 +123,7 @@ async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
 
 // Обработчик команд
 //
-pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
+pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
    // Извлечём параметры
    let user_id = cx.dialogue;
 
@@ -158,7 +158,7 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
                      .await?;
       
                      // Переходим в режим ввода
-                     next(cmd::Dialogue::BasketMessageToCaterer(user_id, caterer_id))
+                     next(cmd::Dialogue::MessageToCaterer(user_id, caterer_id, Box::new(cmd::Dialogue::BasketMode(user_id))))
                   }
                   cmd::Common::UnknownCommand => {
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
@@ -401,43 +401,6 @@ pub async fn send_basket(rest_id: i32, user_id: i32, message_id: i32) -> bool {
    
    // Раз попали сюда, значит что-то пошло не так
    false
-}
-
-
-
-// Отправить сообщение ресторатору
-pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
-   // Извлечём параметры
-   let (user_id, caterer_id) = cx.dialogue;
-
-   // Используем специально выделенный экземпляр бота
-   if let Some(bot) = db::BOT.get() {
-      let to = ChatId::Id(i64::from(caterer_id));
-         
-      if let Some(text) = cx.update.text() {
-         // Удалим из строки слеши
-         let s = cmd::remove_slash(text).await;
-
-         // Если строка не пустая, продолжим
-         if !s.is_empty() {
-            // Текст для отправки
-            let user_name = if let Some(u) = cx.update.from() {&u.first_name} else {""};
-            let s = format!("Сообщение от {}\n{}\n Для ответа нажмите ссылку /snd{}", user_name, s, user_id);
-
-            // Отправляем сообщение и сообщаем результат
-            let res = if let Err(e) = bot.send_message(to, s).send().await {
-               format!("Ошибка {}", e)
-            } else {String::from("Сообщение отправлено")};
-
-            let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-            next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), &res).await
-         } else {
-            // Сообщим об отмене
-            let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-            next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Отмена отправки сообщения").await
-         }
-      } else {next(cmd::Dialogue::BasketMode(user_id))}
-   } else {next(cmd::Dialogue::BasketMode(user_id))}
 }
 
 // Отправляет сообщение ресторатору с корзиной пользователя

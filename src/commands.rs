@@ -50,7 +50,7 @@ pub enum Dialogue {
     BasketEditName(i32), // user_id
     BasketEditContact(i32), // user_id
     BasketEditAddress(i32), // user_id
-    BasketMessageToCaterer(i32, i32), // user_id, caterer_id
+    MessageToCaterer(i32, i32, Box<Dialogue>), // user_id, caterer_id, previous mode
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;

@@ -89,7 +89,7 @@ async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
 
 // Обработка команд главного меню в режиме ресторатора
 //
-pub async fn caterer_mode(cx: cmd::Cx<i32>) -> cmd::Res {
+pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
    // Код ресторана
    let rest_id = cx.dialogue;
 
@@ -200,8 +200,28 @@ pub async fn caterer_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             }
 
             cmd::Caterer::UnknownCommand => {
-               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), "Вы в главном меню: неизвестная команда").await
+               // Возможно это общая команда
+               match cmd::Common::from(command) {
+                  cmd::Common::Start => {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
+                  }
+                  cmd::Common::SendMessage(caterer_id) => {
+                     // Отправляем приглашение ввести строку со слешем в меню для отмены
+                     cx.answer(format!("Введите сообщение (/ для отмены)"))
+                     .reply_markup(cmd::Caterer::slash_markup())
+                     .disable_notification(true)
+                     .send()
+                     .await?;
+      
+                     // Переходим в режим ввода
+                     next(cmd::Dialogue::MessageToCaterer(rest_id, caterer_id, Box::new(cmd::Dialogue::CatererMode(rest_id))))
+                  }
+                  cmd::Common::UnknownCommand => {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), "Вы в главном меню: неизвестная команда").await
+                  }
+               }
             }
          }
       }

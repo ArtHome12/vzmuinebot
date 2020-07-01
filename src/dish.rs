@@ -70,7 +70,7 @@ async fn next_with_cancel(cx: cmd::Cx<(i32, i32, i32)>, text: &str) -> cmd::Res 
 
 
 // Режим редактирования у ресторана rest_id группы group_id
-pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
+pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
    // Извлечём параметры
    let (rest_id, group_id, dish_id) = cx.dialogue;
    
@@ -83,119 +83,139 @@ pub async fn edit_dish_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
       Some(command) => {
          match cmd::CatDish::from(rest_id, group_id, dish_id, command) {
 
-               // Показать информацию о ресторане (возврат в главное меню ресторатора)
-               cmd::CatDish::Main(rest_id) => {
-                  // Покажем информацию
-                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
-               }
+            // Показать информацию о ресторане (возврат в главное меню ресторатора)
+            cmd::CatDish::Main(rest_id) => {
+               // Покажем информацию
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
+            }
 
-               // Выйти из режима ресторатора
-               cmd::CatDish::Exit => {
-                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
-               }
+            // Выйти из режима ресторатора
+            cmd::CatDish::Exit => {
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
+            }
 
             // Изменение названия блюда
-               cmd::CatDish::EditTitle(rest_id, group_id, dish_id) => {
+            cmd::CatDish::EditTitle(rest_id, group_id, dish_id) => {
 
-                  // Отправляем приглашение ввести строку со слешем в меню для отмены
-                  cx.answer(format!("Введите название (/ для отмены)"))
-                  .reply_markup(cmd::Caterer::slash_markup())
-                  .disable_notification(true)
-                  .send()
-                  .await?;
+               // Отправляем приглашение ввести строку со слешем в меню для отмены
+               cx.answer(format!("Введите название (/ для отмены)"))
+               .reply_markup(cmd::Caterer::slash_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
 
-                  // Переходим в режим ввода нового названия
-                  next(cmd::Dialogue::CatEditDishTitle(rest_id, group_id, dish_id))
+               // Переходим в режим ввода нового названия
+               next(cmd::Dialogue::CatEditDishTitle(rest_id, group_id, dish_id))
+            }
+
+            // Изменение информации о блюде
+            cmd::CatDish::EditInfo(rest_id, group_id, dish_id) => {
+
+               // Отправляем приглашение ввести строку со слешем в меню для отмены
+               cx.answer(format!("Введите пояснения для блюда (пояснения короче 3 символов клиентам показываться не будут)"))
+               .reply_markup(cmd::Caterer::slash_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
+
+               // Переходим в режим ввода информации о блюде
+               next(cmd::Dialogue::CatEditDishInfo(rest_id, group_id, dish_id))
+            }
+
+            // Переключение активности блюда
+            cmd::CatDish::TogglePause(rest_id, group_id, dish_id) => {
+               // Запрос доп.данных не требуется, сразу переключаем активность
+               db::rest_dish_toggle(rest_id, group_id, dish_id).await;
+
+               // Покажем изменённую информацию
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id))).await
+            }
+
+            // Изменить группу блюда
+            cmd::CatDish::EditGroup(rest_id, group_id, dish_id) => {
+
+               // Отправляем приглашение ввести строку с категориями в меню для выбора
+               cx.answer(format!("Введите номер группы для переноса блюда из текущей группы в другую"))
+               .reply_markup(cmd::Caterer::main_menu_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
+
+               // Переходим в режим ввода информации о блюде
+               next(cmd::Dialogue::CatEditDishGroup(rest_id, group_id, dish_id))
+            }
+
+            // Изменить цену блюда
+            cmd::CatDish::EditPrice(rest_id, group_id, dish_id) => {
+
+               // Отправляем приглашение ввести строку с категориями в меню для выбора
+               cx.answer(format!("Введите сумму в тыс. донгов"))
+               .reply_markup(cmd::Caterer::main_menu_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
+
+               // Переходим в режим ввода информации о блюде
+               next(cmd::Dialogue::CatEditDishPrice(rest_id, group_id, dish_id))
+            }
+
+            // Изменить картинку
+            cmd::CatDish::EditImage(rest_id, group_id, dish_id) => {
+
+               // Отправляем приглашение ввести строку с категориями в меню для выбора
+               cx.answer(format!("Загрузите картинку"))
+               .reply_markup(cmd::Caterer::main_menu_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
+
+               // Переходим в режим ввода картинки блюда
+               next(cmd::Dialogue::CatEditDishImage(rest_id, group_id, dish_id))
+            }
+
+            // Удалить блюдо
+            cmd::CatDish::Remove(rest_id, group_id, dish_id) => {
+
+               // Удаяем
+               db::rest_dish_remove(rest_id, group_id, dish_id).await;
+
+               // Сообщение в лог
+               let text = format!("{} удалил блюдо {}", db::user_info(cx.update.from(), false), db::make_key_3_int(rest_id, group_id, dish_id));
+               db::log(&text).await;
+
+               // Блюда больше нет, показываем меню группы
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               cat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
+            }
+
+            // Ошибочная команда
+            cmd::CatDish::UnknownCommand => {
+               // Возможно это общая команда
+               match cmd::Common::from(command) {
+                  cmd::Common::Start => {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
+                  }
+                  cmd::Common::SendMessage(caterer_id) => {
+                     // Отправляем приглашение ввести строку со слешем в меню для отмены
+                     cx.answer(format!("Введите сообщение (/ для отмены)"))
+                     .reply_markup(cmd::Caterer::slash_markup())
+                     .disable_notification(true)
+                     .send()
+                     .await?;
+      
+                     // Переходим в режим ввода
+                     next(cmd::Dialogue::MessageToCaterer(rest_id, caterer_id, Box::new(cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id))))
+                  }
+                  cmd::Common::UnknownCommand => {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)), "Вы в меню блюда: неизвестная команда").await
+                  }
                }
-
-               // Изменение информации о блюде
-               cmd::CatDish::EditInfo(rest_id, group_id, dish_id) => {
-
-                  // Отправляем приглашение ввести строку со слешем в меню для отмены
-                  cx.answer(format!("Введите пояснения для блюда (пояснения короче 3 символов клиентам показываться не будут)"))
-                  .reply_markup(cmd::Caterer::slash_markup())
-                  .disable_notification(true)
-                  .send()
-                  .await?;
-
-                  // Переходим в режим ввода информации о блюде
-                  next(cmd::Dialogue::CatEditDishInfo(rest_id, group_id, dish_id))
-               }
-
-               // Переключение активности блюда
-               cmd::CatDish::TogglePause(rest_id, group_id, dish_id) => {
-                  // Запрос доп.данных не требуется, сразу переключаем активность
-                  db::rest_dish_toggle(rest_id, group_id, dish_id).await;
-
-                  // Покажем изменённую информацию
-                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id))).await
-               }
-
-               // Изменить группу блюда
-               cmd::CatDish::EditGroup(rest_id, group_id, dish_id) => {
-
-                  // Отправляем приглашение ввести строку с категориями в меню для выбора
-                  cx.answer(format!("Введите номер группы для переноса блюда из текущей группы в другую"))
-                  .reply_markup(cmd::Caterer::main_menu_markup())
-                  .disable_notification(true)
-                  .send()
-                  .await?;
-
-                  // Переходим в режим ввода информации о блюде
-                  next(cmd::Dialogue::CatEditDishGroup(rest_id, group_id, dish_id))
-               }
-
-               // Изменить цену блюда
-               cmd::CatDish::EditPrice(rest_id, group_id, dish_id) => {
-
-                  // Отправляем приглашение ввести строку с категориями в меню для выбора
-                  cx.answer(format!("Введите сумму в тыс. донгов"))
-                  .reply_markup(cmd::Caterer::main_menu_markup())
-                  .disable_notification(true)
-                  .send()
-                  .await?;
-
-                  // Переходим в режим ввода информации о блюде
-                  next(cmd::Dialogue::CatEditDishPrice(rest_id, group_id, dish_id))
-               }
-
-               // Изменить картинку
-               cmd::CatDish::EditImage(rest_id, group_id, dish_id) => {
-
-                  // Отправляем приглашение ввести строку с категориями в меню для выбора
-                  cx.answer(format!("Загрузите картинку"))
-                  .reply_markup(cmd::Caterer::main_menu_markup())
-                  .disable_notification(true)
-                  .send()
-                  .await?;
-
-                  // Переходим в режим ввода картинки блюда
-                  next(cmd::Dialogue::CatEditDishImage(rest_id, group_id, dish_id))
-               }
-
-               // Удалить блюдо
-               cmd::CatDish::Remove(rest_id, group_id, dish_id) => {
-
-                  // Удаяем
-                  db::rest_dish_remove(rest_id, group_id, dish_id).await;
-
-                  // Сообщение в лог
-                  let text = format!("{} удалил блюдо {}", db::user_info(cx.update.from(), false), db::make_key_3_int(rest_id, group_id, dish_id));
-                  db::log(&text).await;
-
-                  // Блюда больше нет, показываем меню группы
-                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  cat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
-               }
-
-               // Ошибочная команда
-               cmd::CatDish::UnknownCommand => {
-                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)), "Вы в меню блюда: неизвестная команда").await
-               }
+            }
          }
       }
    }

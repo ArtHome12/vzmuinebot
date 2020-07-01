@@ -41,16 +41,16 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
    let our_timezone = db::TIME_ZONE.get().unwrap();
    let now = Utc::now().with_timezone(our_timezone).naive_local();
-   let is_compact = db::user_compact_interface(cx.update.from(), now).await;
+   let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
 
    // Отображаем приветственное сообщение и меню с кнопками.
-   cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &format!("{}\nРежим интерфейса: {} /toggle", s, db::interface_mode(is_compact)), cmd::User::main_menu_markup()).await;
+   cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &format!("{}\nРежим интерфейса: {} /toggle", s, db::interface_mode(compact_mode)), cmd::User::main_menu_markup()).await;
     
     // Переходим в режим получения выбранного пункта в главном меню.
-    next(cmd::Dialogue::UserMode(is_compact))
+    next(cmd::Dialogue::UserMode(compact_mode))
 }
 
-pub async fn user_mode(cx: cmd::Cx<bool>) -> cmd::Res {
+pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
    // Режим интерфейса
    let mut compact_mode = cx.dialogue;
 
@@ -74,8 +74,31 @@ pub async fn user_mode(cx: cmd::Cx<bool>) -> cmd::Res {
                return eat_rest_now::next_with_info(cx).await;
             }
             cmd::User::UnknownCommand => {
-               let s = &format!("Неизвестная команда {}", command);
-               cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), s, cmd::User::main_menu_markup()).await
+               // Возможно это общая команда
+               match cmd::Common::from(command) {
+                  cmd::Common::Start => {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     return start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await;
+                  }
+                  cmd::Common::SendMessage(caterer_id) => {
+                     // Отправляем приглашение ввести строку со слешем в меню для отмены
+                     cx.answer(format!("Введите сообщение (/ для отмены)"))
+                     .reply_markup(cmd::Caterer::slash_markup())
+                     .disable_notification(true)
+                     .send()
+                     .await?;
+
+                     // Код едока
+                     let user_id = cx.update.from().unwrap().id;
+
+                     // Переходим в режим ввода
+                     return next(cmd::Dialogue::MessageToCaterer(user_id, caterer_id, Box::new(cmd::Dialogue::UserMode(compact_mode))));
+                  }
+                  cmd::Common::UnknownCommand => {
+                     let s = &format!("Вы в главном меню: неизвестная команда {}", command);
+                     cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), s, cmd::User::main_menu_markup()).await
+                  }
+               }
             }
             cmd::User::ToggleInterface => {
                // Переключим настройку интерфейса

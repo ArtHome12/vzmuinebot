@@ -94,7 +94,7 @@ async fn next_with_cancel(cx: cmd::Cx<(bool, i32, i32)>, text: &str) -> cmd::Res
 
 // Обработчик команд
 //
-pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32)>) -> cmd::Res {
+pub async fn handle_commands(cx: cmd::Cx<(bool, i32, i32)>) -> cmd::Res {
    // Извлечём параметры
    let (compact_mode, cat_id, rest_id) = cx.dialogue;
 
@@ -134,8 +134,28 @@ pub async fn handle_selection_mode(cx: cmd::Cx<(bool, i32, i32)>) -> cmd::Res {
             }
 
             cmd::EaterGroup::UnknownCommand => {
-               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id)), "Вы в меню выбора группы: неизвестная команда").await
+               // Возможно это общая команда
+               match cmd::Common::from(command) {
+                  cmd::Common::Start => {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
+                  }
+                  cmd::Common::SendMessage(caterer_id) => {
+                     // Отправляем приглашение ввести строку со слешем в меню для отмены
+                     cx.answer(format!("Введите сообщение (/ для отмены)"))
+                     .reply_markup(cmd::Caterer::slash_markup())
+                     .disable_notification(true)
+                     .send()
+                     .await?;
+      
+                     // Переходим в режим ввода
+                     next(cmd::Dialogue::MessageToCaterer(rest_id, caterer_id, Box::new(cmd::Dialogue::EatRestGroupSelectionMode(compact_mode, cat_id, rest_id))))
+                  }
+                  cmd::Common::UnknownCommand => {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id)), "Вы в меню выбора группы: неизвестная команда").await
+                  }
+               }
             }
          }
       }

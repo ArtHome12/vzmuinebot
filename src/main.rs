@@ -15,7 +15,7 @@ extern crate smart_default;
 use teloxide::{
    dispatching::update_listeners, 
    prelude::*, 
-   types::{CallbackQuery, InlineQuery},
+   types::{CallbackQuery, InlineQuery, ChatId},
 };
 
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
@@ -59,10 +59,10 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
             eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), true).await
          }
          cmd::Dialogue::UserMode(compact_mode) => {
-            eater::user_mode(DialogueDispatcherHandlerCx::new(bot, update, compact_mode)).await
+            eater::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, compact_mode)).await
          }
          cmd::Dialogue::CatererMode(rest_id) => {
-            caterer::caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
+            caterer::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
                   .await
          }
          cmd::Dialogue::CatEditRestTitle(rest_id) => {
@@ -78,7 +78,7 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
                   .await
          }
          cmd::Dialogue::CatEditGroup(rest_id, s) => {
-            cat_group::edit_rest_group_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, s)))
+            cat_group::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, s)))
                   .await
          }
          cmd::Dialogue::CatAddGroup(rest_id) => {
@@ -106,7 +106,7 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
                   .await
          }
          cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id) => {
-            dish::edit_dish_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
+            dish::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
                   .await
          }
          cmd::Dialogue::CatEditDishTitle(rest_id, group_id, dish_id) => {
@@ -131,27 +131,27 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
          }
 
          cmd::Dialogue::EatRestSelectionMode(compact_mode, cat_id) => {
-            eat_rest::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id)))
+            eat_rest::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id)))
                   .await
          }
          cmd::Dialogue::EatRestGroupSelectionMode(compact_mode, cat_id, rest_id) => {
-            eat_group::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id)))
+            eat_group::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id)))
                   .await
          }
          cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_id, group_id) => {
-            eat_dish::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id, group_id)))
+            eat_dish::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id, group_id)))
                   .await
          }
          cmd::Dialogue::EatRestNowSelectionMode(compact_mode) => {
-            eat_rest_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, compact_mode))
+            eat_rest_now::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, compact_mode))
                   .await
          }
          cmd::Dialogue::EatRestGroupNowSelectionMode(compact_mode, rest_id) => {
-            eat_group_now::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, rest_id)))
+            eat_group_now::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, rest_id)))
                   .await
          }
          cmd::Dialogue::BasketMode(user_id) => {
-            basket::handle_selection_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
+            basket::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, user_id))
                   .await
          }
          cmd::Dialogue::BasketEditName(user_id) => {
@@ -166,8 +166,8 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
             basket::edit_address_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
                   .await
          }
-         cmd::Dialogue::BasketMessageToCaterer(user_id, caterer_id) => {
-            basket::edit_message_to_caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, (user_id, caterer_id)))
+         cmd::Dialogue::MessageToCaterer(user_id, caterer_id, previous_mode) => {
+            edit_message_to_caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, (user_id, caterer_id, previous_mode)))
                   .await
          }
       } 
@@ -415,4 +415,41 @@ async fn run() {
    .await;
 }
 
+
+// Отправить сообщение ресторатору
+pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::Dialogue>)>) -> cmd::Res {
+   // Извлечём параметры
+   let (user_id, caterer_id, previous_dialogue) = cx.dialogue;
+
+   // Используем специально выделенный экземпляр бота
+   if let Some(bot) = database::BOT.get() {
+      let to = ChatId::Id(i64::from(caterer_id));
+         
+      if let Some(text) = cx.update.text() {
+         // Удалим из строки слеши
+         let s = cmd::remove_slash(text).await;
+
+         // Если строка не пустая, продолжим
+         let text = if !s.is_empty() {
+            // Текст для отправки
+            let user_name = if let Some(u) = cx.update.from() {&u.first_name} else {""};
+            let s = format!("Сообщение от {}\n{}\n Для ответа нажмите ссылку /snd{}", user_name, s, user_id);
+
+            // Отправляем сообщение и сообщаем результат
+            if let Err(e) = bot.send_message(to, s).send().await {
+               format!("Ошибка {}", e)
+            } else {String::from("Сообщение отправлено")}
+         } else {
+            String::from("Отмена отправки сообщения")
+         };
+
+         // Уведомим о результате
+         let from = ChatId::Id(i64::from(user_id));
+         bot.send_message(from, text).send().await?;
+      }
+   }
+
+   // Возвращаемся в предыдущий режим
+   next(*previous_dialogue)
+}
 
