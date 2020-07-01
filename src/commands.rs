@@ -56,7 +56,31 @@ pub enum Dialogue {
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
 pub type Res = ResponseResult<DialogueStage<Dialogue>>;
 
+// ============================================================================
+// [Common commands]
+// ============================================================================
+#[derive(Copy, Clone)]
+pub enum Common {
+   Start,
+   SendMessage(i32), // caterer_id
+   UnknownCommand,
+}
 
+impl Common {
+   pub fn from(input: &str) -> Common {
+      match input {
+         "/start" => Common::Start,
+         _ => {
+            // Ищем среди команд с аргументами
+            let r_part = input.get(4..).unwrap_or_default();
+            match input.get(..4).unwrap_or_default() {
+               "/snd" => Common::SendMessage(r_part.parse().unwrap_or_default()),
+               _ => Common::UnknownCommand,
+            }
+         }
+      }
+   }
+}
 
 // ============================================================================
 // [Client menu]
@@ -498,7 +522,6 @@ pub enum Basket {
    EditContact,
    EditAddress,
    TogglePickup,
-   Send(i32), // rest_id
 }
 
 impl Basket {
@@ -521,7 +544,6 @@ impl Basket {
                      _ => Basket::UnknownCommand,
                   }
                }
-               "/snd" => Basket::Send(r_part.parse().unwrap_or_default()),
                _ => Basket::UnknownCommand,
             }
          }

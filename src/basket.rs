@@ -143,8 +143,28 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
 
             // Неизвестная команда
             cmd::Basket::UnknownCommand => {
-               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: неизвестная команда").await
+               // Возможно это общая команда
+               match cmd::Common::from(command) {
+                  cmd::Common::Start => {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
+                  }
+                  cmd::Common::SendMessage(caterer_id) => {
+                     // Отправляем приглашение ввести строку со слешем в меню для отмены
+                     cx.answer(format!("Введите сообщение (/ для отмены)"))
+                     .reply_markup(cmd::Caterer::slash_markup())
+                     .disable_notification(true)
+                     .send()
+                     .await?;
+      
+                     // Переходим в режим ввода
+                     next(cmd::Dialogue::BasketMessageToCaterer(user_id, caterer_id))
+                  }
+                  cmd::Common::UnknownCommand => {
+                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                     next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: неизвестная команда").await
+                  }
+               }
             }
 
             // Очистить корзину
@@ -226,19 +246,6 @@ pub async fn handle_selection_mode(cx: cmd::Cx<i32>) -> cmd::Res {
             cmd::Basket::TogglePickup => {
                db::basket_toggle_pickup(user_id).await;
                next_with_info(cx).await
-            }
-
-            // Редактировать сообщение для отправки ресторатору
-            cmd::Basket::Send(rest_id) => {
-               // Отправляем приглашение ввести строку со слешем в меню для отмены
-               cx.answer(format!("Введите сообщение (/ для отмены)"))
-               .reply_markup(cmd::Caterer::slash_markup())
-               .disable_notification(true)
-               .send()
-               .await?;
-
-               // Переходим в режим ввода
-               next(cmd::Dialogue::BasketMessageToCaterer(user_id, rest_id))
             }
          }
       }
