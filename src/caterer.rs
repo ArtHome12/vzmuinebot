@@ -230,7 +230,7 @@ pub async fn edit_rest_title_mode(cx: cmd::Cx<i32>) -> cmd::Res {
          }
       } else {
          // Сообщим об отмене
-         next_with_cancel(cx, "Отмена").await
+         next_with_cancel(cx, "Отмена ввода названия").await
       }
    } else {
       next(cmd::Dialogue::CatererMode(rest_id))
@@ -259,7 +259,7 @@ pub async fn edit_rest_info_mode(cx: cmd::Cx<i32>) -> cmd::Res {
          }
       } else {
          // Сообщим об отмене
-         next_with_cancel(cx, "Отмена").await
+         next_with_cancel(cx, "Отмена ввода описания").await
       }
    } else {
       next(cmd::Dialogue::CatererMode(rest_id))
@@ -305,7 +305,7 @@ pub async fn add_rest_group(cx: cmd::Cx<i32>) -> cmd::Res {
          }
       } else {
          // Сообщим об отмене
-         next_with_cancel(cx, "Отмена").await
+         next_with_cancel(cx, "Отмена добавления группы").await
       }
    } else {
       next(cmd::Dialogue::CatererMode(rest_id))

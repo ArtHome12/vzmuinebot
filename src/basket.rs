@@ -266,7 +266,7 @@ pub async fn edit_name_mode(cx: cmd::Cx<i32>) -> cmd::Res {
          }
       } else {
          // Сообщим об отмене
-         next_with_cancel(cx, "Отмена").await
+         next_with_cancel(cx, "Отмена ввода имени").await
       }
    } else {
       next(cmd::Dialogue::BasketMode(user_id))
@@ -294,7 +294,7 @@ pub async fn edit_contact_mode(cx: cmd::Cx<i32>) -> cmd::Res {
          }
       } else {
          // Сообщим об отмене
-         next_with_cancel(cx, "Отмена").await
+         next_with_cancel(cx, "Отмена ввода контакта").await
       }
    } else {
       next(cmd::Dialogue::BasketMode(user_id))
@@ -328,7 +328,7 @@ pub async fn edit_address_mode(cx: cmd::Cx<i32>) -> cmd::Res {
          }
       } else {
          // Сообщим об отмене
-         next_with_cancel(cx, "Отмена").await
+         next_with_cancel(cx, "Отмена ввода адреса").await
       }
    } else {
       // Проверяем на геометку
@@ -427,7 +427,7 @@ pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
          } else {
             // Сообщим об отмене
             let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-            next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Отмена").await
+            next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Отмена отправки сообщения").await
          }
       } else {next(cmd::Dialogue::BasketMode(user_id))}
    } else {next(cmd::Dialogue::BasketMode(user_id))}

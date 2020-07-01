@@ -222,7 +222,7 @@ pub async fn edit_title_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
         }
     } 
     // Сообщим об отмене
-    next_with_cancel(cx, "Отмена").await
+    next_with_cancel(cx, "Отмена ввода названия").await
 }
 
 // Изменение описания rest_id, dish_id
@@ -245,7 +245,7 @@ pub async fn edit_info_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
       }
     } 
     // Сообщим об отмене
-    next_with_cancel(cx, "Отмена").await
+    next_with_cancel(cx, "Отмена ввода описания").await
 }
 
 // Изменение группы блюда rest_id, dish_id
@@ -267,14 +267,14 @@ pub async fn edit_dish_group_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                cat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
             } else {
                 // Сообщим об ошибке
-                next_with_cancel(cx, "Ошибка, возможно нет группы с таким кодом, отмена").await
+                next_with_cancel(cx, "Ошибка, возможно нет группы с таким кодом, отмена изменения группы").await
             }
         } else {
             // Сообщим об ошибке
-            next_with_cancel(cx, "Должно быть число 1 или больше, отмена").await
+            next_with_cancel(cx, "Должно быть число 1 или больше, отмена изменения группы").await
         }
     } else {
-        next_with_cancel(cx, "Ошибка, отмена").await
+        next_with_cancel(cx, "Ошибка, отмена изменения группы").await
     }
 }
 

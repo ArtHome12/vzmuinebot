@@ -216,11 +216,11 @@ pub async fn edit_title_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
         } else {
             // Сообщим об отмене
-            next_with_cancel(cx, "Отмена").await
+            next_with_cancel(cx, "Отмена ввода названия").await
         }
     } else {
       // Сообщим об отмене
-      next_with_cancel(cx, "Отмена").await
+      next_with_cancel(cx, "Отмена ввода названия").await
     }
 }
 
@@ -244,11 +244,11 @@ pub async fn edit_info_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
         } else {
             // Сообщим об отмене
-            next_with_cancel(cx, "Отмена").await
+            next_with_cancel(cx, "Отмена ввода описания").await
         }
     } else {
       // Сообщим об отмене
-      next_with_cancel(cx, "Отмена").await
+      next_with_cancel(cx, "Отмена ввода описания").await
     }
 }
 
@@ -272,11 +272,11 @@ pub async fn edit_category_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 
         } else {
             // Сообщим об отмене
-            next_with_cancel(cx, "Неизвестная категория, отмена").await
+            next_with_cancel(cx, "Неизвестная категория, отмена изменения").await
         }
     } else {
       // Сообщим об отмене
-      next_with_cancel(cx, "Отмена").await
+      next_with_cancel(cx, "Отмена изменения категории").await
     }
 }
 
@@ -313,11 +313,11 @@ pub async fn edit_time_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             next_with_cancel(cx, "Ошибка распознавания, д.б. ЧЧ:ММ-ЧЧ-ММ").await
         } else {
             // Сообщим об отмене
-            next_with_cancel(cx, "Отмена").await
+            next_with_cancel(cx, "Отмена ввода времени").await
         }
     } else {
       // Сообщим об отмене
-      next_with_cancel(cx, "Отмена").await
+      next_with_cancel(cx, "Отмена ввода времени").await
     }
 }
 
@@ -348,11 +348,11 @@ pub async fn add_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             }
         } else {
             // Сообщим об отмене
-            next_with_cancel(cx, "Отмена").await
+            next_with_cancel(cx, "Отмена ввода названия").await
         }
     } else {
       // Сообщим об отмене
-      next_with_cancel(cx, "Отмена").await
+      next_with_cancel(cx, "Отмена ввода названия").await
     }
 }
 
