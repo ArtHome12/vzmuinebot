@@ -107,7 +107,7 @@ impl User {
          // Сначала проверим на цельные команды.
          "Соки воды" => User::Category(1),
          "Еда" => User::Category(2),
-         "Алкоголь" => User::Category(3),
+         "Напитки" => User::Category(3),
          "Развлечения" => User::Category(4),
          "Сейчас" => User::OpenedNow,
          "🛒Корзина" => User::Basket,
@@ -321,7 +321,7 @@ impl CatGroup {
             .append_row(vec![
                //  KeyboardButton::new("Соки воды"),
                 KeyboardButton::new("Еда"),
-                KeyboardButton::new("Алкоголь"),
+                KeyboardButton::new("Напитки"),
                 KeyboardButton::new("Развлечения"),
             ])
             .resize_keyboard(true)
