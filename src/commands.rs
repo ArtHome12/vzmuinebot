@@ -130,9 +130,9 @@ impl User {
     pub fn main_menu_markup() -> ReplyKeyboardMarkup {
       ReplyKeyboardMarkup::default()
          .append_row(vec![
-            KeyboardButton::new("Соки воды"),
+            // KeyboardButton::new("Соки воды"),
             KeyboardButton::new("Еда"),
-            KeyboardButton::new("Алкоголь"),
+            KeyboardButton::new("Напитки"),
             KeyboardButton::new("Развлечения"),
          ])
          .append_row(vec![
@@ -319,7 +319,7 @@ impl CatGroup {
     pub fn category_markup() -> ReplyKeyboardMarkup {
         ReplyKeyboardMarkup::default()
             .append_row(vec![
-                KeyboardButton::new("Соки воды"),
+               //  KeyboardButton::new("Соки воды"),
                 KeyboardButton::new("Еда"),
                 KeyboardButton::new("Алкоголь"),
                 KeyboardButton::new("Развлечения"),
