@@ -1258,7 +1258,10 @@ pub async fn rest_edit_time(rest_num: i32) -> bool {
    .await;
    match row {
        Ok(_) => true,
-       _ => false,
+       Err(e) => {
+         log(&format!("Error rest_edit_time: {}", e)).await;
+         false
+       }
    }
 }
 
