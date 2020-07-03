@@ -1253,7 +1253,7 @@ pub async fn rest_edit_time(rest_num: i32) -> bool {
    // Определяем самое частое время открытия и закрытия групп и записываем его как время ресторана
    let row = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE restaurants SET opening_time = (SELECT opening_time FROM groups WHERE rest_num = $1::INTEGER GROUP BY opening_time ORDER BY Count(*) DESC LIMIT 1),
-         closing_time = (SELECT closing_time FROM groups WHERE rest_num = $1::INTEGER GROUP BY closing_time ORDER BY Count(*) DESC LIMIT 1),
+         closing_time = (SELECT closing_time FROM groups WHERE rest_num = $1::INTEGER GROUP BY closing_time ORDER BY Count(*) DESC LIMIT 1)
       WHERE rest_num = $1::INTEGER", &[&rest_num])
    .await;
    match row {
