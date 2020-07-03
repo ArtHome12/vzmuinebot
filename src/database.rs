@@ -767,8 +767,10 @@ pub async fn create_tables() -> bool {
       active      BOOLEAN       NOT NULL,
       enabled     BOOLEAN       NOT NULL,
       rest_num    SERIAL,
-      image_id    VARCHAR(255))", &[])
-   .await;
+      image_id    VARCHAR(255),
+      opening_time    TIME     NOT NULL,    
+      closing_time    TIME     NOT NULL)", &[])
+.await;
    
    match query {
       Ok(_) => {
@@ -1246,15 +1248,29 @@ pub async fn rest_group_edit_category(rest_num: i32, group_num: i32, new_cat : i
    }
 }
 
+// Обновляет время работы ресторана на основании времени, заданного в группах
+pub async fn rest_edit_time(rest_num: i32) -> bool {
+   // Определяем самое частое время открытия и закрытия групп и записываем его как время ресторана
+   let row = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE restaurants SET opening_time = (SELECT opening_time FROM groups WHERE rest_num = $1::INTEGER GROUP BY opening_time ORDER BY Count(*) DESC LIMIT 1),
+         closing_time = (SELECT closing_time FROM groups WHERE rest_num = $1::INTEGER GROUP BY closing_time ORDER BY Count(*) DESC LIMIT 1),
+      WHERE rest_num = $1::INTEGER;", &[&rest_num])
+   .await;
+   match row {
+       Ok(_) => true,
+       _ => false,
+   }
+}
+
+
 // Изменяет время доступности группы
-//
 pub async fn rest_group_edit_time(rest_num: i32, group_num: i32, opening_time: NaiveTime, closing_time: NaiveTime) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE groups SET opening_time = $1::TIME, closing_time = $2::TIME WHERE rest_num=$3::INTEGER AND group_num=$4::INTEGER", &[&opening_time, &closing_time, &rest_num, &group_num])
    .await;
    match query {
-       Ok(_) => true,
+       Ok(_) => rest_edit_time(rest_num).await,
        _ => false,
    }
 }
