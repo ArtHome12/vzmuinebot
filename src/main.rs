@@ -21,6 +21,9 @@ use teloxide::{
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_postgres::{NoTls};
+//use deadpool_postgres::{Config, Manager, Pool};
+use bb8;
+use bb8_postgres;
 use warp::Filter;
 use reqwest::StatusCode;
 use chrono::{FixedOffset};
@@ -290,23 +293,21 @@ async fn run() {
       log::info!("There is no environment variable LOG_GROUP_ID, no service chat")
    }
    
-   // Логин к БД
-   let database_url = env::var("DATABASE_URL").expect("DATABASE_URL env variable missing");    
    // Откроем БД
-   let (client, connection) =
-      tokio_postgres::connect(&database_url, NoTls).await
-         .expect("Cannot connect to database");
+   let database_url = env::var("DATABASE_URL").expect("DATABASE_URL env variable missing");
+   let manager = bb8_postgres::PostgresConnectionManager::new_from_stringlike(database_url, NoTls).expect("DATABASE_URL env variable wrong");
+   let pool = bb8::Pool::builder().build(manager).await.expect("Cannot connect to database");
 
-   // The connection object performs the actual communication with the database,
-   // so spawn it off to run on its own.
+   // Протестируем соединение
+   let test_pool = pool.clone();
    tokio::spawn(async move {
-      if let Err(e) = connection.await {
+      if let Err(e) = test_pool.get().await {
          database::log(&format!("Database connection error: {}", e)).await;
       }
    });
 
    // Сохраним доступ к БД
-   match database::DB.set(client) {
+   match database::DB.set(pool) {
       Ok(_) => log::info!("Database connected"),
       _ => {
          log::info!("Something wrong with database");

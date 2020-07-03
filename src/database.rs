@@ -21,8 +21,9 @@ use std::collections::BTreeMap;
 
 use crate::language as lang;
 
-// Клиент БД
-pub static DB: OnceCell<tokio_postgres::Client> = OnceCell::new();
+// Пул клиентов БД
+type Pool = bb8::Pool<bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>;
+pub static DB: OnceCell<Pool> = OnceCell::new();
 
 // Телеграм ник администратора бота для связи
 pub static CONTACT_INFO: OnceCell<String> = OnceCell::new();
@@ -53,7 +54,7 @@ pub static BOT: OnceCell<std::sync::Arc<Bot>> = OnceCell::new();
 pub type RestaurantList = BTreeMap<i32, String>;
 pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
    // Выполняем запрос
-   let rows = DB.get().unwrap()
+   let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
       WHERE r.active = TRUE", &[&cat_id])
       .await;
@@ -72,7 +73,7 @@ pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
 // Возвращает список ресторанов с активными группами в указанное время
 pub async fn restaurant_by_now(time: NaiveTime) -> RestaurantList {
    // Выполняем запрос
-   let rows = DB.get().unwrap()
+   let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
          ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&time])
       .await;
@@ -97,7 +98,7 @@ pub struct GroupListWithRestaurantInfo {
 
 async fn subselect_groups(rest_num: i32, cat_id: i32) -> BTreeMap<i32, String> {
    // Выполняем запрос групп
-   let rows = DB.get().unwrap()
+   let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND cat_id=$2::INTEGER AND active = TRUE", &[&rest_num, &cat_id])
       .await;
 
@@ -126,7 +127,7 @@ async fn subselect_groups(rest_num: i32, cat_id: i32) -> BTreeMap<i32, String> {
 
 pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Option<GroupListWithRestaurantInfo> {
    // Выполняем запрос информации о ресторане
-   let rows = DB.get().unwrap()
+   let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT title, info, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
       .await;
 
@@ -159,7 +160,7 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
 
 async fn subselect_groups_now(rest_num: i32, time: NaiveTime) -> BTreeMap<i32, String> {
    // Выполняем запрос групп
-   let rows = DB.get().unwrap()
+   let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND active = TRUE AND $2::TIME BETWEEN opening_time AND closing_time", &[&rest_num, &time])
       .await;
 
@@ -193,7 +194,7 @@ pub async fn groups_by_restaurant_now(rest_num: i32) -> Option<GroupListWithRest
    let time = Utc::now().with_timezone(our_timezone).naive_local().time();
 
    // Выполняем запрос информации о ресторане
-   let rows = DB.get().unwrap()
+   let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT title, info, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
       .await;
 
@@ -229,7 +230,7 @@ pub struct DishListWithGroupInfo {
 
 async fn subselect_dishes(rest_num: i32, group_num: i32) -> BTreeMap<i32, String> {
    // Выполняем запрос списка блюд
-   let rows = DB.get().unwrap()
+   let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE ORDER BY dish_num", &[&rest_num, &group_num])
       .await;
 
@@ -254,7 +255,7 @@ async fn subselect_dishes(rest_num: i32, group_num: i32) -> BTreeMap<i32, String
 // Возвращает список блюд указанного ресторана и группы
 pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Option<DishListWithGroupInfo> {
    // Выполняем запрос информации о группе
-   let rows = DB.get().unwrap()
+   let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT info FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
       .await;
 
@@ -280,7 +281,7 @@ pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Op
 // Возвращает категорию указанной группы
 pub async fn category_by_restaurant_and_group(rest_num: i32, group_num: i32) -> i32 {
    // Выполняем запрос информации о группе
-   let rows = DB.get().unwrap()
+   let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT cat_id FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
       .await;
 
@@ -296,7 +297,7 @@ pub async fn category_by_restaurant_and_group(rest_num: i32, group_num: i32) -> 
 // Возвращает информацию о блюде - картинку, цену и описание.
 pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Option<(String, Option<String>)> {
    // Выполняем запрос
-   let rows = DB.get().unwrap()
+   let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT title, info, price, image_id FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND active = TRUE", &[&rest_num, &group_num, &dish_num])
       .await;
 
@@ -330,7 +331,7 @@ pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Op
 // Регистрация или разблокировка ресторатора
 pub async fn register_caterer(user_id: i32) -> bool {
    // Попробуем разблокировать пользователя, тогда получим 1 в качестве обновлённых записей
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE restaurants SET enabled = TRUE WHERE user_id=$1::INTEGER", &[&user_id])
    .await;
 
@@ -341,7 +342,7 @@ pub async fn register_caterer(user_id: i32) -> bool {
    }
    
    // Создаём новый ресторан
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("INSERT INTO restaurants (user_id, title, info, active, enabled) VALUES ($1::INTEGER, 'Му-му', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE)", &[&user_id])
    .await;
    
@@ -355,7 +356,7 @@ pub async fn register_caterer(user_id: i32) -> bool {
 // Приостановка доступа ресторатора
 pub async fn hold_caterer(user_id: i32) -> Result<(), ()> {
    // Блокируем пользователя
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE restaurants SET enabled = FALSE, active = FALSE WHERE user_id=$1::INTEGER", &[&user_id])
    .await;
 
@@ -370,7 +371,7 @@ pub async fn hold_caterer(user_id: i32) -> Result<(), ()> {
 // Возвращает список ресторанов
 pub async fn restaurant_list() -> String {
    // Выполняем запрос информации о ресторане
-   let rows = DB.get().unwrap()
+   let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT rest_num, user_id, title, enabled FROM restaurants ORDER BY rest_num", &[])
       .await;
 
@@ -398,7 +399,7 @@ pub async fn restaurant_list() -> String {
 // Возвращает список ресторанов с командой для входа
 pub async fn restaurant_list_sudo() -> String {
    // Выполняем запрос информации о ресторане
-   let rows = DB.get().unwrap()
+   let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT rest_num, user_id, title FROM restaurants ORDER BY rest_num", &[])
       .await;
 
@@ -426,7 +427,7 @@ pub async fn restaurant_list_sudo() -> String {
 pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> bool {
    if let Some(u) = user {
       // Выполняем запрос на обновление
-      let query = DB.get().unwrap()
+      let query = DB.get().unwrap().get().await.unwrap()
       .execute("UPDATE users SET last_seen = $1::TIMESTAMP WHERE user_id=$2::INTEGER", &[&dt, &u.id])
       .await;
 
@@ -442,7 +443,7 @@ pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> b
                format!(" @{}", username)
             } else {String::from("-")};
 
-            let query = DB.get().unwrap()
+            let query = DB.get().unwrap().get().await.unwrap()
             .execute("INSERT INTO users (user_id, user_name, contact, address, last_seen, compact, pickup) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::VARCHAR(100), '-', $4::TIMESTAMP, FALSE, TRUE)"
                , &[&u.id, &name, &contact, &dt])
             .await;
@@ -452,9 +453,9 @@ pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> b
             }
          } else {
             // Раз обновление было успешным, прочитаем настройку
-            let rows = DB.get().unwrap()
-            .query("SELECT compact FROM users WHERE user_id=$1::INTEGER", &[&u.id])
-            .await;
+   let rows = DB.get().unwrap().get().await.unwrap()
+         .query("SELECT compact FROM users WHERE user_id=$1::INTEGER", &[&u.id])
+         .await;
       
             match rows {
                Ok(data) => {
@@ -475,7 +476,7 @@ pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> b
 // Переключает режим интерфейса
 pub async fn user_toggle_interface(user: Option<&User>) {
    if let Some(u) = user {
-      let query = DB.get().unwrap()
+      let query = DB.get().unwrap().get().await.unwrap()
       .execute("UPDATE users SET compact = NOT compact WHERE user_id=$1::INTEGER", &[&u.id])
       .await;
 
@@ -514,7 +515,7 @@ impl UserBasketInfo {
 }
 
 pub async fn user_basket_info(user_id: i32) -> Option<UserBasketInfo> {
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .query("SELECT user_name, contact, address, pickup from users WHERE user_id=$1::INTEGER", &[&user_id])
    .await;
 
@@ -540,7 +541,7 @@ pub async fn user_basket_info(user_id: i32) -> Option<UserBasketInfo> {
 // Изменение имени пользователя
 pub async fn basket_edit_name(user_id: i32, s: String) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE users SET user_name = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
    .await;
    match query {
@@ -555,7 +556,7 @@ pub async fn basket_edit_name(user_id: i32, s: String) -> bool {
 // Изменение имени пользователя
 pub async fn basket_edit_contact(user_id: i32, s: String) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE users SET contact = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
    .await;
    match query {
@@ -570,7 +571,7 @@ pub async fn basket_edit_contact(user_id: i32, s: String) -> bool {
 // Изменение имени пользователя
 pub async fn basket_edit_address(user_id: i32, s: String) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE users SET address = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
    .await;
    match query {
@@ -585,7 +586,7 @@ pub async fn basket_edit_address(user_id: i32, s: String) -> bool {
 // Изменение имени пользователя
 pub async fn basket_toggle_pickup(user_id: i32) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE users SET pickup = NOT pickup WHERE user_id=$1::INTEGER", &[&user_id])
    .await;
    match query {
@@ -600,13 +601,13 @@ pub async fn basket_toggle_pickup(user_id: i32) -> bool {
 // Перемещает заказ из таблицы orders в tickets
 pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, message_id: i32) -> bool {
    // Удаляем все блюда ресторана из orders
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("DELETE FROM orders o USING restaurants r WHERE o.rest_num = r.rest_num AND o.user_id = $1::INTEGER AND r.user_id = $2::INTEGER", &[&eater_id, &caterer_id])
    .await;
    match query {
       Ok(_) => {
          // Создаём запись в tickets
-         let query = DB.get().unwrap()
+         let query = DB.get().unwrap().get().await.unwrap()
          .execute("INSERT INTO tickets (eater_id, caterer_id, message_id, stage) VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, 1)", &[&eater_id, &caterer_id, &message_id])
          .await;
          match query {
@@ -631,9 +632,9 @@ pub struct Ticket {
 pub type TicketInfo = BTreeMap<i32, Ticket>;
 pub async fn ticket_info(eater_id: i32) -> TicketInfo {
    // Выполняем запрос
-   let rows = DB.get().unwrap()
-      .query("SELECT caterer_id, message_id, stage FROM tickets WHERE eater_id=$1::INTEGER", &[&eater_id])
-      .await;
+   let rows = DB.get().unwrap().get().await.unwrap()
+   .query("SELECT caterer_id, message_id, stage FROM tickets WHERE eater_id=$1::INTEGER", &[&eater_id])
+   .await;
 
    match rows {
       Ok(data) => data.into_iter().map(|row| (row.get(0), Ticket{message_id: row.get(1), stage: row.get(2)})).collect(),
@@ -744,8 +745,8 @@ pub fn is_admin(user_id: Option<&teloxide::types::User>) -> bool {
 //
 pub async fn is_tables_exist() -> bool {
    // Выполняем запрос
-   let rows = DB.get().unwrap()
-      .query("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='restaurants'", &[]).await;
+   let rows = DB.get().unwrap().get().await.unwrap()
+   .query("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='restaurants'", &[]).await;
 
    // Проверяем результат
    match rows {
@@ -757,7 +758,7 @@ pub async fn is_tables_exist() -> bool {
 // Создаёт новые таблицы
 pub async fn create_tables() -> bool {
    // Таблица с данными о ресторанах
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("CREATE TABLE restaurants (
       PRIMARY KEY (user_id),
       user_id     INTEGER       NOT NULL,
@@ -772,7 +773,7 @@ pub async fn create_tables() -> bool {
    match query {
       Ok(_) => {
          // Таблица с данными о группах
-         let query = DB.get().unwrap()
+         let query = DB.get().unwrap().get().await.unwrap()
          .execute("CREATE TABLE groups (
             PRIMARY KEY (rest_num, group_num),
             rest_num        INTEGER         NOT NULL,
@@ -788,7 +789,7 @@ pub async fn create_tables() -> bool {
          match query {
             Ok(_) => {
                // Таблица с данными о блюдах
-               let query = DB.get().unwrap()
+               let query = DB.get().unwrap().get().await.unwrap()
                .execute("CREATE TABLE dishes (
                   PRIMARY KEY (rest_num, group_num, dish_num),
                   rest_num       INTEGER        NOT NULL,
@@ -804,7 +805,7 @@ pub async fn create_tables() -> bool {
                match query {
                   Ok(_) => {
                      // Таблица с данными о едоках
-                     let query = DB.get().unwrap()
+                     let query = DB.get().unwrap().get().await.unwrap()
                      .execute("CREATE TABLE users (
                         PRIMARY KEY (user_id),
                         user_id     INTEGER        NOT NULL,
@@ -819,7 +820,7 @@ pub async fn create_tables() -> bool {
                      match query {
                         Ok(_) => {
                            // Таблица с данными о заказах в корзине
-                           let query = DB.get().unwrap()
+                           let query = DB.get().unwrap().get().await.unwrap()
                            .execute("CREATE TABLE orders (
                               PRIMARY KEY (user_id, rest_num, group_num, dish_num),
                               user_id     INTEGER        NOT NULL,
@@ -832,7 +833,7 @@ pub async fn create_tables() -> bool {
                            match query {
                               Ok(_) => {
                                  // Таблица с данными о заказах в обработке
-                                 let query = DB.get().unwrap()
+                                 let query = DB.get().unwrap().get().await.unwrap()
                                  .execute("CREATE TABLE tickets (
                                     PRIMARY KEY (ticket_id),
                                     ticket_id   SERIAL         NOT NULL,
@@ -973,9 +974,9 @@ pub fn default_photo_id() -> String {
 // Возращает ресторан по user_id или пустую строку
 pub async fn restaurant_title_by_id(user_id: i32) -> String {
    // Выполняем запрос
-   let rows = DB.get().unwrap()
-   .query("SELECT title FROM restaurants WHERE user_id=$1::INTEGER", &[&user_id])
-   .await;
+   let rows = DB.get().unwrap().get().await.unwrap()
+.query("SELECT title FROM restaurants WHERE user_id=$1::INTEGER", &[&user_id])
+.await;
 
    // Возвращаем результат, если такой есть.
    match rows {
@@ -998,9 +999,9 @@ pub async fn rest_num(user : Option<&teloxide::types::User>) -> Result<i32, ()> 
    let u = user.ok_or(())?;
 
    // Выполняем запрос
-   let rows = DB.get().unwrap()
-   .query("SELECT rest_num FROM restaurants WHERE user_id=$1::INTEGER AND enabled = TRUE", &[&u.id])
-   .await;
+   let rows = DB.get().unwrap().get().await.unwrap()
+.query("SELECT rest_num FROM restaurants WHERE user_id=$1::INTEGER AND enabled = TRUE", &[&u.id])
+.await;
 
    // Возвращаем номер ресторана, если такой есть.
    match rows {
@@ -1020,9 +1021,9 @@ pub async fn rest_num(user : Option<&teloxide::types::User>) -> Result<i32, ()> 
 //
 pub async fn rest_info(rest_num: i32) -> Option<(String, Option<String>)> {
    // Выполняем запрос
-   let rows = DB.get().unwrap()
-      .query("SELECT title, info, active, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
-      .await;
+   let rows = DB.get().unwrap().get().await.unwrap()
+   .query("SELECT title, info, active, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
+   .await;
 
    // Проверяем результат
    match rows {
@@ -1049,7 +1050,7 @@ pub async fn rest_info(rest_num: i32) -> Option<(String, Option<String>)> {
 
 pub async fn rest_edit_title(rest_num: i32, new_str: String) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE restaurants SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER", &[&new_str, &rest_num])
    .await;
    match query {
@@ -1060,7 +1061,7 @@ pub async fn rest_edit_title(rest_num: i32, new_str: String) -> bool {
 
 pub async fn rest_edit_info(rest_num: i32, new_str: String) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE restaurants SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER", &[&new_str, &rest_num])
    .await;
    match query {
@@ -1071,7 +1072,7 @@ pub async fn rest_edit_info(rest_num: i32, new_str: String) -> bool {
 
 pub async fn rest_toggle(rest_num: i32) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE restaurants SET active = NOT active WHERE rest_num=$1::INTEGER", &[&rest_num])
    .await;
    match query {
@@ -1084,7 +1085,7 @@ pub async fn rest_toggle(rest_num: i32) -> bool {
 //
 pub async fn rest_edit_image(rest_num: i32, image_id: &String) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE restaurants SET image_id = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER", &[&image_id, &rest_num])
    .await;
    match query {
@@ -1097,7 +1098,7 @@ pub async fn rest_edit_image(rest_num: i32, image_id: &String) -> bool {
 //
 pub async fn transfer_ownership(rest_num: i32, new_user_id: i32) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE restaurants SET user_id = $1::INTEGER WHERE rest_num=$2::INTEGER", &[&new_user_id, &rest_num])
    .await;
    match query {
@@ -1115,9 +1116,9 @@ pub async fn transfer_ownership(rest_num: i32, new_user_id: i32) -> bool {
 //
 async fn group_titles(rest_num: i32) -> String {
     // Выполняем запрос
-    let rows = DB.get().unwrap()
-        .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER", &[&rest_num])
-        .await;
+      let rows = DB.get().unwrap().get().await.unwrap()
+      .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER", &[&rest_num])
+      .await;
 
     // Строка для возврата результата
     let mut res = String::default();
@@ -1142,9 +1143,9 @@ async fn group_titles(rest_num: i32) -> String {
 //
 pub async fn group_info(rest_num: i32, group_num: i32) -> Option<String> {
    // Выполняем запрос
-   let rows = DB.get().unwrap()
-   .query("SELECT title, info, active, cat_id, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
-   .await;
+   let rows = DB.get().unwrap().get().await.unwrap()
+.query("SELECT title, info, active, cat_id, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
+.await;
 
    // Проверяем результат
    match rows {
@@ -1174,7 +1175,7 @@ pub async fn group_info(rest_num: i32, group_num: i32) -> Option<String> {
 //
 pub async fn rest_add_group(rest_num: i32, new_str: String) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("INSERT INTO groups (rest_num, group_num, title, info, active, cat_id, opening_time, closing_time) 
    VALUES (
       $1::INTEGER, 
@@ -1197,7 +1198,7 @@ pub async fn rest_add_group(rest_num: i32, new_str: String) -> bool {
 //
 pub async fn rest_group_edit_title(rest_num: i32, group_num: i32, new_str: String) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE groups SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_str, &rest_num, &group_num])
    .await;
    match query {
@@ -1210,7 +1211,7 @@ pub async fn rest_group_edit_title(rest_num: i32, group_num: i32, new_str: Strin
 //
 pub async fn rest_group_edit_info(rest_num: i32, group_num: i32, new_str: String) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE groups SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_str, &rest_num, &group_num])
    .await;
    match query {
@@ -1223,7 +1224,7 @@ pub async fn rest_group_edit_info(rest_num: i32, group_num: i32, new_str: String
 //
 pub async fn rest_group_toggle(rest_num: i32, group_num: i32) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE groups SET active = NOT active WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
    .await;
    match query {
@@ -1236,7 +1237,7 @@ pub async fn rest_group_toggle(rest_num: i32, group_num: i32) -> bool {
 //
 pub async fn rest_group_edit_category(rest_num: i32, group_num: i32, new_cat : i32) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE groups SET cat_id = $1::INTEGER WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_cat, &rest_num, &group_num])
    .await;
    match query {
@@ -1249,7 +1250,7 @@ pub async fn rest_group_edit_category(rest_num: i32, group_num: i32, new_cat : i
 //
 pub async fn rest_group_edit_time(rest_num: i32, group_num: i32, opening_time: NaiveTime, closing_time: NaiveTime) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE groups SET opening_time = $1::TIME, closing_time = $2::TIME WHERE rest_num=$3::INTEGER AND group_num=$4::INTEGER", &[&opening_time, &closing_time, &rest_num, &group_num])
    .await;
    match query {
@@ -1262,9 +1263,9 @@ pub async fn rest_group_edit_time(rest_num: i32, group_num: i32, opening_time: N
 //
 pub async fn rest_group_remove(rest_num: i32, group_num: i32) -> bool {
    // Проверим, что у группы нет блюд
-   let rows = DB.get().unwrap()
-   .query("SELECT * FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
-   .await;
+   let rows = DB.get().unwrap().get().await.unwrap()
+.query("SELECT * FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
+.await;
    if let Ok(res) = rows {
       if !res.is_empty() {
          return false;
@@ -1274,19 +1275,19 @@ pub async fn rest_group_remove(rest_num: i32, group_num: i32) -> bool {
    }
 
     // Выполняем запрос. Должно быть начало транзакции, потом коммит, но transaction требует mut
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("DELETE FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
    .await;
    match query {
       Ok(_) => {
          // Номера групп перенумеровываем для исключения дырки
-         let query = DB.get().unwrap()
+         let query = DB.get().unwrap().get().await.unwrap()
          .execute("UPDATE groups SET group_num = group_num - 1 WHERE rest_num=$1::INTEGER AND group_num>$2::INTEGER", &[&rest_num, &group_num])
          .await;
          match query {
             Ok(_) => {
                // Перенумеровываем группы у блюд
-               let query = DB.get().unwrap()
+               let query = DB.get().unwrap().get().await.unwrap()
                .execute("UPDATE dishes SET group_num = group_num - 1 WHERE rest_num=$1::INTEGER AND group_num>$2::INTEGER", &[&rest_num, &group_num])
                .await;
                match query {
@@ -1310,9 +1311,9 @@ pub async fn rest_group_remove(rest_num: i32, group_num: i32) -> bool {
 //
 async fn dish_titles(rest_num: i32, group_num: i32) -> String {
     // Выполняем запрос
-    let rows = DB.get().unwrap()
-        .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER ORDER BY dish_num", &[&rest_num, &group_num])
-        .await;
+      let rows = DB.get().unwrap().get().await.unwrap()
+      .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER ORDER BY dish_num", &[&rest_num, &group_num])
+      .await;
 
     // Строка для возврата результата
     let mut res = String::default();
@@ -1336,9 +1337,9 @@ async fn dish_titles(rest_num: i32, group_num: i32) -> String {
 //
 pub async fn dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Option<(String, Option<String>)> {
      // Выполняем запрос
-     let rows = DB.get().unwrap()
-     .query("SELECT title, info, active, group_num, price, image_id FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
-     .await;
+      let rows = DB.get().unwrap().get().await.unwrap()
+   .query("SELECT title, info, active, group_num, price, image_id FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
+   .await;
 
     // Проверяем результат
     match rows {
@@ -1368,7 +1369,7 @@ pub async fn dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Option<(
 //
 pub async fn rest_add_dish(rest_num: i32, group_num: i32, new_str: String) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("INSERT INTO dishes (rest_num, dish_num, title, info, active, group_num, price) 
    VALUES (
       $1::INTEGER, 
@@ -1391,7 +1392,7 @@ pub async fn rest_add_dish(rest_num: i32, group_num: i32, new_str: String) -> bo
 //
 pub async fn rest_dish_edit_title(rest_num: i32, group_num: i32, dish_num: i32, new_str: String) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE dishes SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&new_str, &rest_num, &group_num, &dish_num])
    .await;
    match query {
@@ -1405,7 +1406,7 @@ pub async fn rest_dish_edit_title(rest_num: i32, group_num: i32, dish_num: i32, 
 //
 pub async fn rest_dish_edit_info(rest_num: i32, group_num: i32, dish_num: i32, new_str: String) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE dishes SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&new_str, &rest_num, &group_num, &dish_num])
    .await;
    match query {
@@ -1419,7 +1420,7 @@ pub async fn rest_dish_edit_info(rest_num: i32, group_num: i32, dish_num: i32, n
 //
 pub async fn rest_dish_toggle(rest_num: i32, group_num: i32, dish_num: i32) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE dishes SET active = NOT active WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
    .await;
    match query {
@@ -1433,9 +1434,9 @@ pub async fn rest_dish_toggle(rest_num: i32, group_num: i32, dish_num: i32) -> b
 //
 pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i32, new_group_num: i32) -> bool {
    // Проверим, что есть такая целевая группа
-   let rows = DB.get().unwrap()
-   .query("SELECT * FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &new_group_num])
-   .await;
+   let rows = DB.get().unwrap().get().await.unwrap()
+.query("SELECT * FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &new_group_num])
+.await;
 
    // Если целевой группы нет, выходим
    match rows {
@@ -1448,9 +1449,9 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
    }
 
    // Сохраним информацию о блюде
-   let rows = DB.get().unwrap()
-   .query("SELECT title, info, active, price, image_id FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &old_group_num, &dish_num])
-   .await;
+   let rows = DB.get().unwrap().get().await.unwrap()
+.query("SELECT title, info, active, price, image_id FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &old_group_num, &dish_num])
+.await;
    match rows {
       Ok(data) => {
          if data.is_empty() {
@@ -1463,7 +1464,7 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
             let image_id: Option<String> = data[0].get(4);
 
             // Добавляем блюдо в целевую группу
-            let query = DB.get().unwrap()
+            let query = DB.get().unwrap().get().await.unwrap()
             .execute("INSERT INTO dishes (rest_num, dish_num, title, info, active, group_num, price, image_id) 
             VALUES (
                $1::INTEGER, 
@@ -1498,13 +1499,13 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
 //
 pub async fn rest_dish_remove(rest_num: i32, group_num: i32, dish_num: i32) -> bool {
    // Выполняем запрос. Должно быть начало транзакции, потом коммит, но transaction требует mut
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("DELETE FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
    .await;
    match query {
       Ok(_) => {
          // Номера оставшихся блюд перенумеровываем для исключения дырки
-         let query = DB.get().unwrap()
+         let query = DB.get().unwrap().get().await.unwrap()
          .execute("UPDATE dishes SET dish_num = dish_num - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num > $3::INTEGER", &[&rest_num, &group_num, &dish_num])
          .await;
          match query {
@@ -1524,13 +1525,13 @@ pub async fn rest_dish_remove(rest_num: i32, group_num: i32, dish_num: i32) -> b
 //
 async fn dish_remove_from_orders(rest_num: i32, group_num: i32, dish_num: i32) {
    // Удалим блюдо из корзины всех пользователей
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("DELETE FROM orders WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
    .await;
    match query {
       Ok(_) => {
          // Обновим номера блюд в корзине согласно перенумерации самих блюд
-         let query = DB.get().unwrap()
+         let query = DB.get().unwrap().get().await.unwrap()
          .execute("UPDATE orders SET dish_num = dish_num - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num > $3::INTEGER", &[&rest_num, &group_num, &dish_num])
          .await;
          if let Err(_) = query {
@@ -1550,7 +1551,7 @@ async fn dish_remove_from_orders(rest_num: i32, group_num: i32, dish_num: i32) {
 //
 pub async fn rest_dish_edit_price(rest_num: i32, group_num: i32, dish_num: i32, price: i32) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE dishes SET price = $1::INTEGER WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&price, &rest_num, &group_num, &dish_num])
    .await;
    match query {
@@ -1564,7 +1565,7 @@ pub async fn rest_dish_edit_price(rest_num: i32, group_num: i32, dish_num: i32, 
 //
 pub async fn rest_dish_edit_image(rest_num: i32, group_num: i32, dish_num: i32, image_id: &String) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE dishes SET image_id = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&image_id, &rest_num, &group_num, &dish_num])
    .await;
    match query {
@@ -1577,7 +1578,7 @@ pub async fn rest_dish_edit_image(rest_num: i32, group_num: i32, dish_num: i32, 
 //
 pub async fn amount_in_basket(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> i32 {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .query("SELECT amount FROM orders WHERE user_id=$1::INTEGER AND  rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&user_id, &rest_num, &group_num, &dish_num])
    .await;
 
@@ -1600,7 +1601,7 @@ pub async fn add_dish_to_basket(rest_num: i32, group_num: i32, dish_num: i32, us
    // Если такая запись уже есть, надо увеличить на единицу количество, иначе создать новую запись
    if old_amount > 0 {
       // Выполняем запрос
-      let query = DB.get().unwrap()
+      let query = DB.get().unwrap().get().await.unwrap()
       .execute("UPDATE orders SET amount = amount + 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER", &[&rest_num, &group_num, &dish_num, &user_id])
       .await;
       match query {
@@ -1609,7 +1610,7 @@ pub async fn add_dish_to_basket(rest_num: i32, group_num: i32, dish_num: i32, us
       }
    } else {
       // Выполняем запрос
-      let query = DB.get().unwrap()
+      let query = DB.get().unwrap().get().await.unwrap()
       .execute("INSERT INTO orders (rest_num, group_num, dish_num, user_id, amount) 
          VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, 1)", &[&rest_num, &group_num, &dish_num, &user_id])
       .await;
@@ -1630,7 +1631,7 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
    // Если остался только один экземпляр или меньше, удаляем запись, иначе редактируем.
    if old_amount > 1 {
       // Выполняем запрос
-      let query = DB.get().unwrap()
+      let query = DB.get().unwrap().get().await.unwrap()
       .execute("UPDATE orders SET amount = amount - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER", &[&rest_num, &group_num, &dish_num, &user_id])
       .await;
       match query {
@@ -1639,7 +1640,7 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
       }
    } else {
       // Выполняем запрос
-      let query = DB.get().unwrap()
+      let query = DB.get().unwrap().get().await.unwrap()
       .execute("DELETE FROM orders WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER", &[&rest_num, &group_num, &dish_num, &user_id])
       .await;
       match query {
@@ -1667,9 +1668,9 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
    let mut grand_total: i32 = 0;
 
    // Выберем все упомянутые рестораны
-   let rows = DB.get().unwrap()
-      .query("SELECT DISTINCT r.title, r.info, r.rest_num, r.user_id FROM orders as o 
-         INNER JOIN restaurants r ON o.rest_num = r.rest_num 
+   let rows = DB.get().unwrap().get().await.unwrap()
+   .query("SELECT DISTINCT r.title, r.info, r.rest_num, r.user_id FROM orders as o 
+      INNER JOIN restaurants r ON o.rest_num = r.rest_num 
          WHERE o.user_id = $1::INTEGER
          ORDER BY r.rest_num", 
       &[&user_id])
@@ -1688,10 +1689,10 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
          let mut total: i32 = 0;
 
          // Теперь заправшиваем информацию о блюдах ресторана
-         let rows = DB.get().unwrap()
-         .query("SELECT d.title, d.price, o.amount, o.group_num, o.dish_num FROM orders as o 
-            INNER JOIN groups g ON o.rest_num = g.rest_num AND o.group_num = g.group_num
-            INNER JOIN dishes d ON o.rest_num = d.rest_num AND o.group_num = d.group_num AND o.dish_num = d.dish_num
+         let rows = DB.get().unwrap().get().await.unwrap()
+      .query("SELECT d.title, d.price, o.amount, o.group_num, o.dish_num FROM orders as o 
+         INNER JOIN groups g ON o.rest_num = g.rest_num AND o.group_num = g.group_num
+         INNER JOIN dishes d ON o.rest_num = d.rest_num AND o.group_num = d.group_num AND o.dish_num = d.dish_num
             WHERE o.user_id = $1::INTEGER AND o.rest_num = $2::INTEGER
             ORDER BY o.group_num, o.dish_num", 
          &[&user_id, &rest_num])
@@ -1739,7 +1740,7 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
 //
 pub async fn clear_basket(user_id: i32) -> bool {
    // Выполняем запрос
-   let query = DB.get().unwrap()
+   let query = DB.get().unwrap().get().await.unwrap()
    .execute("DELETE FROM orders WHERE user_id = $1::INTEGER", &[&user_id])
    .await;
    match query {
