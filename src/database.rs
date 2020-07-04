@@ -371,7 +371,7 @@ pub async fn register_caterer(user_id: i32) -> bool {
    
    // Создаём новый ресторан
    let query = DB.get().unwrap().get().await.unwrap()
-   .execute("INSERT INTO restaurants (user_id, title, info, active, enabled) VALUES ($1::INTEGER, 'Му-му', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE)", &[&user_id])
+   .execute("INSERT INTO restaurants (user_id, title, info, active, enabled, opening_time, closing_time) VALUES ($1::INTEGER, 'Му-му', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE, '07:00', '23:00')", &[&user_id])
    .await;
    
    match query {
