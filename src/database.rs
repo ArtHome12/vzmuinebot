@@ -156,8 +156,9 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
             // Параметры ресторана
             let title: String = data[0].get(0);
             let info: String = data[0].get(1);
-            let opening_time: NaiveTime = data[0].get(2);
-            let closing_time: NaiveTime = data[0].get(3);
+            let image_id = data[0].get(2);
+            let opening_time: NaiveTime = data[0].get(3);
+            let closing_time: NaiveTime = data[0].get(4);
 
 
             // Если время указано без минут, то выводим только часы
@@ -166,7 +167,7 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
 
             let res = GroupListWithRestaurantInfo {
                info: format!("Заведение: {}\nОписание: {}\nОсновное время работы: {}-{}", title, info, opening, closing),
-               image_id: data[0].get(2),
+               image_id,
                groups: subselect_groups(rest_num, cat_id, opening_time, closing_time).await,
             };
 
