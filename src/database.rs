@@ -120,7 +120,7 @@ async fn subselect_groups(rest_num: i32, cat_id: i32, opening_time: NaiveTime, c
          let closing_time1: NaiveTime = row.get(3);
 
          // Четыре варианта отображения времени
-         let time_label = if opening_time1 == opening_time && closing_time1 == closing_time {
+         let time_label = if opening_time1 != opening_time && closing_time1 != closing_time {
             // Показываем и время начала и время конца
             format!(" ({}-{})", str_time(opening_time1), str_time(closing_time1))
          } else if opening_time1 != opening_time && closing_time1 == closing_time {
