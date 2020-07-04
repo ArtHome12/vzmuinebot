@@ -89,6 +89,15 @@ pub async fn restaurant_by_now(time: NaiveTime) -> RestaurantList {
    }
 }
 
+// Удаляет минуты из времени, если они нулевые
+fn str_time(time: NaiveTime) -> String {
+   if time.minute() == 0 {
+      time.format("%H").to_string()
+   } else {
+      time.format("%H:%M").to_string()
+   }
+}
+
 // Возвращает описание, фото и список групп выбранного ресторана и категории
 pub struct GroupListWithRestaurantInfo {
    pub info: String, 
@@ -110,31 +119,23 @@ async fn subselect_groups(rest_num: i32, cat_id: i32, opening_time: NaiveTime, c
          let opening_time1: NaiveTime = row.get(2);
          let closing_time1: NaiveTime = row.get(3);
 
-         // Если время совпадает со временем работы ресторана, для группы его не выводим
-         let opening = if opening_time1 == opening_time {
-            String::default()
+         // Четыре варианта отображения времени
+         let time_label = if opening_time1 == opening_time && closing_time1 == closing_time {
+            // Показываем и время начала и время конца
+            format!(" ({}-{})", str_time(opening_time1), str_time(closing_time1))
+         } else if opening_time1 != opening_time && closing_time1 == closing_time {
+            // Показываем время начала
+            format!(" (c {})", str_time(opening_time1))
+         } else if opening_time1 == opening_time && closing_time1 != closing_time {
+            // Показываем время конца
+            format!(" (до {})", str_time(closing_time1))
          } else {
-            // Если время указано без минут, то выводим только часы
-            if opening_time1.minute() == 0 {
-               opening_time1.format("%H").to_string()
-            } else {
-               opening_time1.format("%H:%M").to_string()
-            }
-         };
-
-         let closing = if closing_time1 == closing_time {
+            // Не показываем время
             String::default()
-         } else {
-            // Если время указано без минут, то выводим только часы
-            if closing_time1.minute() == 0 {
-               closing_time1.format("%H").to_string()
-            } else {
-               closing_time1.format("%H:%M").to_string()
-            }
          };
 
          // Возвращаем хешстроку
-         (group_num, format!("   {} ({}-{})", title, opening, closing))
+         (group_num, format!("   {}{}", title, time_label))
       }).collect(),
       Err(e) => {
          // Сообщаем об ошибке и возвращаем пустой список
