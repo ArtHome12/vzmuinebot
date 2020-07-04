@@ -96,7 +96,7 @@ pub struct GroupListWithRestaurantInfo {
    pub groups: BTreeMap<i32, String>
 }
 
-async fn subselect_groups(rest_num: i32, cat_id: i32) -> BTreeMap<i32, String> {
+async fn subselect_groups(rest_num: i32, cat_id: i32, opening_time: NaiveTime, closing_time: NaiveTime) -> BTreeMap<i32, String> {
    // Выполняем запрос групп
    let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND cat_id=$2::INTEGER AND active = TRUE", &[&rest_num, &cat_id])
@@ -107,12 +107,31 @@ async fn subselect_groups(rest_num: i32, cat_id: i32) -> BTreeMap<i32, String> {
       Ok(data) => data.into_iter().map(|row| -> (i32, String) {
          let group_num: i32 = row.get(0);
          let title: String = row.get(1);
-         let opening_time: NaiveTime = row.get(2);
-         let closing_time: NaiveTime = row.get(3);
+         let opening_time1: NaiveTime = row.get(2);
+         let closing_time1: NaiveTime = row.get(3);
 
-         // Если время указано без минут, то выводим только часы
-         let opening = if opening_time.minute() == 0 { opening_time.format("%H") } else { opening_time.format("%H:%M") };
-         let closing = if closing_time.minute() == 0 { closing_time.format("%H") } else { closing_time.format("%H:%M") };
+         // Если время совпадает со временем работы ресторана, для группы его не выводим
+         let opening = if opening_time1 == opening_time {
+            String::default()
+         } else {
+            // Если время указано без минут, то выводим только часы
+            if opening_time1.minute() == 0 {
+               opening_time1.format("%H").to_string()
+            } else {
+               opening_time1.format("%H:%M").to_string()
+            }
+         };
+
+         let closing = if closing_time1 == closing_time {
+            String::default()
+         } else {
+            // Если время указано без минут, то выводим только часы
+            if closing_time1.minute() == 0 {
+               closing_time1.format("%H").to_string()
+            } else {
+               closing_time1.format("%H:%M").to_string()
+            }
+         };
 
          // Возвращаем хешстроку
          (group_num, format!("   {} ({}-{})", title, opening, closing))
@@ -128,7 +147,7 @@ async fn subselect_groups(rest_num: i32, cat_id: i32) -> BTreeMap<i32, String> {
 pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Option<GroupListWithRestaurantInfo> {
    // Выполняем запрос информации о ресторане
    let rows = DB.get().unwrap().get().await.unwrap()
-      .query("SELECT title, info, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
+      .query("SELECT title, info, image_id, opening_time, closing_time FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
       .await;
 
    match rows {
@@ -137,11 +156,18 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
             // Параметры ресторана
             let title: String = data[0].get(0);
             let info: String = data[0].get(1);
+            let opening_time: NaiveTime = data[0].get(2);
+            let closing_time: NaiveTime = data[0].get(3);
+
+
+            // Если время указано без минут, то выводим только часы
+            let opening = if opening_time.minute() == 0 { opening_time.format("%H") } else { opening_time.format("%H:%M") };
+            let closing = if closing_time.minute() == 0 { closing_time.format("%H") } else { closing_time.format("%H:%M") };
+
             let res = GroupListWithRestaurantInfo {
-               // info: format!("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}", title, info, id_to_category(cat_id)),
-               info: format!("Заведение: {}\nОписание: {}", title, info),
+               info: format!("Заведение: {}\nОписание: {}\nОсновное время работы: {}-{}", title, info, opening, closing),
                image_id: data[0].get(2),
-               groups: subselect_groups(rest_num, cat_id).await,
+               groups: subselect_groups(rest_num, cat_id, opening_time, closing_time).await,
             };
 
             // Окончательный результат
