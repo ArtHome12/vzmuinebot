@@ -709,6 +709,39 @@ pub async fn caterer_ticket_info(caterer_id: i32) -> TicketInfo {
    }
 }
 
+// Изменяет стадию заказа
+pub async fn basket_edit_stage(ticket_id: i32, stage: i32) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE tickets SET stage = $1::INTEGER WHERE ticket_id=$2::INTEGER", &[&stage, &ticket_id])
+   .await;
+   match query {
+      Ok(1) => true,
+      Err(e) => {
+      log(&format!("Error db::basket_edit_stage: {}", e)).await;
+      false
+      }
+      _ => false,
+   }
+}
+
+// Увеличивает стадию заказа
+pub async fn basket_next_stage(ticket_id: i32) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE tickets SET stage = stage + 1 WHERE ticket_id=$1::INTEGER", &[&ticket_id])
+   .await;
+   match query {
+      Ok(1) => true,
+      Err(e) => {
+      log(&format!("Error db::basket_next_stage: {}", e)).await;
+      false
+      }
+      _ => false,
+   }
+}
+
+
 // Возвращает название стадии
 pub fn stage_to_str(stage: i32) -> String {
    let res = match stage {
@@ -716,6 +749,8 @@ pub fn stage_to_str(stage: i32) -> String {
       2 => "В процессе приготовления",
       3 => "Готово, идёт доставка",
       4 => "Подтвердить получение и закрыть заказ",
+      5 => "Завершено",
+      6 => "Отменено",
       _ => "Ошибка",
    };
    String::from(res)

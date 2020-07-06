@@ -35,8 +35,8 @@ enum CallbackCommand {
     ReturnToRestaurantsNow,
     SendBasket(i32), // rest_id
    //  BasketMessageToCaterer(i32), // rest_id
-    BasketCancel(i32), // ticket_id
-    BasketNext(i32), // ticket_id
+    BasketCancel(i32, i32, i32), // ticket_id, caterer_id, message_id
+    BasketNext(i32, i32, i32), // ticket_id, caterer_id, message_id
     UnknownCommand,
 }
 
@@ -59,8 +59,8 @@ impl CallbackCommand {
                "rno" => CallbackCommand::ReturnToRestaurantsNow,
                "bas" => CallbackCommand::SendBasket(first),
                // "bse" => CallbackCommand::BasketMessageToCaterer(first),
-               "bca" => CallbackCommand::BasketCancel(first),
-               "bne" => CallbackCommand::BasketNext(first),
+               "bca" => CallbackCommand::BasketCancel(first, second, third),
+               "bne" => CallbackCommand::BasketNext(first, second, third),
                _ => CallbackCommand::UnknownCommand,
             }
          }
@@ -111,8 +111,8 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
                format!("Отправка: {}", db::is_success(res))
             }
             // CallbackCommand::BasketMessageToCaterer(rest_id) => format!("{}", db::is_success(basket::prepare_to_send_message(user_id, rest_id).await)),
-            CallbackCommand::BasketCancel(ticket_id) => format!("{}", db::is_success(false)),
-            CallbackCommand::BasketNext(ticket_id) => format!("{}", db::is_success(false)),
+            CallbackCommand::BasketCancel(ticket_id, caterer_id, message_id) => format!("{}", db::is_success(cancel_ticket(&cx, user_id, ticket_id, caterer_id, message_id).await)),
+            CallbackCommand::BasketNext(ticket_id, caterer_id, message_id) => format!("{}", db::is_success(process_ticket(&cx, user_id, ticket_id, caterer_id, message_id).await)),
          }
       }
    };
@@ -146,7 +146,6 @@ async fn add_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_
 
 
 // Удаляет блюдо из корзины
-//
 async fn remove_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> bool {
    // Если операция с БД успешна, надо отредактировать пост
    match db::remove_dish_from_basket(rest_num, group_num, dish_num, user_id).await {
@@ -164,7 +163,6 @@ async fn remove_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, gro
 
 
 // Обновляет инлайн-клавиатуру для правки количества
-//
 async fn update_keyboard(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32, new_amount: i32) -> bool {
    let message = cx.update.message.as_ref().unwrap();
 
@@ -188,3 +186,65 @@ async fn update_keyboard(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32,
          _ => true,
    }
 }
+
+// Переслать сообщение
+pub async fn reply_message(chat_id: ChatId, s: &str, reply_id: i32) -> bool {
+   // Используем специально выделенный экземпляр бота
+   if let Some(bot) = db::BOT.get() {
+      if let Err(e) = bot.send_message(chat_id, s).reply_to_message_id(reply_id).send().await {
+         db::log(&format!("Ошибка reply_message {}", e)).await;
+         false
+      } else {true}
+   } else {false}
+}
+
+
+// Отменяет заказ
+async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ticket_id: i32, caterer_id: i32, message_id: i32) -> bool {
+   // Если операция с БД успешна, надо отредактировать пост
+   if db::basket_edit_stage(ticket_id, 6).await {
+      
+      // Адрес другой стороны это адрес, не совпадающий с нашим собственным
+      let to = if user_id == caterer_id {user_id} else {caterer_id};
+
+      // Сообщение для правки в собственном чате
+      let message = cx.update.message.as_ref().unwrap();
+      let chat_id = ChatId::Id(message.chat_id());
+
+      // Отправим сообщение другой стороне
+      let s = String::from("Заказ был отменён другой стороной");
+      if reply_message(ChatId::Id(i64::from(to)), &s, message_id).await {
+         
+         let chat_message = ChatOrInlineMessage::Chat {
+            chat_id,
+            message_id: message.id,
+         };
+
+         // Исправим сообщение в своём чате
+         let s = String::from("Вы отменили заказ");
+         if let Err(e) = cx.bot.edit_message_text(chat_message, s).send().await {
+            let text = format!("Error cancel_ticket: {}", e);
+            db::log(&text).await;
+            false
+         } else {true}
+      } else {
+         let s = String::from("Не удалось уведомить другую сторону об отмене заказа");
+         if let Err(e) = cx.bot.send_message(chat_id, s).send().await {
+            let text = format!("Error cancel_ticket2: {}", e);
+            db::log(&text).await;
+         }
+         false
+      }
+
+      // if cmd::send_message(ChatId::Id(i64::from(to)), s) {};
+   } else {false}
+}
+
+// Переводит заказ на следующую стадицю
+async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ticket_id: i32, caterer_id: i32, message_id: i32) -> bool {
+   // Если операция с БД успешна, надо отредактировать пост
+   if db::basket_next_stage(ticket_id).await {
+      true
+   } else {false}
+}
+

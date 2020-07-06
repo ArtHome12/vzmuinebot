@@ -85,7 +85,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          // Отправляем стадию выполнения с цитированием заказа
          let res = cx.answer(s)
          .reply_to_message_id(ticket.message_id)
-         .reply_markup(cmd::Basket::inline_markup_message_cancel(ticket.ticket_id))
+         .reply_markup(cmd::Basket::inline_markup_message_cancel(ticket.ticket_id, caterer_id, ticket.message_id))
          .send()
          .await;
 
@@ -110,7 +110,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          // Отправляем стадию выполнения с цитированием заказа
          let res = cx.answer(s)
          .reply_to_message_id(ticket.message_id)
-         .reply_markup(cmd::Basket::inline_markup_message_next(ticket.ticket_id))
+         .reply_markup(cmd::Basket::inline_markup_message_next(ticket.ticket_id, user_id, ticket.message_id))
          .send()
          .await;
 

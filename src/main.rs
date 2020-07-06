@@ -416,6 +416,16 @@ async fn run() {
    .await;
 }
 
+// Отправить сообщение
+pub async fn send_message(chat_id: ChatId, s: &str) -> bool {
+   // Используем специально выделенный экземпляр бота
+   if let Some(bot) = database::BOT.get() {
+      if let Err(e) = bot.send_message(chat_id, s).send().await {
+         database::log(&format!("Ошибка {}", e)).await;
+         false
+      } else {true}
+   } else {false}
+}
 
 // Отправить сообщение ресторатору
 pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::Dialogue>, Box<ReplyKeyboardMarkup>)>) -> cmd::Res {
@@ -423,36 +433,34 @@ pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::Dialog
    let user_id = cx.dialogue.0;
    let caterer_id = cx.dialogue.1;
 
-   // Используем специально выделенный экземпляр бота
-   if let Some(bot) = database::BOT.get() {
-      let to = ChatId::Id(i64::from(caterer_id));
-         
-      if let Some(text) = cx.update.text() {
-         // Удалим из строки слеши
-         let s = cmd::remove_slash(text).await;
+   if let Some(text) = cx.update.text() {
+      // Удалим из строки слеши
+      let s = cmd::remove_slash(text).await;
 
-         // Если строка не пустая, продолжим
-         let text = if !s.is_empty() {
-            // Текст для отправки
-            let user_name = if let Some(u) = cx.update.from() {&u.first_name} else {""};
-            let s = format!("Сообщение от {}\n{}\n Для ответа нажмите ссылку /snd{}", user_name, s, user_id);
+      // Если строка не пустая, продолжим
+      let text = if !s.is_empty() {
 
-            // Отправляем сообщение и сообщаем результат
-            if let Err(e) = bot.send_message(to, s).send().await {
-               format!("Ошибка {}", e)
-            } else {String::from("Сообщение отправлено")}
-         } else {
-            String::from("Отмена отправки сообщения")
-         };
+         // Адресат сообщения
+         let to = ChatId::Id(i64::from(caterer_id));
+      
+         // Текст для отправки
+         let user_name = if let Some(u) = cx.update.from() {&u.first_name} else {""};
+         let s = format!("Сообщение от {}\n{}\n Для ответа нажмите ссылку /snd{}", user_name, s, user_id);
 
-         // Уведомим о результате
-         let markup = *cx.dialogue.3.clone();
-         cx.answer(text)
-         .reply_markup(markup)
-         .disable_notification(true)
-         .send()
-         .await?;
-      }
+         // Отправляем сообщение и сообщаем результат
+         if send_message(to, &s).await {String::from("Ошибка")}
+         else {String::from("Сообщение отправлено")}
+      } else {
+         String::from("Отмена отправки сообщения")
+      };
+
+      // Уведомим о результате
+      let markup = *cx.dialogue.3.clone();
+      cx.answer(text)
+      .reply_markup(markup)
+      .disable_notification(true)
+      .send()
+      .await?;
    }
 
    // Возвращаемся в предыдущий режим c обновлением кнопок
