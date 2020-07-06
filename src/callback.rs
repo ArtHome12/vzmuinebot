@@ -201,7 +201,7 @@ pub async fn reply_message(chat_id: ChatId, s: &str, reply_id: i32) -> bool {
 
 // Отменяет заказ
 async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ticket_id: i32, caterer_id: i32, message_id: i32) -> bool {
-   // Если операция с БД успешна, надо отредактировать пост
+   // Если операция с БД успешна, надо отредактировать пост свой пост и отправить сообщение другой стороне
    if db::basket_edit_stage(ticket_id, 6).await {
       
       // Адрес другой стороны это адрес, не совпадающий с нашим собственным
@@ -246,9 +246,48 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
 
 // Переводит заказ на следующую стадицю
 async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ticket_id: i32, caterer_id: i32, message_id: i32) -> bool {
-   // Если операция с БД успешна, надо отредактировать пост
+   // Если операция с БД успешна, надо отредактировать пост свой пост и отправить сообщение другой стороне
    if db::basket_next_stage(ticket_id).await {
-      true
+      
+      // Адрес другой стороны это адрес, не совпадающий с нашим собственным
+      let to = if user_id == caterer_id {user_id} else {caterer_id};
+
+      // Сообщение для правки в собственном чате
+      let message = cx.update.message.as_ref().unwrap();
+      let chat_id = ChatId::Id(message.chat_id());
+
+      // Новый статус заказа
+      let status = db::stage_to_str(db::basket_stage(ticket_id).await);
+
+      // Отправим сообщение другой стороне
+      let s = format!("Статус заказа изменён на '{}'", status);
+      if reply_message(ChatId::Id(i64::from(to)), &s, message_id).await {
+         
+         let chat_message = ChatOrInlineMessage::Chat {
+            chat_id: chat_id.clone(),
+            message_id: message.id,
+         };
+
+         // Исправим сообщение в своём чате
+         if let Err(e) = cx.bot.edit_message_text(chat_message, s).send().await {
+            let text = format!("Error process_ticket: {}", e);
+            db::log(&text).await;
+            false
+         } else {
+            // Сообщение об отмене в служебный чат
+            db::log(&format!("Статус заказа изменён {}, новый статус '{}'", user_id, status)).await;
+            db::log_forward(chat_id, message_id).await;
+
+            true
+         }
+      } else {
+         let s = String::from("Не удалось уведомить другую сторону об отмене заказа");
+         if let Err(e) = cx.bot.send_message(chat_id, s).send().await {
+            let text = format!("Error cancel_ticket2: {}", e);
+            db::log(&text).await;
+         }
+         false
+      }
    } else {false}
 }
 

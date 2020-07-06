@@ -713,7 +713,7 @@ pub async fn caterer_ticket_info(caterer_id: i32) -> TicketInfo {
 pub async fn basket_edit_stage(ticket_id: i32, stage: i32) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap().get().await.unwrap()
-   .execute("UPDATE tickets SET stage = $1::INTEGER WHERE ticket_id=$2::INTEGER", &[&stage, &ticket_id])
+   .execute("UPDATE tickets SET stage = $1::INTEGER WHERE ticket_id=$2::INTEGER AND stage < 5", &[&stage, &ticket_id])
    .await;
    match query {
       Ok(1) => true,
@@ -738,6 +738,21 @@ pub async fn basket_next_stage(ticket_id: i32) -> bool {
          false
       }
       _ => false,
+   }
+}
+
+// Возвращает стадию заказа
+pub async fn basket_stage(ticket_id: i32) -> i32 {
+   // Выполняем запрос, статус ещё должен быть незавешённым
+   let query = DB.get().unwrap().get().await.unwrap()
+   .query_one("SELECT stage FROM tickets WHERE ticket_id=$1::INTEGER", &[&ticket_id])
+   .await;
+   match query {
+      Ok(data) => data.get(0),
+      Err(e) => {
+         log(&format!("Error db::basket_stage: {}", e)).await;
+         0
+      }
    }
 }
 
