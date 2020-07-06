@@ -576,7 +576,7 @@ impl Basket {
       // Колбек команда
       let data = format!("bas{}", db::make_key_3_int(rest_id, 0, 0));
 
-      let button = InlineKeyboardButton::callback(String::from("Отправить"), data);
+      let button = InlineKeyboardButton::callback(String::from("Оформить через бота"), data);
 
       InlineKeyboardMarkup::default()
       .append_row(vec![button])

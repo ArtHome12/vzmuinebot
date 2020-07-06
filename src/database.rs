@@ -734,8 +734,8 @@ pub async fn basket_next_stage(ticket_id: i32) -> bool {
    match query {
       Ok(1) => true,
       Err(e) => {
-      log(&format!("Error db::basket_next_stage: {}", e)).await;
-      false
+         log(&format!("Error db::basket_next_stage: {}", e)).await;
+         false
       }
       _ => false,
    }
