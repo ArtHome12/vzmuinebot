@@ -585,7 +585,7 @@ pub async fn basket_edit_name(user_id: i32, s: String) -> bool {
 pub async fn user_name_by_id(user_id: i32) -> String {
    // Выполняем запрос
    let query = DB.get().unwrap().get().await.unwrap()
-   .query_one("SELECT user_name FROM users WHERE user_id=$2::INTEGER", &[&user_id])
+   .query_one("SELECT user_name FROM users WHERE user_id=$1::INTEGER", &[&user_id])
    .await;
    match query {
        Ok(data) => data.get(0),
@@ -712,7 +712,7 @@ pub async fn caterer_ticket_info(caterer_id: i32) -> TicketInfo {
 // Возвращает название стадии
 pub fn stage_to_str(stage: i32) -> String {
    let res = match stage {
-      1 => "Ожидание подтверждения другой стороной",
+      1 => "Ожидание подтверждения",
       2 => "В процессе приготовления",
       3 => "Готово, идёт доставка",
       4 => "Подтвердить получение и закрыть заказ",

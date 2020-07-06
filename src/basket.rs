@@ -105,7 +105,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          let eater_name = db::user_name_by_id(eater_id).await;
          let stage1 = db::stage_to_str(ticket.stage);
          let stage2 = db::stage_to_str(ticket.stage + 1);
-         let s = format!("Заказ вам от {}. Для отправки заказчику сообщения, например, с уточнением времени, нажмите на ссылку /snd{}\nДля изменения статуса {} на {} нажмите кнопку 'Далее'", eater_name, eater_id, stage1, stage2);
+         let s = format!("Заказ вам от {}. Для отправки заказчику сообщения, например, с уточнением времени, нажмите на ссылку /snd{}\nДля изменения статуса '{}' на '{}' нажмите кнопку 'Далее'", eater_name, eater_id, stage1, stage2);
 
          // Отправляем стадию выполнения с цитированием заказа
          let res = cx.answer(s)
