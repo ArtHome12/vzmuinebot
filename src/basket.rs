@@ -9,7 +9,6 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*,
-   requests::SendMessage,
    types::{ChatId, InlineKeyboardMarkup, },
 };
 
@@ -98,9 +97,15 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       for ticket_item in ticket_info {
          // Извлечём данные
          let (eater_id, ticket) = ticket_item;
+         let message_id = ticket.message_id;
 
          // Отправляем стадию выполнения с цитированием заказа
-         let res = make_message_for_caterer(&cx, eater_id, ticket, user_id).await.send().await;
+         let (text, markup) = make_message_for_caterer(eater_id, ticket, user_id).await;
+         let res = cx.answer(text)
+         .reply_to_message_id(message_id)
+         .reply_markup(markup)
+         .send()
+         .await;
          
          if let Err(e) = res {
             db::log(&format!("Error next_with_info send ticket2(): {}", e)).await
@@ -120,11 +125,11 @@ pub async fn make_message_for_eater(caterer_id: i32, ticket: db::Ticket) -> (Str
    let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, caterer_id);
 
    // Возвращаем сообщение со стадией выполнения и цитированием заказа
-   (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id, caterer_id, ticket.message_id))
+   (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id))
 }
 
 // Формирует сообщение с заказом для показа ресторатору
-pub async fn make_message_for_caterer(cx: &cmd::Cx<i32>, eater_id: i32, ticket: db::Ticket, caterer_id: i32) -> SendMessage {
+pub async fn make_message_for_caterer(eater_id: i32, ticket: db::Ticket, caterer_id: i32) -> (String, InlineKeyboardMarkup) {
    // Текст сообщения
    let eater_name = db::user_name_by_id(eater_id).await;
    let stage1 = db::stage_to_str(ticket.stage);
@@ -132,9 +137,7 @@ pub async fn make_message_for_caterer(cx: &cmd::Cx<i32>, eater_id: i32, ticket: 
    let s = format!("Заказ вам от {}. Для отправки заказчику сообщения, например, с уточнением времени, нажмите на ссылку /snd{}\nДля изменения статуса '{}' на '{}' нажмите кнопку 'Далее'", eater_name, eater_id, stage1, stage2);
 
    // Возвращаем сообщение со стадией выполнения и цитированием заказа
-   cx.answer(s)
-   .reply_to_message_id(ticket.message_id)
-   .reply_markup(cmd::Basket::inline_markup_message_next(ticket.ticket_id, caterer_id, ticket.message_id))
+   (s, cmd::Basket::inline_markup_message_next(ticket.ticket_id))
 }
 
 // Показывает сообщение об ошибке/отмене без повторного вывода информации

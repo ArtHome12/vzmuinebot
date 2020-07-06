@@ -583,9 +583,9 @@ impl Basket {
    }
 
    // Меню для заказов в обработке
-   pub fn inline_markup_message_cancel(ticket_id: i32, caterer_id: i32, message_id: i32) -> InlineKeyboardMarkup {
+   pub fn inline_markup_message_cancel(ticket_id: i32) -> InlineKeyboardMarkup {
       // Аргументы для колбек команды
-      let args = db::make_key_3_int(ticket_id, caterer_id, message_id);
+      let args = db::make_key_3_int(ticket_id, 0, 0);
       // let button1 = InlineKeyboardButton::callback(String::from("Написать"), format!("bse{}", args));
       let button2 = InlineKeyboardButton::callback(String::from("Отмена заказа"), format!("bca{}", args));
 
@@ -594,9 +594,9 @@ impl Basket {
    }
 
    // Меню ресторатора для заказов в обработке
-   pub fn inline_markup_message_next(ticket_id: i32, caterer_id: i32, message_id: i32) -> InlineKeyboardMarkup {
+   pub fn inline_markup_message_next(ticket_id: i32) -> InlineKeyboardMarkup {
       // Аргументы для колбек команды
-      let args = db::make_key_3_int(ticket_id, caterer_id, message_id);
+      let args = db::make_key_3_int(ticket_id, 0, 0);
       let button1 = InlineKeyboardButton::callback(String::from("Отмена заказа"), format!("bca{}", args));
       let button2 = InlineKeyboardButton::callback(String::from("Далее"), format!("bne{}", args));
 
