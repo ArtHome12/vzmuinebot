@@ -211,8 +211,12 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
       let message = cx.update.message.as_ref().unwrap();
       let chat_id = ChatId::Id(message.chat_id());
 
+      // Сообщение об отмене в служебный чат
+      let s = format!("Заказ отменён по инициативе {}", user_id);
+      db::log_replay(&s, message_id).await;
+
       // Отправим сообщение другой стороне
-      let s = String::from("Заказ был отменён другой стороной");
+      let s = String::from("Заказ был отменён другой стороной, для получения актуального списка заказов повторно зайдите в корзину");
       if reply_message(ChatId::Id(i64::from(to)), &s, message_id).await {
          
          let chat_message = ChatOrInlineMessage::Chat {
@@ -235,8 +239,6 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
          }
          false
       }
-
-      // if cmd::send_message(ChatId::Id(i64::from(to)), s) {};
    } else {false}
 }
 
