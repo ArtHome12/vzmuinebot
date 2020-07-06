@@ -8,8 +8,9 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide::{
-   prelude::*, 
-   types::{ChatId},
+   prelude::*,
+   requests::SendMessage,
+   types::{ChatId, },
 };
 
 use crate::commands as cmd;
@@ -77,18 +78,9 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          // Извлечём данные
          let (caterer_id, ticket) = ticket_item;
 
-         // Текст сообщения
-         let rest_name = db::restaurant_title_by_id(caterer_id).await;
-         let stage = db::stage_to_str(ticket.stage);
-         let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, caterer_id);
-
          // Отправляем стадию выполнения с цитированием заказа
-         let res = cx.answer(s)
-         .reply_to_message_id(ticket.message_id)
-         .reply_markup(cmd::Basket::inline_markup_message_cancel(ticket.ticket_id, caterer_id, ticket.message_id))
-         .send()
-         .await;
-
+         let res = make_message_for_eater(&cx, caterer_id, ticket).await.send().await;
+         
          if let Err(e) = res {
             db::log(&format!("Error next_with_info send ticket(): {}", e)).await
          }
@@ -101,27 +93,44 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          // Извлечём данные
          let (eater_id, ticket) = ticket_item;
 
-         // Текст сообщения
-         let eater_name = db::user_name_by_id(eater_id).await;
-         let stage1 = db::stage_to_str(ticket.stage);
-         let stage2 = db::stage_to_str(ticket.stage + 1);
-         let s = format!("Заказ вам от {}. Для отправки заказчику сообщения, например, с уточнением времени, нажмите на ссылку /snd{}\nДля изменения статуса '{}' на '{}' нажмите кнопку 'Далее'", eater_name, eater_id, stage1, stage2);
-
          // Отправляем стадию выполнения с цитированием заказа
-         let res = cx.answer(s)
-         .reply_to_message_id(ticket.message_id)
-         .reply_markup(cmd::Basket::inline_markup_message_next(ticket.ticket_id, user_id, ticket.message_id))
-         .send()
-         .await;
-
+         let res = make_message_for_caterer(&cx, eater_id, ticket, user_id).await.send().await;
+         
          if let Err(e) = res {
-            db::log(&format!("Error next_with_info send ticket(): {}", e)).await
+            db::log(&format!("Error next_with_info send ticket2(): {}", e)).await
          }
       }
    }
 
    // Переходим (остаёмся) в режим выбора ресторана
    next(cmd::Dialogue::BasketMode(user_id))
+}
+
+// Формирует сообщение с заказом для показа едоку
+pub async fn make_message_for_eater(cx: &cmd::Cx<i32>, caterer_id: i32, ticket: db::Ticket) -> SendMessage {
+   // Текст сообщения
+   let rest_name = db::restaurant_title_by_id(caterer_id).await;
+   let stage = db::stage_to_str(ticket.stage);
+   let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, caterer_id);
+
+   // Возвращаем сообщение со стадией выполнения и цитированием заказа
+   cx.answer(s)
+   .reply_to_message_id(ticket.message_id)
+   .reply_markup(cmd::Basket::inline_markup_message_cancel(ticket.ticket_id, caterer_id, ticket.message_id))
+}
+
+// Формирует сообщение с заказом для показа ресторатору
+pub async fn make_message_for_caterer(cx: &cmd::Cx<i32>, eater_id: i32, ticket: db::Ticket, caterer_id: i32) -> SendMessage {
+   // Текст сообщения
+   let eater_name = db::user_name_by_id(eater_id).await;
+   let stage1 = db::stage_to_str(ticket.stage);
+   let stage2 = db::stage_to_str(ticket.stage + 1);
+   let s = format!("Заказ вам от {}. Для отправки заказчику сообщения, например, с уточнением времени, нажмите на ссылку /snd{}\nДля изменения статуса '{}' на '{}' нажмите кнопку 'Далее'", eater_name, eater_id, stage1, stage2);
+
+   // Возвращаем сообщение со стадией выполнения и цитированием заказа
+   cx.answer(s)
+   .reply_to_message_id(ticket.message_id)
+   .reply_markup(cmd::Basket::inline_markup_message_next(ticket.ticket_id, caterer_id, ticket.message_id))
 }
 
 // Показывает сообщение об ошибке/отмене без повторного вывода информации

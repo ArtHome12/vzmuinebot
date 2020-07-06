@@ -246,7 +246,7 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
 
 // Переводит заказ на следующую стадицю
 async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ticket_id: i32, caterer_id: i32, message_id: i32) -> bool {
-   // Если операция с БД успешна, надо отредактировать пост свой пост и отправить сообщение другой стороне
+   // Продолжаем только если операция с БД успешна
    if db::basket_next_stage(ticket_id).await {
       
       // Адрес другой стороны это адрес, не совпадающий с нашим собственным
@@ -258,6 +258,8 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
 
       // Новый статус заказа
       let status = db::stage_to_str(db::basket_stage(ticket_id).await);
+
+      // Надо отредактировать сообщение и в своём и в удалённом чате
 
       // Отправим сообщение другой стороне
       let s = format!("Статус заказа изменён на '{}'", status);
@@ -275,7 +277,7 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
             false
          } else {
             // Сообщение об отмене в служебный чат
-            db::log(&format!("Статус заказа изменён {}, новый статус '{}'", user_id, status)).await;
+            db::log(&format!("{} изменил статус заказа на '{}'", user_id, status)).await;
             db::log_forward(chat_id, message_id).await;
 
             true
