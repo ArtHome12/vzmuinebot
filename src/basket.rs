@@ -10,7 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use teloxide::{
    prelude::*,
    requests::SendMessage,
-   types::{ChatId, },
+   types::{ChatId, InlineKeyboardMarkup, },
 };
 
 use crate::commands as cmd;
@@ -77,10 +77,16 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       for ticket_item in ticket_info {
          // Извлечём данные
          let (caterer_id, ticket) = ticket_item;
+         let message_id = ticket.message_id;
 
          // Отправляем стадию выполнения с цитированием заказа
-         let res = make_message_for_eater(&cx, caterer_id, ticket).await.send().await;
-         
+         let (text, markup) = make_message_for_eater(caterer_id, ticket).await;
+         let res = cx.answer(text)
+         .reply_to_message_id(message_id)
+         .reply_markup(markup)
+         .send()
+         .await;
+      
          if let Err(e) = res {
             db::log(&format!("Error next_with_info send ticket(): {}", e)).await
          }
@@ -107,16 +113,14 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 }
 
 // Формирует сообщение с заказом для показа едоку
-pub async fn make_message_for_eater(cx: &cmd::Cx<i32>, caterer_id: i32, ticket: db::Ticket) -> SendMessage {
+pub async fn make_message_for_eater(caterer_id: i32, ticket: db::Ticket) -> (String, InlineKeyboardMarkup) {
    // Текст сообщения
    let rest_name = db::restaurant_title_by_id(caterer_id).await;
    let stage = db::stage_to_str(ticket.stage);
    let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, caterer_id);
 
    // Возвращаем сообщение со стадией выполнения и цитированием заказа
-   cx.answer(s)
-   .reply_to_message_id(ticket.message_id)
-   .reply_markup(cmd::Basket::inline_markup_message_cancel(ticket.ticket_id, caterer_id, ticket.message_id))
+   (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id, caterer_id, ticket.message_id))
 }
 
 // Формирует сообщение с заказом для показа ресторатору
