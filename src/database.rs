@@ -992,12 +992,9 @@ pub struct ServiceChat {
 //
 impl ServiceChat {
    // Непосредственно отправляет сообщение
-   async fn send(&self, text: &str, silence: bool, message_id: Option<i32>) {
+   async fn send(&self, text: &str, silence: bool) {
       // ФОрмируем сообщение для откравки
       let res = self.bot.send_message(self.id, text).disable_notification(silence);
-
-      // Добавим цитируемое сообщение, если задано
-      let res = if let Some(id) = message_id {res.reply_to_message_id(id)} else {res};
 
       // Отправляем, при ошибке запись в консольный лог
       if let Err(err) = res.send().await {
@@ -1009,14 +1006,14 @@ impl ServiceChat {
 // Отправляет в служебный чат сообщение в молчаливом режиме
 pub async fn log(text: &str) {
    if let Some(chat) = TELEGRAM_LOG_CHAT.get() {
-      chat.send(text, true, None).await;
+      chat.send(text, true).await;
    }
 }
 
 // Отправляет в служебный чат сообщение с уведомлением
 pub async fn log_and_notify(text: &str) {
    if let Some(chat) = TELEGRAM_LOG_CHAT.get() {
-      chat.send(text, false, None).await;
+      chat.send(text, false).await;
    }
 }
 
@@ -1026,13 +1023,6 @@ pub async fn log_forward(from_chat: ChatId, message_id: i32) {
       if let Err(e) = chat.bot.forward_message(chat.id, from_chat, message_id).send().await {
          log::info!("Error log_forward(): {}", e);
       }
-   }
-}
-
-// Отправляет в служебный чат сообщение с цитированием предыдущего сообщения
-pub async fn log_replay(text: &str, message_id: i32) {
-   if let Some(chat) = TELEGRAM_LOG_CHAT.get() {
-      chat.send(text, false, Some(message_id)).await;
    }
 }
 

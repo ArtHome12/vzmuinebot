@@ -211,16 +211,12 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
       let message = cx.update.message.as_ref().unwrap();
       let chat_id = ChatId::Id(message.chat_id());
 
-      // Сообщение об отмене в служебный чат
-      let s = format!("Заказ отменён по инициативе {}", user_id);
-      db::log_replay(&s, message_id).await;
-
       // Отправим сообщение другой стороне
       let s = String::from("Заказ был отменён другой стороной, для получения актуального списка заказов повторно зайдите в корзину");
       if reply_message(ChatId::Id(i64::from(to)), &s, message_id).await {
          
          let chat_message = ChatOrInlineMessage::Chat {
-            chat_id,
+            chat_id: chat_id.clone(),
             message_id: message.id,
          };
 
@@ -230,7 +226,13 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
             let text = format!("Error cancel_ticket: {}", e);
             db::log(&text).await;
             false
-         } else {true}
+         } else {
+            // Сообщение об отмене в служебный чат
+            db::log(&format!("Заказ отменён по инициативе {}", user_id)).await;
+            db::log_forward(chat_id, message_id).await;
+
+            true
+         }
       } else {
          let s = String::from("Не удалось уведомить другую сторону об отмене заказа");
          if let Err(e) = cx.bot.send_message(chat_id, s).send().await {
