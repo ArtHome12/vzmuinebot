@@ -581,6 +581,21 @@ pub async fn basket_edit_name(user_id: i32, s: String) -> bool {
    }
 }
 
+// Возврат имени пользователя
+pub async fn user_name_by_id(user_id: i32) -> String {
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .query_one("SELECT user_name FROM users WHERE user_id=$2::INTEGER", &[&user_id])
+   .await;
+   match query {
+       Ok(data) => data.get(0),
+       Err(e) => {
+         log(&format!("Error db::basket_edit_name: {}", e)).await;
+         String::from("Неизвестное имя")
+       }
+   }
+}
+
 // Изменение имени пользователя
 pub async fn basket_edit_contact(user_id: i32, s: String) -> bool {
    // Выполняем запрос
@@ -654,21 +669,41 @@ pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, message_id: i32) ->
 }
 
 pub struct Ticket {
+   pub ticket_id: i32,  // Уникальный ключ БД
    pub message_id: i32,
    pub stage: i32,
 } 
 pub type TicketInfo = BTreeMap<i32, Ticket>;
+
+// Возвращает заказы указанного едока
 pub async fn eater_ticket_info(eater_id: i32) -> TicketInfo {
    // Выполняем запрос
    let rows = DB.get().unwrap().get().await.unwrap()
-   .query("SELECT caterer_id, message_id, stage FROM tickets WHERE eater_id=$1::INTEGER", &[&eater_id])
+   .query("SELECT caterer_id, ticket_id, message_id, stage FROM tickets WHERE eater_id=$1::INTEGER", &[&eater_id])
    .await;
 
    match rows {
-      Ok(data) => data.into_iter().map(|row| (row.get(0), Ticket{message_id: row.get(1), stage: row.get(2)})).collect(),
+      Ok(data) => data.into_iter().map(|row| (row.get(0), Ticket{ticket_id: row.get(1), message_id: row.get(2), stage: row.get(3)})).collect(),
       Err(e) => {
          // Сообщаем об ошибке и возвращаем пустой список
-         log(&format!("Error db::ticket_info({}): {}", eater_id, e)).await;
+         log(&format!("Error db::eater_ticket_info({}): {}", eater_id, e)).await;
+         TicketInfo::new()
+      }
+   }
+}
+
+// Возвращает заказы указанного ресторана
+pub async fn caterer_ticket_info(caterer_id: i32) -> TicketInfo {
+   // Выполняем запрос
+   let rows = DB.get().unwrap().get().await.unwrap()
+   .query("SELECT eater_id, ticket_id, message_id, stage FROM tickets WHERE caterer_id=$1::INTEGER", &[&caterer_id])
+   .await;
+
+   match rows {
+      Ok(data) => data.into_iter().map(|row| (row.get(0), Ticket{ticket_id: row.get(1), message_id: row.get(2), stage: row.get(3)})).collect(),
+      Err(e) => {
+         // Сообщаем об ошибке и возвращаем пустой список
+         log(&format!("Error db::caterer_ticket_info({}): {}", caterer_id, e)).await;
          TicketInfo::new()
       }
    }

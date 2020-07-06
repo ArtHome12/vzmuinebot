@@ -70,33 +70,52 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          .await?;
       }
 
-      // Для функций ниже нужен экземпляр бота
-      if let Some(bot) = db::BOT.get() {
-         // Теперь выводим собственные заказы в обработке другой стороной
-         let ticket_info = db::eater_ticket_info(user_id).await;
+      // Теперь выводим собственные заказы в обработке другой стороной
+      let ticket_info = db::eater_ticket_info(user_id).await;
 
-         // Чат назначения - собственный
-         let to = ChatId::Id(i64::from(user_id));
+      for ticket_item in ticket_info {
+         // Извлечём данные
+         let (caterer_id, ticket) = ticket_item;
 
-         for ticket_item in ticket_info {
-            // Извлечём данные
-            let (caterer_id, ticket) = ticket_item;
+         // Текст сообщения
+         let rest_name = db::restaurant_title_by_id(caterer_id).await;
+         let stage = db::stage_to_str(ticket.stage);
+         let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, caterer_id);
 
-            // Текст сообщения
-            let rest_name = db::restaurant_title_by_id(caterer_id).await;
-            let stage = db::stage_to_str(ticket.stage);
-            let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, caterer_id);
-            // Отправляем стадию выполнения с цитированием заказа
-            // let res = bot.send_message(to.clone(), s)
-            let res = cx.answer(s)
-            .reply_to_message_id(ticket.message_id)
-            .reply_markup(cmd::Basket::inline_markup_message_cancel(caterer_id))
-            .send()
-            .await;
+         // Отправляем стадию выполнения с цитированием заказа
+         let res = cx.answer(s)
+         .reply_to_message_id(ticket.message_id)
+         .reply_markup(cmd::Basket::inline_markup_message_cancel(ticket.ticket_id))
+         .send()
+         .await;
 
-            if let Err(e) = res {
-               db::log(&format!("Error next_with_info send ticket(): {}", e)).await
-            }
+         if let Err(e) = res {
+            db::log(&format!("Error next_with_info send ticket(): {}", e)).await
+         }
+      }
+
+      // Теперь выводим заказы, отправленные едоками нам, если мы вдруг ресторан
+      let ticket_info = db::caterer_ticket_info(user_id).await;
+
+      for ticket_item in ticket_info {
+         // Извлечём данные
+         let (eater_id, ticket) = ticket_item;
+
+         // Текст сообщения
+         let eater_name = db::user_name_by_id(eater_id).await;
+         let stage1 = db::stage_to_str(ticket.stage);
+         let stage2 = db::stage_to_str(ticket.stage + 1);
+         let s = format!("Заказ вам от {}. Для отправки заказчику сообщения, например, с уточнением времени, нажмите на ссылку /snd{}\nДля изменения статуса {} на {} нажмите кнопку 'Далее'", eater_name, eater_id, stage1, stage2);
+
+         // Отправляем стадию выполнения с цитированием заказа
+         let res = cx.answer(s)
+         .reply_to_message_id(ticket.message_id)
+         .reply_markup(cmd::Basket::inline_markup_message_next(ticket.ticket_id))
+         .send()
+         .await;
+
+         if let Err(e) = res {
+            db::log(&format!("Error next_with_info send ticket(): {}", e)).await
          }
       }
    }
