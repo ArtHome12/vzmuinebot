@@ -679,7 +679,7 @@ pub type TicketInfo = BTreeMap<i32, Ticket>;
 pub async fn eater_ticket_info(eater_id: i32) -> TicketInfo {
    // Выполняем запрос
    let rows = DB.get().unwrap().get().await.unwrap()
-   .query("SELECT caterer_id, ticket_id, message_id, stage FROM tickets WHERE eater_id=$1::INTEGER", &[&eater_id])
+   .query("SELECT caterer_id, ticket_id, message_id, stage FROM tickets WHERE eater_id=$1::INTEGER AND stage < 5", &[&eater_id])
    .await;
 
    match rows {
@@ -696,7 +696,7 @@ pub async fn eater_ticket_info(eater_id: i32) -> TicketInfo {
 pub async fn caterer_ticket_info(caterer_id: i32) -> TicketInfo {
    // Выполняем запрос
    let rows = DB.get().unwrap().get().await.unwrap()
-   .query("SELECT eater_id, ticket_id, message_id, stage FROM tickets WHERE caterer_id=$1::INTEGER", &[&caterer_id])
+   .query("SELECT eater_id, ticket_id, message_id, stage FROM tickets WHERE caterer_id=$1::INTEGER AND stage < 5", &[&caterer_id])
    .await;
 
    match rows {
