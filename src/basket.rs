@@ -70,10 +70,10 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          .await?;
       }
 
-      // Теперь выводим заказы в обработке
+      // Для функций ниже нужен экземпляр бота
       if let Some(bot) = db::BOT.get() {
-         // Данные в базе
-         let ticket_info = db::ticket_info(user_id).await;
+         // Теперь выводим собственные заказы в обработке другой стороной
+         let ticket_info = db::eater_ticket_info(user_id).await;
 
          // Чат назначения - собственный
          let to = ChatId::Id(i64::from(user_id));
@@ -87,7 +87,8 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             let stage = db::stage_to_str(ticket.stage);
             let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, caterer_id);
             // Отправляем стадию выполнения с цитированием заказа
-            let res = bot.send_message(to.clone(), s)
+            // let res = bot.send_message(to.clone(), s)
+            let res = cx.answer(s)
             .reply_to_message_id(ticket.message_id)
             .reply_markup(cmd::Basket::inline_markup_message_cancel(caterer_id))
             .send()

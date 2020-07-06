@@ -658,7 +658,7 @@ pub struct Ticket {
    pub stage: i32,
 } 
 pub type TicketInfo = BTreeMap<i32, Ticket>;
-pub async fn ticket_info(eater_id: i32) -> TicketInfo {
+pub async fn eater_ticket_info(eater_id: i32) -> TicketInfo {
    // Выполняем запрос
    let rows = DB.get().unwrap().get().await.unwrap()
    .query("SELECT caterer_id, message_id, stage FROM tickets WHERE eater_id=$1::INTEGER", &[&eater_id])
