@@ -105,7 +105,7 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
                format!("Работающие: {}", db::is_success(eat_rest_now::show_inline_interface(&cx).await)),
             CallbackCommand::SendBasket(rest_id) => {
                let res = match query.message.clone() {
-                  Some(message) => basket::send_basket(rest_id, user_id, message.id).await,
+                  Some(message) => basket::send_basket(&cx, rest_id, user_id, message.id).await,
                   None => false,
                };
                format!("Отправка: {}", db::is_success(res))
