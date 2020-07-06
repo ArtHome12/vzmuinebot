@@ -198,6 +198,17 @@ pub async fn reply_message(chat_id: ChatId, s: &str, reply_id: i32) -> bool {
    } else {false}
 }
 
+// Отредактировать сообщение
+pub async fn edit_message(chat_id: ChatId, s: &str) -> bool {
+   // Используем специально выделенный экземпляр бота
+   if let Some(bot) = db::BOT.get() {
+      if let Err(e) = bot.edit_message(chat_id, s).send().await {
+         db::log(&format!("Ошибка edit_message {}", e)).await;
+         false
+      } else {true}
+   } else {false}
+}
+
 
 // Отменяет заказ
 async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ticket_id: i32, caterer_id: i32, message_id: i32) -> bool {
