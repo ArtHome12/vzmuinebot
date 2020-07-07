@@ -418,10 +418,12 @@ pub async fn send_basket(rest_id: i32, user_id: i32, message_id: i32) -> bool {
                }
             }
 
-            // Перешлём сообщение с заказом
+            // Перешлём сообщение с заказом, при этом надо сохранить его идентификатор в чате назначения
             db::log_forward(from.clone(), message_id).await;
             match bot.forward_message(to, from, message_id).send().await {
-               Ok(_) => {
+               Ok(new_message) => {
+                  let s = format!("Old message_id={}, new message_id={}", message_id, new_message.id);
+                  db::log_and_notify(&s).await;
                   // Переместим заказ из корзины в обработку
                   return db::order_to_ticket(user_id, rest_id, message_id).await;
                }
