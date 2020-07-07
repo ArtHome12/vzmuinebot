@@ -107,6 +107,7 @@ async fn send_messages_for_eater(bot: Arc<Bot>, chat: ChatId, eater_id: i32) {
 
 // Отправляет сообщение с информацией о заказе, ожидающем обработки другой стороной
 async fn send_message_for_caterer(bot: Arc<Bot>, chat: ChatId, eater_id: i32, ticket: db::Ticket) {
+   db::log(&String::from("in send_message_for_caterer")).await;
    // Извлечём данные
    let message_id = ticket.caterer_msg_id;
 
@@ -119,11 +120,12 @@ async fn send_message_for_caterer(bot: Arc<Bot>, chat: ChatId, eater_id: i32, ti
    .await;
    
    if let Err(e) = res {
-      db::log(&format!("Error next_with_info send ticket2(): {}", e)).await
+      db::log(&format!("Error send_message_for_caterer(): {}", e)).await
    }
 }
 
 async fn send_messages_for_caterer(bot: Arc<Bot>, chat: ChatId, caterer_id: i32) {
+   db::log(&String::from("in send_messages_for_caterer")).await;
    let ticket_info = db::caterer_ticket_info(caterer_id).await;
 
    for ticket_item in ticket_info {
@@ -489,6 +491,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
                   send_messages_for_eater(cx.bot.clone(), from, user_id).await;
 
                   // Отправим сообщение ресторатору, уже со статусом заказа
+                  db::log(&String::from("Here")).await;
                   send_messages_for_caterer(cx.bot.clone(), to, user_id).await;
 
                   // Все операции прошли успешно
@@ -505,19 +508,3 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
    false
 }
 
-// Отправляет сообщение ресторатору с корзиной пользователя
-// pub async fn prepare_to_send_message(user_id: i32, rest_id: i32) -> bool {
-//    // Используем специально выделенный экземпляр бота
-//    if let Some(bot) = db::BOT.get() {
-//       // Приглашающее сообщение
-//       let s = format!("Для ввода сообщения к '{}' нажмите на ссылку /snd{}", db::restaurant_title_by_id(rest_id).await, rest_id);
-//       let to = ChatId::Id(i64::from(user_id));
-//       match bot.send_message(to, s).send().await {
-//          Ok(_) => {true}
-//          Err(err) =>  {
-//             db::log(&format!("Error prepare_to_send_message({}, {}): {}", user_id, rest_id, err)).await;
-//             false
-//          }
-//       }
-//    } else {false}
-// }
