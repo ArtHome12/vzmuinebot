@@ -1141,6 +1141,20 @@ pub async fn restaurant_title_by_id(user_id: i32) -> String {
    }
 }
 
+// Возращает ресторан по user_id или пустую строку
+pub async fn restaurant_num_and_title_by_id(caterer_id: i32) -> (i32, String, String) {
+   // Выполняем запрос
+   let rows = DB.get().unwrap().get().await.unwrap()
+   .query_one("SELECT rest_num, title, info FROM restaurants WHERE user_id=$1::INTEGER", &[&caterer_id])
+   .await;
+
+   // Возвращаем результат, если такой есть.
+   match rows {
+      Ok(data) => (data.get(0), data.get(1), data.get(2)),
+      _ =>  (0, String::default(), String::default()),
+   }
+}
+
 // ============================================================================
 // [Caterer]
 // ============================================================================
@@ -1862,44 +1876,6 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
 
          // Помещаем ресторан в список
          res.push(basket);
-
-/*          // Теперь запрашиваем информацию о блюдах ресторана
-         let rows = DB.get().unwrap().get().await.unwrap()
-      .query("SELECT d.title, d.price, o.amount, o.group_num, o.dish_num FROM orders as o 
-         INNER JOIN groups g ON o.rest_num = g.rest_num AND o.group_num = g.group_num
-         INNER JOIN dishes d ON o.rest_num = d.rest_num AND o.group_num = d.group_num AND o.dish_num = d.dish_num
-            WHERE o.user_id = $1::INTEGER AND o.rest_num = $2::INTEGER
-            ORDER BY o.group_num, o.dish_num", 
-         &[&user_id, &rest_num])
-         .await;
-   
-         // Двигаемся по каждой записи и сохраняем информацию о блюде
-         let mut dishes = Vec::<String>::new();
-         if let Ok(data) = rows {
-            for record in data {
-               // Данные из запроса
-               let title: String = record.get(0);
-               let price: i32 = record.get(1);
-               let amount: i32 = record.get(2);
-               let group_num: i32 = record.get(3);
-               let dish_num: i32 = record.get(4);
-
-               // Добавляем стоимость в итог
-               total += price * amount;
-
-               // Помещаем блюдо в список
-               dishes.push(format!("{}: {} x {} шт. = {} /del{}", title, price, amount, price_with_unit(price * amount), make_key_3_int(rest_num, group_num, dish_num)));
-            }
-         }
-
-         // Создаём корзину текущего ресторана
-         let basket = Basket {
-            rest_id,
-            restaurant: format!("{}. {}. {}\n", rest_num, rest_title, rest_info),
-            dishes,
-            total,
-         };
- */
       }
    }
    // Возвращаем результат

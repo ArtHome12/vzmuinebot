@@ -52,17 +52,11 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 
       // Отдельными сообщениями выводим рестораны
       for basket in baskets {
-         // Заголовок с информацией о ресторане
-         let mut s = basket.restaurant;
 
-         // Дополняем данными о блюдах
-         for dish in basket.dishes {
-            s.push_str(&format!("\n{}", dish))
-         }
+         // Текст сообщения о корзине
+         let s = make_basket_message_text(&basket);
 
-         // Итоговая стоимость
-         s.push_str(&format!("\nВсего: {}", db::price_with_unit(basket.total)));
-
+         // Отправляем сообщение
          cx.answer(s)
          .reply_markup(cmd::Basket::inline_markup_send(basket.rest_id))
          .disable_notification(true)
@@ -154,6 +148,22 @@ async fn send_messages_for_eater2(chat_id: ChatId, eater_id: i32) {
       let (caterer_id, ticket) = ticket_item;
       send_message_for_eater2(chat_id.clone(), caterer_id, ticket).await;
    }
+}
+
+
+// Формирует сообщение с собственной корзиной
+pub fn make_basket_message_text(basket: &db::Basket) -> String {
+   // Заголовок с информацией о ресторане
+   let mut s = basket.restaurant.clone();
+
+   // Дополняем данными о блюдах
+   for dish in basket.dishes.clone() {
+      s.push_str(&format!("\n{}", dish))
+   }
+
+   // Итоговая стоимость
+   s.push_str(&format!("\nВсего: {}", db::price_with_unit(basket.total)));
+   s
 }
 
 // Формирует сообщение с заказом для показа едоку
@@ -432,15 +442,27 @@ pub async fn edit_address_mode(cx: cmd::Cx<i32>) -> cmd::Res {
 
 // Отправляет сообщение ресторатору с корзиной пользователя
 pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, user_id: i32, message_id: i32) -> bool {
-   // Заново сгенерируем текст исходного сообщения уже без команд /del в тексте, чтобы пересылать его
-   // let recreated_message_text = db::basket_content(user_id, );
-
-
    // Используем специально выделенный экземпляр бота
    if let Some(bot) = db::BOT.get() {
       // Откуда и куда
       let from = ChatId::Id(i64::from(user_id));
       let to = ChatId::Id(i64::from(rest_id));
+
+      // Заново сгенерируем текст исходного сообщения уже без команд /del в тексте, чтобы пересылать его
+      let (rest_num, rest_title, rest_info) = db::restaurant_num_and_title_by_id(rest_id).await;
+      let basket_with_no_commands = db::basket_content(user_id, rest_num, rest_id, &rest_title, &rest_info, true).await;
+
+      // Ссылка на исправляемое сообщение
+      let original_message = ChatOrInlineMessage::Chat {
+         chat_id: from.clone(),
+         message_id,
+      };
+
+      // Исправим исходное сообщение на новый текст
+      if let Err(e) = bot.edit_message_text(original_message, make_basket_message_text(&basket_with_no_commands)).send().await {
+         let s = format!("Error send_basket edit_message_text(): {}", e);
+         db::log(&s).await;
+      }
 
       // Информация о едоке
       let basket_info = db::user_basket_info(user_id).await;
