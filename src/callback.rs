@@ -289,24 +289,7 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
          let s = format!("Статус заказа изменён на '{}'", db::stage_to_str(status));
          message_with_quote(cx, ChatId::Id(i64::from(other_chat_id)), &s, other_msg_id).await;
 
-         // Изменим сообщение в чате ресторатора
-         let (text, markup) = basket::make_message_for_caterer(t.eater_id, t.ticket).await;
-
-         let chat_message = ChatOrInlineMessage::Chat {
-            chat_id: ChatId::Id(i64::from(this_chat_id)),
-            message_id: this_msg_id,
-         };
-      
-         if let Err(e) = cx.bot.edit_message_caption(chat_message)
-         .caption(text)
-         // .reply_to_message_id(message_id)
-         .reply_markup(markup)
-         .send()
-         .await {
-            db::log(&format!("Error callback::process_ticket: {}", e)).await;
-         }
-
-         // Если заказ завершён, то особое поведение
+         // Если заказ завершён едоком, то особое поведение
          if status == 5 {
             // Свой чат (едока)
             let this_chat = ChatId::Id(i64::from(this_chat_id));
@@ -318,6 +301,16 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
             // Два сообщения в служебный чат - об отмене и сам отменённый заказ
             db::log(&format!("Заказ завершён {}", user_id)).await;
             db::log_forward(this_chat, this_msg_id).await;
+         } else {
+            // Отправим сообщение в своём чате ресторатора (при изменении A Telegram's error #400 Bad Request: MessageCantBeEdited)
+            let (text, markup) = basket::make_message_for_caterer(t.eater_id, t.ticket).await;
+            if let Err(e) = cx.bot.send_message(ChatId::Id(i64::from(this_chat_id)), text)
+            .reply_to_message_id(this_msg_id)
+            .reply_markup(markup)
+            .send()
+            .await {
+               db::log(&format!("Error callback::message_with_quote: {}", e)).await;
+            }
          }
 
          true

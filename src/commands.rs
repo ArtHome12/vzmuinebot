@@ -601,7 +601,7 @@ impl Basket {
       // Аргументы для колбек команды
       let args = db::make_key_3_int(ticket_id, 0, 0);
       let button1 = InlineKeyboardButton::callback(String::from("Отмена заказа"), format!("bca{}", args));
-      let button2 = InlineKeyboardButton::callback(String::from("Далее"), format!("bne{}", args));
+      let button2 = InlineKeyboardButton::callback(String::from("Подтвердить"), format!("bne{}", args));
 
       InlineKeyboardMarkup::default()
       .append_row(vec![button1, button2])
