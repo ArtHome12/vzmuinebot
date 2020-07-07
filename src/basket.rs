@@ -432,6 +432,10 @@ pub async fn edit_address_mode(cx: cmd::Cx<i32>) -> cmd::Res {
 
 // Отправляет сообщение ресторатору с корзиной пользователя
 pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, user_id: i32, message_id: i32) -> bool {
+   // Заново сгенерируем текст исходного сообщения уже без команд /del в тексте, чтобы пересылать его
+   // let recreated_message_text = db::basket_content(user_id, );
+
+
    // Используем специально выделенный экземпляр бота
    if let Some(bot) = db::BOT.get() {
       // Откуда и куда

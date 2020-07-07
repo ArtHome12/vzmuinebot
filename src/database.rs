@@ -1066,7 +1066,7 @@ pub async fn log_and_notify(text: &str) {
    }
 }
 
-// Пересылает в служебный чат сообщение
+// Пересылает в служебный чат сообщение, возвращая идентификатор этого сообщения в служебном чате
 pub async fn log_forward(from_chat: ChatId, message_id: i32) {
    if let Some(chat) = TELEGRAM_LOG_CHAT.get() {
       if let Err(e) = chat.bot.forward_message(chat.id, from_chat, message_id).send().await {
@@ -1831,7 +1831,6 @@ pub struct Basket {
 }
 
 // Возвращает содержимое корзины и итоговую сумму заказа
-//
 pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
    // Для возврата результата
    let mut res = Vec::<Basket>::new();
@@ -1855,10 +1854,16 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
          let rest_num: i32 = record.get(2);
          let rest_id: i32 = record.get(3);
 
-         // Для общей суммы заказа по ресторану
-         let mut total: i32 = 0;
+         // Создаём корзину ресторана
+         let basket = basket_content(user_id, rest_num, rest_id, &rest_title, &rest_info, false).await;
 
-         // Теперь заправшиваем информацию о блюдах ресторана
+         // Обновляем общий итог
+         grand_total += basket.total;
+
+         // Помещаем ресторан в список
+         res.push(basket);
+
+/*          // Теперь запрашиваем информацию о блюдах ресторана
          let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT d.title, d.price, o.amount, o.group_num, o.dish_num FROM orders as o 
          INNER JOIN groups g ON o.rest_num = g.rest_num AND o.group_num = g.group_num
@@ -1894,20 +1899,65 @@ pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
             dishes,
             total,
          };
-
-         // Обновляем общий итог
-         grand_total += total;
-
-         // Помещаем ресторан в список
-         res.push(basket);
+ */
       }
    }
    // Возвращаем результат
    (res, grand_total)
 }
 
+// Возвращает содержимое корзины и итоговую сумму заказа
+pub async fn basket_content(user_id: i32, rest_num: i32, rest_id: i32, rest_title: &String, rest_info: &String, no_commands: bool) -> Basket {
+   // Запрашиваем информацию о блюдах ресторана
+   let rows = DB.get().unwrap().get().await.unwrap()
+   .query("SELECT d.title, d.price, o.amount, o.group_num, o.dish_num FROM orders as o 
+      INNER JOIN groups g ON o.rest_num = g.rest_num AND o.group_num = g.group_num
+      INNER JOIN dishes d ON o.rest_num = d.rest_num AND o.group_num = d.group_num AND o.dish_num = d.dish_num
+         WHERE o.user_id = $1::INTEGER AND o.rest_num = $2::INTEGER
+         ORDER BY o.group_num, o.dish_num", 
+      &[&user_id, &rest_num])
+      .await;
+   
+   // Для общей суммы заказа по ресторану
+   let mut total: i32 = 0;
+
+   // Двигаемся по каждой записи и сохраняем информацию о блюде
+   let mut dishes = Vec::<String>::new();
+   if let Ok(data) = rows {
+      for record in data {
+         // Данные из запроса
+         let title: String = record.get(0);
+         let price: i32 = record.get(1);
+         let amount: i32 = record.get(2);
+         let group_num: i32 = record.get(3);
+         let dish_num: i32 = record.get(4);
+
+         // Добавляем стоимость в итог
+         total += price * amount;
+
+         // Строка с информацией о блюде - с командами или без
+         let s = if no_commands {
+            format!("{}: {} x {} шт. = {}", title, price, amount, price_with_unit(price * amount))
+         } else {
+            format!("{}: {} x {} шт. = {} /del{}", title, price, amount, price_with_unit(price * amount), make_key_3_int(rest_num, group_num, dish_num))
+         };
+
+         // Помещаем блюдо в список
+         dishes.push(s);
+      }
+   }
+
+   // Возвращаем корзину текущего ресторана
+   Basket {
+      rest_id,
+      restaurant: format!("{}. {}. {}\n", rest_num, rest_title, rest_info),
+      dishes,
+      total,
+   }
+}
+
+
 // Очищает корзину указанного пользователя
-//
 pub async fn clear_basket(user_id: i32) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap().get().await.unwrap()
