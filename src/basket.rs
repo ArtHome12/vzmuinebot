@@ -187,7 +187,7 @@ pub async fn make_message_for_caterer(eater_id: i32, ticket: db::Ticket) -> (Str
    let eater_name = db::user_name_by_id(eater_id).await;
    let stage1 = db::stage_to_str(ticket.stage);
    let stage2 = db::stage_to_str(ticket.stage + 1);
-   let s = format!("Заказ вам от {}. Для отправки заказчику сообщения, например, с уточнением времени, нажмите на ссылку /snd{}\nДля изменения статуса '{}' на '{}' нажмите кнопку 'Далее'", eater_name, eater_id, stage1, stage2);
+   let s = format!("Заказ вам от {} в стадии '{}'. Для отправки заказчику сообщения, например, с уточнением времени, нажмите на ссылку /snd{}\nДля изменения статуса на '{}' нажмите кнопку 'Далее'", eater_name, stage1, eater_id, stage2);
 
    // Возвращаем сообщение со стадией выполнения и цитированием заказа
    (s, cmd::Basket::inline_markup_message_next(ticket.ticket_id))

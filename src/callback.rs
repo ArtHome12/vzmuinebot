@@ -196,15 +196,16 @@ pub async fn message_with_quote(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id
 }
 
 // Отредактировать сообщение
-// pub async fn edit_message(chat_id: ChatId, s: &str) -> bool {
-//    // Используем специально выделенный экземпляр бота
-//    if let Some(bot) = db::BOT.get() {
-//       if let Err(e) = bot.edit_message_text(chat_id, s).send().await {
-//          db::log(&format!("Ошибка edit_message {}", e)).await;
-//          false
-//       } else {true}
-//    } else {false}
-// }
+/*pub async fn edit_message(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: ChatId, message_id: i32, s: &str) {
+   let chat_message = ChatOrInlineMessage::Chat {
+      chat_id,
+      message_id,
+   };
+
+   if let Err(e) = cx.bot.edit_message_text(chat_message, s).send().await {
+      db::log(&format!("Error callback::message_with_quote: {}", e)).await;
+   }
+}*/
 
 // Удаляет инлайн-кнопки под сообщением
 /* async fn remove_inline_markup(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: i32, message_id: i32) {
@@ -287,6 +288,22 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
          // Отправим сообщение другой стороне
          let s = format!("Статус заказа изменён на '{}'", db::stage_to_str(status));
          message_with_quote(cx, ChatId::Id(i64::from(other_chat_id)), &s, other_msg_id).await;
+
+         // Изменим сообщение в чате ресторатора
+         let (text, markup) = basket::make_message_for_caterer(t.eater_id, t.ticket).await;
+
+         let chat_message = ChatOrInlineMessage::Chat {
+            chat_id: ChatId::Id(i64::from(this_chat_id)),
+            message_id: this_msg_id,
+         };
+      
+         if let Err(e) = cx.bot.edit_message_text(chat_message, text)
+         // .reply_to_message_id(message_id)
+         .reply_markup(markup)
+         .send()
+         .await {
+            db::log(&format!("Error callback::process_ticket: {}", e)).await;
+         }
 
          // Если заказ завершён, то особое поведение
          if status == 5 {
