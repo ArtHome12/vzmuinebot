@@ -516,6 +516,7 @@ impl EaterDish {
 #[derive(Copy, Clone)]
 pub enum Basket {
    Main,
+   Refresh,
    Clear,
    Delete(i32, i32, i32),  // rest_num, group_num, dish_num
    UnknownCommand,
@@ -529,6 +530,7 @@ impl Basket {
    pub fn from(input: &str) -> Basket {
       match input {
          "В начало" => Basket::Main,
+         "⟳ Обновить" => Basket::Refresh,
          "Очистить" => Basket::Clear,
          "/edit_name" => Basket::EditName,
          "/edit_contact" => Basket::EditContact,
@@ -556,7 +558,7 @@ impl Basket {
       ReplyKeyboardMarkup::default()
       .append_row(vec![
          KeyboardButton::new("В начало"),
-         KeyboardButton::new("🔄 ⟳"),
+         KeyboardButton::new("⟳ Обновить"),
          KeyboardButton::new("Очистить"),
       ])
       .resize_keyboard(true)

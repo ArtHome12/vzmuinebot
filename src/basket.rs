@@ -226,6 +226,11 @@ pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
                eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
             }
 
+            // Обновить
+            cmd::Basket::Refresh => {
+               next_with_info(cx).await
+            }
+
             // Неизвестная команда
             cmd::Basket::UnknownCommand => {
                // Возможно это общая команда
