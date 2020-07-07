@@ -231,8 +231,8 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
       if let Some(t) = db::ticket_with_owners(ticket_id).await {
 
          // Удаляем инлайн кнопки под заказом в чате едока и ресторатора
-         remove_inline_markup(cx, t.eater_id, t.ticket.eater_msg_id).await;
-         remove_inline_markup(cx, t.caterer_id, t.ticket.caterer_msg_id).await;
+         remove_inline_markup(cx, t.eater_id, t.ticket.caterer_msg_id).await;
+         remove_inline_markup(cx, t.caterer_id, t.ticket.eater_msg_id).await;
 
          // Адрес другой стороны это адрес, не совпадающий с нашим собственным
          let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == t.caterer_id {
