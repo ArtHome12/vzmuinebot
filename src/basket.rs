@@ -462,7 +462,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
 
             // Перешлём сообщение с заказом, при этом надо сохранить его идентификатор в чате назначения
             db::log_forward(from.clone(), message_id).await;
-            match bot.forward_message(to, from, message_id).send().await {
+            match bot.forward_message(to, from.clone(), message_id).send().await {
                Ok(new_message) => {
                   let s = format!("Old message_id={}, new message_id={}", message_id, new_message.id);
                   db::log_and_notify(&s).await;
