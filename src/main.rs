@@ -417,14 +417,14 @@ async fn run() {
 }
 
 // Отправить сообщение
-pub async fn send_message(chat_id: ChatId, s: &str) -> bool {
+pub async fn send_message(bot: &Arc<Bot>, chat_id: ChatId, s: &str) -> bool {
    // Используем специально выделенный экземпляр бота
-   if let Some(bot) = database::BOT.get() {
+   // if let Some(bot) = database::BOT.get() {
       if let Err(e) = bot.send_message(chat_id, s).send().await {
          database::log(&format!("Ошибка {}", e)).await;
          false
       } else {true}
-   } else {false}
+   // } else {false}
 }
 
 // Отправить сообщение ресторатору
@@ -448,8 +448,8 @@ pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::Dialog
          let s = format!("Сообщение от {}\n{}\n Для ответа нажмите ссылку /snd{}", user_name, s, user_id);
 
          // Отправляем сообщение и сообщаем результат
-         if send_message(to, &s).await {String::from("Ошибка")}
-         else {String::from("Сообщение отправлено")}
+         if send_message(&cx.bot, to, &s).await {String::from("Сообщение отправлено")}
+         else {String::from("Ошибка")}
       } else {
          String::from("Отмена отправки сообщения")
       };
