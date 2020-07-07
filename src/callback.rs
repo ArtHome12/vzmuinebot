@@ -275,7 +275,7 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, ticket_id: i32)
          // remove_inline_markup(cx, t.caterer_id, t.ticket.caterer_msg_id).await;
 
          // Адрес другой стороны это адрес, не совпадающий с нашим собственным
-         let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == t.caterer_id {
+         /*let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == t.caterer_id {
             (t.eater_id, t.ticket.eater_msg_id, t.caterer_id, t.ticket.caterer_msg_id)
          } else {
             (t.caterer_id, t.ticket.caterer_msg_id, t.eater_id, t.ticket.eater_msg_id)
@@ -295,7 +295,7 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, ticket_id: i32)
          // Два сообщения в служебный чат - об отмене и сам отменённый заказ
          db::log(&format!("Заказ отменён по инициативе {}", user_id)).await;
          db::log_forward(this_chat,this_msg_id).await;
-
+*/
          true
       } else {false}
    } else {false}
