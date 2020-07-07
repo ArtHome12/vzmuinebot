@@ -168,13 +168,17 @@ pub fn make_basket_message_text(basket: &db::Basket) -> String {
 
 // Формирует сообщение с заказом для показа едоку
 pub async fn make_message_for_eater(caterer_id: i32, ticket: db::Ticket) -> (String, InlineKeyboardMarkup) {
-   // Текст сообщения
+   // Текст сообщения со стадией выполнения 
    let rest_name = db::restaurant_title_by_id(caterer_id).await;
    let stage = db::stage_to_str(ticket.stage);
    let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, caterer_id);
 
-   // Возвращаем сообщение со стадией выполнения и цитированием заказа
-   (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id))
+   // Если заказ на последней стадии, то добавляем кнопку завершить кроме кнопки отмены
+   if ticket.stage == 4 {
+      (s, cmd::Basket::inline_markup_message_confirm(ticket.ticket_id))
+   } else {
+      (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id))
+   }
 }
 
 // Формирует сообщение с заказом для показа ресторатору

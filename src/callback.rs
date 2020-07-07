@@ -113,7 +113,7 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
             }
             // CallbackCommand::BasketMessageToCaterer(rest_id) => format!("{}", db::is_success(basket::prepare_to_send_message(user_id, rest_id).await)),
             CallbackCommand::BasketCancel(ticket_id) => format!("{}", db::is_success(cancel_ticket(&cx, user_id, ticket_id).await)),
-            CallbackCommand::BasketNext(ticket_id) => format!("{}", db::is_success(process_ticket(&cx, ticket_id).await)),
+            CallbackCommand::BasketNext(ticket_id) => format!("{}", db::is_success(process_ticket(&cx, user_id, ticket_id).await)),
          }
       }
    };
@@ -244,18 +244,18 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
 
          // Отправим сообщение другой стороне
          let s = String::from("Заказ был отменён другой стороной, для получения актуального списка заказов обновите корзину");
-         let s = format!("{} (other_chat_id={}, other_msg_id={})", s, other_chat_id, other_msg_id);
+         // let s = format!("{} (other_chat_id={}, other_msg_id={})", s, other_chat_id, other_msg_id);
          message_with_quote(cx, ChatId::Id(i64::from(other_chat_id)), &s, other_msg_id).await;
 
          // Сообщение в своём чате
          let s = String::from("Вы отменили заказ, обновите корзину");
-         let s = format!("{} (this_chat_id={}, this_msg_id={})", s, this_chat_id, this_msg_id);
+         // let s = format!("{} (this_chat_id={}, this_msg_id={})", s, this_chat_id, this_msg_id);
          let this_chat = ChatId::Id(i64::from(this_chat_id));
          message_with_quote(cx, this_chat.clone(), &s, this_msg_id).await;
 
          // Два сообщения в служебный чат - об отмене и сам отменённый заказ
          db::log(&format!("Заказ отменён по инициативе {}", user_id)).await;
-         db::log_forward(this_chat,this_msg_id).await;
+         db::log_forward(this_chat, this_msg_id).await;
 
          true
       } else {false}
@@ -263,7 +263,7 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
 }
 
 // Переводит заказ на следующую стадию
-async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, ticket_id: i32) -> bool {
+async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ticket_id: i32) -> bool {
    // Продолжаем только если операция с БД успешна
    if db::basket_next_stage(ticket_id).await {
       
@@ -275,27 +275,33 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, ticket_id: i32)
          // remove_inline_markup(cx, t.caterer_id, t.ticket.caterer_msg_id).await;
 
          // Адрес другой стороны это адрес, не совпадающий с нашим собственным
-         /*let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == t.caterer_id {
+         let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == t.caterer_id {
             (t.eater_id, t.ticket.eater_msg_id, t.caterer_id, t.ticket.caterer_msg_id)
          } else {
             (t.caterer_id, t.ticket.caterer_msg_id, t.eater_id, t.ticket.eater_msg_id)
          };
 
+         // Новый статус заказа
+         let status = db::basket_stage(ticket_id).await;
+
          // Отправим сообщение другой стороне
-         let s = String::from("Заказ был отменён другой стороной, для получения актуального списка заказов обновите корзину");
-         let s = format!("{} (other_chat_id={}, other_msg_id={})", s, other_chat_id, other_msg_id);
+         let s = format!("Статус заказа изменён на '{}'", db::stage_to_str(status));
          message_with_quote(cx, ChatId::Id(i64::from(other_chat_id)), &s, other_msg_id).await;
 
-         // Сообщение в своём чате
-         let s = String::from("Вы отменили заказ, обновите корзину");
-         let s = format!("{} (this_chat_id={}, this_msg_id={})", s, this_chat_id, this_msg_id);
-         let this_chat = ChatId::Id(i64::from(this_chat_id));
-         message_with_quote(cx, this_chat.clone(), &s, this_msg_id).await;
+         // Если заказ завершён, то особое поведение
+         if status == 5 {
+            // Свой чат (едока)
+            let this_chat = ChatId::Id(i64::from(this_chat_id));
 
-         // Два сообщения в служебный чат - об отмене и сам отменённый заказ
-         db::log(&format!("Заказ отменён по инициативе {}", user_id)).await;
-         db::log_forward(this_chat,this_msg_id).await;
-*/
+            // Изменим сообщение в своём (едока) чате
+            let s = String::from("Вы подтвердили исполнение заказа");
+            message_with_quote(cx, this_chat.clone(), &s, this_msg_id).await;
+
+            // Два сообщения в служебный чат - об отмене и сам отменённый заказ
+            db::log(&format!("Заказ завершён {}", user_id)).await;
+            db::log_forward(this_chat, this_msg_id).await;
+         }
+
          true
       } else {false}
    } else {false}
