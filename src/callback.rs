@@ -297,7 +297,8 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
             message_id: this_msg_id,
          };
       
-         if let Err(e) = cx.bot.edit_message_text(chat_message, text)
+         if let Err(e) = cx.bot.edit_message_caption(chat_message)
+         .caption(text)
          // .reply_to_message_id(message_id)
          .reply_markup(markup)
          .send()
