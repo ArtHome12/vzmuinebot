@@ -9,8 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*,
-   requests::SendMessage,
-   types::{ChatId, InlineKeyboardMarkup, },
+   types::{ChatId, InlineKeyboardMarkup, CallbackQuery, ChatOrInlineMessage,},
 };
 
 use crate::commands as cmd;
@@ -70,46 +69,91 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          .send()
          .await?;
       }
-
-      // Теперь выводим собственные заказы в обработке другой стороной
-      let ticket_info = db::eater_ticket_info(user_id).await;
-
-      for ticket_item in ticket_info {
-         // Извлечём данные
-         let (caterer_id, ticket) = ticket_item;
-         let message_id = ticket.message_id;
-
-         // Отправляем стадию выполнения с цитированием заказа
-         let (text, markup) = make_message_for_eater(caterer_id, ticket).await;
-         let res = cx.answer(text)
-         .reply_to_message_id(message_id)
-         .reply_markup(markup)
-         .send()
-         .await;
-      
-         if let Err(e) = res {
-            db::log(&format!("Error next_with_info send ticket(): {}", e)).await
-         }
-      }
-
-      // Теперь выводим заказы, отправленные едоками нам, если мы вдруг ресторан
-      let ticket_info = db::caterer_ticket_info(user_id).await;
-
-      for ticket_item in ticket_info {
-         // Извлечём данные
-         let (eater_id, ticket) = ticket_item;
-
-         // Отправляем стадию выполнения с цитированием заказа
-         let res = make_message_for_caterer(&cx, eater_id, ticket, user_id).await.send().await;
-         
-         if let Err(e) = res {
-            db::log(&format!("Error next_with_info send ticket2(): {}", e)).await
-         }
-      }
    }
 
+   // Теперь выводим собственные заказы в обработке другой стороной
+   send_messages_for_eater(&cx, user_id).await;
+
+   // Теперь выводим заказы, отправленные едоками нам, если мы вдруг ресторан
+   let ticket_info = db::caterer_ticket_info(user_id).await;
+
+   for ticket_item in ticket_info {
+      // Извлечём данные
+      let (eater_id, ticket) = ticket_item;
+      let message_id = ticket.message_id;
+
+      // Отправляем стадию выполнения с цитированием заказа
+      let (text, markup) = make_message_for_caterer(eater_id, ticket).await;
+      let res = cx.answer(text)
+      .reply_to_message_id(message_id)
+      .reply_markup(markup)
+      .send()
+      .await;
+      
+      if let Err(e) = res {
+         db::log(&format!("Error next_with_info send ticket2(): {}", e)).await
+      }
+   }
+   
    // Переходим (остаёмся) в режим выбора ресторана
    next(cmd::Dialogue::BasketMode(user_id))
+}
+
+// Отправляет сообщение с информацией о заказе, ожидающем обработки другой стороной
+async fn send_message_for_eater(cx: &cmd::Cx<i32>, caterer_id: i32, ticket: db::Ticket) {
+   // Извлечём данные
+   let message_id = ticket.message_id;
+
+   // Отправляем стадию выполнения с цитированием заказа
+   let (text, markup) = make_message_for_eater(caterer_id, ticket).await;
+   let res = cx.answer(text)
+   .reply_to_message_id(message_id)
+   .reply_markup(markup)
+   .send()
+   .await;
+
+   if let Err(e) = res {
+      db::log(&format!("Error send_message_for_eater: {}", e)).await
+   }
+}
+
+async fn send_messages_for_eater(cx: &cmd::Cx<i32>, eater_id: i32) {
+   let ticket_info = db::eater_ticket_info(eater_id).await;
+   for ticket_item in ticket_info {
+      let (caterer_id, ticket) = ticket_item;
+      send_message_for_eater(&cx, caterer_id, ticket).await;
+   }
+}
+
+async fn send_message_for_eater2(chat_id: ChatId, caterer_id: i32, ticket: db::Ticket) {
+   // Используем специально выделенный экземпляр бота
+   if let Some(bot) = db::BOT.get() {
+
+      // Извлечём данные
+      let message_id = ticket.message_id;
+
+      // Отправляем стадию выполнения с цитированием заказа
+      let (text, markup) = make_message_for_eater(caterer_id, ticket).await;
+      let res = bot.send_message(chat_id, text)
+      .reply_to_message_id(message_id)
+      .reply_markup(markup)
+      .send()
+      .await;
+
+      if let Err(e) = res {
+         db::log(&format!("Error send_message_for_eater2: {}", e)).await
+      }
+   } else {
+      db::log(&String::from("Error send_message_for_eater2: no bot")).await
+   }
+}
+
+async fn send_messages_for_eater2(chat_id: ChatId, eater_id: i32) {
+   let ticket_info = db::eater_ticket_info(eater_id).await;
+   for ticket_item in ticket_info {
+      let (caterer_id, ticket) = ticket_item;
+      send_message_for_eater2(chat_id.clone(), caterer_id, ticket).await;
+   }
 }
 
 // Формирует сообщение с заказом для показа едоку
@@ -120,11 +164,11 @@ pub async fn make_message_for_eater(caterer_id: i32, ticket: db::Ticket) -> (Str
    let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, caterer_id);
 
    // Возвращаем сообщение со стадией выполнения и цитированием заказа
-   (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id, caterer_id, ticket.message_id))
+   (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id))
 }
 
 // Формирует сообщение с заказом для показа ресторатору
-pub async fn make_message_for_caterer(cx: &cmd::Cx<i32>, eater_id: i32, ticket: db::Ticket, caterer_id: i32) -> SendMessage {
+pub async fn make_message_for_caterer(eater_id: i32, ticket: db::Ticket) -> (String, InlineKeyboardMarkup) {
    // Текст сообщения
    let eater_name = db::user_name_by_id(eater_id).await;
    let stage1 = db::stage_to_str(ticket.stage);
@@ -132,9 +176,7 @@ pub async fn make_message_for_caterer(cx: &cmd::Cx<i32>, eater_id: i32, ticket: 
    let s = format!("Заказ вам от {}. Для отправки заказчику сообщения, например, с уточнением времени, нажмите на ссылку /snd{}\nДля изменения статуса '{}' на '{}' нажмите кнопку 'Далее'", eater_name, eater_id, stage1, stage2);
 
    // Возвращаем сообщение со стадией выполнения и цитированием заказа
-   cx.answer(s)
-   .reply_to_message_id(ticket.message_id)
-   .reply_markup(cmd::Basket::inline_markup_message_next(ticket.ticket_id, caterer_id, ticket.message_id))
+   (s, cmd::Basket::inline_markup_message_next(ticket.ticket_id))
 }
 
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
@@ -389,7 +431,7 @@ pub async fn edit_address_mode(cx: cmd::Cx<i32>) -> cmd::Res {
 }
 
 // Отправляет сообщение ресторатору с корзиной пользователя
-pub async fn send_basket(rest_id: i32, user_id: i32, message_id: i32) -> bool {
+pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, user_id: i32, message_id: i32) -> bool {
    // Используем специально выделенный экземпляр бота
    if let Some(bot) = db::BOT.get() {
       // Откуда и куда
@@ -425,7 +467,15 @@ pub async fn send_basket(rest_id: i32, user_id: i32, message_id: i32) -> bool {
                   let s = format!("Old message_id={}, new message_id={}", message_id, new_message.id);
                   db::log_and_notify(&s).await;
                   // Переместим заказ из корзины в обработку
-                  return db::order_to_ticket(user_id, rest_id, message_id).await;
+                  if db::order_to_ticket(user_id, rest_id, message_id).await {
+
+                     // Отредактируем исходное сообщение - уберём кнопку
+                     if remove_inline_markup(cx).await {
+
+                        // Отправим новое сообщение, уже со статусом заказа
+                        send_messages_for_eater2(from, user_id).await;
+                     }
+                  }
                }
                Err(err) =>  { db::log(&format!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
             }
@@ -436,6 +486,28 @@ pub async fn send_basket(rest_id: i32, user_id: i32, message_id: i32) -> bool {
    
    // Раз попали сюда, значит что-то пошло не так
    false
+}
+
+// Удаляет инлайн-кнопки под сообщением
+async fn remove_inline_markup(cx: &DispatcherHandlerCx<CallbackQuery>) -> bool {
+   // Доступ к редактируемому сообщению
+   if let Some(message) = cx.update.message.as_ref() {
+
+      // Код чата и сообщения
+      let chat_message = ChatOrInlineMessage::Chat {
+         chat_id: ChatId::Id(message.chat_id()),
+         message_id: message.id,
+      };
+         
+      match cx.bot.edit_message_reply_markup(chat_message).send().await {
+         Err(e) => {
+            let text = format!("Error remove_inline_markup: {}", e);
+            db::log(&text).await;
+            false
+         }
+         _ => true,
+      }
+   } else {false}
 }
 
 // Отправляет сообщение ресторатору с корзиной пользователя

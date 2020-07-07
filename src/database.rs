@@ -675,6 +675,12 @@ pub struct Ticket {
 } 
 pub type TicketInfo = BTreeMap<i32, Ticket>;
 
+pub struct TicketWithOwners {
+   pub caterer_id: i32,
+   pub eater_id: i32,
+   pub ticket: Ticket,
+}
+
 // Возвращает заказы указанного едока
 pub async fn eater_ticket_info(eater_id: i32) -> TicketInfo {
    // Выполняем запрос
@@ -705,6 +711,31 @@ pub async fn caterer_ticket_info(caterer_id: i32) -> TicketInfo {
          // Сообщаем об ошибке и возвращаем пустой список
          log(&format!("Error db::caterer_ticket_info({}): {}", caterer_id, e)).await;
          TicketInfo::new()
+      }
+   }
+}
+
+// Возвращает тикеты с владельцами
+pub async fn ticket_with_owners(ticket_id: i32) -> Option<TicketWithOwners> {
+   // Выполняем запрос
+   let row = DB.get().unwrap().get().await.unwrap()
+   .query_one("SELECT caterer_id, eater_id, message_id, stage FROM tickets WHERE ticket_id=$1::INTEGER", &[&ticket_id])
+   .await;
+
+   match row {
+      Ok(data) => Some(TicketWithOwners{
+         caterer_id: data.get(0),
+         eater_id: data.get(1),
+         ticket: Ticket {
+            ticket_id,
+            message_id: data.get(2),
+            stage: data.get(3),
+         }
+      }),
+      Err(e) => {
+         // Сообщаем об ошибке и возвращаем пустой список
+         log(&format!("Error db::ticket_with_owners({}): {}", ticket_id, e)).await;
+         None
       }
    }
 }
