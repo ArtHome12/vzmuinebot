@@ -489,8 +489,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
          db::log_forward(from.clone(), message_id).await;
          match cx.bot.forward_message(to, from.clone(), message_id).send().await {
             Ok(new_message) => {
-               // let s = format!("Old message_id={}, new message_id={}", message_id, new_message.id);
-               // db::log_and_notify(&s).await;
+
                // Переместим заказ из корзины в обработку
                if db::order_to_ticket(user_id, rest_id, message_id, new_message.id).await {
                   // Отправим новое сообщение, уже со статусом заказа
@@ -506,29 +505,6 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
    // Раз попали сюда, значит что-то пошло не так
    false
 }
-
-/* // Удаляет инлайн-кнопки под сообщением
-async fn remove_inline_markup(cx: &DispatcherHandlerCx<CallbackQuery>) -> bool {
-   // Доступ к редактируемому сообщению
-   if let Some(message) = cx.update.message.as_ref() {
-
-      // Код чата и сообщения
-      let chat_message = ChatOrInlineMessage::Chat {
-         chat_id: ChatId::Id(message.chat_id()),
-         message_id: message.id,
-      };
-         
-      match cx.bot.edit_message_reply_markup(chat_message).send().await {
-         Err(e) => {
-            let text = format!("Error remove_inline_markup: {}", e);
-            db::log(&text).await;
-            false
-         }
-         _ => true,
-      }
-   } else {false}
-}
- */
 
 // Отправляет сообщение ресторатору с корзиной пользователя
 // pub async fn prepare_to_send_message(user_id: i32, rest_id: i32) -> bool {
