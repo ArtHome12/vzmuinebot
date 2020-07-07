@@ -66,31 +66,14 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       }
    }
 
-   // Теперь выводим собственные заказы в обработке другой стороной
    let bot = cx.bot.clone();
    let chat = ChatId::Id(cx.chat_id());
-   send_messages_for_eater(bot, chat, user_id).await;
+
+   // Теперь выводим собственные заказы в обработке другой стороной
+   send_messages_for_eater(bot.clone(), chat.clone(), user_id).await;
 
    // Теперь выводим заказы, отправленные едоками нам, если мы вдруг ресторан
-   let ticket_info = db::caterer_ticket_info(user_id).await;
-
-   for ticket_item in ticket_info {
-      // Извлечём данные
-      let (eater_id, ticket) = ticket_item;
-      let message_id = ticket.caterer_msg_id;
-
-      // Отправляем стадию выполнения с цитированием заказа
-      let (text, markup) = make_message_for_caterer(eater_id, ticket).await;
-      let res = cx.answer(text)
-      .reply_to_message_id(message_id)
-      .reply_markup(markup)
-      .send()
-      .await;
-      
-      if let Err(e) = res {
-         db::log(&format!("Error next_with_info send ticket2(): {}", e)).await
-      }
-   }
+   send_messages_for_caterer(bot.clone(), chat.clone(), user_id).await;
    
    // Переходим (остаёмся) в режим выбора ресторана
    next(cmd::Dialogue::BasketMode(user_id))
@@ -119,6 +102,33 @@ async fn send_messages_for_eater(bot: Arc<Bot>, chat: ChatId, eater_id: i32) {
    for ticket_item in ticket_info {
       let (caterer_id, ticket) = ticket_item;
       send_message_for_eater(bot.clone(), chat.clone(), caterer_id, ticket).await;
+   }
+}
+
+// Отправляет сообщение с информацией о заказе, ожидающем обработки другой стороной
+async fn send_message_for_caterer(bot: Arc<Bot>, chat: ChatId, eater_id: i32, ticket: db::Ticket) {
+   // Извлечём данные
+   let message_id = ticket.caterer_msg_id;
+
+   // Отправляем стадию выполнения с цитированием заказа
+   let (text, markup) = make_message_for_caterer(eater_id, ticket).await;
+   let res = bot.send_message(chat, text)
+   .reply_to_message_id(message_id)
+   .reply_markup(markup)
+   .send()
+   .await;
+   
+   if let Err(e) = res {
+      db::log(&format!("Error next_with_info send ticket2(): {}", e)).await
+   }
+}
+
+async fn send_messages_for_caterer(bot: Arc<Bot>, chat: ChatId, caterer_id: i32) {
+   let ticket_info = db::caterer_ticket_info(caterer_id).await;
+
+   for ticket_item in ticket_info {
+      let (eater_id, ticket) = ticket_item;
+      send_message_for_caterer(bot.clone(), chat.clone(), eater_id, ticket).await;
    }
 }
 
@@ -470,7 +480,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
 
          // Перешлём сообщение с заказом, при этом надо сохранить его идентификатор в чате назначения
          db::log_forward(from.clone(), message_id).await;
-         match cx.bot.forward_message(to, from.clone(), message_id).send().await {
+         match cx.bot.forward_message(to.clone(), from.clone(), message_id).send().await {
             Ok(new_message) => {
 
                // Переместим заказ из корзины в обработку
@@ -479,7 +489,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
                   send_messages_for_eater(cx.bot.clone(), from, user_id).await;
 
                   // Отправим сообщение ресторатору, уже со статусом заказа
-                  // send_messages_for_eater2(from, user_id).await;
+                  send_messages_for_caterer(cx.bot.clone(), to, user_id).await;
 
                   // Все операции прошли успешно
                   return true;
