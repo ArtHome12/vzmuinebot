@@ -556,6 +556,7 @@ impl Basket {
       ReplyKeyboardMarkup::default()
       .append_row(vec![
          KeyboardButton::new("В начало"),
+         KeyboardButton::new("🔄 ⟳"),
          KeyboardButton::new("Очистить"),
       ])
       .resize_keyboard(true)

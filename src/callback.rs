@@ -10,7 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use teloxide::{
    prelude::*, 
    types::{CallbackQuery, ChatOrInlineMessage, ChatId, InlineKeyboardButton,
-      InlineKeyboardMarkup, },
+      },
 };
 
 use crate::database as db;
@@ -207,7 +207,7 @@ pub async fn message_with_quote(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id
 // }
 
 // Удаляет инлайн-кнопки под сообщением
-async fn remove_inline_markup(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: i32, message_id: i32) {
+/* async fn remove_inline_markup(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: i32, message_id: i32) {
 
    // Код чата и сообщения
    let chat_message = ChatOrInlineMessage::Chat {
@@ -216,12 +216,12 @@ async fn remove_inline_markup(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: 
    };
 
    // Выполняем операцию, при ошибке - текст в служебный чат
-   if let Err(e) = cx.bot.edit_message_reply_markup(chat_message).reply_markup(InlineKeyboardMarkup::default()).send().await {
+   if let Err(e) = cx.bot.edit_message(chat_message).send().await {
       let text = format!("Error callback::remove_inline_markup({}, {}): {}", chat_id, message_id, e);
       db::log(&text).await;
    }
 }
-
+ */
 
 // Отменяет заказ, как со стороны ресторатора, так и едока
 async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ticket_id: i32) -> bool {
@@ -231,9 +231,9 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
       // Информация о тикете
       if let Some(t) = db::ticket_with_owners(ticket_id).await {
 
-         // Удаляем инлайн кнопки под заказом в чате едока и ресторатора
-         remove_inline_markup(cx, t.eater_id, t.ticket.eater_msg_id).await;
-         remove_inline_markup(cx, t.caterer_id, t.ticket.caterer_msg_id).await;
+         // Удаляем инлайн кнопки под заказом в чате едока и ресторатора - не работает
+         // remove_inline_markup(cx, t.eater_id, t.ticket.eater_msg_id).await;
+         // remove_inline_markup(cx, t.caterer_id, t.ticket.caterer_msg_id).await;
 
          // Адрес другой стороны это адрес, не совпадающий с нашим собственным
          let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == t.caterer_id {
@@ -243,12 +243,12 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
          };
 
          // Отправим сообщение другой стороне
-         let s = String::from("Заказ был отменён другой стороной, для получения актуального списка заказов повторно зайдите в корзину");
+         let s = String::from("Заказ был отменён другой стороной, для получения актуального списка заказов обновите корзину");
          let s = format!("{} (other_chat_id={}, other_msg_id={})", s, other_chat_id, other_msg_id);
          message_with_quote(cx, ChatId::Id(i64::from(other_chat_id)), &s, other_msg_id).await;
 
          // Сообщение в своём чате
-         let s = String::from("Вы отменили заказ");
+         let s = String::from("Вы отменили заказ, обновите корзину");
          let s = format!("{} (this_chat_id={}, this_msg_id={})", s, this_chat_id, this_msg_id);
          let this_chat = ChatId::Id(i64::from(this_chat_id));
          message_with_quote(cx, this_chat.clone(), &s, this_msg_id).await;
