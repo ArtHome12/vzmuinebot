@@ -461,7 +461,6 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
       let s = format!("Error send_basket edit_message_text(): {}", e);
       db::log(&s).await;
    }
-
    
    // Информация о едоке
    let basket_info = db::user_basket_info(user_id).await;
@@ -494,6 +493,9 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
                if db::order_to_ticket(user_id, rest_id, message_id, new_message.id).await {
                   // Отправим новое сообщение, уже со статусом заказа
                   send_messages_for_eater2(from, user_id).await;
+
+                  // Все операции прошли успешно
+                  return true;
                }
             }
             Err(err) =>  { db::log(&format!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
