@@ -189,8 +189,12 @@ pub async fn make_message_for_caterer(eater_id: i32, ticket: db::Ticket) -> (Str
    let stage2 = db::stage_to_str(ticket.stage + 1);
    let s = format!("Заказ вам от {} в '{}'. Для отправки заказчику сообщения, например, с уточнением времени, нажмите на ссылку /snd{}\nДля изменения статуса на '{}' нажмите кнопку 'Далее'", eater_name, stage1, eater_id, stage2);
 
-   // Возвращаем сообщение со стадией выполнения и цитированием заказа
-   (s, cmd::Basket::inline_markup_message_next(ticket.ticket_id))
+   // Если заказ на последней стадии, то только кнопка отмены
+   if ticket.stage == 4 {
+      (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id))
+   } else {
+      (s, cmd::Basket::inline_markup_message_next(ticket.ticket_id))
+   }
 }
 
 // Показывает сообщение об ошибке/отмене без повторного вывода информации

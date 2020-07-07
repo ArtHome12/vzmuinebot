@@ -759,10 +759,10 @@ pub async fn basket_edit_stage(ticket_id: i32, stage: i32) -> bool {
 }
 
 // Увеличивает стадию заказа
-pub async fn basket_next_stage(ticket_id: i32) -> bool {
+pub async fn basket_next_stage(user_id: i32, ticket_id: i32) -> bool {
    // Выполняем запрос, статус ещё должен быть незавешённым
    let query = DB.get().unwrap().get().await.unwrap()
-   .execute("UPDATE tickets SET stage = stage + 1 WHERE ticket_id=$1::INTEGER AND stage < 5", &[&ticket_id])
+   .execute("UPDATE tickets SET stage = stage + 1 WHERE ticket_id=$1::INTEGER AND stage < 5 AND (stage != 4 OR caterer_id != $2::INTEGER)", &[&ticket_id, &user_id])
    .await;
    match query {
       Ok(1) => true,

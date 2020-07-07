@@ -266,7 +266,7 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
 // Переводит заказ на следующую стадию
 async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ticket_id: i32) -> bool {
    // Продолжаем только если операция с БД успешна
-   if db::basket_next_stage(ticket_id).await {
+   if db::basket_next_stage(user_id, ticket_id).await {
       
       // Информация о тикете
       if let Some(t) = db::ticket_with_owners(ticket_id).await {
