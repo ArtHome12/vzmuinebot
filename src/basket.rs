@@ -80,7 +80,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    for ticket_item in ticket_info {
       // Извлечём данные
       let (eater_id, ticket) = ticket_item;
-      let message_id = ticket.message_id;
+      let message_id = ticket.caterer_msg_id;
 
       // Отправляем стадию выполнения с цитированием заказа
       let (text, markup) = make_message_for_caterer(eater_id, ticket).await;
@@ -102,7 +102,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 // Отправляет сообщение с информацией о заказе, ожидающем обработки другой стороной
 async fn send_message_for_eater(cx: &cmd::Cx<i32>, caterer_id: i32, ticket: db::Ticket) {
    // Извлечём данные
-   let message_id = ticket.message_id;
+   let message_id = ticket.eater_msg_id;
 
    // Отправляем стадию выполнения с цитированием заказа
    let (text, markup) = make_message_for_eater(caterer_id, ticket).await;
@@ -130,7 +130,7 @@ async fn send_message_for_eater2(chat_id: ChatId, caterer_id: i32, ticket: db::T
    if let Some(bot) = db::BOT.get() {
 
       // Извлечём данные
-      let message_id = ticket.message_id;
+      let message_id = ticket.eater_msg_id;
 
       // Отправляем стадию выполнения с цитированием заказа
       let (text, markup) = make_message_for_eater(caterer_id, ticket).await;
@@ -464,10 +464,10 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
             db::log_forward(from.clone(), message_id).await;
             match bot.forward_message(to, from.clone(), message_id).send().await {
                Ok(new_message) => {
-                  let s = format!("Old message_id={}, new message_id={}", message_id, new_message.id);
-                  db::log_and_notify(&s).await;
+                  // let s = format!("Old message_id={}, new message_id={}", message_id, new_message.id);
+                  // db::log_and_notify(&s).await;
                   // Переместим заказ из корзины в обработку
-                  if db::order_to_ticket(user_id, rest_id, message_id).await {
+                  if db::order_to_ticket(user_id, rest_id, message_id, new_message.id).await {
 
                      // Отредактируем исходное сообщение - уберём кнопку
                      if remove_inline_markup(cx).await {

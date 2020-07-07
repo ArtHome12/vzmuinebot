@@ -642,7 +642,7 @@ pub async fn basket_toggle_pickup(user_id: i32) -> bool {
 }
 
 // Перемещает заказ из таблицы orders в tickets
-pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, message_id: i32) -> bool {
+pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, eater_msg_id: i32, caterer_msg_id: i32) -> bool {
    // Удаляем все блюда ресторана из orders
    let query = DB.get().unwrap().get().await.unwrap()
    .execute("DELETE FROM orders o USING restaurants r WHERE o.rest_num = r.rest_num AND o.user_id = $1::INTEGER AND r.user_id = $2::INTEGER", &[&eater_id, &caterer_id])
@@ -651,7 +651,7 @@ pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, message_id: i32) ->
       Ok(_) => {
          // Создаём запись в tickets
          let query = DB.get().unwrap().get().await.unwrap()
-         .execute("INSERT INTO tickets (eater_id, caterer_id, message_id, stage) VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, 1)", &[&eater_id, &caterer_id, &message_id])
+         .execute("INSERT INTO tickets (eater_id, caterer_id, eater_msg_id, caterer_msg_id, stage) VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, 1)", &[&eater_id, &caterer_id, &eater_msg_id, &caterer_msg_id])
          .await;
          match query {
             Ok(_) => {true}
@@ -670,7 +670,8 @@ pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, message_id: i32) ->
 
 pub struct Ticket {
    pub ticket_id: i32,  // Уникальный ключ БД
-   pub message_id: i32,
+   pub eater_msg_id: i32,
+   pub caterer_msg_id: i32,
    pub stage: i32,
 } 
 pub type TicketInfo = BTreeMap<i32, Ticket>;
@@ -685,11 +686,11 @@ pub struct TicketWithOwners {
 pub async fn eater_ticket_info(eater_id: i32) -> TicketInfo {
    // Выполняем запрос
    let rows = DB.get().unwrap().get().await.unwrap()
-   .query("SELECT caterer_id, ticket_id, message_id, stage FROM tickets WHERE eater_id=$1::INTEGER AND stage < 5", &[&eater_id])
+   .query("SELECT caterer_id, ticket_id, eater_msg_id, caterer_msg_id, stage FROM tickets WHERE eater_id=$1::INTEGER AND stage < 5", &[&eater_id])
    .await;
 
    match rows {
-      Ok(data) => data.into_iter().map(|row| (row.get(0), Ticket{ticket_id: row.get(1), message_id: row.get(2), stage: row.get(3)})).collect(),
+      Ok(data) => data.into_iter().map(|row| (row.get(0), Ticket{ticket_id: row.get(1), eater_msg_id: row.get(2), caterer_msg_id: row.get(3), stage: row.get(4)})).collect(),
       Err(e) => {
          // Сообщаем об ошибке и возвращаем пустой список
          log(&format!("Error db::eater_ticket_info({}): {}", eater_id, e)).await;
@@ -702,11 +703,11 @@ pub async fn eater_ticket_info(eater_id: i32) -> TicketInfo {
 pub async fn caterer_ticket_info(caterer_id: i32) -> TicketInfo {
    // Выполняем запрос
    let rows = DB.get().unwrap().get().await.unwrap()
-   .query("SELECT eater_id, ticket_id, message_id, stage FROM tickets WHERE caterer_id=$1::INTEGER AND stage < 5", &[&caterer_id])
+   .query("SELECT eater_id, ticket_id, eater_msg_id, caterer_msg_id, stage FROM tickets WHERE caterer_id=$1::INTEGER AND stage < 5", &[&caterer_id])
    .await;
 
    match rows {
-      Ok(data) => data.into_iter().map(|row| (row.get(0), Ticket{ticket_id: row.get(1), message_id: row.get(2), stage: row.get(3)})).collect(),
+      Ok(data) => data.into_iter().map(|row| (row.get(0), Ticket{ticket_id: row.get(1), eater_msg_id: row.get(2), caterer_msg_id: row.get(3), stage: row.get(4)})).collect(),
       Err(e) => {
          // Сообщаем об ошибке и возвращаем пустой список
          log(&format!("Error db::caterer_ticket_info({}): {}", caterer_id, e)).await;
@@ -719,7 +720,7 @@ pub async fn caterer_ticket_info(caterer_id: i32) -> TicketInfo {
 pub async fn ticket_with_owners(ticket_id: i32) -> Option<TicketWithOwners> {
    // Выполняем запрос
    let row = DB.get().unwrap().get().await.unwrap()
-   .query_one("SELECT caterer_id, eater_id, message_id, stage FROM tickets WHERE ticket_id=$1::INTEGER", &[&ticket_id])
+   .query_one("SELECT caterer_id, eater_id, eater_msg_id, caterer_msg_id, stage FROM tickets WHERE ticket_id=$1::INTEGER", &[&ticket_id])
    .await;
 
    match row {
@@ -728,8 +729,9 @@ pub async fn ticket_with_owners(ticket_id: i32) -> Option<TicketWithOwners> {
          eater_id: data.get(1),
          ticket: Ticket {
             ticket_id,
-            message_id: data.get(2),
-            stage: data.get(3),
+            eater_msg_id: data.get(2),
+            caterer_msg_id: data.get(3),
+            stage: data.get(4),
          }
       }),
       Err(e) => {
@@ -982,11 +984,12 @@ pub async fn create_tables() -> bool {
                                  let query = DB.get().unwrap().get().await.unwrap()
                                  .execute("CREATE TABLE tickets (
                                     PRIMARY KEY (ticket_id),
-                                    ticket_id   SERIAL         NOT NULL,
-                                    eater_id    INTEGER        NOT NULL,
-                                    caterer_id  INTEGER        NOT NULL,
-                                    message_id  INTEGER        NOT NULL,
-                                    stage       INTEGER        NOT NULL)", &[])
+                                    ticket_id      SERIAL         NOT NULL,
+                                    eater_id       INTEGER        NOT NULL,
+                                    caterer_id     INTEGER        NOT NULL,
+                                    eater_msg_id   INTEGER        NOT NULL,
+                                    caterer_msg_id INTEGER        NOT NULL,
+                                    stage          INTEGER        NOT NULL)", &[])
                                  .await;
                                  
                                  match query {

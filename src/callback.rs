@@ -219,7 +219,7 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
       if let Some(t) = db::ticket_with_owners(ticket_id).await {
 
          // Адрес другой стороны это адрес, не совпадающий с нашим собственным
-         let to = if user_id == t.caterer_id {t.eater_id} else {t.caterer_id};
+         let (to, msg_id) = if user_id == t.caterer_id {(t.eater_id, t.ticket.eater_msg_id)} else {(t.caterer_id, t.ticket.caterer_msg_id)};
 
          // Сообщение для правки в собственном чате
          let message = cx.update.message.as_ref().unwrap();
@@ -227,7 +227,7 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
 
          // Отправим сообщение другой стороне
          let s = String::from("Заказ был отменён другой стороной, для получения актуального списка заказов повторно зайдите в корзину");
-         if reply_message(ChatId::Id(i64::from(to)), &s, t.ticket.message_id).await {
+         if reply_message(ChatId::Id(i64::from(to)), &s, msg_id).await {
             
             let chat_message = ChatOrInlineMessage::Chat {
                chat_id: chat_id.clone(),
@@ -243,7 +243,7 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
             } else {
                // Сообщение об отмене в служебный чат
                db::log(&format!("Заказ отменён по инициативе {}", user_id)).await;
-               db::log_forward(chat_id, t.ticket.message_id).await;
+               db::log_forward(chat_id, t.ticket.eater_msg_id).await;
 
                true
             }
