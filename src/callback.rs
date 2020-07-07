@@ -215,7 +215,8 @@ async fn remove_inline_markup(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: 
    };
 
    // Выполняем операцию, при ошибке - текст в служебный чат
-   if let Err(e) = cx.bot.edit_message_reply_markup(chat_message).send().await {
+   let bot = db::BOT.get().unwrap();
+   if let Err(e) = bot.edit_message_reply_markup(chat_message).send().await {
       let text = format!("Error callback::remove_inline_markup: {}", e);
       db::log(&text).await;
    }
