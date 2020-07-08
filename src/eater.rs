@@ -193,8 +193,8 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
             }
             cmd::User::ChatId => {
                // Отправим информацию о чате
-               let s = format!("Chat id={}", cx.chat_id());
-               cmd::send_text_without_markup(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s).await;
+               let id = cx.chat_id();
+               cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &format!("Chat id={}", id), cmd::User::main_menu_markup()).await;
             }
          }
       }
