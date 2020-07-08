@@ -72,9 +72,8 @@ impl Common {
       // Команда старт может быть с аргументами
       let l_part = input.get(..6).unwrap_or_default();
       if l_part == "/start" {
-         // Поробуем извлечь аргументы
-         let r_part = input.get(6..).unwrap_or_default();
-         log::error!("argument: {}", &r_part);
+         // Поробуем извлечь пробел и аргументы
+         let r_part = input.get(7..).unwrap_or_default();
          return match db::parse_key_3_int(r_part) {
             Ok((first, second, third)) => Common::Start(Some((first, second, third))),
             _ => Common::Start(None),
