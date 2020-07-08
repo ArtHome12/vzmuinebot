@@ -22,6 +22,9 @@ use crate::basket;
 
 pub async fn start(cx: cmd::Cx<()>, after_restart: bool, args: Option<(i32, i32, i32)>) -> cmd::Res {
    
+   if let Some(text) = cx.update.text() {
+      db::log(&text).await;
+   }
    // Различаем перезапуск и возврат из меню ресторатора
    let s = if after_restart {
       // Это первый вход пользователя после перезапуска, сообщим об этом
