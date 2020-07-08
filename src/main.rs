@@ -59,7 +59,7 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
    if chat_id > 0 {
       match dialogue {
          cmd::Dialogue::Start => {
-            eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), true, None).await
+            eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), true).await
          }
          cmd::Dialogue::UserMode(compact_mode) => {
             eater::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, compact_mode)).await

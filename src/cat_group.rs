@@ -82,7 +82,7 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                // Выйти из режима ресторатора
                cmd::CatGroup::Exit => {
                   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false, None).await
+                  eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
                }
 
             // Изменение названия группы
@@ -189,9 +189,9 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                cmd::CatGroup::UnknownCommand => {
                   // Возможно это общая команда
                   match cmd::Common::from(command) {
-                     cmd::Common::Start(args) => {
+                     cmd::Common::Start => {
                         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                        eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false, args).await
+                        eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
                      }
                      cmd::Common::SendMessage(caterer_id) => {
                         // Отправляем приглашение ввести строку со слешем в меню для отмены

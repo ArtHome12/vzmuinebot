@@ -106,7 +106,7 @@ pub async fn handle_commands(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
             // В главное меню
             cmd::EaterDish::Main => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false, None).await
+               eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
             }
 
             // В предыдущее меню
@@ -166,9 +166,9 @@ pub async fn handle_commands(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
             cmd::EaterDish::UnknownCommand => {
                // Возможно это общая команда
                match cmd::Common::from(command) {
-                  cmd::Common::Start(args) => {
+                  cmd::Common::Start => {
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                     eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false, args).await
+                     eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
                   }
                   cmd::Common::SendMessage(caterer_id) => {
                      // Отправляем приглашение ввести строку со слешем в меню для отмены
