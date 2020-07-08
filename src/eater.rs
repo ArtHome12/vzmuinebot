@@ -20,7 +20,7 @@ use crate::eat_rest;
 use crate::eat_rest_now;
 use crate::basket;
 
-pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
+pub async fn start(cx: cmd::Cx<()>, after_restart: bool, args: Option<(i32, i32, i32)>) -> cmd::Res {
    
    // Различаем перезапуск и возврат из меню ресторатора
    let s = if after_restart {
@@ -43,11 +43,17 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    let now = Utc::now().with_timezone(our_timezone).naive_local();
    let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
 
+   // Если заданы аргументы, надо перейти в нужный раздел меню
+   let s = if let Some(addr) = args {
+      let (first, second, third) = addr;
+      format!("{}\nС аргументами: {}", s, db::make_key_3_int(first, second, third))
+   } else {s};
+
    // Отображаем приветственное сообщение и меню с кнопками.
    cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &format!("{}\nРежим интерфейса: {} /toggle", s, db::interface_mode(compact_mode)), cmd::User::main_menu_markup()).await;
-    
-    // Переходим в режим получения выбранного пункта в главном меню.
-    next(cmd::Dialogue::UserMode(compact_mode))
+   
+   // Переходим в режим получения выбранного пункта в главном меню
+   next(cmd::Dialogue::UserMode(compact_mode))
 }
 
 pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
@@ -76,9 +82,9 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
             cmd::User::UnknownCommand => {
                // Возможно это общая команда
                match cmd::Common::from(command) {
-                  cmd::Common::Start => {
+                  cmd::Common::Start(args) => {
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                     return start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await;
+                     return start(DialogueDispatcherHandlerCx::new(bot, update, ()), false, args).await;
                   }
                   cmd::Common::SendMessage(caterer_id) => {
                      // Отправляем приглашение ввести строку со слешем в меню для отмены

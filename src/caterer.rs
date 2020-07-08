@@ -112,7 +112,7 @@ pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
             // Выйти из режима ресторатора
             cmd::Caterer::Exit => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
+               eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false, None).await
             }
 
             // Передать управление рестораном
@@ -202,9 +202,9 @@ pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
             cmd::Caterer::UnknownCommand => {
                // Возможно это общая команда
                match cmd::Common::from(command) {
-                  cmd::Common::Start => {
+                  cmd::Common::Start(args) => {
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                     eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
+                     eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false, args).await
                   }
                   cmd::Common::SendMessage(caterer_id) => {
                      // Отправляем приглашение ввести строку со слешем в меню для отмены

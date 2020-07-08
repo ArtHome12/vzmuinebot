@@ -61,24 +61,33 @@ pub type Res = ResponseResult<DialogueStage<Dialogue>>;
 // ============================================================================
 #[derive(Copy, Clone)]
 pub enum Common {
-   Start,
+   Start(Option<(i32, i32, i32)>),
    SendMessage(i32), // caterer_id
    UnknownCommand,
 }
 
 impl Common {
    pub fn from(input: &str) -> Common {
-      match input {
-         "/start" => Common::Start,
-         _ => {
-            // Ищем среди команд с аргументами
-            let r_part = input.get(4..).unwrap_or_default();
-            match input.get(..4).unwrap_or_default() {
-               "/snd" => Common::SendMessage(r_part.parse().unwrap_or_default()),
-               _ => Common::UnknownCommand,
-            }
-         }
+
+      // Команда старт может быть с аргументами
+      let l_part = input.get(..6).unwrap_or_default();
+      if l_part == "/start" {
+         // Поробуем извлечь аргументы
+         let r_part = input.get(6..).unwrap_or_default();
+         return match db::parse_key_3_int(r_part) {
+            Ok((first, second, third)) => Common::Start(Some((first, second, third))),
+            _ => Common::Start(None),
+         };
       }
+
+      // Команда отправки сообщения должна быть с аргументами
+      let l_part = input.get(..4).unwrap_or_default();
+      if l_part == "/snd" {
+         let r_part = input.get(4..).unwrap_or_default();
+         return Common::SendMessage(r_part.parse().unwrap_or_default());
+      }
+
+      Common::UnknownCommand
    }
 }
 
