@@ -229,7 +229,6 @@ pub async fn remove_slash(s: &str) -> String {
 }
 
 // Отправляет текстовое сообщение
-//
 pub async fn send_text<T>(cx: &Cx<()>, text: &str, markup: T) 
 where
    T: Into<ReplyMarkup>,
@@ -244,6 +243,21 @@ where
    // Если не удалось отправить, выведем ошибку в лог
    if let Err(err) = res {
       db::log(&format!("Error send_text({}): {}", text, err)).await;
+   }
+}
+
+// Отправляет текстовое сообщение
+pub async fn send_text_without_markup(cx: &Cx<()>, text: &str) 
+{
+   let res = cx.answer(text)
+   .disable_notification(true)
+   .disable_web_page_preview(true)
+   .send()
+   .await;
+
+   // Если не удалось отправить, выведем ошибку в лог
+   if let Err(err) = res {
+      db::log(&format!("Error send_text_without_markup({}): {}", text, err)).await;
    }
 }
 
