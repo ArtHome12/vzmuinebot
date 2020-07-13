@@ -59,7 +59,7 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
       if l_part == "/start" {
          // Поробуем извлечь пробел и аргументы
          let r_part = input.get(7..).unwrap_or_default();
-         if let Ok((first, second, third)) = db::parse_key_3_int(r_part) {
+         if let Ok((_first, _second, _third)) = db::parse_key_3_int(r_part) {
                // Перейдём сразу в нужный ресторан
                return next(cmd::Dialogue::BasketMode(user_id));
          }

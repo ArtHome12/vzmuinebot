@@ -16,9 +16,6 @@ use teloxide::{
 };
 use std::collections::BTreeMap;
 
-//use tokio_postgres::{Row, Error};
-// extern crate runtime_fmt;
-
 use crate::language as lang;
 
 // Пул клиентов БД
@@ -27,6 +24,8 @@ pub static DB: OnceCell<Pool> = OnceCell::new();
 
 // Телеграм ник администратора бота для связи
 pub static CONTACT_INFO: OnceCell<String> = OnceCell::new();
+
+// До трёх id администраторов бота
 pub static TELEGRAM_ADMIN_ID: OnceCell<(i32, i32, i32)> = OnceCell::new();
 
 // Телеграм ник группы для вывода лога
@@ -40,9 +39,6 @@ pub static TIME_ZONE: OnceCell<FixedOffset> = OnceCell::new();
 
 // Картинка по-умолчанию
 pub static DEFAULT_IMAGE_ID: OnceCell<String> = OnceCell::new();
-
-// Бот для отправки сообщений между ресторатором и едоком
-pub static BOT: OnceCell<std::sync::Arc<Bot>> = OnceCell::new();
 
 
 // ============================================================================
