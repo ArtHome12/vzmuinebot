@@ -30,38 +30,37 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    let (compact_mode, cat_id) = cx.dialogue;
    
    // Получаем информацию из БД
-   let rest_list = db::restaurant_by_category(cat_id).await;
+   match db::restaurant_by_category(cat_id).await {
+      Some(rest_list) => {
+         // Выводим информацию либо ссылками, либо инлайн кнопками
+         if compact_mode {
+            // Сформируем строку вида "название /ссылка\n"
+            let s: String = rest_list.into_iter().map(|(rest_num, title)| (format!("   {} /rest{}\n", title, rest_num))).collect();
+            
+            // Отображаем информацию и кнопки меню
+            let s = format!("Рестораны с подходящим меню:\n{}", s);
+            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
+            cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
+      
+         } else {
+            // Создадим кнопки
+            let markup = make_markup(rest_list, cat_id);
 
-   // Если там пусто, то сообщим об этом
-   if rest_list.is_empty() {
-      let s = String::from(lang::t("ru", lang::Res::EatRestEmpty));
-      let s = format!("Рестораны с подходящим меню:\n{}", s);
-      let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
-      cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
+            // Отправляем сообщение с плашкой в качестве картинки
+            let s = String::from("Рестораны с подходящим меню:");
+            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
+            cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), db::default_photo_id()).await;
 
-   } else {
-
-      // Выводим информацию либо ссылками, либо инлайн кнопками
-      if compact_mode {
-         // Сформируем строку вида "название /ссылка\n"
-         let s: String = rest_list.into_iter().map(|(rest_num, title)| (format!("   {} /rest{}\n", title, rest_num))).collect();
-         
-         // Отображаем информацию и кнопки меню
+            // В инлайн-режиме всегда остаёмся в главном меню
+            return next(cmd::Dialogue::UserMode(compact_mode));
+         }
+      }
+      None => {
+         // Если там пусто, то сообщим об этом
+         let s = String::from(lang::t("ru", lang::Res::EatRestEmpty));
          let s = format!("Рестораны с подходящим меню:\n{}", s);
          let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
          cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
-   
-      } else {
-         // Создадим кнопки
-         let markup = make_markup(rest_list, cat_id);
-
-         // Отправляем сообщение с плашкой в качестве картинки
-         let s = String::from("Рестораны с подходящим меню:");
-         let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
-         cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), db::default_photo_id()).await;
-
-         // В инлайн-режиме всегда остаёмся в главном меню
-         return next(cmd::Dialogue::UserMode(compact_mode));
       }
    }
 
@@ -182,35 +181,41 @@ fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMark
 // Выводит инлайн кнопки, редактируя предыдущее сообщение
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_id: i32) -> bool {
    // Получаем информацию из БД
-   let rest_list = db::restaurant_by_category(cat_id).await;
+   match db::restaurant_by_category(cat_id).await {
+      Some(rest_list) => {
+         // Создадим кнопки
+         let markup = make_markup(rest_list, cat_id);
 
-   // Создадим кнопки
-   let markup = make_markup(rest_list, cat_id);
+         // Достаём chat_id
+         let message = cx.update.message.as_ref().unwrap();
+         let chat_message = ChatOrInlineMessage::Chat {
+            chat_id: ChatId::Id(message.chat_id()),
+            message_id: message.id,
+         };
 
-   // Достаём chat_id
-   let message = cx.update.message.as_ref().unwrap();
-   let chat_message = ChatOrInlineMessage::Chat {
-      chat_id: ChatId::Id(message.chat_id()),
-      message_id: message.id,
-   };
+         // Приготовим структуру для редактирования
+         let media = InputMedia::Photo{
+            media: InputFile::file_id(db::default_photo_id()),
+            caption: Some( String::from("Рестораны с подходящим меню:")),
+            parse_mode: None,
+         };
 
-   // Приготовим структуру для редактирования
-   let media = InputMedia::Photo{
-      media: InputFile::file_id(db::default_photo_id()),
-      caption: Some( String::from("Рестораны с подходящим меню:")),
-      parse_mode: None,
-   };
-
-   // Отправляем изменения
-   match cx.bot.edit_message_media(chat_message, media)
-   .reply_markup(markup)
-   .send()
-   .await {
-      Err(e) => {
-         db::log(&format!("Error eat_rest::show_inline_interface {}", e)).await;
+         // Отправляем изменения
+         match cx.bot.edit_message_media(chat_message, media)
+         .reply_markup(markup)
+         .send()
+         .await {
+            Err(e) => {
+               db::log(&format!("Error eat_rest::show_inline_interface {}", e)).await;
+               false
+            }
+            _ => true,
+         }
+      }
+      None => {
+         db::log(&format!("Error eat_rest::show_inline_interface({}) - empty list", cat_id)).await;
          false
       }
-      _ => true,
    }
 }
 

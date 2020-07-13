@@ -46,9 +46,8 @@ pub static DEFAULT_IMAGE_ID: OnceCell<String> = OnceCell::new();
 // ============================================================================
 
 // Возвращает список ресторанов с активными группами в данной категории
-//
 pub type RestaurantList = BTreeMap<i32, String>;
-pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
+pub async fn restaurant_by_category(cat_id: i32) -> Option<RestaurantList> {
    // Выполняем запрос
    let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
@@ -57,17 +56,17 @@ pub async fn restaurant_by_category(cat_id: i32) -> RestaurantList {
 
    // Возвращаем результат
    match rows {
-      Ok(data) => data.into_iter().map(|row| (row.get(0), row.get(1))).collect(),
+      Ok(data) => Some(data.into_iter().map(|row| (row.get(0), row.get(1))).collect()),
       Err(e) => {
-         // Сообщаем об ошибке и возвращаем пустой список
+         // Сообщаем об ошибке и возвращаем пустой результат
          log(&format!("Error restaurant_by_category: {}", e)).await;
-         BTreeMap::<i32, String>::new()
+         None
       }
    }
 }
 
 // Возвращает список ресторанов с активными группами в указанное время
-pub async fn restaurant_by_now(time: NaiveTime) -> RestaurantList {
+pub async fn restaurant_by_now(time: NaiveTime) -> Option<RestaurantList> {
    // Выполняем запрос
    let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
@@ -76,11 +75,11 @@ pub async fn restaurant_by_now(time: NaiveTime) -> RestaurantList {
 
    // Возвращаем результат
    match rows {
-      Ok(data) => data.into_iter().map(|row| (row.get(0), row.get(1))).collect(),
+      Ok(data) => Some(data.into_iter().map(|row| (row.get(0), row.get(1))).collect()),
       Err(e) => {
          // Сообщаем об ошибке и возвращаем пустой список
          log(&format!("Error restaurant_by_now: {}", e)).await;
-         BTreeMap::<i32, String>::new()
+         None
       }
    }
 }
@@ -306,14 +305,11 @@ pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Op
 pub async fn category_by_restaurant_and_group(rest_num: i32, group_num: i32) -> i32 {
    // Выполняем запрос информации о группе
    let rows = DB.get().unwrap().get().await.unwrap()
-      .query("SELECT cat_id FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
+      .query_one("SELECT cat_id FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
       .await;
 
    match rows {
-      Ok(data) => {
-         if !data.is_empty() { data[0].get(0) }
-         else { 0 }
-      }
+      Ok(data) => data.get(0),
       _ => 0,
    }
 }
@@ -367,7 +363,7 @@ pub async fn register_caterer(user_id: i32) -> bool {
    
    // Создаём новый ресторан
    let query = DB.get().unwrap().get().await.unwrap()
-   .execute("INSERT INTO restaurants (user_id, title, info, active, enabled, opening_time, closing_time) VALUES ($1::INTEGER, 'Му-му', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE, '07:00', '23:00')", &[&user_id])
+   .execute("INSERT INTO restaurants (user_id, title, info, active, enabled, opening_time, closing_time) VALUES ($1::INTEGER, 'Мяу', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE, '07:00', '23:00')", &[&user_id])
    .await;
    
    match query {

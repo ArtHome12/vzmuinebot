@@ -33,39 +33,37 @@ pub async fn next_with_info(cx: cmd::Cx<bool>) -> cmd::Res {
    let our_timezone = db::TIME_ZONE.get().unwrap();
    let now = Utc::now().with_timezone(our_timezone).naive_local().time();
    
-   // Получаем информацию из БД
-   let rest_list = db::restaurant_by_now(now).await;
+   match db::restaurant_by_now(now).await {
+      Some(rest_list) => {
+         // Выводим информацию либо ссылками, либо инлайн кнопками
+         if compact_mode {
+            // Сформируем строку вида "название /ссылка\n"
+            let s: String = rest_list.into_iter().map(|(rest_num, title)| (format!("   {} /rest{}\n", title, rest_num))).collect();
+            
+            // Отображаем информацию и кнопки меню
+            let s = format!("Рестораны, открытые сейчас ({}):\n{}", now.format("%H:%M"), s);
+            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
+            cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
+      
+         } else {
+            // Создадим кнопки
+            let markup = make_markup(rest_list);
 
-   // Если там пусто, то сообщим об этом
-   if rest_list.is_empty() {
-      let s = String::from(lang::t("ru", lang::Res::EatRestNowEmpty));
-      let s = format!("Рестораны, открытые сейчас ({}):\n{}", now.format("%H:%M"), s);
-      let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
-      cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
+            // Отправляем сообщение с плашкой в качестве картинки
+            let s = String::from(format!("Рестораны, открытые сейчас ({}):", now.format("%H:%M")));
+            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
+            cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), db::default_photo_id()).await;
 
-   } else {
-
-      // Выводим информацию либо ссылками, либо инлайн кнопками
-      if compact_mode {
-         // Сформируем строку вида "название /ссылка\n"
-         let s: String = rest_list.into_iter().map(|(rest_num, title)| (format!("   {} /rest{}\n", title, rest_num))).collect();
-         
-         // Отображаем информацию и кнопки меню
+            // В инлайн-режиме всегда остаёмся в главном меню
+            return next(cmd::Dialogue::UserMode(compact_mode));
+         }
+      }
+      None => {
+         // Если там пусто, то сообщим об этом
+         let s = String::from(lang::t("ru", lang::Res::EatRestNowEmpty));
          let s = format!("Рестораны, открытые сейчас ({}):\n{}", now.format("%H:%M"), s);
          let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
          cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
-   
-      } else {
-         // Создадим кнопки
-         let markup = make_markup(rest_list);
-
-         // Отправляем сообщение с плашкой в качестве картинки
-         let s = String::from(format!("Рестораны, открытые сейчас ({}):", now.format("%H:%M")));
-         let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
-         cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), db::default_photo_id()).await;
-
-         // В инлайн-режиме всегда остаёмся в главном меню
-         return next(cmd::Dialogue::UserMode(compact_mode));
       }
    }
 
@@ -191,35 +189,41 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>) -> b
    let now = Utc::now().with_timezone(our_timezone).naive_local().time();
    
    // Получаем информацию из БД
-   let rest_list = db::restaurant_by_now(now).await;
+   match db::restaurant_by_now(now).await {
+      Some(rest_list) => {
+         // Создадим кнопки
+         let markup = make_markup(rest_list);
 
-   // Создадим кнопки
-   let markup = make_markup(rest_list);
+         // Достаём chat_id
+         let message = cx.update.message.as_ref().unwrap();
+         let chat_message = ChatOrInlineMessage::Chat {
+            chat_id: ChatId::Id(message.chat_id()),
+            message_id: message.id,
+         };
 
-   // Достаём chat_id
-   let message = cx.update.message.as_ref().unwrap();
-   let chat_message = ChatOrInlineMessage::Chat {
-      chat_id: ChatId::Id(message.chat_id()),
-      message_id: message.id,
-   };
+         // Приготовим структуру для редактирования
+         let media = InputMedia::Photo{
+            media: InputFile::file_id(db::default_photo_id()),
+            caption: Some( format!("Рестораны, открытые сейчас ({}):", now.format("%H:%M"))),
+            parse_mode: None,
+         };
 
-   // Приготовим структуру для редактирования
-   let media = InputMedia::Photo{
-      media: InputFile::file_id(db::default_photo_id()),
-      caption: Some( format!("Рестораны, открытые сейчас ({}):", now.format("%H:%M"))),
-      parse_mode: None,
-   };
-
-   // Отправляем изменения
-   match cx.bot.edit_message_media(chat_message, media)
-   .reply_markup(markup)
-   .send()
-   .await {
-      Err(e) => {
-         db::log(&format!("Error eat_rest::show_inline_interface {}", e)).await;
+         // Отправляем изменения
+         match cx.bot.edit_message_media(chat_message, media)
+         .reply_markup(markup)
+         .send()
+         .await {
+            Err(e) => {
+               db::log(&format!("Error eat_rest::show_inline_interface {}", e)).await;
+               false
+            }
+            _ => true,
+         }
+      }
+      None => {
+         db::log(&format!("Error eat_rest_now::show_inline_interface() - empty list")).await;
          false
       }
-      _ => true,
    }
 }
 
