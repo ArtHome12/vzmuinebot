@@ -20,6 +20,7 @@ pub static VARS: OnceCell<Vars> = OnceCell::new();
 
 
 // Хранит данные для работы логирования в чат
+#[derive(Clone)]
 pub struct ServiceChat {
    pub id: i64,
    pub bot: std::sync::Arc<Bot>,
@@ -29,13 +30,7 @@ pub struct ServiceChat {
 impl ServiceChat {
    // Непосредственно отправляет сообщение
    async fn send(&self, text: &str, silence: bool) {
-      // ФОрмируем сообщение для откравки
-      let res = self.bot.send_message(self.id, text).disable_notification(silence);
-
-      // Отправляем, при ошибке запись в консольный лог
-      if let Err(err) = res.send().await {
-         log::info!("Error log({}): {}", text, err);
-      }
+      send_to_chat(&self, text, silence).await
    }
 }
 
@@ -62,6 +57,21 @@ pub async fn log_forward(from_chat: ChatId, message_id: i32) {
    }
 }
 
+// Отправляет сообщение без использования self
+async fn send_to_chat(chat: &ServiceChat, text: &str, silence: bool) {
+   // Формируем сообщение для откравки
+   let res = chat.bot.send_message(chat.id, text).disable_notification(silence);
+
+   // Отправляем, при ошибке запись в консольный лог
+   if let Err(err) = res.send().await {
+      log::info!("Error log({}): {}", text, err);
+   }
+}
+
+// Для удобства обёртка - отправляет сообщение в чат, если он есть, и не делает ничего, если его нет
+async fn int_log(chat: Option<ServiceChat>, text: &str) {
+   if let Some(c) = chat {send_to_chat(&c, text, true).await;}
+}
 
 
 // Информация из переменных окружения
@@ -89,23 +99,26 @@ pub struct Vars {
 
 impl Vars {
    pub async fn from_env(bot: &Arc<Bot>) -> Self {
-      Vars {
-         // Начинаем со служебного чата, чтобы выводить в него ошибки
-         chat: if let Ok(log_group_id_env) = env::var("LOG_GROUP_ID") {
-            if let Ok(log_group_id) = log_group_id_env.parse::<i64>() {
-               // Сохраняем id и копию экземпляра бота в глобальной переменной
-               Some(ServiceChat {
-                  id: log_group_id,
-                  bot: Arc::clone(bot),
-               })
-            } else {
-               log::info!("Environment variable LOG_GROUP_ID must be integer");
-               None
-            }
+
+      // Начинаем со служебного чата, чтобы иметь возможность выводить в него ошибки
+      let chat = if let Ok(log_group_id_env) = env::var("LOG_GROUP_ID") {
+         if let Ok(log_group_id) = log_group_id_env.parse::<i64>() {
+            // Сохраняем id и копию экземпляра бота в глобальной переменной
+            Some(ServiceChat {
+               id: log_group_id,
+               bot: Arc::clone(bot),
+            })
          } else {
-            log::info!("There is no environment variable LOG_GROUP_ID, no service chat");
+            log::info!("Environment variable LOG_GROUP_ID must be integer");
             None
-         },
+         }
+      } else {
+         log::info!("There is no environment variable LOG_GROUP_ID, no service chat");
+         None
+      };
+      
+      Vars {
+         chat: chat.clone(),
 
          // Контактная информация администраторов бота
          admin_contact_info: {
@@ -115,7 +128,7 @@ impl Vars {
                   s   
                }
                Err(e) => {
-                  log(&format!("Something wrong with CONTACT_INFO: {}", e)).await;
+                  int_log(chat, &format!("Something wrong with CONTACT_INFO: {}", e)).await;
                   String::default()
                }
             }
