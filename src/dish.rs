@@ -17,6 +17,7 @@ use crate::database as db;
 use crate::eater;
 use crate::caterer;
 use crate::cat_group;
+use crate::settings;
 
 // Показывает информацию о блюде 
 //
@@ -184,7 +185,7 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 
                // Сообщение в лог
                let text = format!("{} удалил блюдо {}", db::user_info(cx.update.from(), false), db::make_key_3_int(rest_id, group_id, dish_id));
-               db::log(&text).await;
+               settings::log(&text).await;
 
                // Блюда больше нет, показываем меню группы
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;

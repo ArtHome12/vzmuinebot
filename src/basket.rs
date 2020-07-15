@@ -16,9 +16,9 @@ use std::sync::Arc;
 use crate::commands as cmd;
 use crate::database as db;
 use crate::eater;
+use crate::settings;
 
 // Показывает список закзов для user_id
-//
 pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    // Извлечём параметры
    let user_id = cx.dialogue;
@@ -44,7 +44,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       .await?;
    } else {
       // Отображаем приветствие
-      let s = format!("{}\n\nОбщая сумма заказа {}. Вы можете самостоятельно скопировать сообщения с заказом и переслать напрямую в заведение или в независимую доставку, а потом очистить корзину. Либо воспользоваться кнопками под заказом (перепроверьте ваши контактные данные)", eater_info, db::price_with_unit(grand_total));
+      let s = format!("{}\n\nОбщая сумма заказа {}. Вы можете самостоятельно скопировать сообщения с заказом и переслать напрямую в заведение или в независимую доставку, а потом очистить корзину. Либо воспользоваться кнопками под заказом (перепроверьте ваши контактные данные)", eater_info, settings::price_with_unit(grand_total));
       cx.answer(s)
       .reply_markup(cmd::Basket::bottom_markup())
       .disable_notification(true)
@@ -93,7 +93,7 @@ async fn send_message_for_eater(bot: Arc<Bot>, chat: ChatId, caterer_id: i32, ti
    .await;
 
    if let Err(e) = res {
-      db::log(&format!("Error send_message_for_eater: {}", e)).await
+      settings::log(&format!("Error send_message_for_eater: {}", e)).await
    }
 }
 
@@ -119,7 +119,7 @@ async fn send_message_for_caterer(bot: Arc<Bot>, chat: ChatId, eater_id: i32, ti
    .await;
    
    if let Err(e) = res {
-      db::log(&format!("Error send_message_for_caterer(): {}", e)).await
+      settings::log(&format!("Error send_message_for_caterer(): {}", e)).await
    }
 }
 
@@ -143,7 +143,7 @@ pub fn make_basket_message_text(basket: &db::Basket) -> String {
    }
 
    // Итоговая стоимость
-   s.push_str(&format!("\nВсего: {}", db::price_with_unit(basket.total)));
+   s.push_str(&format!("\nВсего: {}", settings::price_with_unit(basket.total)));
    s
 }
 
@@ -251,7 +251,7 @@ pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
                if db::clear_basket(user_id).await {
                   // Сообщение в лог
                   let text = format!("{} корзина очищена", db::user_info(cx.update.from(), false));
-                  db::log(&text).await;
+                  settings::log(&text).await;
 
                   // Отображаем пустую корзину
                   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
@@ -269,7 +269,7 @@ pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
                   Ok(_) => {
                      // Сообщение в лог
                      let text = format!("{} корзина {} удалено", db::user_info(cx.update.from(), false), db::make_key_3_int(rest_num, group_num, dish_num));
-                     db::log(&text).await;
+                     settings::log(&text).await;
 
                      // Отображаем изменённую корзину
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
@@ -453,7 +453,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
    // Исправим исходное сообщение на новый текст
    if let Err(e) = cx.bot.edit_message_text(original_message, make_basket_message_text(&basket_with_no_commands)).send().await {
       let s = format!("Error send_basket edit_message_text(): {}", e);
-      db::log(&s).await;
+      settings::log(&s).await;
    }
    
    // Информация о едоке
@@ -466,19 +466,19 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
    };
 
    // Отправим сообщение с контактными данными
-   db::log_and_notify(&eater_info).await;
+   settings::log_and_notify(&eater_info).await;
    match cx.bot.send_message(to.clone(), eater_info).send().await {
       Ok(_) => {
          // Перешлём сообщение с геолокацией, если она задана
          if let Some(location_message) = location_message_id {
 
-            db::log_forward(from.clone(), location_message).await;
+            settings::log_forward(from.clone(), location_message).await;
             if let Err(e) = cx.bot.forward_message(to.clone(), from.clone(), location_message).send().await {
-               db::log(&format!("Error send_basket forward location({}, {}, {}): {}", user_id, rest_id, message_id, e)).await;
+               settings::log(&format!("Error send_basket forward location({}, {}, {}): {}", user_id, rest_id, message_id, e)).await;
             }
          }
 
-         db::log_forward(from.clone(), message_id).await;
+         settings::log_forward(from.clone(), message_id).await;
          match cx.bot.forward_message(to.clone(), from.clone(), message_id).send().await {
             Ok(new_message) => {
 
@@ -494,10 +494,10 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
                   return true;
                }
             }
-            Err(err) =>  { db::log(&format!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
+            Err(err) =>  { settings::log(&format!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
          }
       }
-      Err(err) =>  { db::log(&format!("Error send_basket announcement({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
+      Err(err) =>  { settings::log(&format!("Error send_basket announcement({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
    }
    
    // Раз попали сюда, значит что-то пошло не так

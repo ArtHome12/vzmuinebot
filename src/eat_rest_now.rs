@@ -7,7 +7,6 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use chrono::{Utc};
 use teloxide::{
    prelude::*, 
    types::{InlineKeyboardButton, InlineKeyboardMarkup, ReplyMarkup,
@@ -22,16 +21,15 @@ use crate::eater;
 use crate::eat_group_now;
 use crate::basket;
 use crate::language as lang;
+use crate::settings;
 
 // Показывает список ресторанов с группами заданной категории
-//
 pub async fn next_with_info(cx: cmd::Cx<bool>) -> cmd::Res {
    // Режим меню
    let compact_mode = cx.dialogue;
 
    // Текущее время
-   let our_timezone = db::TIME_ZONE.get().unwrap();
-   let now = Utc::now().with_timezone(our_timezone).naive_local().time();
+   let now = settings::current_date_time().time();
    
    match db::restaurant_by_now(now).await {
       Some(rest_list) => {
@@ -52,7 +50,7 @@ pub async fn next_with_info(cx: cmd::Cx<bool>) -> cmd::Res {
             // Отправляем сообщение с плашкой в качестве картинки
             let s = String::from(format!("Рестораны, открытые сейчас ({}):", now.format("%H:%M")));
             let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
-            cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), db::default_photo_id()).await;
+            cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), settings::default_photo_id()).await;
 
             // В инлайн-режиме всегда остаёмся в главном меню
             return next(cmd::Dialogue::UserMode(compact_mode));
@@ -185,8 +183,7 @@ fn make_markup(rest_list: db::RestaurantList) -> InlineKeyboardMarkup {
 // Выводит инлайн кнопки, редактируя предыдущее сообщение
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>) -> bool {
    // Текущее время
-   let our_timezone = db::TIME_ZONE.get().unwrap();
-   let now = Utc::now().with_timezone(our_timezone).naive_local().time();
+   let now = settings::current_date_time().time();
    
    // Получаем информацию из БД
    match db::restaurant_by_now(now).await {
@@ -203,7 +200,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>) -> b
 
          // Приготовим структуру для редактирования
          let media = InputMedia::Photo{
-            media: InputFile::file_id(db::default_photo_id()),
+            media: InputFile::file_id(settings::default_photo_id()),
             caption: Some( format!("Рестораны, открытые сейчас ({}):", now.format("%H:%M"))),
             parse_mode: None,
          };
@@ -214,14 +211,14 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>) -> b
          .send()
          .await {
             Err(e) => {
-               db::log(&format!("Error eat_rest::show_inline_interface {}", e)).await;
+               settings::log(&format!("Error eat_rest::show_inline_interface {}", e)).await;
                false
             }
             _ => true,
          }
       }
       None => {
-         db::log(&format!("Error eat_rest_now::show_inline_interface() - empty list")).await;
+         settings::log(&format!("Error eat_rest_now::show_inline_interface() - empty list")).await;
          false
       }
    }

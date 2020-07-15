@@ -11,28 +11,27 @@ use teloxide::{
     prelude::*,
 };
 
-use chrono::{Utc};
-
 use crate::commands as cmd;
 use crate::database as db;
 use crate::caterer;
 use crate::eat_rest;
 use crate::eat_rest_now;
 use crate::basket;
+use crate::settings;
 
 pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    
    if let Some(text) = cx.update.text() {
-      db::log(&text).await;
+      settings::log(&text).await;
    }
    // Различаем перезапуск и возврат из меню ресторатора
    let s = if after_restart {
       // Это первый вход пользователя после перезапуска, сообщим об этом
       let text = format!("{} начал сеанс", db::user_info(cx.update.from(), true));
-      db::log(&text).await;
+      settings::log(&text).await;
 
       // Для администратора отдельное приветствие
-      if db::is_admin(cx.update.from()) {
+      if settings::is_admin(cx.update.from()) {
          String::from("Начат новый сеанс. Список команд администратора в описании: https://github.com/ArtHome12/vzmuinebot")
       } else {
          String::from("Начат новый сеанс. Пожалуйста, выберите в основном меню снизу какие заведения показать.")
@@ -42,8 +41,7 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    };
    
    // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
-   let our_timezone = db::TIME_ZONE.get().unwrap();
-   let now = Utc::now().with_timezone(our_timezone).naive_local();
+   let now = settings::current_date_time();
    let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
 
    // Отображаем приветственное сообщение и меню с кнопками.
@@ -133,7 +131,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                let user = cx.update.from();
 
                // Если это администратор, то выводим для него команды sudo
-               if db::is_admin(user) {
+               if settings::is_admin(user) {
                   // Получим список ресторанов с командой входа
                   let sudo_list = db::restaurant_list_sudo().await;
 
@@ -144,7 +142,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                   match db::rest_num(user).await {
                      Ok(rest_num) => {
                         let text = format!("{} вошёл в режим ресторатора для {}", db::user_info(user, false), rest_num);
-                        db::log(&text).await;
+                        settings::log(&text).await;
    
                         // Отображаем информацию о ресторане и переходим в режим её редактирования
                         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
@@ -153,7 +151,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                      _ => {
                         // Сообщим, что доступ запрещён
                         let text = format!("{} доступ в режим ресторатора запрещён", db::user_info(user, false));
-                        db::log(&text).await;
+                        settings::log(&text).await;
 
                         // Попытаемся получить id пользователя и сообщить ему.
                         let user_id = match user {
@@ -161,7 +159,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                            _ => String::from("ошибка id"),
                         };
 
-                        let s = &format!("Для доступа в режим рестораторов обратитесь к {} и сообщите свой Id={}", db::CONTACT_INFO.get().unwrap(), user_id);
+                        let s = &format!("Для доступа в режим рестораторов обратитесь к {} и сообщите свой Id={}", settings::admin_contact_info(), user_id);
                         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                         cmd::send_text(&DialogueDispatcherHandlerCx::new(bot, update, ()), s, cmd::User::main_menu_markup()).await
                      }
@@ -177,7 +175,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
             }
             cmd::User::RegisterCaterer(user_id) => {
                // Проверим права
-               if db::is_admin(cx.update.from()) {
+               if settings::is_admin(cx.update.from()) {
                   let res = db::is_success(db::register_caterer(user_id).await);
                   cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &format!("Регистрация или разблокировка ресторатора {}: {}", user_id, res), cmd::User::main_menu_markup()).await;
                } else {
@@ -186,7 +184,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
             }
             cmd::User::HoldCaterer(user_id) => {
                // Проверим права
-               if db::is_admin(cx.update.from()) {
+               if settings::is_admin(cx.update.from()) {
                   let res = db::is_success(db::hold_caterer(user_id).await.is_ok());
                   cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &format!("Блокировка ресторатора {}: {}", user_id, res), cmd::User::main_menu_markup()).await;
                } else {
@@ -195,7 +193,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
             }
             cmd::User::Sudo(rest_num) => {
                // Проверим права
-               if db::is_admin(cx.update.from()) {
+               if settings::is_admin(cx.update.from()) {
                   return caterer::next_with_info(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, rest_num), true).await;
                } else {
                   cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Недостаточно прав", cmd::User::main_menu_markup()).await;
@@ -203,7 +201,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
             }
             cmd::User::List => {
                // Проверим права
-               if db::is_admin(cx.update.from()) {
+               if settings::is_admin(cx.update.from()) {
                   // Получим из БД список ресторанов и отправим его
                   let res = db::restaurant_list().await;
                   cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &res, cmd::User::main_menu_markup()).await;

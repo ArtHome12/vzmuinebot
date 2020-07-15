@@ -21,10 +21,10 @@ use crate::eater;
 use crate::eat_group;
 use crate::basket;
 use crate::language as lang;
+use crate::settings;
 
 
 // Показывает список ресторанов с группами заданной категории
-//
 pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    // Извлечём параметры
    let (compact_mode, cat_id) = cx.dialogue;
@@ -49,7 +49,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
             // Отправляем сообщение с плашкой в качестве картинки
             let s = String::from("Рестораны с подходящим меню:");
             let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
-            cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), db::default_photo_id()).await;
+            cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), settings::default_photo_id()).await;
 
             // В инлайн-режиме всегда остаёмся в главном меню
             return next(cmd::Dialogue::UserMode(compact_mode));
@@ -195,7 +195,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_
 
          // Приготовим структуру для редактирования
          let media = InputMedia::Photo{
-            media: InputFile::file_id(db::default_photo_id()),
+            media: InputFile::file_id(settings::default_photo_id()),
             caption: Some( String::from("Рестораны с подходящим меню:")),
             parse_mode: None,
          };
@@ -206,14 +206,14 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_
          .send()
          .await {
             Err(e) => {
-               db::log(&format!("Error eat_rest::show_inline_interface {}", e)).await;
+               settings::log(&format!("Error eat_rest::show_inline_interface {}", e)).await;
                false
             }
             _ => true,
          }
       }
       None => {
-         db::log(&format!("Error eat_rest::show_inline_interface({}) - empty list", cat_id)).await;
+         settings::log(&format!("Error eat_rest::show_inline_interface({}) - empty list", cat_id)).await;
          false
       }
    }

@@ -17,6 +17,7 @@ use crate::commands as cmd;
 use crate::database as db;
 use crate::eater;
 use crate::cat_group;
+use crate::settings;
 
 // Показывает информацию о ресторане 
 //
@@ -118,7 +119,7 @@ pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
             // Передать управление рестораном
             cmd::Caterer::TransferOwnership(rest_id, user_id) => {
                // Проверим права
-               if db::is_admin(cx.update.from()) {
+               if settings::is_admin(cx.update.from()) {
                   let res = db::is_success(db::transfer_ownership(rest_id, user_id).await);
                   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                   next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), &format!("Передача управления новому ресторатору {}: {}", user_id, res)).await

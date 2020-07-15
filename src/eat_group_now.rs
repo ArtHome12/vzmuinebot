@@ -22,6 +22,7 @@ use crate::eat_rest_now;
 use crate::eat_dish;
 use crate::basket;
 use crate::language as lang;
+use crate::settings;
 
 // Основную информацию режима
 //
@@ -164,7 +165,7 @@ pub async fn handle_commands(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
 
 // Выводит инлайн кнопки
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32) -> bool {
-   // db::log(&format!("eat_groups::show_inline_interface ({}_{})", rest_num, cat_id)).await;
+   // settings::log(&format!("eat_groups::show_inline_interface ({}_{})", rest_num, cat_id)).await;
 
    // Получаем информацию из БД - нужен текст, картинка и кнопки
    let (text, markup, photo_id) = match db::groups_by_restaurant_now(rest_num).await {
@@ -177,7 +178,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          .append_row(buttons);
 
          // Сформированные данные
-         (String::from("Подходящие группы исчезли"), markup, db::default_photo_id())
+         (String::from("Подходящие группы исчезли"), markup, settings::default_photo_id())
       }
       Some(info) => {
          // Создадим кнопки
@@ -213,7 +214,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          // Если у ресторана есть собственная картинка, вставим её, иначе плашку
          let photo_id = match info.image_id {
             Some(photo) => photo,
-            None => db::default_photo_id(),
+            None => settings::default_photo_id(),
          };
 
          // Сформированные данные
@@ -241,7 +242,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
    .send()
    .await {
       Err(e) => {
-         db::log(&format!("Error eat_group_now::show_inline_interface {}", e)).await;
+         settings::log(&format!("Error eat_group_now::show_inline_interface {}", e)).await;
          false
       }
       _ => true,

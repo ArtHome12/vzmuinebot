@@ -21,6 +21,7 @@ use crate::eat_group;
 use crate::eat_group_now;
 use crate::eat_dish;
 use crate::basket;
+use crate::settings;
 
 #[derive(Copy, Clone)]
 enum CallbackCommand {
@@ -85,7 +86,7 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
 
          // Идентифицируем и исполним команду
          match CallbackCommand::from(&data) {
-            CallbackCommand::UnknownCommand => { db::log(&format!("UnknownCommand {}", &data)).await; format!("UnknownCommand {}", &data)}
+            CallbackCommand::UnknownCommand => { settings::log(&format!("UnknownCommand {}", &data)).await; format!("UnknownCommand {}", &data)}
             CallbackCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {}: {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(add_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
             CallbackCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}: {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(remove_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
             CallbackCommand::GroupsByRestaurantAndCategory(rest_num, cat_id) => 
@@ -136,7 +137,7 @@ async fn add_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_
       Ok(new_amount) => {
          // Сообщение в лог
          let text = format!("{} блюдо {} +1", db::user_info(Some(&cx.update.from), false), db::make_key_3_int(rest_num, group_num, dish_num));
-         db::log(&text).await;
+         settings::log(&text).await;
 
          // Изменяем инлайн кнопки
          update_keyboard(cx, rest_num, group_num, dish_num, new_amount).await
@@ -153,7 +154,7 @@ async fn remove_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, gro
       Ok(new_amount) => {
          // Сообщение в лог
          let text = format!("{} блюдо {} -1", db::user_info(Some(&cx.update.from), false), db::make_key_3_int(rest_num, group_num, dish_num));
-         db::log(&text).await;
+         settings::log(&text).await;
 
          // Изменяем инлайн кнопки
          update_keyboard(cx, rest_num, group_num, dish_num, new_amount).await
@@ -181,7 +182,7 @@ async fn update_keyboard(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32,
       .await {
          Err(_) => {
             let text = format!("Error edit_message_reply_markup {}:{}:{}", rest_num, group_num, dish_num);
-            db::log(&text).await;
+            settings::log(&text).await;
             false
          }
          _ => true,
@@ -191,7 +192,7 @@ async fn update_keyboard(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32,
 // Отправить сообщение с цитированием
 pub async fn message_with_quote(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: ChatId, s: &str, reply_id: i32) {
    if let Err(e) = cx.bot.send_message(chat_id, s).reply_to_message_id(reply_id).send().await {
-      db::log(&format!("Error callback::message_with_quote: {}", e)).await;
+      settings::log(&format!("Error callback::message_with_quote: {}", e)).await;
    }
 }
 
@@ -203,7 +204,7 @@ pub async fn message_with_quote(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id
    };
 
    if let Err(e) = cx.bot.edit_message_text(chat_message, s).send().await {
-      db::log(&format!("Error callback::message_with_quote: {}", e)).await;
+      settings::log(&format!("Error callback::message_with_quote: {}", e)).await;
    }
 }*/
 
@@ -219,7 +220,7 @@ pub async fn message_with_quote(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id
    // Выполняем операцию, при ошибке - текст в служебный чат
    if let Err(e) = cx.bot.edit_message(chat_message).send().await {
       let text = format!("Error callback::remove_inline_markup({}, {}): {}", chat_id, message_id, e);
-      db::log(&text).await;
+      settings::log(&text).await;
    }
 }
  */
@@ -255,8 +256,8 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
          message_with_quote(cx, this_chat.clone(), &s, this_msg_id).await;
 
          // Два сообщения в служебный чат - об отмене и сам отменённый заказ
-         db::log(&format!("Заказ отменён по инициативе {}", user_id)).await;
-         db::log_forward(this_chat, this_msg_id).await;
+         settings::log(&format!("Заказ отменён по инициативе {}", user_id)).await;
+         settings::log_forward(this_chat, this_msg_id).await;
 
          true
       } else {false}
@@ -299,8 +300,8 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
             message_with_quote(cx, this_chat.clone(), &s, this_msg_id).await;
 
             // Два сообщения в служебный чат - об отмене и сам отменённый заказ
-            db::log(&format!("Заказ завершён {}", user_id)).await;
-            db::log_forward(this_chat, this_msg_id).await;
+            settings::log(&format!("Заказ завершён {}", user_id)).await;
+            settings::log_forward(this_chat, this_msg_id).await;
          } else {
             // Отправим сообщение в своём чате ресторатора (при изменении A Telegram's error #400 Bad Request: MessageCantBeEdited)
             let (text, markup) = basket::make_message_for_caterer(t.eater_id, t.ticket).await;
@@ -309,7 +310,7 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
             .reply_markup(markup)
             .send()
             .await {
-               db::log(&format!("Error callback::message_with_quote: {}", e)).await;
+               settings::log(&format!("Error callback::message_with_quote: {}", e)).await;
             }
          }
 

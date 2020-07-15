@@ -18,6 +18,7 @@ use crate::database as db;
 use crate::eater;
 use crate::caterer;
 use crate::dish;
+use crate::settings;
 
 // Показывает информацию о группе 
 //
@@ -358,7 +359,7 @@ pub async fn add_dish_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             if db::rest_add_dish(rest_id, group_id, s.clone()).await {
                // Сообщение в лог
                let text = format!("{} добавил {} для {}", db::user_info(cx.update.from(), false), s, db::make_key_3_int(rest_id, group_id, 0));
-               db::log(&text).await;
+               settings::log(&text).await;
 
                // Покажем изменённую информацию о группе
                next_with_info(cx).await

@@ -21,12 +21,10 @@ use teloxide::{
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_postgres::{NoTls};
-//use deadpool_postgres::{Config, Manager, Pool};
 use bb8;
 use bb8_postgres;
 use warp::Filter;
 use reqwest::StatusCode;
-use chrono::{FixedOffset};
 
 mod database;
 mod commands;
@@ -43,6 +41,7 @@ mod callback;
 mod basket;
 mod inline;
 mod language;
+mod settings;
 
 use commands as cmd;
 
@@ -271,28 +270,15 @@ async fn run() {
    teloxide::enable_logging!();
    log::info!("Starting...");
 
-
    let bot = Bot::from_env();
 
-   // GroupId группы/чата для вывода лога
-   if let Ok(log_group_id_env) = env::var("LOG_GROUP_ID") {
-      if let Ok(log_group_id) = log_group_id_env.parse::<i64>() {
-         // Сохраняем id и копию экземпляра бота в глобальной переменной
-         let log = database::ServiceChat {
-            id: log_group_id,
-            bot: Arc::clone(&bot),
-         };
-         match database::TELEGRAM_LOG_CHAT.set(log) {
-            Ok(_) => database::log_and_notify("Bot restarted").await,
-            _ => log::info!("Something wrong with TELEGRAM_LOG_CHAT"),
-         }
-      } else {
-         log::info!("Environment variable LOG_GROUP_ID must be integer")
-      }
-   } else {
-      log::info!("There is no environment variable LOG_GROUP_ID, no service chat")
+   // Настройки из переменных окружения
+   let vars = settings::Vars::from_env(&bot).await;
+   match settings::VARS.set(vars) {
+      Ok(_) => settings::log_and_notify("Bot restarted").await,
+      _ => log::info!("Something wrong with TELEGRAM_LOG_CHAT"),
    }
-   
+
    // Откроем БД
    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL env variable missing");
    let manager = bb8_postgres::PostgresConnectionManager::new_from_stringlike(database_url, NoTls).expect("DATABASE_URL env variable wrong");
@@ -302,7 +288,7 @@ async fn run() {
    let test_pool = pool.clone();
    tokio::spawn(async move {
       if let Err(e) = test_pool.get().await {
-         database::log(&format!("Database connection error: {}", e)).await;
+         settings::log(&format!("Database connection error: {}", e)).await;
       }
    });
 
@@ -311,81 +297,8 @@ async fn run() {
       Ok(_) => log::info!("Database connected"),
       _ => {
          log::info!("Something wrong with database");
-         database::log("Something wrong with database").await;
+         settings::log("Something wrong with database").await;
       }
-   }
-
-   // Учётные данные админа бота - контактное имя
-   let admin_name = env::var("CONTACT_INFO").expect("CONTACT_INFO env variable missing");
-   match database::CONTACT_INFO.set(admin_name) {
-      Ok(_) => log::info!("admin name is {}", database::CONTACT_INFO.get().unwrap()),
-      _ => log::info!("Something wrong with admin name"),
-   }
-
-   // Учётные данные админа бота до трёх человек - user id
-   let admin_id1: i32 = env::var("TELEGRAM_ADMIN_ID1")
-      .expect("TELEGRAM_ADMIN_ID1 env variable missing")
-      .parse()
-      .expect("TELEGRAM_ADMIN_ID value to be integer");
-
-   let admin_id2 = if let Ok(env_var) = env::var("TELEGRAM_ADMIN_ID2") {
-      env_var.parse::<i32>().unwrap_or_default()
-   } else {
-      0
-   };
-   let admin_id3 = if let Ok(env_var) = env::var("TELEGRAM_ADMIN_ID3") {
-      env_var.parse::<i32>().unwrap_or_default()
-   } else {
-      0
-   };
-   match database::TELEGRAM_ADMIN_ID.set((admin_id1, admin_id2, admin_id3)) {
-      Ok(_) => log::info!("admins id is {}, {}, {}", admin_id1, admin_id2, admin_id3),
-      _ => log::info!("Something wrong with admins id"),
-   }
-
-   // Единица измерения цены
-   if let Ok(price_unit) = env::var("PRICE_UNIT") {
-      if let Err(_) = database::PRICE_UNIT.set(price_unit) {
-         let s = "Something wrong with PRICE_UNIT";
-         log::info!("{}", s);
-         database::log(s).await;
-      }
-   } else {
-      let s = "There is no environment variable PRICE_UNIT";
-      log::info!("{}", s);
-      database::log(s).await;
-   }
-
-   // Часовой пояс
-   if let Ok(time_zone_str) = env::var("TIME_ZONE") {
-      // Зона как число
-      let time_zone_num = time_zone_str.parse::<i32>().unwrap_or_default();
-
-      // Создадим нужный объект
-      let time_zone = FixedOffset::east(time_zone_num * 3600);
-
-      if let Err(_) = database::TIME_ZONE.set(time_zone) {
-         let s = "Something wrong with TIME_ZONE";
-         log::info!("{}", s);
-         database::log(s).await;
-      }
-   } else {
-      let s = "There is no environment variable TIME_ZONE";
-      log::info!("{}", s);
-      database::log(s).await;
-   }
-
-   // Картинка по-умолчанию
-   if let Ok(def_id) = env::var("DEFAULT_IMAGE_ID") {
-      if let Err(_) = database::DEFAULT_IMAGE_ID.set(def_id) {
-         let s = "Something wrong with DEFAULT_IMAGE_ID";
-         log::info!("{}", s);
-         database::log(s).await;
-      }
-   } else {
-      let s = "There is no environment variable DEFAULT_IMAGE_ID";
-      log::info!("{}", s);
-      database::log(s).await;
    }
 
    // Проверим существование таблиц и если их нет, создадим
@@ -411,7 +324,7 @@ async fn run() {
 // Отправить сообщение
 pub async fn send_message(bot: &Arc<Bot>, chat_id: ChatId, s: &str) -> bool {
    if let Err(e) = bot.send_message(chat_id, s).send().await {
-      database::log(&format!("Ошибка {}", e)).await;
+      settings::log(&format!("Ошибка {}", e)).await;
       false
    } else {true}
 }

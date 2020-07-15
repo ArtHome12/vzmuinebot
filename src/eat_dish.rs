@@ -22,6 +22,7 @@ use crate::eat_group;
 use crate::eat_group_now;
 use crate::basket;
 use crate::language as lang;
+use crate::settings;
 
 // Основную информацию режима
 //
@@ -195,7 +196,7 @@ pub async fn handle_commands(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
 // Выводит инлайн кнопки
 //
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, cat_id: i32) -> bool {
-   // db::log(&format!("eat_dish::show_inline_interface ({}_{}_{})", rest_num, group_num, cat_id)).await;
+   // settings::log(&format!("eat_dish::show_inline_interface ({}_{}_{})", rest_num, group_num, cat_id)).await;
 
    // Если категория не задана, запросим её из базы
    let cat_id = if cat_id == 0 { db::category_by_restaurant_and_group(rest_num, group_num).await } else { cat_id };
@@ -259,7 +260,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
 
    // Приготовим структуру для редактирования
    let media = InputMedia::Photo{
-      media: InputFile::file_id(db::default_photo_id()),
+      media: InputFile::file_id(settings::default_photo_id()),
       caption: Some(text),
       parse_mode: None,
    };
@@ -270,7 +271,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
    .send()
    .await {
       Err(e) => {
-         db::log(&format!("Error eat_dish::show_inline_interface {}", e)).await;
+         settings::log(&format!("Error eat_dish::show_inline_interface {}", e)).await;
          false
       }
       _ => true,
@@ -284,7 +285,7 @@ pub async fn show_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, g
    let (info, dish_image_id) = match db::eater_dish_info(rest_num, group_num, dish_num).await {
       Some(dish_info) => dish_info,
       None => {
-         db::log(&format!("Error eat_dish::show_dish_info({}, {}, {})", rest_num, group_num, dish_num)).await;
+         settings::log(&format!("Error eat_dish::show_dish_info({}, {}, {})", rest_num, group_num, dish_num)).await;
          return false;
       }
    };
@@ -299,14 +300,14 @@ pub async fn show_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, g
    let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrd{}", db::make_key_3_int(rest_num, group_num, 0)));
    let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_key_3_int(rest_num, group_num, dish_num), ordered_amount)
    .append_to_row(button_back, 0);
-   // db::log(&format!("rrg{}", db::make_key_3_int(est_num, group_num, cat_id))).await;
+   // settings::log(&format!("rrg{}", db::make_key_3_int(est_num, group_num, cat_id))).await;
 
 
 
    // Картинка блюда
    let photo_id = match dish_image_id {
       Some(photo) => photo,
-      None => db::default_photo_id(),
+      None => settings::default_photo_id(),
    };
 
    // Создадим графический объект
@@ -324,7 +325,7 @@ pub async fn show_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, g
    .send()
    .await {
       Err(e) => {
-         db::log(&format!("Error eat_dish::show_inline_interface {}", e)).await;
+         settings::log(&format!("Error eat_dish::show_inline_interface {}", e)).await;
          false
       }
       _ => true,

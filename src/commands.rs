@@ -15,6 +15,7 @@ use teloxide::{
 };
 
 use crate::database as db;
+use crate::settings;
 
 // ============================================================================
 // [Common]
@@ -242,7 +243,7 @@ where
 
    // Если не удалось отправить, выведем ошибку в лог
    if let Err(err) = res {
-      db::log(&format!("Error send_text({}): {}", text, err)).await;
+      settings::log(&format!("Error send_text({}): {}", text, err)).await;
    }
 }
 
@@ -257,7 +258,7 @@ pub async fn send_text_without_markup(cx: &Cx<()>, text: &str)
 
    // Если не удалось отправить, выведем ошибку в лог
    if let Err(err) = res {
-      db::log(&format!("Error send_text_without_markup({}): {}", text, err)).await;
+      settings::log(&format!("Error send_text_without_markup({}): {}", text, err)).await;
    }
 }
 
@@ -275,7 +276,7 @@ pub async fn send_photo(cx: &Cx<()>, text: &str, markup: ReplyMarkup, image_id :
 
    // Если не удалось отправить, выведем ошибку в лог
    if let Err(err) = res {
-      db::log(&format!("Error send_photo({}): {}", text, err)).await;
+      settings::log(&format!("Error send_photo({}): {}", text, err)).await;
    }
 }
 
