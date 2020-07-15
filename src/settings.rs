@@ -140,12 +140,12 @@ impl Vars {
                Ok(s) => match s.parse::<i32>() {
                      Ok(n) => n,
                      Err(e) => {
-                        log(&format!("Something wrong with TELEGRAM_ADMIN_ID1: {}", e)).await;
+                        int_log(&format!("Something wrong with TELEGRAM_ADMIN_ID1: {}", e)).await;
                         0
                      }
                }
                Err(e) => {
-                  log(&format!("Something wrong with TELEGRAM_ADMIN_ID1: {}", e)).await;
+                  int_log(chat, &format!("Something wrong with TELEGRAM_ADMIN_ID1: {}", e)).await;
                   0
                }
             }
@@ -156,7 +156,7 @@ impl Vars {
                Ok(s) => match  s.parse::<i32>() {
                      Ok(n) => n,
                      Err(e) => {
-                        log(&format!("Something wrong with TELEGRAM_ADMIN_ID2: {}", e)).await;
+                        int_log(chat, &format!("Something wrong with TELEGRAM_ADMIN_ID2: {}", e)).await;
                         0
                      }
                }
@@ -169,7 +169,7 @@ impl Vars {
                Ok(s) => match  s.parse::<i32>() {
                      Ok(n) => n,
                      Err(e) => {
-                        log(&format!("Something wrong with TELEGRAM_ADMIN_ID3: {}", e)).await;
+                        int_log(chat, &format!("Something wrong with TELEGRAM_ADMIN_ID3: {}", e)).await;
                         0
                      }
                }
@@ -183,7 +183,7 @@ impl Vars {
             match env::var("PRICE_UNIT") {
                Ok(s) => s,  
                Err(e) => {
-                  log(&format!("Something wrong with PRICE_UNIT: {}", e)).await;
+                  int_log(chat, &format!("Something wrong with PRICE_UNIT: {}", e)).await;
                   String::default()
                }
             }
@@ -195,12 +195,12 @@ impl Vars {
                Ok(s) => match s.parse::<i32>() {
                      Ok(n) => FixedOffset::east(n * 3600),
                      Err(e) => {
-                        log(&format!("Something wrong with TIME_ZONE: {}", e)).await;
+                        int_log(chat, &format!("Something wrong with TIME_ZONE: {}", e)).await;
                         FixedOffset::east(0)
                      }
                }
                Err(e) => {
-                  log(&format!("Something wrong with TIME_ZONE: {}", e)).await;
+                  int_log(chat, &format!("Something wrong with TIME_ZONE: {}", e)).await;
                   FixedOffset::east(0)
                }
             }
@@ -211,7 +211,7 @@ impl Vars {
             match env::var("DEFAULT_IMAGE_ID") {
                Ok(s) => s,
                Err(e) => {
-                  log(&format!("Something wrong with DEFAULT_IMAGE_ID: {}", e)).await;
+                  int_log(chat, &format!("Something wrong with DEFAULT_IMAGE_ID: {}", e)).await;
                   String::default()
                }
             }
