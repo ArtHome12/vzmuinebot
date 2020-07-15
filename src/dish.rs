@@ -300,7 +300,6 @@ pub async fn edit_dish_group_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 }
 
 // Изменение цены rest_id, dish_id
-//
 pub async fn edit_price_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
     if let Some(text) = cx.update.text() {
         // Попытаемся преобразовать ответ пользователя в число
@@ -317,7 +316,6 @@ pub async fn edit_price_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 }
 
 // Изменение картинки
-//
 pub async fn edit_image_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
     if let Some(photo_size) = cx.update.photo() {
         // Попытаемся преобразовать ответ пользователя в число

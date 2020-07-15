@@ -118,8 +118,6 @@ impl Vars {
       };
       
       Vars {
-         chat: chat.clone(),
-
          // Контактная информация администраторов бота
          admin_contact_info: {
             match env::var("CONTACT_INFO") {
@@ -177,7 +175,6 @@ impl Vars {
             }
          },
 
-
          // Единица измерения цены
          price_unit: {
             match env::var("PRICE_UNIT") {
@@ -216,6 +213,9 @@ impl Vars {
                }
             }
          },
+
+         // Служебный чат
+         chat,
       }
    }
 }

@@ -27,40 +27,43 @@ pub static DB: OnceCell<Pool> = OnceCell::new();
 // [Restaurants table]
 // ============================================================================
 
-// Возвращает список ресторанов с активными группами в данной категории
-pub type RestaurantList = BTreeMap<i32, String>;
-pub async fn restaurant_by_category(cat_id: i32) -> Option<RestaurantList> {
-   // Выполняем запрос
-   let rows = DB.get().unwrap().get().await.unwrap()
-      .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
-      WHERE r.active = TRUE", &[&cat_id])
-      .await;
-
-   // Возвращаем результат
-   match rows {
-      Ok(data) => Some(data.into_iter().map(|row| (row.get(0), row.get(1))).collect()),
-      Err(e) => {
-         // Сообщаем об ошибке и возвращаем пустой результат
-         settings::log(&format!("Error restaurant_by_category: {}", e)).await;
-         None
-      }
-   }
+// Тип запроса - по категории или по времени
+pub enum RestBy {
+   Category(i32),
+   Time(NaiveTime),
 }
 
-// Возвращает список ресторанов с активными группами в указанное время
-pub async fn restaurant_by_now(time: NaiveTime) -> Option<RestaurantList> {
-   // Выполняем запрос
-   let rows = DB.get().unwrap().get().await.unwrap()
-      .query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
-         ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&time])
-      .await;
+// Возвращает список ресторанов с активными группами в данной категории или во времени
+pub type RestaurantList = BTreeMap<i32, String>;
+pub async fn restaurants_list(by: RestBy) -> Option<RestaurantList> {
+   // Получим клиента БД из пула
+   match DB.get().unwrap().get().await {
+      Ok(client) => {
 
-   // Возвращаем результат
-   match rows {
-      Ok(data) => Some(data.into_iter().map(|row| (row.get(0), row.get(1))).collect()),
+         // Выполним нужный запрос
+         let rows =  match by {
+            RestBy::Category(cat_id) => {
+               client.query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
+               WHERE r.active = TRUE", &[&cat_id]).await
+            },
+            RestBy::Time(time) => {
+               client.query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
+                  ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&time]).await
+            }
+         };
+
+         // Возвращаем результат
+         match rows {
+            Ok(data) => Some(data.into_iter().map(|row| (row.get(0), row.get(1))).collect()),
+            Err(e) => {
+               // Сообщаем об ошибке и возвращаем пустой результат
+               settings::log(&format!("Error restaurants_list: {}", e)).await;
+               None
+            }
+         }
+      },
       Err(e) => {
-         // Сообщаем об ошибке и возвращаем пустой список
-         settings::log(&format!("Error restaurant_by_now: {}", e)).await;
+         settings::log(&format!("Error restaurants_list, no db client: {}", e)).await;
          None
       }
    }

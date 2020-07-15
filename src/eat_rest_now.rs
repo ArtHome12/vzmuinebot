@@ -31,7 +31,7 @@ pub async fn next_with_info(cx: cmd::Cx<bool>) -> cmd::Res {
    // Текущее время
    let now = settings::current_date_time().time();
    
-   match db::restaurant_by_now(now).await {
+   match db::restaurants_list(db::RestBy::Time(now)).await {
       Some(rest_list) => {
          // Выводим информацию либо ссылками, либо инлайн кнопками
          if compact_mode {
@@ -186,7 +186,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>) -> b
    let now = settings::current_date_time().time();
    
    // Получаем информацию из БД
-   match db::restaurant_by_now(now).await {
+   match db::restaurants_list(db::RestBy::Time(now)).await {
       Some(rest_list) => {
          // Создадим кнопки
          let markup = make_markup(rest_list);
