@@ -56,9 +56,6 @@ impl Restaurant {
    }
 }
 
-// Список ресторанов
-pub type RestaurantList = Vec<Restaurant>;
-
 // Тип запроса информации о ресторане
 pub enum RestBy {
    Id(i32),    // по user_id
@@ -72,8 +69,11 @@ pub enum RestListBy {
    Time(NaiveTime),  // активные, с группами, работающими в указанное время
 }
 
+// Список ресторанов
+pub type RestList = Vec<Restaurant>;
+
 // Возвращает список ресторанов
-pub async fn restaurants_list(by: RestListBy) -> Option<RestaurantList> {
+pub async fn rest_list(by: RestListBy) -> Option<RestList> {
    // Получим клиента БД из пула
    match DB.get().unwrap().get().await {
       Ok(client) => {
@@ -153,6 +153,329 @@ pub async fn restaurant(by: RestBy) -> Option<Restaurant> {
    }
 }
 
+// Возвращает номер ресторана, если пользователю разрешён доступ в режим ресторатора
+pub async fn rest_num(user : Option<&teloxide::types::User>) -> Result<i32, ()> {
+   // Проверяем, передан ли пользователь.
+   let u = user.ok_or(())?;
+
+   // Выполняем запрос
+   let rows = DB.get().unwrap().get().await.unwrap()
+   .query_one("SELECT rest_num FROM restaurants WHERE user_id=$1::INTEGER AND enabled = TRUE", &[&u.id])
+   .await;
+
+   // Возвращаем номер ресторана, если такой есть.
+   match rows {
+      Ok(data) => Ok(data.get(0)),
+      _ => Err(()),
+   }
+}
+
+pub async fn rest_edit_title(rest_num: i32, new_str: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE restaurants SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER", &[&new_str, &rest_num])
+   .await;
+   match query {
+       Ok(1) => true,
+       _ => false,
+   }
+}
+
+pub async fn rest_edit_info(rest_num: i32, new_str: String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE restaurants SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER", &[&new_str, &rest_num])
+   .await;
+   match query {
+       Ok(1) => true,
+       _ => false,
+   }
+}
+
+pub async fn rest_toggle(rest_num: i32) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE restaurants SET active = NOT active WHERE rest_num=$1::INTEGER", &[&rest_num])
+   .await;
+   match query {
+       Ok(1) => true,
+       _ => false,
+   }
+}
+
+// Изменение фото ресторана
+pub async fn rest_edit_image(rest_num: i32, image_id: &String) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE restaurants SET image_id = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER", &[&image_id, &rest_num])
+   .await;
+   match query {
+       Ok(1) => true,
+       _ => false,
+   }
+}
+
+// Изменяет владельца ресторана
+pub async fn transfer_ownership(rest_num: i32, new_user_id: i32) -> bool {
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE restaurants SET user_id = $1::INTEGER WHERE rest_num=$2::INTEGER", &[&new_user_id, &rest_num])
+   .await;
+   match query {
+       Ok(1) => true,
+       _ => false,
+   }
+}
+
+// Регистрация или разблокировка ресторатора
+pub async fn register_caterer(user_id: i32) -> bool {
+   // Попробуем разблокировать пользователя, тогда получим 1 в качестве обновлённых записей
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE restaurants SET enabled = TRUE WHERE user_id=$1::INTEGER", &[&user_id])
+   .await;
+
+   match query {
+      Ok(1) => true,
+      _ => {
+         // Создаём новый ресторан
+         let query = DB.get().unwrap().get().await.unwrap()
+         .execute("INSERT INTO restaurants (user_id, title, info, active, enabled, opening_time, closing_time) VALUES ($1::INTEGER, 'Мяу', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE, '07:00', '23:00')", &[&user_id])
+         .await;
+         
+         match query {
+            Ok(1) => true,
+            _ => false,
+         }
+      }
+   }
+}
+
+// Приостановка доступа ресторатора
+pub async fn hold_caterer(user_id: i32) -> Result<(), ()> {
+   // Блокируем пользователя
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE restaurants SET enabled = FALSE, active = FALSE WHERE user_id=$1::INTEGER", &[&user_id])
+   .await;
+
+   // Если обновили 0 строк, значит такого пользователя не было зарегистрировано
+   match query {
+      Ok(1) => Ok(()),
+      _ => Err(()),
+   }
+}
+
+// Проверяет существование таблиц
+pub async fn is_tables_exist() -> bool {
+   // Выполняем запрос
+   let rows = DB.get().unwrap().get().await.unwrap()
+   .query("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='restaurants'", &[]).await;
+
+   // Проверяем результат
+   match rows {
+      Ok(data) => !data.is_empty(),
+      _ => false,
+   }
+}
+
+// Создаёт новые таблицы
+pub async fn create_tables() -> bool {
+   // Таблица с данными о ресторанах
+   let query = DB.get().unwrap().get().await.unwrap()
+   .batch_execute("CREATE TABLE restaurants (
+         PRIMARY KEY (user_id),
+         user_id        INTEGER        NOT NULL,
+         title          VARCHAR(100)   NOT NULL,
+         info           VARCHAR(255)   NOT NULL,
+         active         BOOLEAN        NOT NULL,
+         enabled        BOOLEAN        NOT NULL,
+         rest_num       SERIAL,
+         image_id       VARCHAR(255),
+         opening_time   TIME           NOT NULL,    
+         closing_time   TIME           NOT NULL);
+
+      CREATE TABLE groups (
+         PRIMARY KEY (rest_num, group_num),
+         rest_num       INTEGER        NOT NULL,
+         group_num      INTEGER        NOT NULL,
+         title          VARCHAR(100)   NOT NULL,
+         info           VARCHAR(255)   NOT NULL,
+         active         BOOLEAN        NOT NULL,
+         cat_id         INTEGER        NOT NULL,
+         opening_time   TIME           NOT NULL,    
+         closing_time   TIME           NOT NULL);
+
+      CREATE TABLE dishes (
+         PRIMARY KEY (rest_num, group_num, dish_num),
+         rest_num       INTEGER        NOT NULL,
+         dish_num       INTEGER        NOT NULL,
+         title          VARCHAR(100)   NOT NULL,
+         info           VARCHAR(255)   NOT NULL,
+         active         BOOLEAN        NOT NULL,
+         group_num      INTEGER        NOT NULL,
+         price          INTEGER        NOT NULL,
+         image_id       VARCHAR(255));
+
+      CREATE TABLE users (
+         PRIMARY KEY (user_id),
+         user_id        INTEGER        NOT NULL,
+         user_name      VARCHAR(100)   NOT NULL,
+         contact        VARCHAR(100)   NOT NULL,
+         address        VARCHAR(100)   NOT NULL,
+         last_seen      TIMESTAMP      NOT NULL,
+         compact        BOOLEAN        NOT NULL,
+         pickup         BOOLEAN        NOT NULL);
+
+      CREATE TABLE orders (
+         PRIMARY KEY (user_id, rest_num, group_num, dish_num),
+         user_id        INTEGER        NOT NULL,
+         rest_num       INTEGER        NOT NULL,
+         group_num      INTEGER        NOT NULL,
+         dish_num       INTEGER        NOT NULL,
+         amount         INTEGER        NOT NULL);
+
+      CREATE TABLE tickets (
+         PRIMARY KEY (ticket_id),
+         ticket_id      SERIAL         NOT NULL,
+         eater_id       INTEGER        NOT NULL,
+         caterer_id     INTEGER        NOT NULL,
+         eater_msg_id   INTEGER        NOT NULL,
+         caterer_msg_id INTEGER        NOT NULL,
+         stage          INTEGER        NOT NULL);")
+   .await;
+      
+   match query {
+      Ok(_) => true,
+      Err(e) => {
+         settings::log(&format!("Error create_tables: {}", e)).await;
+         false
+       }
+   }
+}
+
+// Обновляет время работы ресторана на основании времени, заданного в группах
+pub async fn rest_edit_time(rest_num: i32) -> bool {
+   // Определяем самое частое время открытия и закрытия групп и записываем его как время ресторана
+   let row = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE restaurants SET opening_time = (SELECT opening_time FROM groups WHERE rest_num = $1::INTEGER GROUP BY opening_time ORDER BY Count(*) DESC LIMIT 1),
+      closing_time = (SELECT closing_time FROM groups WHERE rest_num = $1::INTEGER GROUP BY closing_time ORDER BY Count(*) DESC LIMIT 1)
+      WHERE rest_num = $1::INTEGER", &[&rest_num])
+   .await;
+   match row {
+       Ok(_) => true,
+       Err(e) => {
+         settings::log(&format!("Error rest_edit_time({}): {}", rest_num, e)).await;
+         false
+       }
+   }
+}
+
+// ============================================================================
+// [Groups table]
+// ============================================================================
+// Информация о ресторане
+pub struct Group {
+   pub rest_num: i32,
+   pub num: i32,
+   pub title: String,
+   pub info: String,
+   pub active: bool,
+   pub cat_id: i32,
+   pub opening_time: NaiveTime,
+   pub closing_time: NaiveTime,
+}
+
+impl Group {
+   // Инициализация из БД
+   pub fn from_db(row: &Row) -> Self {
+      Group {
+         rest_num: row.get(0),
+         num: row.get(1),
+         title: row.get(2),
+         info: row.get(3),
+         active: row.get(4),
+         cat_id: row.get(5),
+         opening_time: row.get(6),
+         closing_time: row.get(7),
+      }
+   }
+
+   // Строка со временем работы группы, исключая время по-умолчанию для краткости
+   fn work_time(&self, def_opening_time: NaiveTime, def_closing_time: NaiveTime) -> String {
+      // Четыре варианта отображения времени
+      if self.opening_time != def_opening_time && self.closing_time != def_closing_time {
+         // Показываем и время начала и время конца
+         format!(" ({}-{})", str_time(self.opening_time), str_time(self.closing_time))
+      } else if self.opening_time != def_opening_time && self.closing_time == def_closing_time {
+         // Показываем время начала
+         format!(" (c {})", str_time(self.opening_time))
+      } else if self.opening_time == def_opening_time && self.closing_time == def_closing_time {
+         // Показываем время конца
+         format!(" (до {})", str_time(self.closing_time))
+      } else {
+         // Не показываем время
+         String::default()
+      }
+   }
+
+   // Возвращает название вместе со временем работы
+   pub fn title_with_time(&self, def_opening_time: NaiveTime, def_closing_time: NaiveTime) -> String {
+      format!("{}{}", self.title, self.work_time(def_opening_time, def_closing_time))
+   }
+
+}
+
+// Тип запроса информации о группе ресторана
+pub enum GroupListBy {
+   Category(i32, i32),     // активные, по номеру ресторана и категории
+   Time(i32, NaiveTime),   // активные, по номеру ресторана и группами, работающими в указанное время
+}
+
+// Список групп
+pub type GroupList = Vec<Group>;
+
+// Возвращает список ресторанов
+pub async fn group_list(by: GroupListBy) -> Option<GroupList> {
+   // Получим клиента БД из пула
+   match DB.get().unwrap().get().await {
+      Ok(client) => {
+
+         // Выполним нужный запрос
+         let rows =  match by {
+            /*GroupListBy::All => {
+               client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r
+                  ORDER BY rest_num", &[]
+               ).await
+            },*/
+            GroupListBy::Category(rest_num, cat_id) => {
+               client.query("SELECT g.rest_num, g.group_num, g.title, g.info, g.active, g.cat_id, g.opening_time, g.closing_time FROM groups as g
+                  WHERE active = TRUE AND rest_num=$1::INTEGER AND cat_id=$2::INTEGER", &[&rest_num, &cat_id]
+               ).await
+            },
+            GroupListBy::Time(rest_num, time) => {
+               client.query("SELECT g.rest_num, g.group_num, g.title, g.info, g.active, g.cat_id, g.opening_time, g.closing_time FROM groups as g
+                  WHERE active = TRUE AND rest_num=$1::INTEGER AND (($2::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $2::TIME > opening_time))", &[&rest_num, &time]
+               ).await
+            }
+         };
+
+         // Возвращаем результат
+         match rows {
+            Ok(data) => Some(data.into_iter().map(|row| (Group::from_db(&row))).collect()),
+            Err(e) => {
+               // Сообщаем об ошибке и возвращаем пустой результат
+               settings::log(&format!("Error group_list: {}", e)).await;
+               None
+            }
+         }
+      },
+      Err(e) => {
+         settings::log(&format!("Error group_list, no db client: {}", e)).await;
+         None
+      }
+   }
+}
+
+
 // Возвращает описание, фото и список групп выбранного ресторана и категории
 pub struct GroupListWithRestaurantInfo {
    pub info: String, 
@@ -160,7 +483,7 @@ pub struct GroupListWithRestaurantInfo {
    pub groups: BTreeMap<i32, String>
 }
 
-async fn subselect_groups(rest_num: i32, cat_id: i32, opening_time: NaiveTime, closing_time: NaiveTime) -> BTreeMap<i32, String> {
+/*async fn subselect_groups(rest_num: i32, cat_id: i32, opening_time: NaiveTime, closing_time: NaiveTime) -> BTreeMap<i32, String> {
    // Выполняем запрос групп
    let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT group_num, title, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND cat_id=$2::INTEGER AND active = TRUE", &[&rest_num, &cat_id])
@@ -239,7 +562,7 @@ pub async fn groups_by_restaurant_and_category(rest_num: i32, cat_id: i32) -> Op
          None
       }
    }
-}
+}*/
 
 async fn subselect_groups_now(rest_num: i32, time: NaiveTime) -> BTreeMap<i32, String> {
    // Выполняем запрос групп
@@ -304,273 +627,6 @@ pub async fn groups_by_restaurant_now(rest_num: i32) -> Option<GroupListWithRest
    }
 }
 
-
-// Возвращает номер ресторана, если пользователю разрешён доступ в режим ресторатора
-pub async fn rest_num(user : Option<&teloxide::types::User>) -> Result<i32, ()> {
-   // Проверяем, передан ли пользователь.
-   let u = user.ok_or(())?;
-
-   // Выполняем запрос
-   let rows = DB.get().unwrap().get().await.unwrap()
-.query("SELECT rest_num FROM restaurants WHERE user_id=$1::INTEGER AND enabled = TRUE", &[&u.id])
-.await;
-
-   // Возвращаем номер ресторана, если такой есть.
-   match rows {
-      Ok(data) => {
-         if data.is_empty() {
-            Err(()) 
-         } else {
-            Ok(data[0].get(0))
-         }
-      }
-      _ => Err(()),
-   }
-}
-
-pub async fn rest_edit_title(rest_num: i32, new_str: String) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("UPDATE restaurants SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER", &[&new_str, &rest_num])
-   .await;
-   match query {
-       Ok(_) => true,
-       _ => false,
-   }
-}
-
-pub async fn rest_edit_info(rest_num: i32, new_str: String) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("UPDATE restaurants SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER", &[&new_str, &rest_num])
-   .await;
-   match query {
-       Ok(_) => true,
-       _ => false,
-   }
-}
-
-pub async fn rest_toggle(rest_num: i32) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("UPDATE restaurants SET active = NOT active WHERE rest_num=$1::INTEGER", &[&rest_num])
-   .await;
-   match query {
-       Ok(_) => true,
-       _ => false,
-   }
-}
-
-// Изменение фото ресторана
-pub async fn rest_edit_image(rest_num: i32, image_id: &String) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("UPDATE restaurants SET image_id = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER", &[&image_id, &rest_num])
-   .await;
-   match query {
-       Ok(_) => true,
-       _ => false,
-   }
-}
-
-// Изменяет владельца ресторана
-pub async fn transfer_ownership(rest_num: i32, new_user_id: i32) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("UPDATE restaurants SET user_id = $1::INTEGER WHERE rest_num=$2::INTEGER", &[&new_user_id, &rest_num])
-   .await;
-   match query {
-       Ok(_) => true,
-       _ => false,
-   }
-}
-
-// Регистрация или разблокировка ресторатора
-pub async fn register_caterer(user_id: i32) -> bool {
-   // Попробуем разблокировать пользователя, тогда получим 1 в качестве обновлённых записей
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("UPDATE restaurants SET enabled = TRUE WHERE user_id=$1::INTEGER", &[&user_id])
-   .await;
-
-   if let Ok(res) = query {
-      if res > 0 {
-         return true;
-      }
-   }
-   
-   // Создаём новый ресторан
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("INSERT INTO restaurants (user_id, title, info, active, enabled, opening_time, closing_time) VALUES ($1::INTEGER, 'Мяу', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE, '07:00', '23:00')", &[&user_id])
-   .await;
-   
-   match query {
-      Ok(_) => true,
-      _ => false,
-   }
-}
-
-
-// Приостановка доступа ресторатора
-pub async fn hold_caterer(user_id: i32) -> Result<(), ()> {
-   // Блокируем пользователя
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("UPDATE restaurants SET enabled = FALSE, active = FALSE WHERE user_id=$1::INTEGER", &[&user_id])
-   .await;
-
-   // Если обновили 0 строк, значит такого пользователя не было зарегистрировано
-   match query {
-      Ok(1) => Ok(()),
-      _ => Err(()),
-   }
-}
-
-// Проверяет существование таблиц
-pub async fn is_tables_exist() -> bool {
-   // Выполняем запрос
-   let rows = DB.get().unwrap().get().await.unwrap()
-   .query("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='restaurants'", &[]).await;
-
-   // Проверяем результат
-   match rows {
-      Ok(data) => !data.is_empty(),
-      _ => false,
-   }
-}
-
-// Создаёт новые таблицы
-pub async fn create_tables() -> bool {
-   // Таблица с данными о ресторанах
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("CREATE TABLE restaurants (
-      PRIMARY KEY (user_id),
-      user_id     INTEGER       NOT NULL,
-      title       VARCHAR(100)  NOT NULL,
-      info        VARCHAR(255)  NOT NULL,
-      active      BOOLEAN       NOT NULL,
-      enabled     BOOLEAN       NOT NULL,
-      rest_num    SERIAL,
-      image_id    VARCHAR(255),
-      opening_time    TIME     NOT NULL,    
-      closing_time    TIME     NOT NULL)", &[])
-.await;
-   
-   match query {
-      Ok(_) => {
-         // Таблица с данными о группах
-         let query = DB.get().unwrap().get().await.unwrap()
-         .execute("CREATE TABLE groups (
-            PRIMARY KEY (rest_num, group_num),
-            rest_num        INTEGER         NOT NULL,
-            group_num       INTEGER         NOT NULL,
-            title           VARCHAR(100)    NOT NULL,
-            info            VARCHAR(255)    NOT NULL,
-            active          BOOLEAN         NOT NULL,
-            cat_id          INTEGER         NOT NULL,
-            opening_time    TIME            NOT NULL,    
-            closing_time    TIME            NOT NULL)", &[])
-         .await;
-         
-         match query {
-            Ok(_) => {
-               // Таблица с данными о блюдах
-               let query = DB.get().unwrap().get().await.unwrap()
-               .execute("CREATE TABLE dishes (
-                  PRIMARY KEY (rest_num, group_num, dish_num),
-                  rest_num       INTEGER        NOT NULL,
-                  dish_num       INTEGER        NOT NULL,
-                  title          VARCHAR(100)   NOT NULL,
-                  info           VARCHAR(255)   NOT NULL,
-                  active         BOOLEAN        NOT NULL,
-                  group_num      INTEGER        NOT NULL,
-                  price          INTEGER        NOT NULL,
-                  image_id       VARCHAR(255))", &[])
-               .await;
-               
-               match query {
-                  Ok(_) => {
-                     // Таблица с данными о едоках
-                     let query = DB.get().unwrap().get().await.unwrap()
-                     .execute("CREATE TABLE users (
-                        PRIMARY KEY (user_id),
-                        user_id     INTEGER        NOT NULL,
-                        user_name   VARCHAR(100)   NOT NULL,
-                        contact     VARCHAR(100)   NOT NULL,
-                        address     VARCHAR(100)   NOT NULL,
-                        last_seen   TIMESTAMP      NOT NULL,
-                        compact     BOOLEAN        NOT NULL,
-                        pickup      BOOLEAN        NOT NULL)", &[])
-                     .await;
-                     
-                     match query {
-                        Ok(_) => {
-                           // Таблица с данными о заказах в корзине
-                           let query = DB.get().unwrap().get().await.unwrap()
-                           .execute("CREATE TABLE orders (
-                              PRIMARY KEY (user_id, rest_num, group_num, dish_num),
-                              user_id     INTEGER        NOT NULL,
-                              rest_num    INTEGER        NOT NULL,
-                              group_num   INTEGER        NOT NULL,
-                              dish_num    INTEGER        NOT NULL,
-                              amount      INTEGER        NOT NULL)", &[])
-                           .await;
-                           
-                           match query {
-                              Ok(_) => {
-                                 // Таблица с данными о заказах в обработке
-                                 let query = DB.get().unwrap().get().await.unwrap()
-                                 .execute("CREATE TABLE tickets (
-                                    PRIMARY KEY (ticket_id),
-                                    ticket_id      SERIAL         NOT NULL,
-                                    eater_id       INTEGER        NOT NULL,
-                                    caterer_id     INTEGER        NOT NULL,
-                                    eater_msg_id   INTEGER        NOT NULL,
-                                    caterer_msg_id INTEGER        NOT NULL,
-                                    stage          INTEGER        NOT NULL)", &[])
-                                 .await;
-                                 
-                                 match query {
-                                    Ok(_) => {
-                                       true
-                                    }
-                                    _ => false,
-                                 }
-                              }
-                              _ => false,
-                           }
-                        }
-                        _ => false,
-                     }
-                  }
-                  _ => false,
-               }
-            }
-            _ => false,
-         }
-      }
-      _ => false,
-   }
-}
-
-// Обновляет время работы ресторана на основании времени, заданного в группах
-pub async fn rest_edit_time(rest_num: i32) -> bool {
-   // Определяем самое частое время открытия и закрытия групп и записываем его как время ресторана
-   let row = DB.get().unwrap().get().await.unwrap()
-   .execute("UPDATE restaurants SET opening_time = (SELECT opening_time FROM groups WHERE rest_num = $1::INTEGER GROUP BY opening_time ORDER BY Count(*) DESC LIMIT 1),
-         closing_time = (SELECT closing_time FROM groups WHERE rest_num = $1::INTEGER GROUP BY closing_time ORDER BY Count(*) DESC LIMIT 1)
-      WHERE rest_num = $1::INTEGER", &[&rest_num])
-   .await;
-   match row {
-       Ok(_) => true,
-       Err(e) => {
-         settings::log(&format!("Error rest_edit_time: {}", e)).await;
-         false
-       }
-   }
-}
-
-// ============================================================================
-// [Groups table]
-// ============================================================================
 
 // Возвращает список блюд указанного ресторана и группы
 pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Option<DishListWithGroupInfo> {
@@ -1802,7 +1858,7 @@ pub fn stage_to_str(stage: i32) -> String {
 }
 
 // Удаляет минуты из времени, если они нулевые
-fn str_time(time: NaiveTime) -> String {
+pub fn str_time(time: NaiveTime) -> String {
    if time.minute() == 0 {
       time.format("%H").to_string()
    } else {

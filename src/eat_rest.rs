@@ -30,7 +30,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    let (compact_mode, cat_id) = cx.dialogue;
    
    // Получаем информацию из БД
-   match db::restaurants_list(db::RestListBy::Category(cat_id)).await {
+   match db::rest_list(db::RestListBy::Category(cat_id)).await {
       Some(rest_list) => {
          // Выводим информацию либо ссылками, либо инлайн кнопками
          if compact_mode {
@@ -149,7 +149,7 @@ pub async fn handle_commands(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
 
 // Формирует инлайн кнопки по данным из БД
 //
-fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMarkup {
+fn make_markup(rest_list: db::RestList, cat_id: i32) -> InlineKeyboardMarkup {
    // Создадим кнопки под рестораны
    let buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
    .map(|restaurant| (InlineKeyboardButton::callback(restaurant.title, format!("grc{}", db::make_key_3_int(restaurant.num, cat_id, 0)))))  // third argument unused
@@ -181,7 +181,7 @@ fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMark
 // Выводит инлайн кнопки, редактируя предыдущее сообщение
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_id: i32) -> bool {
    // Получаем информацию из БД
-   match db::restaurants_list(db::RestListBy::Category(cat_id)).await {
+   match db::rest_list(db::RestListBy::Category(cat_id)).await {
       Some(rest_list) => {
          // Создадим кнопки
          let markup = make_markup(rest_list, cat_id);

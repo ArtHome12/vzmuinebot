@@ -134,7 +134,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                // Если это администратор, то выводим для него команды sudo
                if settings::is_admin(user) {
                   // Получим из БД список ресторанов и отправим его
-                  match db::restaurants_list(db::RestListBy::All).await {
+                  match db::rest_list(db::RestListBy::All).await {
                      Some(rest_list) => {
                         // Сформируем строку вида: 1371303352 'Ресторан "два супа"' /sudo1
                         let s: String = rest_list.into_iter().map(|r| (format!("{} '{}' /sudo{}\n", r.user_id, r.title, r.num))).collect();
@@ -215,7 +215,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                // Проверим права
                if settings::is_admin(cx.update.from()) {
                   // Получим из БД список ресторанов и отправим его
-                  match db::restaurants_list(db::RestListBy::All).await {
+                  match db::rest_list(db::RestListBy::All).await {
                      Some(rest_list) => {
                         // Сформируем строку вида: 1 'Ресторан "два супа"', доступен /hold1371303352
                         let s: String = rest_list.into_iter().map(|r| (format!("{} '{}', {} {}{}\n", 

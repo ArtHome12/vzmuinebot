@@ -31,7 +31,7 @@ pub async fn next_with_info(cx: cmd::Cx<bool>) -> cmd::Res {
    // Текущее время
    let now = settings::current_date_time().time();
    
-   match db::restaurants_list(db::RestListBy::Time(now)).await {
+   match db::rest_list(db::RestListBy::Time(now)).await {
       Some(rest_list) => {
          // Выводим информацию либо ссылками, либо инлайн кнопками
          if compact_mode {
@@ -151,7 +151,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
 
 // Формирует инлайн кнопки по данным из БД
 //
-fn make_markup(rest_list: db::RestaurantList) -> InlineKeyboardMarkup {
+fn make_markup(rest_list: db::RestList) -> InlineKeyboardMarkup {
    // Создадим кнопки под рестораны
    let buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
    .map(|restaurant| (InlineKeyboardButton::callback(restaurant.title, format!("rng{}", db::make_key_3_int(restaurant.num, 0, 0)))))
@@ -186,7 +186,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>) -> b
    let now = settings::current_date_time().time();
    
    // Получаем информацию из БД
-   match db::restaurants_list(db::RestListBy::Time(now)).await {
+   match db::rest_list(db::RestListBy::Time(now)).await {
       Some(rest_list) => {
          // Создадим кнопки
          let markup = make_markup(rest_list);
