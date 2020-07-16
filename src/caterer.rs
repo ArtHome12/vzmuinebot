@@ -30,48 +30,57 @@ pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
    }
    
    
-   // Код ресторана
-   let rest_id = cx.dialogue;
+   // Номер ресторана
+   let rest_num = cx.dialogue;
 
-   // Получаем информацию о ресторане из БД
-   let (info, image_id) = match db::rest_info(rest_id).await {
-      Some(rest_info) => rest_info,
-      None => (format!("Ошибка db::rest_info({})", rest_id), None)
-   };
+   // Начнём с запроса информации о ресторане
+   match db::restaurant(db::RestBy::Num(rest_num)).await {
+      Some(rest) => {
 
-   // Дополним, при необходимости, приветствием
-   let welcome_msg = if show_welcome {
-      // Добавляем подсказку только если ещё нет картинки
-      format!("Добро пожаловать в режим ввода меню!{}\nUser Id={}, {}", hint(&image_id).await, cx.update.from().unwrap().id, rest_id)
-   } else {
-      String::default()
-   };
+         // Дополним, при необходимости, приветствием
+         let welcome_msg = if show_welcome {
+            // Добавляем подсказку только если ещё нет картинки
+            format!("Добро пожаловать в режим ввода меню!{}\nUser Id={}, {}\n", hint(&rest.image_id).await, cx.update.from().unwrap().id, rest_num)
+         } else {
+            String::default()
+         };
 
-   // Итоговая информация
-   let info = format!("{}\n{}", welcome_msg, info);
+         // Соберём информацию о группах ресторана
+         let groups = db::group_titles(rest_num).await;
 
-   // Отправляем описание пользователю, если есть картинка, то отправим описание как комментарий к ней
-   if let Some(image_id) = image_id {
-      // Создадим графический объект
-      let image = InputFile::file_id(image_id);
+         // Итоговая информация
+         let info = format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nЗагрузить фото /EditImg\nГруппы и время работы (добавить новую /AddGroup):\n{}",
+            rest.title, rest.info, db::active_to_str(rest.active), groups);
+         let info = format!("{}{}", welcome_msg, info);
 
-      // Отправляем картинку и текст как комментарий
-      cx.answer_photo(image)
-      .caption(info)
-      .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
-      .disable_notification(true)
-      .send()
-      .await?;
-   } else {
-      cx.answer(info)
-      .reply_markup(cmd::Caterer::main_menu_markup())
-      .disable_notification(true)
-      .send()
-      .await?;
+         // Отправляем описание пользователю, если есть картинка, то отправим описание как комментарий к ней
+         if let Some(image_id) = rest.image_id {
+            // Создадим графический объект
+            let image = InputFile::file_id(image_id);
+
+            // Отправляем картинку и текст как комментарий
+            cx.answer_photo(image)
+            .caption(info)
+            .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
+            .disable_notification(true)
+            .send()
+            .await?;
+         } else {
+            cx.answer(info)
+            .reply_markup(cmd::Caterer::main_menu_markup())
+            .disable_notification(true)
+            .send()
+            .await?;
+         }
+      }
+      None => {
+         let s = format!("Ошибка caterer::next_with_info({}) none info", rest_num);
+         settings::log(&s).await;
+      }
    }
 
    // Остаёмся в режиме главного меню ресторатора.
-   next(cmd::Dialogue::CatererMode(rest_id))
+   next(cmd::Dialogue::CatererMode(rest_num))
 }
 
 async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
