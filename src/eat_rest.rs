@@ -35,7 +35,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
          // Выводим информацию либо ссылками, либо инлайн кнопками
          if compact_mode {
             // Сформируем строку вида "название /ссылка\n"
-            let s: String = rest_list.into_iter().map(|(rest_num, title)| (format!("   {} /rest{}\n", title, rest_num))).collect();
+            let s: String = rest_list.into_iter().map(|restaurant| (format!("   {} /rest{}\n", restaurant.title, restaurant.rest_num))).collect();
             
             // Отображаем информацию и кнопки меню
             let s = format!("Рестораны с подходящим меню:\n{}", s);
@@ -152,7 +152,7 @@ pub async fn handle_commands(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
 fn make_markup(rest_list: db::RestaurantList, cat_id: i32) -> InlineKeyboardMarkup {
    // Создадим кнопки под рестораны
    let buttons: Vec<InlineKeyboardButton> = rest_list.into_iter()
-   .map(|(rest_num, title)| (InlineKeyboardButton::callback(title, format!("grc{}", db::make_key_3_int(rest_num, cat_id, 0)))))  // third argument always 0
+   .map(|restaurant| (InlineKeyboardButton::callback(restaurant.title, format!("grc{}", db::make_key_3_int(restaurant.rest_num, cat_id, 0)))))  // third argument unused
    .collect();
 
    let (long, mut short) : (Vec<_>, Vec<_>) = buttons

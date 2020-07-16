@@ -13,6 +13,7 @@ use text_io::try_scan;
 use teloxide::{
    types::{User},
 };
+use tokio_postgres::Row;
 use std::collections::BTreeMap;
 
 use crate::language as lang;
@@ -27,6 +28,38 @@ pub static DB: OnceCell<Pool> = OnceCell::new();
 // [Restaurants table]
 // ============================================================================
 
+// Информация о ресторане
+pub struct Restaurant {
+   pub user_id: i32,
+   pub title: String,
+   pub info: String,
+   pub active: bool,
+   pub enabled: bool,
+   pub rest_num: i32,
+   pub image_id: String,
+   pub opening_time: NaiveTime,
+   pub closing_time: NaiveTime,
+}
+
+impl Restaurant {
+   pub fn from_db(row: &Row) -> Self {
+      Restaurant {
+         user_id: row.get(0),
+         title: row.get(1),
+         info: row.get(2),
+         active: row.get(3),
+         enabled: row.get(4),
+         rest_num: row.get(5),
+         image_id: row.get(6),
+         opening_time: row.get(7),
+         closing_time: row.get(8),
+      }
+   }
+}
+
+// Список ресторанов
+pub type RestaurantList = Vec<Restaurant>;
+
 // Тип запроса - по категории или по времени
 pub enum RestBy {
    Category(i32),
@@ -34,7 +67,6 @@ pub enum RestBy {
 }
 
 // Возвращает список ресторанов с активными группами в данной категории или во времени
-pub type RestaurantList = BTreeMap<i32, String>;
 pub async fn restaurants_list(by: RestBy) -> Option<RestaurantList> {
    // Получим клиента БД из пула
    match DB.get().unwrap().get().await {
@@ -54,7 +86,7 @@ pub async fn restaurants_list(by: RestBy) -> Option<RestaurantList> {
 
          // Возвращаем результат
          match rows {
-            Ok(data) => Some(data.into_iter().map(|row| (row.get(0), row.get(1))).collect()),
+            Ok(data) => Some(data.into_iter().map(|row| (Restaurant::from_db(&row))).collect()),
             Err(e) => {
                // Сообщаем об ошибке и возвращаем пустой результат
                settings::log(&format!("Error restaurants_list: {}", e)).await;
@@ -68,6 +100,35 @@ pub async fn restaurants_list(by: RestBy) -> Option<RestaurantList> {
       }
    }
 }
+
+// Возвращает список ресторанов
+pub async fn restaurant_list() -> String {
+   // Выполняем запрос информации о ресторане
+   let rows = DB.get().unwrap().get().await.unwrap()
+      .query("SELECT rest_num, user_id, title, enabled FROM restaurants ORDER BY rest_num", &[])
+      .await;
+
+   match rows {
+      Ok(data) => {
+         // Строка для возврата результата
+         let mut res = String::default();
+
+         for record in data {
+            let rest_num: i32 = record.get(0);
+            let user_id: i32 = record.get(1);
+            let title: String = record.get(2);
+            let enabled: bool = record.get(3);
+            res.push_str(&format!("{} '{}', {} {}{}\n", 
+                rest_num, title, enabled_to_str(enabled), enabled_to_cmd(enabled), user_id
+            ));
+        }
+        res
+      }
+      _ => String::from(lang::t("ru", lang::Res::DatabaseEmpty)),
+   }
+}
+
+
 
 // Возвращает описание, фото и список групп выбранного ресторана и категории
 pub struct GroupListWithRestaurantInfo {
@@ -217,33 +278,6 @@ pub async fn groups_by_restaurant_now(rest_num: i32) -> Option<GroupListWithRest
          settings::log(&format!("Error groups_by_restaurant_now: {}", e)).await;
          None
       }
-   }
-}
-
-// Возвращает список ресторанов
-pub async fn restaurant_list() -> String {
-   // Выполняем запрос информации о ресторане
-   let rows = DB.get().unwrap().get().await.unwrap()
-      .query("SELECT rest_num, user_id, title, enabled FROM restaurants ORDER BY rest_num", &[])
-      .await;
-
-   match rows {
-      Ok(data) => {
-         // Строка для возврата результата
-         let mut res = String::default();
-
-         for record in data {
-            let rest_num: i32 = record.get(0);
-            let user_id: i32 = record.get(1);
-            let title: String = record.get(2);
-            let enabled: bool = record.get(3);
-            res.push_str(&format!("{} '{}', {} {}{}\n", 
-                rest_num, title, enabled_to_str(enabled), enabled_to_cmd(enabled), user_id
-            ));
-        }
-        res
-      }
-      _ => String::from(lang::t("ru", lang::Res::DatabaseEmpty)),
    }
 }
 
