@@ -36,7 +36,7 @@ pub struct Restaurant {
    pub active: bool,
    pub enabled: bool,
    pub rest_num: i32,
-   pub image_id: String,
+   pub image_id: Option<String>,
    pub opening_time: NaiveTime,
    pub closing_time: NaiveTime,
 }
