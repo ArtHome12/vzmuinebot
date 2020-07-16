@@ -133,11 +133,22 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
 
                // Если это администратор, то выводим для него команды sudo
                if settings::is_admin(user) {
-                  // Получим список ресторанов с командой входа
-                  let sudo_list = db::restaurant_list_sudo().await;
+                  // Получим из БД список ресторанов и отправим его
+                  match db::restaurants_list(db::RestListBy::All).await {
+                     Some(rest_list) => {
+                        // Сформируем строку вида: 1371303352 'Ресторан "два супа"' /sudo1
+                        let s: String = rest_list.into_iter().map(|r| (format!("{} '{}' /sudo{}\n", r.user_id, r.title, r.num))).collect();
 
-                  // Отправим информацию
-                  cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &format!("Выберите ресторан для входа\n{}", sudo_list), cmd::User::main_menu_markup()).await;
+                        // Отправим информацию
+                        cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &format!("Выберите ресторан для входа\n{}", s), cmd::User::main_menu_markup()).await;
+                     }
+                     None => {
+                        // Если там пусто, то сообщим об этом
+                        let s = String::from(lang::t("ru", lang::Res::EatRestEmpty));
+                        cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s, cmd::User::main_menu_markup()).await;
+                     }
+                  }
+
                } else {
                   // По коду пользователя получим код ресторана
                   match db::rest_num(user).await {
@@ -204,11 +215,11 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                // Проверим права
                if settings::is_admin(cx.update.from()) {
                   // Получим из БД список ресторанов и отправим его
-                  match db::restaurants_list(db::RestBy::All).await {
+                  match db::restaurants_list(db::RestListBy::All).await {
                      Some(rest_list) => {
                         // Сформируем строку вида: 1 'Ресторан "два супа"', доступен /hold1371303352
                         let s: String = rest_list.into_iter().map(|r| (format!("{} '{}', {} {}{}\n", 
-                        r.rest_num, r.title, db::enabled_to_str(r.enabled), db::enabled_to_cmd(r.enabled), r.user_id
+                        r.num, r.title, db::enabled_to_str(r.enabled), db::enabled_to_cmd(r.enabled), r.user_id
                         ))).collect();
                         cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s, cmd::User::main_menu_markup()).await;
                      }

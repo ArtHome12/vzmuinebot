@@ -149,8 +149,14 @@ pub fn make_basket_message_text(basket: &db::Basket) -> String {
 
 // Формирует сообщение с заказом для показа едоку
 pub async fn make_message_for_eater(caterer_id: i32, ticket: db::Ticket) -> (String, InlineKeyboardMarkup) {
+
+   // Название ресторана
+   let rest_name = match db::restaurant(db::RestBy::Id(caterer_id)).await {
+      Some(rest) => rest.title,
+      None => String::from("???"),
+   };
+   
    // Текст сообщения со стадией выполнения 
-   let rest_name = db::restaurant_title_by_id(caterer_id).await;
    let stage = db::stage_to_str(ticket.stage);
    let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, caterer_id);
 
@@ -436,69 +442,79 @@ pub async fn edit_address_mode(cx: cmd::Cx<i32>) -> cmd::Res {
 
 // Отправляет сообщение ресторатору с корзиной пользователя
 pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, user_id: i32, message_id: i32) -> bool {
-   // Откуда и куда
-   let from = ChatId::Id(i64::from(user_id));
-   let to = ChatId::Id(i64::from(rest_id));
+   // Начнём с запроса информации о ресторане-получателе
+   match db::restaurant(db::RestBy::Id(rest_id)).await {
+      Some(rest) => {
 
-   // Заново сгенерируем текст исходного сообщения уже без команд /del в тексте, чтобы пересылать его
-   let (rest_num, rest_title, rest_info) = db::restaurant_num_and_title_by_id(rest_id).await;
-   let basket_with_no_commands = db::basket_content(user_id, rest_num, rest_id, &rest_title, &rest_info, true).await;
+         // Откуда и куда
+         let from = ChatId::Id(i64::from(user_id));
+         let to = ChatId::Id(i64::from(rest_id));
 
-   // Ссылка на исправляемое сообщение
-   let original_message = ChatOrInlineMessage::Chat {
-      chat_id: from.clone(),
-      message_id,
-   };
+         // Заново сгенерируем текст исходного сообщения уже без команд /del в тексте, чтобы пересылать его
+         let basket_with_no_commands = db::basket_content(user_id, rest.num, rest_id, &rest.title, &rest.info, true).await;
 
-   // Исправим исходное сообщение на новый текст
-   if let Err(e) = cx.bot.edit_message_text(original_message, make_basket_message_text(&basket_with_no_commands)).send().await {
-      let s = format!("Error send_basket edit_message_text(): {}", e);
-      settings::log(&s).await;
-   }
-   
-   // Информация о едоке
-   let basket_info = db::user_basket_info(user_id).await;
-   let (eater_info, location_message_id) = if let Some(info) = basket_info {
-      let method = if info.pickup {String::from("Cамовывоз")} else {format!("Курьером по адресу {}", info.address_label())};
-      (format!("Заказ от {}\nКонтакт: {}\n{}", info.name, info.contact, method), info.address_message_id())
-   } else {
-      (String::from("Информации о пользователе нет"), None)
-   };
+         // Ссылка на исправляемое сообщение
+         let original_message = ChatOrInlineMessage::Chat {
+            chat_id: from.clone(),
+            message_id,
+         };
 
-   // Отправим сообщение с контактными данными
-   settings::log_and_notify(&eater_info).await;
-   match cx.bot.send_message(to.clone(), eater_info).send().await {
-      Ok(_) => {
-         // Перешлём сообщение с геолокацией, если она задана
-         if let Some(location_message) = location_message_id {
-
-            settings::log_forward(from.clone(), location_message).await;
-            if let Err(e) = cx.bot.forward_message(to.clone(), from.clone(), location_message).send().await {
-               settings::log(&format!("Error send_basket forward location({}, {}, {}): {}", user_id, rest_id, message_id, e)).await;
-            }
+         // Исправим исходное сообщение на новый текст
+         if let Err(e) = cx.bot.edit_message_text(original_message, make_basket_message_text(&basket_with_no_commands)).send().await {
+            let s = format!("Error send_basket edit_message_text(): {}", e);
+            settings::log(&s).await;
          }
+         
+         // Информация о едоке
+         let basket_info = db::user_basket_info(user_id).await;
+         let (eater_info, location_message_id) = if let Some(info) = basket_info {
+            let method = if info.pickup {String::from("Cамовывоз")} else {format!("Курьером по адресу {}", info.address_label())};
+            (format!("Заказ от {}\nКонтакт: {}\n{}", info.name, info.contact, method), info.address_message_id())
+         } else {
+            (String::from("Информации о пользователе нет"), None)
+         };
 
-         settings::log_forward(from.clone(), message_id).await;
-         match cx.bot.forward_message(to.clone(), from.clone(), message_id).send().await {
-            Ok(new_message) => {
+         // Отправим сообщение с контактными данными
+         settings::log_and_notify(&eater_info).await;
+         match cx.bot.send_message(to.clone(), eater_info).send().await {
+            Ok(_) => {
+               // Перешлём сообщение с геолокацией, если она задана
+               if let Some(location_message) = location_message_id {
 
-               // Переместим заказ из корзины в обработку
-               if db::order_to_ticket(user_id, rest_id, message_id, new_message.id).await {
-                  // Отправим сообщение едоку, уже со статусом заказа
-                  send_messages_for_eater(cx.bot.clone(), from, user_id).await;
+                  settings::log_forward(from.clone(), location_message).await;
+                  if let Err(e) = cx.bot.forward_message(to.clone(), from.clone(), location_message).send().await {
+                     settings::log(&format!("Error send_basket forward location({}, {}, {}): {}", user_id, rest_id, message_id, e)).await;
+                  }
+               }
 
-                  // Отправим сообщение ресторатору, уже со статусом заказа
-                  send_messages_for_caterer(cx.bot.clone(), to, rest_id).await;
+               settings::log_forward(from.clone(), message_id).await;
+               match cx.bot.forward_message(to.clone(), from.clone(), message_id).send().await {
+                  Ok(new_message) => {
 
-                  // Все операции прошли успешно
-                  return true;
+                     // Переместим заказ из корзины в обработку
+                     if db::order_to_ticket(user_id, rest_id, message_id, new_message.id).await {
+                        // Отправим сообщение едоку, уже со статусом заказа
+                        send_messages_for_eater(cx.bot.clone(), from, user_id).await;
+
+                        // Отправим сообщение ресторатору, уже со статусом заказа
+                        send_messages_for_caterer(cx.bot.clone(), to, rest_id).await;
+
+                        // Все операции прошли успешно
+                        return true;
+                     }
+                  }
+                  Err(err) =>  { settings::log(&format!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
                }
             }
-            Err(err) =>  { settings::log(&format!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
+            Err(err) =>  { settings::log(&format!("Error send_basket announcement({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
          }
       }
-      Err(err) =>  { settings::log(&format!("Error send_basket announcement({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}
-   }
+      None => {
+         let s = format!("Error send_basket none info");
+         settings::log(&s).await;
+      }
+   };
+
    
    // Раз попали сюда, значит что-то пошло не так
    false

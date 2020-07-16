@@ -16,7 +16,6 @@ use teloxide::{
 use tokio_postgres::Row;
 use std::collections::BTreeMap;
 
-use crate::language as lang;
 use crate::settings;
 
 // Пул клиентов БД
@@ -35,7 +34,7 @@ pub struct Restaurant {
    pub info: String,
    pub active: bool,
    pub enabled: bool,
-   pub rest_num: i32,
+   pub num: i32,
    pub image_id: Option<String>,
    pub opening_time: NaiveTime,
    pub closing_time: NaiveTime,
@@ -49,7 +48,7 @@ impl Restaurant {
          info: row.get(2),
          active: row.get(3),
          enabled: row.get(4),
-         rest_num: row.get(5),
+         num: row.get(5),
          image_id: row.get(6),
          opening_time: row.get(7),
          closing_time: row.get(8),
@@ -60,33 +59,39 @@ impl Restaurant {
 // Список ресторанов
 pub type RestaurantList = Vec<Restaurant>;
 
-// Тип запроса - по категории или по времени
+// Тип запроса информации о ресторане
 pub enum RestBy {
-   All,
-   Category(i32),
-   Time(NaiveTime),
+   Id(i32),    // по user_id
+   Num(i32),   // по номеру
 }
 
-// Возвращает список ресторанов с активными группами в данной категории или во времени
-pub async fn restaurants_list(by: RestBy) -> Option<RestaurantList> {
+// Тип запроса списка ресторанов
+pub enum RestListBy {
+   All,              // все рестораны
+   Category(i32),    // активные, с группами в указанной категории
+   Time(NaiveTime),  // активные, с группами, работающими в указанное время
+}
+
+// Возвращает список ресторанов
+pub async fn restaurants_list(by: RestListBy) -> Option<RestaurantList> {
    // Получим клиента БД из пула
    match DB.get().unwrap().get().await {
       Ok(client) => {
 
          // Выполним нужный запрос
          let rows =  match by {
-            RestBy::All => {
+            RestListBy::All => {
                client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r
                ORDER BY rest_num", &[]
                ).await
             },
-            RestBy::Category(cat_id) => {
+            RestListBy::Category(cat_id) => {
                client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
                INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
                WHERE r.active = TRUE", &[&cat_id]
                ).await
             },
-            RestBy::Time(time) => {
+            RestListBy::Time(time) => {
                client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
                INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
                ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&time]
@@ -111,32 +116,104 @@ pub async fn restaurants_list(by: RestBy) -> Option<RestaurantList> {
    }
 }
 
-// Возвращает список ресторанов
-/*pub async fn restaurant_list() -> String {
-   // Выполняем запрос информации о ресторане
-   let rows = DB.get().unwrap().get().await.unwrap()
-      .query("SELECT rest_num, user_id, title, enabled FROM restaurants ORDER BY rest_num", &[])
-      .await;
+// Возвращает информацию о ресторане
+pub async fn restaurant(by: RestBy) -> Option<Restaurant> {
+   // Получим клиента БД из пула
+   match DB.get().unwrap().get().await {
+      Ok(client) => {
 
+         // Выполним нужный запрос
+         let rows =  match by {
+            RestBy::Id(user_id) => {
+               client.query_one("SELECT user_id, title, info, active, enabled, rest_num, image_id, opening_time, closing_time FROM restaurants
+               WHERE user_id=$1::INTEGER", &[&user_id]
+               ).await
+            },
+            RestBy::Num(rest_num) => {
+               client.query_one("SELECT user_id, title, info, active, enabled, rest_num, image_id, opening_time, closing_time FROM restaurants
+               rest_num=$1::INTEGER", &[&rest_num]
+               ).await
+            },
+         };
+
+         // Возвращаем результат
+         match rows {
+            Ok(row) => Some(Restaurant::from_db(&row)),
+            Err(e) => {
+               // Сообщаем об ошибке и возвращаем пустой результат
+               settings::log(&format!("Error restaurant: {}", e)).await;
+               None
+            }
+         }
+      },
+      Err(e) => {
+         settings::log(&format!("Error restaurant, no db client: {}", e)).await;
+         None
+      }
+   }
+}
+
+// Возращает ресторан по user_id или пустую строку
+/*pub async fn restaurant_title_by_id(user_id: i32) -> String {
+   // Выполняем запрос
+   let rows = DB.get().unwrap().get().await.unwrap()
+.query("SELECT title FROM restaurants WHERE user_id=$1::INTEGER", &[&user_id])
+.await;
+
+   // Возвращаем результат, если такой есть.
    match rows {
       Ok(data) => {
-         // Строка для возврата результата
-         let mut res = String::default();
-
-         for record in data {
-            let rest_num: i32 = record.get(0);
-            let user_id: i32 = record.get(1);
-            let title: String = record.get(2);
-            let enabled: bool = record.get(3);
-            res.push_str(&format!("{} '{}', {} {}{}\n", 
-                rest_num, title, enabled_to_str(enabled), enabled_to_cmd(enabled), user_id
-            ));
-        }
-        res
+         if data.is_empty() {String::default()}
+         else {data[0].get(0)}
       }
-      _ => String::from(lang::t("ru", lang::Res::DatabaseEmpty)),
+      _ => String::default(),
+   }
+}
+
+// Возращает ресторан по user_id или пустую строку
+pub async fn restaurant_num_and_title_by_id(caterer_id: i32) -> (i32, String, String) {
+   // Выполняем запрос
+   let rows = DB.get().unwrap().get().await.unwrap()
+   .query_one("SELECT rest_num, title, info FROM restaurants WHERE user_id=$1::INTEGER", &[&caterer_id])
+   .await;
+
+   // Возвращаем результат, если такой есть.
+   match rows {
+      Ok(data) => (data.get(0), data.get(1), data.get(2)),
+      _ =>  (0, String::default(), String::default()),
    }
 }*/
+
+
+// Возвращает строку с информацией о ресторане
+pub async fn rest_info(rest_num: i32) -> Option<(String, Option<String>)> {
+   // Выполняем запрос
+   let rows = DB.get().unwrap().get().await.unwrap()
+   .query("SELECT title, info, active, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
+   .await;
+
+   // Проверяем результат
+   match rows {
+      Ok(data) => {
+         if !data.is_empty() {
+               // Параметры ресторана
+               let title: String = data[0].get(0);
+               let info: String = data[0].get(1);
+               let active: bool = data[0].get(2);
+               let image_id: Option<String> = data[0].get(3);
+               let groups: String = group_titles(rest_num).await;
+               Some((
+                  String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nЗагрузить фото /EditImg\nГруппы и время работы (добавить новую /AddGroup):\n{}",
+                     title, info, active_to_str(active), groups)
+                  ), image_id
+               ))
+         } else {
+               None
+         }
+      }
+      _ => None,
+   }
+}
 
 
 
@@ -292,63 +369,6 @@ pub async fn groups_by_restaurant_now(rest_num: i32) -> Option<GroupListWithRest
 }
 
 
-// Возвращает список ресторанов с командой для входа
-pub async fn restaurant_list_sudo() -> String {
-   // Выполняем запрос информации о ресторане
-   let rows = DB.get().unwrap().get().await.unwrap()
-      .query("SELECT rest_num, user_id, title FROM restaurants ORDER BY rest_num", &[])
-      .await;
-
-   match rows {
-      Ok(data) => {
-         // Строка для возврата результата
-         let mut res = String::default();
-
-         for record in data {
-            let rest_num: i32 = record.get(0);
-            let user_id: i32 = record.get(1);
-            let title: String = record.get(2);
-            res.push_str(&format!("{} '{}' /sudo{}\n", 
-                user_id, title, rest_num
-            ));
-        }
-        res
-      }
-      _ => String::from(lang::t("ru", lang::Res::DatabaseEmpty)),
-   }
-}
-
-// Возращает ресторан по user_id или пустую строку
-pub async fn restaurant_title_by_id(user_id: i32) -> String {
-   // Выполняем запрос
-   let rows = DB.get().unwrap().get().await.unwrap()
-.query("SELECT title FROM restaurants WHERE user_id=$1::INTEGER", &[&user_id])
-.await;
-
-   // Возвращаем результат, если такой есть.
-   match rows {
-      Ok(data) => {
-         if data.is_empty() {String::default()}
-         else {data[0].get(0)}
-      }
-      _ => String::default(),
-   }
-}
-
-// Возращает ресторан по user_id или пустую строку
-pub async fn restaurant_num_and_title_by_id(caterer_id: i32) -> (i32, String, String) {
-   // Выполняем запрос
-   let rows = DB.get().unwrap().get().await.unwrap()
-   .query_one("SELECT rest_num, title, info FROM restaurants WHERE user_id=$1::INTEGER", &[&caterer_id])
-   .await;
-
-   // Возвращаем результат, если такой есть.
-   match rows {
-      Ok(data) => (data.get(0), data.get(1), data.get(2)),
-      _ =>  (0, String::default(), String::default()),
-   }
-}
-
 // Возвращает номер ресторана, если пользователю разрешён доступ в режим ресторатора
 pub async fn rest_num(user : Option<&teloxide::types::User>) -> Result<i32, ()> {
    // Проверяем, передан ли пользователь.
@@ -369,38 +389,6 @@ pub async fn rest_num(user : Option<&teloxide::types::User>) -> Result<i32, ()> 
          }
       }
       _ => Err(()),
-   }
-}
-
-
-// Возвращает строку с информацией о ресторане
-//
-pub async fn rest_info(rest_num: i32) -> Option<(String, Option<String>)> {
-   // Выполняем запрос
-   let rows = DB.get().unwrap().get().await.unwrap()
-   .query("SELECT title, info, active, image_id FROM restaurants WHERE rest_num=$1::INTEGER", &[&rest_num])
-   .await;
-
-   // Проверяем результат
-   match rows {
-      Ok(data) => {
-         if !data.is_empty() {
-               // Параметры ресторана
-               let title: String = data[0].get(0);
-               let info: String = data[0].get(1);
-               let active: bool = data[0].get(2);
-               let image_id: Option<String> = data[0].get(3);
-               let groups: String = group_titles(rest_num).await;
-               Some((
-                  String::from(format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nЗагрузить фото /EditImg\nГруппы и время работы (добавить новую /AddGroup):\n{}",
-                     title, info, active_to_str(active), groups)
-                  ), image_id
-               ))
-         } else {
-               None
-         }
-      }
-      _ => None,
    }
 }
 
