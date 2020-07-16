@@ -62,6 +62,7 @@ pub type RestaurantList = Vec<Restaurant>;
 
 // Тип запроса - по категории или по времени
 pub enum RestBy {
+   All,
    Category(i32),
    Time(NaiveTime),
 }
@@ -74,16 +75,21 @@ pub async fn restaurants_list(by: RestBy) -> Option<RestaurantList> {
 
          // Выполним нужный запрос
          let rows =  match by {
+            RestBy::All => {
+               client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r
+               ORDER BY rest_num", &[]
+               ).await
+            },
             RestBy::Category(cat_id) => {
                client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
-                  INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
-                  WHERE r.active = TRUE", &[&cat_id]
+               INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
+               WHERE r.active = TRUE", &[&cat_id]
                ).await
             },
             RestBy::Time(time) => {
                client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
-                  INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
-                  ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&time]
+               INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
+               ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&time]
                ).await
             }
          };
@@ -106,7 +112,7 @@ pub async fn restaurants_list(by: RestBy) -> Option<RestaurantList> {
 }
 
 // Возвращает список ресторанов
-pub async fn restaurant_list() -> String {
+/*pub async fn restaurant_list() -> String {
    // Выполняем запрос информации о ресторане
    let rows = DB.get().unwrap().get().await.unwrap()
       .query("SELECT rest_num, user_id, title, enabled FROM restaurants ORDER BY rest_num", &[])
@@ -130,7 +136,7 @@ pub async fn restaurant_list() -> String {
       }
       _ => String::from(lang::t("ru", lang::Res::DatabaseEmpty)),
    }
-}
+}*/
 
 
 
@@ -1752,7 +1758,7 @@ fn active_to_str(active : bool) -> &'static str {
    }
 }
 
-fn enabled_to_str(enabled : bool) -> &'static str {
+pub fn enabled_to_str(enabled : bool) -> &'static str {
    if enabled {
        "доступен"
    } else {
@@ -1760,7 +1766,7 @@ fn enabled_to_str(enabled : bool) -> &'static str {
    }
 }
 
-fn enabled_to_cmd(enabled : bool) -> &'static str {
+pub fn enabled_to_cmd(enabled : bool) -> &'static str {
    if enabled {
        "/hold"
    } else {

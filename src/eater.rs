@@ -18,6 +18,7 @@ use crate::eat_rest;
 use crate::eat_rest_now;
 use crate::basket;
 use crate::settings;
+use crate::language as lang;
 
 pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    
@@ -203,8 +204,20 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                // Проверим права
                if settings::is_admin(cx.update.from()) {
                   // Получим из БД список ресторанов и отправим его
-                  let res = db::restaurant_list().await;
-                  cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &res, cmd::User::main_menu_markup()).await;
+                  match db::restaurants_list(db::RestBy::All).await {
+                     Some(rest_list) => {
+                        // Сформируем строку вида: 1 'Ресторан "два супа"', доступен /hold1371303352
+                        let s: String = rest_list.into_iter().map(|r| (format!("{} '{}', {} {}{}\n", 
+                        r.rest_num, r.title, db::enabled_to_str(r.enabled), db::enabled_to_cmd(r.enabled), r.user_id
+                        ))).collect();
+                        cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s, cmd::User::main_menu_markup()).await;
+                     }
+                     None => {
+                        // Если там пусто, то сообщим об этом
+                        let s = String::from(lang::t("ru", lang::Res::EatRestEmpty));
+                        cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s, cmd::User::main_menu_markup()).await;
+                     }
+                  }
                } else {
                   cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Недостаточно прав", cmd::User::main_menu_markup()).await;
                }
