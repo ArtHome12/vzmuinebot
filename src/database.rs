@@ -131,7 +131,7 @@ pub async fn restaurant(by: RestBy) -> Option<Restaurant> {
             },
             RestBy::Num(rest_num) => {
                client.query_one("SELECT user_id, title, info, active, enabled, rest_num, image_id, opening_time, closing_time FROM restaurants
-               rest_num=$1::INTEGER", &[&rest_num]
+               WHERE rest_num=$1::INTEGER", &[&rest_num]
                ).await
             },
          };
