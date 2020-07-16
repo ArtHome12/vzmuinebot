@@ -75,12 +75,16 @@ pub async fn restaurants_list(by: RestBy) -> Option<RestaurantList> {
          // Выполним нужный запрос
          let rows =  match by {
             RestBy::Category(cat_id) => {
-               client.query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
-               WHERE r.active = TRUE", &[&cat_id]).await
+               client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
+                  INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
+                  WHERE r.active = TRUE", &[&cat_id]
+               ).await
             },
             RestBy::Time(time) => {
-               client.query("SELECT r.rest_num, r.title FROM restaurants AS r INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
-                  ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&time]).await
+               client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
+                  INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
+                  ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&time]
+               ).await
             }
          };
 
