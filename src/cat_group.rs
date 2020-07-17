@@ -36,7 +36,15 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             group.title, group.info, db::id_to_category(group.cat_id), db::active_to_str(group.active), group.opening_time.format("%H:%M"), group.closing_time.format("%H:%M")));
 
          // Получим информацию о блюдах из БД
-         let dishes_info = db::dish_titles(rest_num, group_num).await;
+         let dishes_info = match db::dish_list(db::DishesBy::All(rest_num, group_num)).await {
+            None => {
+               String::from(lang::t("ru", lang::Res::CatGroupsEmpty))
+            }
+            Some(dishes) => {
+               // Сформируем строку вида: Мясо по-французски 120₽ /EdDi2
+               dishes.into_iter().map(|dish| (format!("   {} /EdDi{}\n", dish.title_with_price(), dish.num))).collect()
+            }
+         };
 
          // Итоговое описание группы с блюдами
          String::from(format!("{}\n{}", group_info, dishes_info))

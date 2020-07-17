@@ -421,7 +421,6 @@ impl Group {
    pub fn title_with_time(&self, def_opening_time: NaiveTime, def_closing_time: NaiveTime) -> String {
       format!("{}{}", self.title, self.work_time(def_opening_time, def_closing_time))
    }
-
 }
 
 // Тип запроса информации о группе ресторана
@@ -504,205 +503,209 @@ pub async fn group(rest_num: i32, group_num: i32) -> Option<Group> {
    }
 }
 
-// Возвращает список блюд указанного ресторана и группы
-pub async fn dishes_by_restaurant_and_group(rest_num: i32, group_num: i32) -> Option<DishListWithGroupInfo> {
-   // Выполняем запрос информации о группе
-   let rows = DB.get().unwrap().get().await.unwrap()
-      .query("SELECT info FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
-      .await;
-
-   match rows {
-      Ok(data) => {
-         if !data.is_empty() {
-            // Информация о группе
-            let res = DishListWithGroupInfo{
-               info: data[0].get(0),
-               dishes: subselect_dishes(rest_num, group_num).await,
-            };
-
-            // Окончательный результат
-            Some(res)
-         } else {
-            None
-         }
-      }
-      _ => None,
-   }
-}
-
-// Возвращает категорию указанной группы
-pub async fn category_by_restaurant_and_group(rest_num: i32, group_num: i32) -> i32 {
-   // Выполняем запрос информации о группе
-   let rows = DB.get().unwrap().get().await.unwrap()
-      .query_one("SELECT cat_id FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
-      .await;
-
-   match rows {
-      Ok(data) => data.get(0),
-      _ => 0,
-   }
-}
-
 // Добавляет новую группу
 pub async fn rest_add_group(rest_num: i32, new_str: String) -> bool {
-  // Выполняем запрос
-  let query = DB.get().unwrap().get().await.unwrap()
-  .execute("INSERT INTO groups (rest_num, group_num, title, info, active, cat_id, opening_time, closing_time) 
-  VALUES (
-     $1::INTEGER, 
-     (SELECT COUNT(*) FROM groups WHERE rest_num=$2::INTEGER) + 1,
-     $3::VARCHAR(100),
-     'Блюда подаются на тарелке',
-     TRUE,
-     2,
-     '07:00',
-     '23:00'
-  )", &[&rest_num, &rest_num, &new_str])
-  .await;
-  match query {
-     Ok(_) => true,
-     _ => false,
-  }
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("INSERT INTO groups (rest_num, group_num, title, info, active, cat_id, opening_time, closing_time) 
+   VALUES (
+      $1::INTEGER, 
+      (SELECT COUNT(*) FROM groups WHERE rest_num=$2::INTEGER) + 1,
+      $3::VARCHAR(100),
+      'Блюда подаются на тарелке',
+      TRUE,
+      2,
+      '07:00',
+      '23:00'
+   )", &[&rest_num, &rest_num, &new_str])
+   .await;
+   match query {
+      Ok(1) => true,
+      _ => false,
+   }
 }
 
 // Изменяет название группы
-//
 pub async fn rest_group_edit_title(rest_num: i32, group_num: i32, new_str: String) -> bool {
-  // Выполняем запрос
-  let query = DB.get().unwrap().get().await.unwrap()
-  .execute("UPDATE groups SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_str, &rest_num, &group_num])
-  .await;
-  match query {
-      Ok(_) => true,
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE groups SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_str, &rest_num, &group_num])
+   .await;
+   match query {
+      Ok(1) => true,
       _ => false,
-  }
+   }
 }
 
 // Изменяет описание группы
-//
 pub async fn rest_group_edit_info(rest_num: i32, group_num: i32, new_str: String) -> bool {
-  // Выполняем запрос
-  let query = DB.get().unwrap().get().await.unwrap()
-  .execute("UPDATE groups SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_str, &rest_num, &group_num])
-  .await;
-  match query {
-      Ok(_) => true,
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE groups SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_str, &rest_num, &group_num])
+   .await;
+   match query {
+      Ok(1) => true,
       _ => false,
-  }
+   }
 }
 
 // Переключает доступность группы
-//
 pub async fn rest_group_toggle(rest_num: i32, group_num: i32) -> bool {
-  // Выполняем запрос
-  let query = DB.get().unwrap().get().await.unwrap()
-  .execute("UPDATE groups SET active = NOT active WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
-  .await;
-  match query {
-      Ok(_) => true,
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE groups SET active = NOT active WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
+   .await;
+   match query {
+      Ok(1) => true,
       _ => false,
-  }
+   }
 }
 
 // Изменяет категорию группы
-//
 pub async fn rest_group_edit_category(rest_num: i32, group_num: i32, new_cat : i32) -> bool {
-  // Выполняем запрос
-  let query = DB.get().unwrap().get().await.unwrap()
-  .execute("UPDATE groups SET cat_id = $1::INTEGER WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_cat, &rest_num, &group_num])
-  .await;
-  match query {
-      Ok(_) => true,
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE groups SET cat_id = $1::INTEGER WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_cat, &rest_num, &group_num])
+   .await;
+   match query {
+      Ok(1) => true,
       _ => false,
-  }
+   }
 }
-
 
 // Изменяет время доступности группы
 pub async fn rest_group_edit_time(rest_num: i32, group_num: i32, opening_time: NaiveTime, closing_time: NaiveTime) -> bool {
-  // Выполняем запрос
-  let query = DB.get().unwrap().get().await.unwrap()
-  .execute("UPDATE groups SET opening_time = $1::TIME, closing_time = $2::TIME WHERE rest_num=$3::INTEGER AND group_num=$4::INTEGER", &[&opening_time, &closing_time, &rest_num, &group_num])
-  .await;
-  match query {
-      Ok(_) => rest_edit_time(rest_num).await,
+   // Выполняем запрос
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("UPDATE groups SET opening_time = $1::TIME, closing_time = $2::TIME WHERE rest_num=$3::INTEGER AND group_num=$4::INTEGER", &[&opening_time, &closing_time, &rest_num, &group_num])
+   .await;
+   match query {
+      Ok(1) => rest_edit_time(rest_num).await,
       _ => false,
-  }
+   }
 }
 
 // Удаляет группу и изменяет порядковый номер оставшихся групп, в т.ч. и у блюд
-//
 pub async fn rest_group_remove(rest_num: i32, group_num: i32) -> bool {
-  // Проверим, что у группы нет блюд
-  let rows = DB.get().unwrap().get().await.unwrap()
-.query("SELECT * FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
-.await;
-  if let Ok(res) = rows {
-     if !res.is_empty() {
-        return false;
-     }
-  } else {
-     return false;
-  }
+   // Проверим, что у группы нет блюд
+   let rows = DB.get().unwrap().get().await.unwrap()
+   .query("SELECT * FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
+   .await;
+   if let Ok(res) = rows {
+      if !res.is_empty() {
+         return false;
+      }
+   } else {
+      return false;
+   }
 
    // Выполняем запрос. Должно быть начало транзакции, потом коммит, но transaction требует mut
-  let query = DB.get().unwrap().get().await.unwrap()
-  .execute("DELETE FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
-  .await;
-  match query {
-     Ok(_) => {
-        // Номера групп перенумеровываем для исключения дырки
-        let query = DB.get().unwrap().get().await.unwrap()
-        .execute("UPDATE groups SET group_num = group_num - 1 WHERE rest_num=$1::INTEGER AND group_num>$2::INTEGER", &[&rest_num, &group_num])
-        .await;
-        match query {
-           Ok(_) => {
-              // Перенумеровываем группы у блюд
-              let query = DB.get().unwrap().get().await.unwrap()
-              .execute("UPDATE dishes SET group_num = group_num - 1 WHERE rest_num=$1::INTEGER AND group_num>$2::INTEGER", &[&rest_num, &group_num])
-              .await;
-              match query {
-                 Ok(_) => true,
-                 _ => false,
-              }
-           }
-           _     => false,
-        }
-     }
-     _ => false,
-  }
-}
-
+   let query = DB.get().unwrap().get().await.unwrap()
+   .execute("DELETE FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
+   .await;
+   match query {
+      Ok(_) => {
+         // Номера групп перенумеровываем для исключения дырки
+         let query = DB.get().unwrap().get().await.unwrap()
+         .execute("UPDATE groups SET group_num = group_num - 1 WHERE rest_num=$1::INTEGER AND group_num>$2::INTEGER", &[&rest_num, &group_num])
+         .await;
+         match query {
+            Ok(_) => {
+               // Перенумеровываем группы у блюд
+               let query = DB.get().unwrap().get().await.unwrap()
+               .execute("UPDATE dishes SET group_num = group_num - 1 WHERE rest_num=$1::INTEGER AND group_num>$2::INTEGER", &[&rest_num, &group_num])
+               .await;
+               match query {
+                  Ok(_) => true,
+                  _ => false,
+               }
+            }
+            _ => false,
+         }
+      }
+      _ => false,
+   }
+ }
+ 
 // ============================================================================
 // [Dishes table]
 // ============================================================================
 
-// Возвращает список блюд выбранного ресторана и группы
-pub struct DishListWithGroupInfo {
-   pub info: String, 
-   pub dishes: BTreeMap<i32, String>
+// Информация о блюде
+pub struct Dish {
+   pub rest_num: i32,
+   pub num: i32,
+   pub title: String,
+   pub info: String,
+   pub active: bool,
+   pub group_num: i32,
+   pub price: i32,
+   pub image_id: Option<String>,
 }
 
-async fn subselect_dishes(rest_num: i32, group_num: i32) -> BTreeMap<i32, String> {
-   // Выполняем запрос списка блюд
-   let rows = DB.get().unwrap().get().await.unwrap()
-      .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE ORDER BY dish_num", &[&rest_num, &group_num])
-      .await;
+impl Dish {
+   pub fn from_db(row: &Row) -> Self {
+      Dish {
+         rest_num: row.get(0),
+         num: row.get(1),
+         title: row.get(2),
+         info: row.get(3),
+         active: row.get(4),
+         group_num: row.get(5),
+         price: row.get(6),
+         image_id: row.get(7),
+      }
+   }
 
-   // Проверяем результат
-   match rows {
-      Ok(data) => data.into_iter().map(|row| -> (i32, String) {
-         let dish_num: i32 = row.get(0);
-         let title: String = row.get(1);
-         let price: i32 = row.get(2);
+   // Возвращает название вместе с ценой
+   pub fn title_with_price(&self) -> String {
+      format!("{} {}", self.title, settings::price_with_unit(self.price))
+   }
+}
 
-         // Возвращаем хешстроку
-         (dish_num, format!("   {} {}", title, settings::price_with_unit(price)))
-      }).collect(),
+// Тип запроса информации о блюдах
+pub enum DishesBy {
+   All(i32, i32),    // все по номеру ресторана и группы
+   Active(i32, i32), // только активные по номеру ресторана и группы
+}
+
+
+// Список блюд
+pub type DishList = Vec<Dish>;
+
+// Возвращает список блюд
+pub async fn dish_list(by: DishesBy) -> Option<DishList> {
+   // Получим клиента БД из пула
+   match DB.get().unwrap().get().await {
+      Ok(client) => {
+
+         // Выполним нужный запрос
+         let rows =  match by {
+            DishesBy::All(rest_num, group_num) => {
+               client.query("SELECT d.rest_num, d.num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
+                  WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER ORDER BY dish_num", &[&rest_num, &group_num]
+               ).await
+            },
+            DishesBy::Active(rest_num, group_num) => {
+               client.query("SELECT d.rest_num, d.num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
+                  WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE ORDER BY dish_num", &[&rest_num, &group_num]
+               ).await
+            },
+         };
+
+         // Возвращаем результат
+         match rows {
+            Ok(data) => if data.is_empty() {None} else {Some(data.into_iter().map(|row| (Dish::from_db(&row))).collect())},
+            Err(e) => {
+               // Сообщаем об ошибке и возвращаем пустой результат
+               settings::log(&format!("Error dish_list: {}", e)).await;
+               None
+            }
+         }
+      },
       Err(e) => {
-         // Сообщаем об ошибке и возвращаем пустой список
-         settings::log(&format!("Error restaurant_by_category: {}", e)).await;
-         BTreeMap::<i32, String>::new()
+         settings::log(&format!("Error dish_list, no db client: {}", e)).await;
+         None
       }
    }
 }
@@ -740,33 +743,7 @@ pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Op
    }
 }
 
-// Возвращает строки с краткой информацией о блюдах
-pub async fn dish_titles(rest_num: i32, group_num: i32) -> String {
-   // Выполняем запрос
-     let rows = DB.get().unwrap().get().await.unwrap()
-     .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER ORDER BY dish_num", &[&rest_num, &group_num])
-     .await;
-
-   // Строка для возврата результата
-   let mut res = String::default();
-
-   // Проверяем результат
-   if let Ok(data) = rows {
-       for record in data {
-           let dish_num: i32 = record.get(0);
-           let title: String = record.get(1);
-           let price: i32 = record.get(2);
-           res.push_str(&format!("   {} {} /EdDi{}\n", 
-               title, settings::price_with_unit(price), dish_num
-           ));
-       }
-   }
-   res
-}
-
-
 // Возвращает информацию о блюде
-//
 pub async fn dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Option<(String, Option<String>)> {
     // Выполняем запрос
      let rows = DB.get().unwrap().get().await.unwrap()

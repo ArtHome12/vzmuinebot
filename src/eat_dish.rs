@@ -28,27 +28,33 @@ use crate::settings;
 //
 pub async fn next_with_info(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
    // Извлечём параметры
-   let (compact_mode, cat_id, rest_id, group_id) = cx.dialogue;
+   let (compact_mode, cat_id, rest_num, group_num) = cx.dialogue;
    
-   // Получаем информацию из БД
-   match db::dishes_by_restaurant_and_group(rest_id, group_id).await {
+   // Получаем информацию из БД сначала о группе
+   match db::group(rest_num, group_num).await {
       None => {
-         // Такая ситуация может возникнуть, если ресторатор удалил блюда только что
-         let s = String::from("Подходящие блюда исчезли");
+         // Такая ситуация не должна возникнуть
+         let s = String::from("Ошибка, информации о группе нет");
          let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
          cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
       }
-      Some(info) => {
+      Some(group) => {
+         // Сформируем информацию о группе
+         let group_info = format!("{}. {}", group.title, group.info);
 
-         // Сформируем строку вида "название /ссылка\n"
-         let s: String = if info.dishes.is_empty() {
-            String::from(lang::t("ru", lang::Res::EatDishEmpty))
-         } else {
-            info.dishes.into_iter().map(|(key, value)| (format!("   {} /dish{}\n", value, key))).collect()
+         // Получаем из БД список блюд
+         let dishes_desc = match db::dish_list(db::DishesBy::Active(rest_num, group_num)).await {
+            None => {
+               String::from(lang::t("ru", lang::Res::EatDishEmpty))
+            }
+            Some(dishes) => {
+               // Сформируем строку вида "название /ссылка\n"
+               dishes.into_iter().map(|dish| (format!("   {} /dish{}\n", dish.title_with_price(), dish.num))).collect()
+            }
          };
-         
-         // Добавляем блюда к информации о группе
-         let s = format!("{}\n{}", info.info, s);
+               
+         // Формируем итоговую информацию - добавляем блюда к информации о группе
+         let s = format!("{}\n{}", group_info, dishes_desc);
 
          // Отображаем список блюд
          cx.answer(s)
@@ -57,10 +63,10 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
          .send()
          .await?;
       }
-   };
+   }
 
    // Переходим (остаёмся) в режим выбора ресторана
-   next(cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_id, group_id))
+   next(cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_num, group_num))
 }
 
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
@@ -194,18 +200,18 @@ pub async fn handle_commands(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
 }
 
 // Выводит инлайн кнопки
-//
 pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, cat_id: i32) -> bool {
-   // settings::log(&format!("eat_dish::show_inline_interface ({}_{}_{})", rest_num, group_num, cat_id)).await;
 
    // Если категория не задана, запросим её из базы
-   let cat_id = if cat_id == 0 { db::category_by_restaurant_and_group(rest_num, group_num).await } else { cat_id };
+   let cat_id = if cat_id != 0 {cat_id}
+   else if let Some(group) = db::group(rest_num, group_num).await {group.cat_id}
+   // Если не получилось, выходим
+   else {return false;};
 
-   // Получаем информацию из БД - нужен текст, картинка и кнопки
-   let (text, markup) = match db::dishes_by_restaurant_and_group(rest_num, group_num).await {
+   // Получаем информацию из БД сначала о группе
+   let (text, markup) = match db::group(rest_num, group_num).await {
       None => {
-         // Такая ситуация может возникнуть, если ресторатор удалил группу только что
-
+         // Такая ситуация не должна возникнуть
          // Кнопка назад
          let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0)))];
          // Формируем меню
@@ -213,41 +219,59 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          .append_row(buttons);
 
          // Сформированные данные
-         (String::from("Подходящие блюда исчезли"), markup)
+         (String::from("Ошибка, информации о группе нет"), markup)
       }
-      Some(info) => {
-         // Создадим кнопки
-         let buttons: Vec<InlineKeyboardButton> = info.dishes.into_iter()
-         .map(|(key, value)| (InlineKeyboardButton::callback(value, format!("dis{}", db::make_key_3_int(rest_num, group_num, key)))))
-         .collect();
+      Some(group) => {
+         // Сформируем информацию о группе
+         let group_info = format!("{}. {}", group.title, group.info);
 
-         let (long, mut short) : (Vec<_>, Vec<_>) = buttons
-         .into_iter()
-         .partition(|n| n.text.chars().count() > 21);
-      
-         // Последняя непарная кнопка, если есть
-         let last = if short.len() % 2 == 1 { short.pop() } else { None };
-      
-         // Сначала длинные кнопки по одной
-         let markup = long.into_iter() 
-         .fold(InlineKeyboardMarkup::default(), |acc, item| acc.append_row(vec![item]));
-      
-         // Короткие по две в ряд
-         let markup = short.into_iter().array_chunks::<[_; 2]>()
-         .fold(markup, |acc, [left, right]| acc.append_row(vec![left, right]));
-      
-         // Кнопка назад
-         let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0)));
+         // Получаем из БД список блюд
+         let markup = match db::dish_list(db::DishesBy::Active(rest_num, group_num)).await {
+            None => {
+               // Такая ситуация может возникнуть, если ресторатор скрыл группы только что
+               let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("rca{}", db::make_key_3_int(cat_id, 0, 0)))];
+               let markup = InlineKeyboardMarkup::default()
+               .append_row(buttons);
+               markup
+            }
+            Some(dishes) => {
+               // Создадим кнопки
+               let buttons: Vec<InlineKeyboardButton> = dishes.into_iter()
+               .map(|dish| (InlineKeyboardButton::callback(dish.title_with_price(), format!("dis{}", db::make_key_3_int(rest_num, group_num, dish.num)))))
+               .collect();
 
-         // Добавляем последнюю непарную кнопку и кнопку назад
-         let markup = if let Some(last_button) = last {
-            markup.append_row(vec![last_button, button_back])
-         } else {
-            markup.append_row(vec![button_back])
+               // Поделим на длинные и короткие
+               let (long, mut short) : (Vec<_>, Vec<_>) = buttons
+               .into_iter()
+               .partition(|n| n.text.chars().count() > 21);
+            
+               // Последняя непарная кнопка, если есть
+               let last = if short.len() % 2 == 1 { short.pop() } else { None };
+            
+               // Сначала длинные кнопки по одной
+               let markup = long.into_iter() 
+               .fold(InlineKeyboardMarkup::default(), |acc, item| acc.append_row(vec![item]));
+            
+               // Короткие по две в ряд
+               let markup = short.into_iter().array_chunks::<[_; 2]>()
+               .fold(markup, |acc, [left, right]| acc.append_row(vec![left, right]));
+            
+               // Кнопка назад
+               let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0)));
+
+               // Добавляем последнюю непарную кнопку и кнопку назад
+               let markup = if let Some(last_button) = last {
+                  markup.append_row(vec![last_button, button_back])
+               } else {
+                  markup.append_row(vec![button_back])
+               };
+
+               // Сформированные данные
+               markup
+            }
          };
 
-         // Сформированные данные
-         (info.info, markup)
+         (group_info, markup)
       }
    };
 
