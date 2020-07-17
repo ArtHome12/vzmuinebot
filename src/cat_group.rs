@@ -19,28 +19,40 @@ use crate::eater;
 use crate::caterer;
 use crate::dish;
 use crate::settings;
+use crate::language as lang;
+
 
 // Показывает информацию о группе 
 //
 pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
-    // Извлечём параметры
-    let (rest_id, group_id) = cx.dialogue;
-    
-    // Получаем информацию о группе из БД
-    let info = match db::group_info(rest_id, group_id).await {
-        Some(rest_info) => rest_info,
-        None => format!("Ошибка db::group_info({}, {})", rest_id, group_id)
-    };
+   // Извлечём параметры
+   let (rest_num, group_num) = cx.dialogue;
+   
+   // Получаем информацию о группе из БД
+   let info = match db::group(rest_num, group_num).await {
+      Some(group) => {
+         // Сформируем информацию о группе
+         let group_info = String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime\nУдалить группу /Remove\nНовое блюдо /AddDish",
+            group.title, group.info, db::id_to_category(group.cat_id), db::active_to_str(group.active), group.opening_time.format("%H:%M"), group.closing_time.format("%H:%M")));
 
-    // Отображаем информацию о группе и оставляем кнопки главного меню
-    cx.answer(format!("\n{}", info))
-    .reply_markup(cmd::Caterer::main_menu_markup())
-    .disable_notification(true)
-    .send()
-   .await?;
+         // Получим информацию о блюдах из БД
+         let dishes_info = db::dish_titles(rest_num, group_num).await;
 
-    // Переходим (остаёмся) в режим редактирования группы
-    next(cmd::Dialogue::CatEditGroup(rest_id, group_id))
+         // Итоговое описание группы с блюдами
+         String::from(format!("{}\n{}", group_info, dishes_info))
+      },
+      None => String::from(lang::t("ru", lang::Res::CatGroupsEmpty))
+   };
+
+   // Отображаем информацию о группе и оставляем кнопки главного меню
+   cx.answer(format!("\n{}", info))
+   .reply_markup(cmd::Caterer::main_menu_markup())
+   .disable_notification(true)
+   .send()
+.await?;
+
+   // Переходим (остаёмся) в режим редактирования группы
+   next(cmd::Dialogue::CatEditGroup(rest_num, group_num))
 }
 
 async fn next_with_cancel(cx: cmd::Cx<(i32, i32)>, text: &str) -> cmd::Res {

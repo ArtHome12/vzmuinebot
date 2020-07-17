@@ -17,6 +17,7 @@ pub enum Res {
    EatRestEmpty, // "   пусто :("
    EatRestNowEmpty, // "   пусто :("
    EatDishEmpty, // "   пусто :("
+   CatGroupsEmpty, // "   пусто :("
    // DatabaseRestInfo, // "Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}"
 }
 
@@ -28,6 +29,7 @@ pub fn t(_lang: &str, resource: Res) -> String {
       Res::EatRestEmpty => String::from("   пусто :("),
       Res::EatRestNowEmpty => String::from("   пусто :("),
       Res::EatDishEmpty => String::from("   пусто :("),
+      Res::CatGroupsEmpty => String::from("   пусто :("),
       // DatabaseRestInfo => String::from("Заведение: {}\nОписание: {}\nПодходящие разделы меню для {}:\n{}"),
    }
 }

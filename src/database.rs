@@ -477,34 +477,31 @@ pub async fn group_list(by: GroupListBy) -> Option<GroupList> {
 }
 
 // Возвращает информацию о группе
-pub async fn group_info(rest_num: i32, group_num: i32) -> Option<String> {
-  // Выполняем запрос
-  let rows = DB.get().unwrap().get().await.unwrap()
-.query("SELECT title, info, active, cat_id, opening_time, closing_time FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
-.await;
+pub async fn group(rest_num: i32, group_num: i32) -> Option<Group> {
+   // Получим клиента БД из пула
+   match DB.get().unwrap().get().await {
+      Ok(client) => {
 
-  // Проверяем результат
-  match rows {
-     Ok(data) => {
-        if !data.is_empty() {
-              // Параметры ресторана
-              let title: String = data[0].get(0);
-              let info: String = data[0].get(1);
-              let active: bool = data[0].get(2);
-              let cat_id: i32 = data[0].get(3);
-              let opening_time: NaiveTime = data[0].get(4);
-              let closing_time: NaiveTime = data[0].get(5);
-              let dishes: String = dish_titles(rest_num, group_num).await;
-              Some(
-                 String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime\nУдалить группу /Remove\nНовое блюдо /AddDish\n{}",
-                 title, info, id_to_category(cat_id), active_to_str(active), opening_time.format("%H:%M"), closing_time.format("%H:%M"), dishes))
-              )
-        } else {
-              None
-        }
-     }
-     _ => None,
-  }
+         // Выполняем запрос
+         let rows =  client.query_one("SELECT g.rest_num, g.group_num, g.title, g.info, g.active, g.cat_id, g.opening_time, g.closing_time FROM groups as g
+            WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num]
+         ).await;
+
+         // Возвращаем результат
+         match rows {
+            Ok(data) => Some(Group::from_db(&data)),
+            Err(e) => {
+               // Сообщаем об ошибке и возвращаем пустой результат
+               settings::log(&format!("Error group(rest_num={}, group_num{}): {}", rest_num, group_num, e)).await;
+               None
+            }
+         }
+      },
+      Err(e) => {
+         settings::log(&format!("Error group, no db client: {}", e)).await;
+         None
+      }
+   }
 }
 
 // Возвращает список блюд указанного ресторана и группы
@@ -744,7 +741,7 @@ pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Op
 }
 
 // Возвращает строки с краткой информацией о блюдах
-async fn dish_titles(rest_num: i32, group_num: i32) -> String {
+pub async fn dish_titles(rest_num: i32, group_num: i32) -> String {
    // Выполняем запрос
      let rows = DB.get().unwrap().get().await.unwrap()
      .query("SELECT dish_num, title, price FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER ORDER BY dish_num", &[&rest_num, &group_num])
