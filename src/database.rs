@@ -682,12 +682,12 @@ pub async fn dish_list(by: DishesBy) -> Option<DishList> {
          // Выполним нужный запрос
          let rows =  match by {
             DishesBy::All(rest_num, group_num) => {
-               client.query("SELECT d.rest_num, d.num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
+               client.query("SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
                   WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER ORDER BY dish_num", &[&rest_num, &group_num]
                ).await
             },
             DishesBy::Active(rest_num, group_num) => {
-               client.query("SELECT d.rest_num, d.num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
+               client.query("SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
                   WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE ORDER BY dish_num", &[&rest_num, &group_num]
                ).await
             },
