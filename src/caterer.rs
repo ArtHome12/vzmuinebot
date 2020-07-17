@@ -234,7 +234,7 @@ pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
                   }
                   cmd::Common::UnknownCommand => {
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                     next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), "Вы в главном меню: неизвестная команда").await
+                     next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), "Вы в меню ресторатора: неизвестная команда {}", command).await
                   }
                }
             }
