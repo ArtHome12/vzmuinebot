@@ -49,7 +49,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
             None => String::default(),
             Some(groups) => {
                // Сформируем строку вида "название /ссылка\n"
-               groups.into_iter().map(|group| (format!("   {} /grou{}\n", group.title_with_time(rest.opening_time, rest.closing_time), group.num))).collect()
+               groups.into_iter().map(|group| (format!("   {} /EdGr{}\n", group.title_with_time(rest.opening_time, rest.closing_time), group.num))).collect()
             }
          };
 
@@ -235,7 +235,7 @@ pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
                   cmd::Common::UnknownCommand => {
                      let s = String::from(command);
                      let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                     next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), &format!("Вы в меню ресторатора: неизвестная команда {}", s)).await
+                     next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, rest_id), &format!("Вы в меню ресторатора: неизвестная команда '{}'", s)).await
                   }
                }
             }
