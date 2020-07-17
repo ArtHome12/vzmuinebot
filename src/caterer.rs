@@ -28,8 +28,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
          _ => String::from("\nИзначально всё заполнено значениями по-умолчанию, отредактируйте их."),
       }
    }
-   
-   
+
    // Номер ресторана
    let rest_num = cx.dialogue;
 
@@ -45,12 +44,18 @@ pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
             String::default()
          };
 
-         // Соберём информацию о группах ресторана
-         let groups = db::group_titles(rest_num).await;
+         // Получаем из БД список групп
+         let groups_desc = match db::group_list(db::GroupListBy::All(rest_num)).await {
+            None => String::default(),
+            Some(groups) => {
+               // Сформируем строку вида "название /ссылка\n"
+               groups.into_iter().map(|group| (format!("   {} /grou{}\n", group.title_with_time(rest.opening_time, rest.closing_time), group.num))).collect()
+            }
+         };
 
          // Итоговая информация
          let info = format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nЗагрузить фото /EditImg\nГруппы и время работы (добавить новую /AddGroup):\n{}",
-            rest.title, rest.info, db::active_to_str(rest.active), groups);
+            rest.title, rest.info, db::active_to_str(rest.active), groups_desc);
          let info = format!("{}{}", welcome_msg, info);
 
          // Отправляем описание пользователю, если есть картинка, то отправим описание как комментарий к ней

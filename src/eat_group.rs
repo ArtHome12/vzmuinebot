@@ -42,45 +42,39 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32, i32)>) -> cmd::Res {
          let rest_info = format!("Заведение: {}\nОписание: {}\nОсновное время работы: {}-{}", rest.title, rest.info, db::str_time(rest.opening_time), db::str_time(rest.closing_time));
 
          // Получаем из БД список групп
-         match db::group_list(db::GroupListBy::Category(rest_num, cat_id)).await {
+         let groups_desc = match db::group_list(db::GroupListBy::Category(rest_num, cat_id)).await {
             None => {
                // Такая ситуация может возникнуть, если ресторатор скрыл группы только что
-               let s = String::from("Подходящие группы исчезли");
-               let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
-               cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
+               String::from(lang::t("ru", lang::Res::EatGroupsEmpty))
             }
             Some(groups) => {
                // Сформируем строку вида "название /ссылка\n"
-               let group_info: String = if groups.is_empty() {
-                  String::from(lang::t("ru", lang::Res::EatGroupsEmpty))
-               } else {
-                  groups.into_iter().map(|group| (format!("   {} /grou{}\n", group.title_with_time(rest.opening_time, rest.closing_time), group.num))).collect()
-               };
-               
-               // Формируем итоговую информацию
-               let s = format!("{}\n{}", rest_info, group_info);
-
-               // Отображаем информацию о группах ресторана. Если для ресторана задана картинка, то текст будет комментарием
-               if let Some(image_id) = rest.image_id {
-                  // Создадим графический объект
-                  let image = InputFile::file_id(image_id);
-
-                  // Отправляем картинку и текст как комментарий
-                  cx.answer_photo(image)
-                  .caption(s)
-                  .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::EaterGroup::markup()))
-                  .disable_notification(true)
-                  .send()
-                  .await?;
-               } else {
-                     cx.answer(s)
-                     .reply_markup(cmd::EaterGroup::markup())
-                     .disable_notification(true)
-                     .send()
-                     .await?;
-               }
+               groups.into_iter().map(|group| (format!("   {} /grou{}\n", group.title_with_time(rest.opening_time, rest.closing_time), group.num))).collect()
             }
          };
+               
+         // Формируем итоговую информацию
+         let s = format!("{}\n{}", rest_info, groups_desc);
+
+         // Отображаем информацию о группах ресторана. Если для ресторана задана картинка, то текст будет комментарием
+         if let Some(image_id) = rest.image_id {
+            // Создадим графический объект
+            let image = InputFile::file_id(image_id);
+
+            // Отправляем картинку и текст как комментарий
+            cx.answer_photo(image)
+            .caption(s)
+            .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::EaterGroup::markup()))
+            .disable_notification(true)
+            .send()
+            .await?;
+         } else {
+               cx.answer(s)
+               .reply_markup(cmd::EaterGroup::markup())
+               .disable_notification(true)
+               .send()
+               .await?;
+         }
       }
    }
 
@@ -194,13 +188,13 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          let rest_info = format!("Заведение: {}\nОписание: {}\nОсновное время работы: {}-{}", rest.title, rest.info, db::str_time(rest.opening_time), db::str_time(rest.closing_time));
 
          // Получаем из БД список групп
-         match db::group_list(db::GroupListBy::Category(rest_num, cat_id)).await {
+         let (markup, photo_id) = match db::group_list(db::GroupListBy::Category(rest_num, cat_id)).await {
             None => {
                // Такая ситуация может возникнуть, если ресторатор скрыл группы только что
                let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("rca{}", db::make_key_3_int(cat_id, 0, 0)))];
                let markup = InlineKeyboardMarkup::default()
                .append_row(buttons);
-               (String::from("Подходящие группы исчезли"), markup, settings::default_photo_id())
+               (markup, settings::default_photo_id())
             }
             Some(groups) => {
                // Создадим кнопки
@@ -208,6 +202,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
                .map(|group| (InlineKeyboardButton::callback(group.title_with_time(rest.opening_time, rest.closing_time), format!("drg{}", db::make_key_3_int(rest.num, group.num, cat_id)))))
                .collect();
 
+               // Поделим на длинные и короткие
                let (long, mut short) : (Vec<_>, Vec<_>) = buttons
                .into_iter()
                .partition(|n| n.text.chars().count() > 21);
@@ -240,9 +235,11 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
                };
 
                // Сформированные данные
-               (rest_info, markup, photo_id)
+               (markup, photo_id)
             }
-         }
+         };
+
+         (rest_info, markup, photo_id)
       }
    };
 
