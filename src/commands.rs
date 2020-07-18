@@ -113,7 +113,7 @@ impl User {
          "Развлечения" => User::Category(4),
          "Сейчас" => User::OpenedNow,
          "🛒Корзина" => User::Basket,
-         "Добавить" => User::CatererMode,
+         "⚙" => User::CatererMode,
          "/toggle" => User::ToggleInterface,
          "/list" => User::List,
          _ => {
@@ -140,7 +140,7 @@ impl User {
          .append_row(vec![
             KeyboardButton::new("🛒Корзина"),
             KeyboardButton::new("Сейчас"),
-            KeyboardButton::new("Добавить"),
+            KeyboardButton::new("⚙"),
          ])
          .resize_keyboard(true)
    }

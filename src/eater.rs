@@ -22,9 +22,9 @@ use crate::language as lang;
 
 pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    
-   if let Some(text) = cx.update.text() {
-      settings::log(&text).await;
-   }
+   // if let Some(text) = cx.update.text() {
+   //    settings::log(&text).await;
+   // }
    // Различаем перезапуск и возврат из меню ресторатора
    let s = if after_restart {
       // Это первый вход пользователя после перезапуска, сообщим об этом
