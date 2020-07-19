@@ -42,6 +42,7 @@ mod basket;
 mod inline;
 mod language;
 mod settings;
+mod gear;
 
 use commands as cmd;
 
@@ -170,6 +171,10 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
          }
          cmd::Dialogue::MessageToCaterer(user_id, caterer_id, previous_mode, reply_markup) => {
             edit_message_to_caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, (user_id, caterer_id, previous_mode, reply_markup)))
+                  .await
+         }
+         cmd::Dialogue::GearMode(compact_mode) => {
+            gear::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, compact_mode))
                   .await
          }
       } 
