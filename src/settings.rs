@@ -151,12 +151,14 @@ impl Vars {
 
          admin_id2: {
             match env::var("TELEGRAM_ADMIN_ID2") {
-               Ok(s) => match  s.parse::<i32>() {
+               Ok(s) => if s.is_empty() {0} else {
+                  match s.parse::<i32>() {
                      Ok(n) => n,
                      Err(e) => {
                         int_log(chat.clone(), &format!("Something wrong with TELEGRAM_ADMIN_ID2: {}", e)).await;
                         0
                      }
+                  }
                }
                Err(_) => 0 // если переменная не задана, это нормально
             }
@@ -164,12 +166,14 @@ impl Vars {
 
          admin_id3: {
             match env::var("TELEGRAM_ADMIN_ID3") {
-               Ok(s) => match  s.parse::<i32>() {
+               Ok(s) => if s.is_empty() {0} else {
+                  match s.parse::<i32>() {
                      Ok(n) => n,
                      Err(e) => {
                         int_log(chat.clone(), &format!("Something wrong with TELEGRAM_ADMIN_ID3: {}", e)).await;
                         0
                      }
+                  }
                }
                Err(_) => 0 // если переменная не задана, это нормально
             }
