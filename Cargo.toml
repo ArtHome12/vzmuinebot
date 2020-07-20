@@ -1,6 +1,6 @@
 [package]
 name = "vzmuinebot"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Artem Khomenko <_mag12@yahoo.com>"]
 edition = "2018"
 
@@ -15,8 +15,8 @@ teloxide = "0.2.0"
 
 # Used to setup a webhook
 warp = "0.2.3"
-reqwest = "0.10.4"
-serde_json = "1.0.53"
+reqwest = "0.10.6"
+serde_json = "1.0.56"
 
 # My
 smart-default = "0.6.0"

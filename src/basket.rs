@@ -18,7 +18,7 @@ use crate::database as db;
 use crate::eater;
 use crate::settings;
 
-// Показывает список закзов для user_id
+// Показывает список заказов для user_id
 pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    // Извлечём параметры
    let user_id = cx.dialogue;
@@ -199,10 +199,7 @@ async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
    next(cmd::Dialogue::BasketMode(user_id))
 }
 
-
-
 // Обработчик команд
-//
 pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
    // Извлечём параметры
    let user_id = cx.dialogue;

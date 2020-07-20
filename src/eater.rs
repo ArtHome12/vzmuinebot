@@ -13,18 +13,17 @@ use teloxide::{
 
 use crate::commands as cmd;
 use crate::database as db;
-use crate::caterer;
 use crate::eat_rest;
 use crate::eat_rest_now;
 use crate::basket;
 use crate::settings;
-use crate::language as lang;
+use crate::gear;
 
 pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    
-   if let Some(text) = cx.update.text() {
-      settings::log(&text).await;
-   }
+   // if let Some(text) = cx.update.text() {
+   //    settings::log(&text).await;
+   // }
    // Различаем перезапуск и возврат из меню ресторатора
    let s = if after_restart {
       // Это первый вход пользователя после перезапуска, сообщим об этом
@@ -46,7 +45,7 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
 
    // Отображаем приветственное сообщение и меню с кнопками.
-   cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update.clone(), ()), &format!("{}\nРежим интерфейса: {} /toggle", s, db::interface_mode(compact_mode)), cmd::User::main_menu_markup()).await;
+   cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update.clone(), ()), &s, cmd::User::main_menu_markup()).await;
    
    // Код едока
    let user_id = cx.update.from().unwrap().id;
@@ -71,7 +70,7 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
 
 pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
    // Режим интерфейса
-   let mut compact_mode = cx.dialogue;
+   let compact_mode = cx.dialogue;
 
    // Разбираем команду.
    match cx.update.text() {
@@ -119,64 +118,9 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                   }
                }
             }
-            cmd::User::ToggleInterface => {
-               // Переключим настройку интерфейса
-               db::user_toggle_interface(cx.update.from()).await;
-               compact_mode = !compact_mode;
-               let s = db::interface_mode(compact_mode);
-               let s = &format!("Режим интерфейса изменён на '{}' (пояснение - режим с кнопками может быть удобнее, а со ссылками экономнее к трафику)", s);
-               cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), s, cmd::User::main_menu_markup()).await
-            }
-            cmd::User::CatererMode => {
-               // Ссылка на пользователя
-               let user = cx.update.from();
-
-               // Если это администратор, то выводим для него команды sudo
-               if settings::is_admin(user) {
-                  // Получим из БД список ресторанов и отправим его
-                  match db::rest_list(db::RestListBy::All).await {
-                     Some(rest_list) => {
-                        // Сформируем строку вида: 1371303352 'Ресторан "два супа"' /sudo1
-                        let s: String = rest_list.into_iter().map(|r| (format!("{} '{}' /sudo{}\n", r.user_id, r.title, r.num))).collect();
-
-                        // Отправим информацию
-                        cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &format!("Выберите ресторан для входа\n{}", s), cmd::User::main_menu_markup()).await;
-                     }
-                     None => {
-                        // Если там пусто, то сообщим об этом
-                        let s = String::from(lang::t("ru", lang::Res::EatRestEmpty));
-                        cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s, cmd::User::main_menu_markup()).await;
-                     }
-                  }
-
-               } else {
-                  // По коду пользователя получим код ресторана
-                  match db::rest_num(user).await {
-                     Ok(rest_num) => {
-                        let text = format!("{} вошёл в режим ресторатора для {}", db::user_info(user, false), rest_num);
-                        settings::log(&text).await;
-   
-                        // Отображаем информацию о ресторане и переходим в режим её редактирования
-                        let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                        return caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_num), true).await;
-                     }
-                     _ => {
-                        // Сообщим, что доступ запрещён
-                        let text = format!("{} доступ в режим ресторатора запрещён", db::user_info(user, false));
-                        settings::log(&text).await;
-
-                        // Попытаемся получить id пользователя и сообщить ему.
-                        let user_id = match user {
-                           Some(u) => u.id.to_string(),
-                           _ => String::from("ошибка id"),
-                        };
-
-                        let s = &format!("Для доступа в режим рестораторов обратитесь к {} и сообщите свой Id={}", settings::admin_contact_info(), user_id);
-                        let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                        cmd::send_text(&DialogueDispatcherHandlerCx::new(bot, update, ()), s, cmd::User::main_menu_markup()).await
-                     }
-                  }
-               }
+            cmd::User::Gear => {
+               // Переходим в меню с шестерёнкой
+               return gear::next_with_info(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, compact_mode)).await;
             }
             cmd::User::Basket => {
                // Код едока
@@ -184,54 +128,6 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                
                // Переходим в корзину
                return basket::next_with_info(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, user_id)).await;
-            }
-            cmd::User::RegisterCaterer(user_id) => {
-               // Проверим права
-               if settings::is_admin(cx.update.from()) {
-                  let res = db::is_success(db::register_caterer(user_id).await);
-                  cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &format!("Регистрация или разблокировка ресторатора {}: {}", user_id, res), cmd::User::main_menu_markup()).await;
-               } else {
-                  cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Недостаточно прав", cmd::User::main_menu_markup()).await;
-               }
-            }
-            cmd::User::HoldCaterer(user_id) => {
-               // Проверим права
-               if settings::is_admin(cx.update.from()) {
-                  let res = db::is_success(db::hold_caterer(user_id).await.is_ok());
-                  cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &format!("Блокировка ресторатора {}: {}", user_id, res), cmd::User::main_menu_markup()).await;
-               } else {
-                  cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Недостаточно прав", cmd::User::main_menu_markup()).await;
-               }
-            }
-            cmd::User::Sudo(rest_num) => {
-               // Проверим права
-               if settings::is_admin(cx.update.from()) {
-                  return caterer::next_with_info(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, rest_num), true).await;
-               } else {
-                  cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Недостаточно прав", cmd::User::main_menu_markup()).await;
-               }
-            }
-            cmd::User::List => {
-               // Проверим права
-               if settings::is_admin(cx.update.from()) {
-                  // Получим из БД список ресторанов и отправим его
-                  match db::rest_list(db::RestListBy::All).await {
-                     Some(rest_list) => {
-                        // Сформируем строку вида: 1 'Ресторан "два супа"', доступен /hold1371303352
-                        let s: String = rest_list.into_iter().map(|r| (format!("{} '{}', {} {}{}\n", 
-                        r.num, r.title, db::enabled_to_str(r.enabled), db::enabled_to_cmd(r.enabled), r.user_id
-                        ))).collect();
-                        cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s, cmd::User::main_menu_markup()).await;
-                     }
-                     None => {
-                        // Если там пусто, то сообщим об этом
-                        let s = String::from(lang::t("ru", lang::Res::EatRestEmpty));
-                        cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s, cmd::User::main_menu_markup()).await;
-                     }
-                  }
-               } else {
-                  cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Недостаточно прав", cmd::User::main_menu_markup()).await;
-               }
             }
             cmd::User::ChatId => {
                // Отправим информацию о чате

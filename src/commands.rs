@@ -22,36 +22,37 @@ use crate::settings;
 // ============================================================================
 #[derive(SmartDefault)]
 pub enum Dialogue {
-    #[default]
-    Start,
-    UserMode(bool), // compact_mode
-    EatRestSelectionMode(bool, i32), // compact_mode, cat_id
-    EatRestGroupSelectionMode(bool, i32, i32), // compact_mode, cat_id, rest_id
-    EatRestGroupDishSelectionMode(bool, i32, i32, i32), // compact_mode, cat_id, rest_id, group_id
-    EatRestNowSelectionMode(bool), // compact_mode, 
-    EatRestGroupNowSelectionMode(bool, i32), // compact_mode, rest_id
-    CatererMode(i32), // rest_id
-    CatEditRestTitle(i32), // rest_id
-    CatEditRestInfo(i32), // rest_id
-    CatEditRestImage(i32), // rest_id
-    CatEditGroup(i32, i32), // rest_id, group_id
-    CatAddGroup(i32), // rest_id
-    CatEditGroupTitle(i32, i32), // rest_id, group_id (cat_group)
-    CatEditGroupInfo(i32, i32), // rest_id, group_id (cat_group)
-    CatEditGroupCategory(i32, i32), // rest_id, group_id (cat_group)
-    CatEditGroupTime(i32, i32), // rest_id, group_id (cat_group)
-    CatAddDish(i32, i32), // rest_id, dish_id (cat_group)
-    CatEditDish(i32, i32, i32), // rest_num, group_num, dish_num (dish)
-    CatEditDishTitle(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
-    CatEditDishInfo(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
-    CatEditDishGroup(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
-    CatEditDishPrice(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
-    CatEditDishImage(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
-    BasketMode(i32), // user_id
-    BasketEditName(i32), // user_id
-    BasketEditContact(i32), // user_id
-    BasketEditAddress(i32), // user_id
-    MessageToCaterer(i32, i32, Box<Dialogue>, Box<ReplyKeyboardMarkup>), // user_id, caterer_id, previous mode
+   #[default]
+   Start,
+   UserMode(bool), // compact_mode
+   EatRestSelectionMode(bool, i32), // compact_mode, cat_id
+   EatRestGroupSelectionMode(bool, i32, i32), // compact_mode, cat_id, rest_id
+   EatRestGroupDishSelectionMode(bool, i32, i32, i32), // compact_mode, cat_id, rest_id, group_id
+   EatRestNowSelectionMode(bool), // compact_mode, 
+   EatRestGroupNowSelectionMode(bool, i32), // compact_mode, rest_id
+   CatererMode(i32), // rest_id
+   CatEditRestTitle(i32), // rest_id
+   CatEditRestInfo(i32), // rest_id
+   CatEditRestImage(i32), // rest_id
+   CatEditGroup(i32, i32), // rest_id, group_id
+   CatAddGroup(i32), // rest_id
+   CatEditGroupTitle(i32, i32), // rest_id, group_id (cat_group)
+   CatEditGroupInfo(i32, i32), // rest_id, group_id (cat_group)
+   CatEditGroupCategory(i32, i32), // rest_id, group_id (cat_group)
+   CatEditGroupTime(i32, i32), // rest_id, group_id (cat_group)
+   CatAddDish(i32, i32), // rest_id, dish_id (cat_group)
+   CatEditDish(i32, i32, i32), // rest_num, group_num, dish_num (dish)
+   CatEditDishTitle(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
+   CatEditDishInfo(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
+   CatEditDishGroup(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
+   CatEditDishPrice(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
+   CatEditDishImage(i32, i32, i32), // rest_num, group_num, dish_num (dish)), // rest_id, dish_id (dish)
+   BasketMode(i32), // user_id
+   BasketEditName(i32), // user_id
+   BasketEditContact(i32), // user_id
+   BasketEditAddress(i32), // user_id
+   MessageToCaterer(i32, i32, Box<Dialogue>, Box<ReplyKeyboardMarkup>), // user_id, caterer_id, previous mode
+   GearMode(bool), // compact_mode
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
@@ -93,14 +94,9 @@ pub enum User {
     Category(i32),   // cat_id 
     OpenedNow,
     Basket,
-    CatererMode, 
     UnknownCommand,
-    ToggleInterface,
-    RegisterCaterer(i32), // user_id
-    HoldCaterer(i32), // user_id
-    Sudo(i32), // rest_num
-    List,
-    ChatId
+    ChatId,
+    Gear,
 }
 
 impl User {
@@ -113,15 +109,10 @@ impl User {
          "Развлечения" => User::Category(4),
          "Сейчас" => User::OpenedNow,
          "🛒Корзина" => User::Basket,
-         "Добавить" => User::CatererMode,
-         "/toggle" => User::ToggleInterface,
-         "/list" => User::List,
+         "⚙" => User::Gear,
          _ => {
             // Ищем среди команд с цифровыми суффиксами - аргументами
             match input.get(..5).unwrap_or_default() {
-               "/regi" => User::RegisterCaterer(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
-               "/hold" => User::HoldCaterer(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
-               "/sudo" => User::Sudo(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                "/chat" => User::ChatId, // правее может быть имя бота, игнорируем это.
                _ => User::UnknownCommand,
             }
@@ -140,7 +131,7 @@ impl User {
          .append_row(vec![
             KeyboardButton::new("🛒Корзина"),
             KeyboardButton::new("Сейчас"),
-            KeyboardButton::new("Добавить"),
+            KeyboardButton::new("⚙"),
          ])
          .resize_keyboard(true)
    }
@@ -634,4 +625,50 @@ impl Basket {
    }
 
    
+}
+
+// ============================================================================
+// [Gear menu]
+// ============================================================================
+#[derive(Copy, Clone)]
+pub enum Gear {
+   Main,
+   UnknownCommand,
+   CatererMode,
+   ToggleInterface,
+   RegisterCaterer(i32), // user_id
+   HoldCaterer(i32), // user_id
+   Sudo(i32), // rest_num
+   List,
+}
+
+impl Gear {
+   pub fn from(input: &str) -> Gear {
+      match input {
+         "В начало" => Gear::Main,
+         "Добавить меню" => Gear::CatererMode,
+         "/toggle" => Gear::ToggleInterface,
+         "/list" => Gear::List,
+         _ => {
+            // Ищем среди команд с цифровыми суффиксами - аргументами
+            match input.get(..5).unwrap_or_default() {
+               "/regi" => Gear::RegisterCaterer(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+               "/hold" => Gear::HoldCaterer(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+               "/sudo" => Gear::Sudo(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+               _ => Gear::UnknownCommand,
+            }
+         }
+      }
+   }
+
+   // Кнопки для меню снизу
+   pub fn bottom_markup() -> ReplyKeyboardMarkup {
+      ReplyKeyboardMarkup::default()
+      .append_row(vec![
+         KeyboardButton::new("В начало"),
+         KeyboardButton::new("Добавить меню"),
+      ])
+      .resize_keyboard(true)
+   }
+
 }
