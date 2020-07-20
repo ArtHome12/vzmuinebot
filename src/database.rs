@@ -408,7 +408,7 @@ impl Group {
       } else if self.opening_time != def_opening_time && self.closing_time == def_closing_time {
          // Показываем время начала
          format!(" (c {})", str_time(self.opening_time))
-      } else if self.opening_time == def_opening_time && self.closing_time == def_closing_time {
+      } else if self.opening_time == def_opening_time && self.closing_time != def_closing_time {
          // Показываем время конца
          format!(" (до {})", str_time(self.closing_time))
       } else {
