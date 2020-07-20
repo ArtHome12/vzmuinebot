@@ -85,7 +85,7 @@ impl Common {
                let r_part = input.get(4..).unwrap_or_default();
                Common::SendMessage(r_part.parse().unwrap_or_default())
             } else if input.get(..7).unwrap_or_default() == "/start " {
-               let r_part = input.get(4..).unwrap_or_default();
+               let r_part = input.get(7..).unwrap_or_default();
                if let Ok((first, second, third)) = db::parse_key_3_int(r_part) {Common::StartArgs(first, second, third)}
                else {Common::UnknownCommand}
             } else {Common::UnknownCommand}
