@@ -20,9 +20,10 @@ use crate::caterer;
 
 
 // Показывает приветствие
-pub async fn next_with_info(cx: cmd::Cx<bool>) -> cmd::Res {
-   // Режим интерфейса
-   let compact_mode = cx.dialogue;
+pub async fn next_with_info(cx: cmd::Cx<()>) -> cmd::Res {
+   // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
+   let now = settings::current_date_time();
+   let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
 
    // Отображаем приветствие
    let s = format!("Режим интерфейса: {} /toggle", db::interface_mode(compact_mode));
@@ -33,12 +34,13 @@ pub async fn next_with_info(cx: cmd::Cx<bool>) -> cmd::Res {
    .await?;
 
    // Остаёмся в этом режиме.
-   next(cmd::Dialogue::GearMode(compact_mode))
+   next(cmd::Dialogue::GearMode)
 }
 
-pub async fn next_with_cancel(cx: cmd::Cx<bool>, text: &str) -> cmd::Res {
-   // Режим интерфейса
-   let compact_mode = cx.dialogue;
+pub async fn next_with_cancel(cx: cmd::Cx<()>, text: &str) -> cmd::Res {
+   // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
+   let now = settings::current_date_time();
+   let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
 
    // Отображаем сообщение
    let s = format!("{}\n\nРежим интерфейса: {} /toggle", text, db::interface_mode(compact_mode));
@@ -49,18 +51,15 @@ pub async fn next_with_cancel(cx: cmd::Cx<bool>, text: &str) -> cmd::Res {
    .await?;
 
    // Остаёмся в этом режиме.
-   next(cmd::Dialogue::GearMode(compact_mode))
+   next(cmd::Dialogue::GearMode)
 }
 
-pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
-   // Режим интерфейса
-   let mut compact_mode = cx.dialogue;
-
+pub async fn handle_commands(cx: cmd::Cx<()>) -> cmd::Res {
    // Разбираем команду.
    match cx.update.text() {
       None => {
          let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-         next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, compact_mode), "Текстовое сообщение, пожалуйста!").await
+         next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, ()), "Текстовое сообщение, пожалуйста!").await
       }
       Some(command) => {
          match cmd::Gear::from(command) {
@@ -72,22 +71,23 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
 
             cmd::Gear::UnknownCommand => {
                // Сохраним текущее состояние для возврата
-               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::UserMode(compact_mode), m : cmd::Gear::bottom_markup()});
+               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::UserMode, m : cmd::Gear::bottom_markup()});
 
                // Возможно это общая команда
                if let Some(res) = eater::handle_common_commands(DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), command, origin).await {return res;}
                else {
                   let s = &format!("Вы в меню ⚙ настроек: неизвестная команда '{}'", command);
-                  next_with_cancel(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, compact_mode), s).await
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), s).await
                }
             }
             cmd::Gear::ToggleInterface => {
                // Переключим настройку интерфейса
                db::user_toggle_interface(cx.update.from()).await;
-               compact_mode = !compact_mode;
+               let now = settings::current_date_time();
+               let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
                let s = db::interface_mode(compact_mode);
                let s = &format!("Режим интерфейса изменён на '{}' (пояснение - режим с кнопками может быть удобнее, а со ссылками экономнее к трафику)", s);
-               next_with_cancel(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, compact_mode), s).await
+               next_with_cancel(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), s).await
             }
             cmd::Gear::CatererMode => {
                // Ссылка на пользователя
@@ -103,12 +103,12 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
 
                         // Отправим информацию
                         cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &format!("Выберите ресторан для входа\n{}", s), cmd::Gear::bottom_markup()).await;
-                        next(cmd::Dialogue::GearMode(compact_mode))
+                        next(cmd::Dialogue::GearMode)
                      }
                      None => {
                         // Если там пусто, то сообщим об этом
                         let s = String::from(lang::t("ru", lang::Res::EatRestEmpty));
-                        next_with_cancel(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, compact_mode), &s).await
+                        next_with_cancel(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s).await
                      }
                   }
 
@@ -136,7 +136,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
 
                         let s = &format!("Для доступа в режим рестораторов обратитесь к {} и сообщите свой Id={}", settings::admin_contact_info(), user_id);
                         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                        next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, compact_mode), &s).await
+                        next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, ()), &s).await
                      }
                   }
                }
@@ -151,7 +151,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                };
 
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, compact_mode), &s).await
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, ()), &s).await
          }
             cmd::Gear::HoldCaterer(user_id) => {
                let s = if settings::is_admin(cx.update.from()) {
@@ -162,7 +162,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                };
 
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, compact_mode), &s).await
+               next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, ()), &s).await
             }
             cmd::Gear::Sudo(rest_num) => {
                // Проверим права
@@ -171,7 +171,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                } else {
                   let s = "Недостаточно прав";
                   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, compact_mode), &s).await
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, ()), &s).await
                }
             }
             cmd::Gear::List => {
@@ -185,18 +185,18 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                         r.num, r.title, db::enabled_to_str(r.enabled), db::enabled_to_cmd(r.enabled), r.user_id
                         ))).collect();
                         cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s, cmd::User::main_menu_markup()).await;
-                        next(cmd::Dialogue::GearMode(compact_mode))
+                        next(cmd::Dialogue::GearMode)
                      }
                      None => {
                         // Если там пусто, то сообщим об этом
                         let s = String::from(lang::t("ru", lang::Res::EatRestEmpty));
-                        next_with_cancel(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, compact_mode), &s).await
+                        next_with_cancel(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s).await
                      }
                   }
                } else {
                   let s = "Недостаточно прав";
                   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, compact_mode), &s).await
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, ()), &s).await
                }
             }
          }

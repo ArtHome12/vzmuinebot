@@ -61,8 +61,8 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
          cmd::Dialogue::Start => {
             eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), true).await
          }
-         cmd::Dialogue::UserMode(compact_mode) => {
-            eater::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, compact_mode)).await
+         cmd::Dialogue::UserMode => {
+            eater::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, ())).await
          }
          cmd::Dialogue::CatererMode(rest_id) => {
             caterer::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
@@ -133,24 +133,24 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
                   .await
          }
 
-         cmd::Dialogue::EatRestSelectionMode(compact_mode, cat_id) => {
-            eat_rest::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id)))
+         cmd::Dialogue::EatRestSelectionMode(cat_id) => {
+            eat_rest::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, cat_id))
                   .await
          }
-         cmd::Dialogue::EatRestGroupSelectionMode(compact_mode, cat_id, rest_id) => {
-            eat_group::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id)))
+         cmd::Dialogue::EatRestGroupSelectionMode(cat_id, rest_id) => {
+            eat_group::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id)))
                   .await
          }
-         cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_id, group_id) => {
-            eat_dish::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id, group_id)))
+         cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id) => {
+            eat_dish::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)))
                   .await
          }
-         cmd::Dialogue::EatRestNowSelectionMode(compact_mode) => {
-            eat_rest_now::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, compact_mode))
+         cmd::Dialogue::EatRestNowSelectionMode => {
+            eat_rest_now::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, ()))
                   .await
          }
-         cmd::Dialogue::EatRestGroupNowSelectionMode(compact_mode, rest_id) => {
-            eat_group_now::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, rest_id)))
+         cmd::Dialogue::EatRestGroupNowSelectionMode(rest_id) => {
+            eat_group_now::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
                   .await
          }
          cmd::Dialogue::BasketMode(user_id) => {
@@ -173,8 +173,8 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
             edit_message_to_caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, (user_id, caterer_id, origin)))
                   .await
          }
-         cmd::Dialogue::GearMode(compact_mode) => {
-            gear::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, compact_mode))
+         cmd::Dialogue::GearMode => {
+            gear::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, ()))
                   .await
          }
       } 

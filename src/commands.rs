@@ -24,12 +24,12 @@ use crate::settings;
 pub enum Dialogue {
    #[default]
    Start,
-   UserMode(bool), // compact_mode
-   EatRestSelectionMode(bool, i32), // compact_mode, cat_id
-   EatRestGroupSelectionMode(bool, i32, i32), // compact_mode, cat_id, rest_id
-   EatRestGroupDishSelectionMode(bool, i32, i32, i32), // compact_mode, cat_id, rest_id, group_id
-   EatRestNowSelectionMode(bool), // compact_mode, 
-   EatRestGroupNowSelectionMode(bool, i32), // compact_mode, rest_id
+   UserMode, 
+   EatRestSelectionMode(i32), // cat_id
+   EatRestGroupSelectionMode(i32, i32), // cat_id, rest_id
+   EatRestGroupDishSelectionMode(i32, i32, i32), // cat_id, rest_id, group_id
+   EatRestNowSelectionMode,
+   EatRestGroupNowSelectionMode(i32), // rest_id
    CatererMode(i32), // rest_id
    CatEditRestTitle(i32), // rest_id
    CatEditRestInfo(i32), // rest_id
@@ -52,7 +52,7 @@ pub enum Dialogue {
    BasketEditContact(i32), // user_id
    BasketEditAddress(i32), // user_id
    MessageToCaterer(i32, i32, Box<DialogueState>), // user_id, caterer_id, previous mode
-   GearMode(bool), // compact_mode
+   GearMode,
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
@@ -399,11 +399,11 @@ pub enum EaterRest {
    Basket,
    Main,
    UnknownCommand,
-   Restaurant(bool, i32),   // compact_mode, cat_id 
+   Restaurant(i32),   // cat_id 
 }
 
 impl EaterRest {
-   pub fn from(compact_mode: bool, input: &str) -> EaterRest {
+   pub fn from(input: &str) -> EaterRest {
       match input {
          // Сначала проверим на цельные команды.
          "🛒" => EaterRest::Basket,
@@ -411,7 +411,7 @@ impl EaterRest {
          _ => {
              // Ищем среди команд с цифровыми суффиксами - аргументами
              match input.get(..5).unwrap_or_default() {
-                 "/rest" => EaterRest::Restaurant(compact_mode, input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
+                 "/rest" => EaterRest::Restaurant(input.get(5..).unwrap_or_default().parse().unwrap_or_default()),
                  _ => EaterRest::UnknownCommand,
              }
          }

@@ -26,9 +26,9 @@ use crate::settings;
 
 // Основную информацию режима
 //
-pub async fn next_with_info(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
+pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
    // Извлечём параметры
-   let (compact_mode, cat_id, rest_num, group_num) = cx.dialogue;
+   let (cat_id, rest_num, group_num) = cx.dialogue;
    
    // Получаем информацию из БД сначала о группе
    match db::group(rest_num, group_num).await {
@@ -66,11 +66,11 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
    }
 
    // Переходим (остаёмся) в режим выбора ресторана
-   next(cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_num, group_num))
+   next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_num, group_num))
 }
 
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
-async fn next_with_cancel(cx: cmd::Cx<(bool, i32, i32, i32)>, text: &str) -> cmd::Res {
+async fn next_with_cancel(cx: cmd::Cx<(i32, i32, i32)>, text: &str) -> cmd::Res {
    cx.answer(text)
    .reply_markup(cmd::EaterDish::markup())
    .disable_notification(true)
@@ -78,19 +78,18 @@ async fn next_with_cancel(cx: cmd::Cx<(bool, i32, i32, i32)>, text: &str) -> cmd
    .await?;
 
    // Извлечём параметры
-   let (compact_mode, cat_id, rest_id, group_id) = cx.dialogue;
+   let (cat_id, rest_id, group_id) = cx.dialogue;
 
    // Остаёмся в прежнем режиме.
-   next(cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_id, group_id))
+   next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
 }
 
 
 
 // Обработчик команд
-//
-pub async fn handle_commands(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
+pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
    // Извлечём параметры
-   let (compact_mode, cat_id, rest_id, group_id) = cx.dialogue;
+   let (cat_id, rest_id, group_id) = cx.dialogue;
 
    // Разбираем команду.
    match cx.update.text() {
@@ -122,9 +121,9 @@ pub async fn handle_commands(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
 
                // Попасть сюда могли двумя путями и это видно по коду категории
                if cat_id > 0 {
-                  eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id))).await
+                  eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id))).await
                } else {
-                  eat_group_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, rest_id))).await
+                  eat_group_now::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id)).await
                }
             }
 
@@ -158,7 +157,7 @@ pub async fn handle_commands(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
                   .send()
                   .await?;
                   
-                  next(cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_id, group_id))
+                  next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
                } else {
                   cx.answer(info)
                   .reply_markup(inline_keyboard)
@@ -166,20 +165,20 @@ pub async fn handle_commands(cx: cmd::Cx<(bool, i32, i32, i32)>) -> cmd::Res {
                   .send()
                   .await?;
 
-                  next(cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_id, group_id))
+                  next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
                }
             }
 
             cmd::EaterDish::UnknownCommand => {
                // Сохраним текущее состояние для возврата
-               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::EatRestGroupDishSelectionMode(compact_mode, cat_id, rest_id, group_id), m : cmd::EaterDish::markup()});
+               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id), m : cmd::EaterDish::markup()});
 
                // Возможно это общая команда
                if let Some(res) = eater::handle_common_commands(DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), command, origin).await {return res;}
                else {
                   let s = String::from(command);
                   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id, group_id)), &format!("Вы в меню выбора блюда: неизвестная команда '{}'", s)).await
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)), &format!("Вы в меню выбора блюда: неизвестная команда '{}'", s)).await
                }
             }
          }

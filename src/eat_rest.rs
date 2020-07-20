@@ -25,13 +25,17 @@ use crate::settings;
 
 
 // Показывает список ресторанов с группами заданной категории
-pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
+pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    // Извлечём параметры
-   let (compact_mode, cat_id) = cx.dialogue;
+   let cat_id = cx.dialogue;
    
    // Получаем информацию из БД
    match db::rest_list(db::RestListBy::Category(cat_id)).await {
       Some(rest_list) => {
+         // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
+         let now = settings::current_date_time();
+         let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
+
          // Выводим информацию либо ссылками, либо инлайн кнопками
          if compact_mode {
             // Сформируем строку вида "название /ссылка\n"
@@ -52,7 +56,7 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
             cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), settings::default_photo_id()).await;
 
             // В инлайн-режиме всегда остаёмся в главном меню
-            return next(cmd::Dialogue::UserMode(compact_mode));
+            return next(cmd::Dialogue::UserMode);
          }
       }
       None => {
@@ -65,11 +69,11 @@ pub async fn next_with_info(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
    }
 
    // Переходим (остаёмся) в режим выбора ресторана
-   next(cmd::Dialogue::EatRestSelectionMode(compact_mode, cat_id))
+   next(cmd::Dialogue::EatRestSelectionMode(cat_id))
 }
 
 // Показывает сообщение об ошибке/отмене без повторного вывода информации
-async fn next_with_cancel(cx: cmd::Cx<(bool, i32)>, text: &str) -> cmd::Res {
+async fn next_with_cancel(cx: cmd::Cx<i32>, text: &str) -> cmd::Res {
    cx.answer(text)
    .reply_markup(cmd::EaterRest::markup())
    .disable_notification(true)
@@ -77,17 +81,17 @@ async fn next_with_cancel(cx: cmd::Cx<(bool, i32)>, text: &str) -> cmd::Res {
    .await?;
 
    // Код категории
-   let (compact_mode, cat_id) = cx.dialogue;
+   let cat_id = cx.dialogue;
 
    // Остаёмся в прежнем режиме.
-   next(cmd::Dialogue::EatRestSelectionMode(compact_mode, cat_id))
+   next(cmd::Dialogue::EatRestSelectionMode(cat_id))
 }
 
 
 // Обработчик команд
-pub async fn handle_commands(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
+pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
    // Код категории
-   let (compact_mode, cat_id) = cx.dialogue;
+   let cat_id = cx.dialogue;
 
    // Код едока
    let user_id = cx.update.from().unwrap().id;
@@ -98,7 +102,7 @@ pub async fn handle_commands(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
          next_with_cancel(cx, "Текстовое сообщение, пожалуйста!").await
       }
       Some(command) => {
-         match cmd::EaterRest::from(compact_mode, command) {
+         match cmd::EaterRest::from(command) {
             // В корзину
             cmd::EaterRest::Basket => {
                // Переходим в корзину
@@ -113,21 +117,21 @@ pub async fn handle_commands(cx: cmd::Cx<(bool, i32)>) -> cmd::Res {
             }
 
             // Выбор ресторана
-            cmd::EaterRest::Restaurant(compact_mode, rest_id) => {
+            cmd::EaterRest::Restaurant(rest_id) => {
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id, rest_id))).await
+               eat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id))).await
             }
 
             cmd::EaterRest::UnknownCommand => {
                // Сохраним текущее состояние для возврата
-               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::EatRestSelectionMode(compact_mode, cat_id), m : cmd::EaterRest::markup()});
+               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::EatRestSelectionMode(cat_id), m : cmd::EaterRest::markup()});
 
                // Возможно это общая команда
                if let Some(res) = eater::handle_common_commands(DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), command, origin).await {return res;}
                else {
                   let s = String::from(command);
                   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (compact_mode, cat_id)), &format!("Вы в меню выбора ресторана: неизвестная команда '{}'", s)).await
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, cat_id), &format!("Вы в меню выбора ресторана: неизвестная команда '{}'", s)).await
                }
             }
          }

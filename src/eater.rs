@@ -38,17 +38,13 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
       String::from("Пожалуйста, выберите в основном меню снизу какие заведения показать.")
    };
    
-   // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
-   let now = settings::current_date_time();
-   let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
-
    // Если сессия началась с какой-то команды, то попробуем сразу её обработать
    if let Some(input) = cx.update.text() {
       // Пытаемся распознать команду как собственную или глобальную
       let known = cmd::User::from(input) != cmd::User::UnknownCommand || cmd::Common::from(input) != cmd::Common::UnknownCommand;
       if known {
          let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-         return handle_commands(DialogueDispatcherHandlerCx::new(bot, update, compact_mode)).await;
+         return handle_commands(DialogueDispatcherHandlerCx::new(bot, update, ())).await;
       }
    }
 
@@ -63,12 +59,10 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    }*/
 
    // Переходим в режим получения выбранного пункта в главном меню
-   next(cmd::Dialogue::UserMode(compact_mode))
+   next(cmd::Dialogue::UserMode)
 }
 
-pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
-   // Режим интерфейса
-   let compact_mode = cx.dialogue;
+pub async fn handle_commands(cx: cmd::Cx<()>) -> cmd::Res {
 
    // Разбираем команду
    match cx.update.text() {
@@ -83,7 +77,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
          match cmd::User::from(command) {
             cmd::User::Category(cat_id) => {
                // Отобразим все рестораны, у которых есть в меню выбранная категория и переходим в режим выбора ресторана
-               return eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (compact_mode, cat_id))).await;
+               return eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, cat_id)).await;
             }
             cmd::User::OpenedNow => {
                // Отобразим рестораны, открытые сейчас и перейдём в режим их выбора
@@ -91,7 +85,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
             }
             cmd::User::UnknownCommand => {
                // Сохраним текущее состояние для возврата
-               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::UserMode(compact_mode), m : cmd::User::main_menu_markup()});
+               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::UserMode, m : cmd::User::main_menu_markup()});
 
                // Возможно это общая команда
                if let Some(res) = handle_common_commands(DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), command, origin).await {return res;}
@@ -102,7 +96,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
             }
             cmd::User::Gear => {
                // Переходим в меню с шестерёнкой
-               return gear::next_with_info(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, compact_mode)).await;
+               return gear::next_with_info(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ())).await;
             }
             cmd::User::Basket => {
                // Код едока
@@ -121,7 +115,7 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
    }
 
    // Остаёмся в пользовательском режиме.
-   next(cmd::Dialogue::UserMode(compact_mode))
+   next(cmd::Dialogue::UserMode)
 }
 
 // Обработка глобальных команд
@@ -133,23 +127,15 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
          let s = "Пожалуйста, выберите в основном меню снизу какие заведения показать.";
          cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update.clone(), ()), s, cmd::User::main_menu_markup()).await;
 
-         // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
-         let now = settings::current_date_time();
-         let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
-
-         Some(next(cmd::Dialogue::UserMode(compact_mode)))
+         Some(next(cmd::Dialogue::UserMode))
       }
       cmd::Common::StartArgs(first, second, third) => {
-         // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
-         let now = settings::current_date_time();
-         let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
-
          // Если третий аргумент нулевой, надо отобразить группу
          if third == 0 {
-            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (compact_mode, 0, first, second));
+            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
             Some(eat_dish::next_with_info(new_cx).await)
          } else {
-            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (compact_mode, 0, first, second));
+            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
             Some(eat_dish::next_with_info(new_cx).await)
          }
       }
