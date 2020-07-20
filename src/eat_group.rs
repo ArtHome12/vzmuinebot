@@ -154,10 +154,13 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
    }
 }
 
-
-// Выводит инлайн кнопки
-pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, cat_id: i32) -> bool {
-
+// Формирование данных для инлайн-сообщения
+struct InlineData {
+   text: String,
+   markup: InlineKeyboardMarkup,
+   photo_id: String,
+}
+async fn inline_data(rest_num: i32, cat_id: i32) -> InlineData {
    // Получаем информацию из БД - нужен текст, картинка и кнопки
    let (text, markup, photo_id) = match db::restaurant(db::RestBy::Num(rest_num)).await {
       None => {
@@ -231,6 +234,16 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
       }
    };
 
+   // Возвращаем результат
+   InlineData {text, markup, photo_id}
+}
+
+// Выводит инлайн кнопки
+pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, cat_id: i32) -> bool {
+
+   // Получаем данные
+   let data = inline_data(rest_num, cat_id).await;
+
    // Достаём chat_id
    let message = cx.update.message.as_ref().unwrap();
    let chat_message = ChatOrInlineMessage::Chat {
@@ -240,14 +253,14 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
 
    // Приготовим структуру для редактирования
    let media = InputMedia::Photo{
-      media: InputFile::file_id(photo_id),
-      caption: Some(text),
+      media: InputFile::file_id(data.photo_id),
+      caption: Some(data.text),
       parse_mode: None,
    };
 
    // Отправляем изменения
    match cx.bot.edit_message_media(chat_message, media)
-   .reply_markup(markup)
+   .reply_markup(data.markup)
    .send()
    .await {
       Err(e) => {
