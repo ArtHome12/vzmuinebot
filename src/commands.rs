@@ -81,6 +81,7 @@ impl Common {
          "/start" => {
             // Поробуем извлечь пробел и аргументы
             let r_part = input.get(7..).unwrap_or_default();
+            log::info!("Here({}): {}", input, r_part);
             if let Ok((first, second, third)) = db::parse_key_3_int(r_part) {Common::StartArgs(first, second, third)}
             else {Common::Start}
          }
