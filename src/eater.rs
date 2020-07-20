@@ -21,9 +21,6 @@ use crate::gear;
 
 pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    
-   // if let Some(text) = cx.update.text() {
-   //    settings::log(&text).await;
-   // }
    // Различаем перезапуск и возврат из меню ресторатора
    let s = if after_restart {
       // Это первый вход пользователя после перезапуска, сообщим об этом
@@ -44,13 +41,23 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    let now = settings::current_date_time();
    let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
 
-   // Отображаем приветственное сообщение и меню с кнопками.
+   // Если сессия началась с какой-то команды, то попробуем сразу её обработать
+   if let Some(input) = cx.update.text() {
+      // Пытаемся распознать команду как собственную или глобальную
+      let known = cmd::User::from(input) != cmd::User::UnknownCommand || cmd::Common::from(input) != cmd::Common::UnknownCommand;
+      if known {
+         let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+         return handle_commands(DialogueDispatcherHandlerCx::new(bot, update, compact_mode)).await;
+      }
+   }
+
+   // Если команды не было или она не распознана, отображаем приветственное сообщение и меню с кнопками.
    cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update.clone(), ()), &s, cmd::User::main_menu_markup()).await;
    
    // Код едока
-   let user_id = cx.update.from().unwrap().id;
+/*   let user_id = cx.update.from().unwrap().id;
 
-   // Если сессия началась с команды старт, то попробуем извлечь её аргументы
+   
    if let Some(input) = cx.update.text() {
       // Команда старт может быть с аргументами
       let l_part = input.get(..6).unwrap_or_default();
@@ -62,7 +69,7 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
                return next(cmd::Dialogue::BasketMode(user_id));
          }
       };
-   }
+   }*/
 
    // Переходим в режим получения выбранного пункта в главном меню
    next(cmd::Dialogue::UserMode(compact_mode))
@@ -95,8 +102,9 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
                // Возможно это общая команда
                match cmd::Common::from(command) {
                   cmd::Common::Start => {
-                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                     return start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await;
+                     // Отображаем приветственное сообщение и меню с кнопками
+                     let s = "Пожалуйста, выберите в основном меню снизу какие заведения показать.";
+                     cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update.clone(), ()), s, cmd::User::main_menu_markup()).await;
                   }
                   cmd::Common::SendMessage(caterer_id) => {
                      // Отправляем приглашение ввести строку со слешем в меню для отмены

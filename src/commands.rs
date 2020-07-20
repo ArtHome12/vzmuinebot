@@ -61,7 +61,7 @@ pub type Res = ResponseResult<DialogueStage<Dialogue>>;
 // ============================================================================
 // [Common commands]
 // ============================================================================
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum Common {
    Start,
    SendMessage(i32), // caterer_id
@@ -88,7 +88,7 @@ impl Common {
 // ============================================================================
 // [Client menu]
 // ============================================================================
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum User {
     // Команды главного меню
     Category(i32),   // cat_id 
