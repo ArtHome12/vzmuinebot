@@ -71,30 +71,14 @@ pub async fn handle_commands(cx: cmd::Cx<bool>) -> cmd::Res {
             }
 
             cmd::Gear::UnknownCommand => {
+               // Сохраним текущее состояние для возврата
+               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::UserMode(compact_mode), m : cmd::Gear::bottom_markup()});
+
                // Возможно это общая команда
-               match cmd::Common::from(command) {
-                  cmd::Common::Start => {
-                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                     eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
-                  }
-                  cmd::Common::SendMessage(caterer_id) => {
-                     // Отправляем приглашение ввести строку со слешем в меню для отмены
-                     cx.answer(format!("Введите сообщение (/ для отмены)"))
-                     .reply_markup(cmd::Caterer::slash_markup())
-                     .disable_notification(true)
-                     .send()
-                     .await?;
-
-                     // Код едока
-                     let user_id = cx.update.from().unwrap().id;
-
-                     // Переходим в режим ввода
-                     return next(cmd::Dialogue::MessageToCaterer(user_id, caterer_id, Box::new(cmd::Dialogue::UserMode(compact_mode)), Box::new(cmd::User::main_menu_markup())));
-                  }
-                  cmd::Common::UnknownCommand => {
-                     let s = &format!("Вы в меню ⚙ настроек: неизвестная команда '{}'", command);
-                     next_with_cancel(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, compact_mode), s).await
-                  }
+               if let Some(res) = eater::handle_common_commands(DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), command, origin).await {return res;}
+               else {
+                  let s = &format!("Вы в меню ⚙ настроек: неизвестная команда '{}'", command);
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, compact_mode), s).await
                }
             }
             cmd::Gear::ToggleInterface => {

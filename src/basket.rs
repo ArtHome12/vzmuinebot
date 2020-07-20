@@ -225,27 +225,14 @@ pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
 
             // Неизвестная команда
             cmd::Basket::UnknownCommand => {
+               // Сохраним текущее состояние для возврата
+               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::BasketMode(user_id), m : cmd::Basket::bottom_markup()});
+
                // Возможно это общая команда
-               match cmd::Common::from(command) {
-                  cmd::Common::Start => {
-                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                     eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
-                  }
-                  cmd::Common::SendMessage(caterer_id) => {
-                     // Отправляем приглашение ввести строку со слешем в меню для отмены
-                     cx.answer(format!("Введите сообщение (/ для отмены)"))
-                     .reply_markup(cmd::Caterer::slash_markup())
-                     .disable_notification(true)
-                     .send()
-                     .await?;
-      
-                     // Переходим в режим ввода
-                     next(cmd::Dialogue::MessageToCaterer(user_id, caterer_id, Box::new(cmd::Dialogue::BasketMode(user_id)), Box::new(cmd::Basket::bottom_markup())))
-                  }
-                  cmd::Common::UnknownCommand => {
-                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                     next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: неизвестная команда").await
-                  }
+               if let Some(res) = eater::handle_common_commands(DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), command, origin).await {return res;}
+               else {
+                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, user_id), "Вы в меню корзина: неизвестная команда").await
                }
             }
 

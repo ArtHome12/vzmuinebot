@@ -51,12 +51,18 @@ pub enum Dialogue {
    BasketEditName(i32), // user_id
    BasketEditContact(i32), // user_id
    BasketEditAddress(i32), // user_id
-   MessageToCaterer(i32, i32, Box<Dialogue>, Box<ReplyKeyboardMarkup>), // user_id, caterer_id, previous mode
+   MessageToCaterer(i32, i32, Box<DialogueState>), // user_id, caterer_id, previous mode
    GearMode(bool), // compact_mode
 }
 
 pub type Cx<State> = DialogueDispatcherHandlerCx<Message, State>;
 pub type Res = ResponseResult<DialogueStage<Dialogue>>;
+
+// Структура для сохранения состояния диалога вместе с меню
+pub struct DialogueState {
+   pub d  : Dialogue,
+   pub m  : ReplyKeyboardMarkup,
+}
 
 // ============================================================================
 // [Common commands]
@@ -64,6 +70,7 @@ pub type Res = ResponseResult<DialogueStage<Dialogue>>;
 #[derive(Copy, Clone, PartialEq)]
 pub enum Common {
    Start,
+   StartArgs(i32, i32, i32),
    SendMessage(i32), // caterer_id
    UnknownCommand,
 }
@@ -71,7 +78,12 @@ pub enum Common {
 impl Common {
    pub fn from(input: &str) -> Common {
       match input {
-         "/start" => Common::Start,
+         "/start" => {
+            // Поробуем извлечь пробел и аргументы
+            let r_part = input.get(7..).unwrap_or_default();
+            if let Ok((first, second, third)) = db::parse_key_3_int(r_part) {Common::StartArgs(first, second, third)}
+            else {Common::Start}
+         }
          _ => {
             // Ищем среди команд с аргументами
             let r_part = input.get(4..).unwrap_or_default();

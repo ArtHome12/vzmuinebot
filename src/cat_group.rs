@@ -91,146 +91,133 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
          next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)), "Текстовое сообщение, пожалуйста!").await
       }
       Some(command) => {
-            match cmd::CatGroup::from(rest_id, group_id, command) {
+         match cmd::CatGroup::from(rest_id, group_id, command) {
 
-               // Показать информацию о ресторане (возврат в главное меню ресторатора)
-               cmd::CatGroup::Main(rest_id) => {
-                  // Покажем информацию
-                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
-               }
+            // Показать информацию о ресторане (возврат в главное меню ресторатора)
+            cmd::CatGroup::Main(rest_id) => {
+               // Покажем информацию
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
+            }
 
-               // Выйти из режима ресторатора
-               cmd::CatGroup::Exit => {
-                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
-               }
+            // Выйти из режима ресторатора
+            cmd::CatGroup::Exit => {
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
+            }
 
             // Изменение названия группы
-               cmd::CatGroup::EditTitle(rest_id, group_id) => {
+            cmd::CatGroup::EditTitle(rest_id, group_id) => {
 
-                  // Отправляем приглашение ввести строку со слешем в меню для отмены
-                  cx.answer(format!("Введите название (/ для отмены)"))
-                  .reply_markup(cmd::Caterer::slash_markup())
-                  .disable_notification(true)
-                  .send()
-                  .await?;
+               // Отправляем приглашение ввести строку со слешем в меню для отмены
+               cx.answer(format!("Введите название (/ для отмены)"))
+               .reply_markup(cmd::Caterer::slash_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
 
-                  // Переходим в режим ввода нового названия
-                  next(cmd::Dialogue::CatEditGroupTitle(rest_id, group_id))
-               }
+               // Переходим в режим ввода нового названия
+               next(cmd::Dialogue::CatEditGroupTitle(rest_id, group_id))
+            }
 
-               // Изменение информации о группе
-               cmd::CatGroup::EditInfo(rest_id, group_id) => {
+            // Изменение информации о группе
+            cmd::CatGroup::EditInfo(rest_id, group_id) => {
 
-                  // Отправляем приглашение ввести строку со слешем в меню для отмены
-                  cx.answer(format!("Введите пояснения для группы"))
-                  .reply_markup(cmd::Caterer::slash_markup())
-                  .disable_notification(true)
-                  .send()
-                  .await?;
+               // Отправляем приглашение ввести строку со слешем в меню для отмены
+               cx.answer(format!("Введите пояснения для группы"))
+               .reply_markup(cmd::Caterer::slash_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
 
-                  // Переходим в режим ввода информации о группе
-                  next(cmd::Dialogue::CatEditGroupInfo(rest_id, group_id))
-               }
+               // Переходим в режим ввода информации о группе
+               next(cmd::Dialogue::CatEditGroupInfo(rest_id, group_id))
+            }
 
-               // Переключение активности группы
-               cmd::CatGroup::TogglePause(rest_id, group_id) => {
-                  // Запрос доп.данных не требуется, сразу переключаем активность
-                  db::rest_group_toggle(rest_id, group_id).await;
+            // Переключение активности группы
+            cmd::CatGroup::TogglePause(rest_id, group_id) => {
+               // Запрос доп.данных не требуется, сразу переключаем активность
+               db::rest_group_toggle(rest_id, group_id).await;
 
-                  // Покажем изменённую информацию
+               // Покажем изменённую информацию
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
+            }
+
+            // Изменить категорию группы
+            cmd::CatGroup::EditCategory(rest_id, group_id) => {
+
+               // Отправляем приглашение ввести строку с категориями в меню для выбора
+               cx.answer(format!("Выберите категорию"))
+               .reply_markup(cmd::CatGroup::category_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
+
+               // Переходим в режим ввода информации о ресторане
+               next(cmd::Dialogue::CatEditGroupCategory(rest_id, group_id))
+            }
+
+            // Изменить время
+            cmd::CatGroup::EditTime(rest_id, group_id) => {
+
+               // Отправляем приглашение ввести строку с категориями в меню для выбора
+               cx.answer(format!("Введите время доступности категории"))
+               .reply_markup(cmd::Caterer::slash_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
+
+               // Переходим в режим ввода времени
+               next(cmd::Dialogue::CatEditGroupTime(rest_id, group_id))
+            }
+
+            // Удалить группу
+            cmd::CatGroup::RemoveGroup(rest_id, group_id) => {
+               // Запрос доп.данных не требуется, сразу удаяем, если это не основная.
+               if db::rest_group_remove(rest_id, group_id).await {
+                  // Группы больше нет, показываем главное меню
                   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
+                  caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
+               } else {
+                  next_with_cancel(cx, "Ошибка удаления группы, возможно в ней остались блюда (удалите или перенесите сначала их)").await
                }
+            }
 
-               // Изменить категорию группы
-               cmd::CatGroup::EditCategory(rest_id, group_id) => {
+            // Добавление нового блюда
+            cmd::CatGroup::AddDish(rest_id, group_id) => {
 
-                  // Отправляем приглашение ввести строку с категориями в меню для выбора
-                  cx.answer(format!("Выберите категорию"))
-                  .reply_markup(cmd::CatGroup::category_markup())
-                  .disable_notification(true)
-                  .send()
-                  .await?;
+               // Отправляем приглашение ввести строку со слешем в меню для отмены
+               cx.answer(format!("Введите название блюда (/ для отмены)"))
+               .reply_markup(cmd::Caterer::slash_markup())
+               .disable_notification(true)
+               .send()
+               .await?;
 
-                  // Переходим в режим ввода информации о ресторане
-                  next(cmd::Dialogue::CatEditGroupCategory(rest_id, group_id))
-               }
+               // Переходим в режим ввода названия блюда
+               next(cmd::Dialogue::CatAddDish(rest_id, group_id))
+            }
 
-               // Изменить время
-               cmd::CatGroup::EditTime(rest_id, group_id) => {
+            // Редактирование блюда
+            cmd::CatGroup::EditDish(rest_id, group_id, dish_id) => {
 
-                  // Отправляем приглашение ввести строку с категориями в меню для выбора
-                  cx.answer(format!("Введите время доступности категории"))
-                  .reply_markup(cmd::Caterer::slash_markup())
-                  .disable_notification(true)
-                  .send()
-                  .await?;
+               // Отображаем информацию о блюде и переходим в режим её редактирования
+               let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+               dish::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id))).await
+            }
 
-                  // Переходим в режим ввода времени
-                  next(cmd::Dialogue::CatEditGroupTime(rest_id, group_id))
-               }
+            // Ошибочная команда
+            cmd::CatGroup::UnknownCommand => {
+               // Сохраним текущее состояние для возврата
+               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::CatEditGroup(rest_id, group_id), m : cmd::Caterer::main_menu_markup()});
 
-               // Удалить группу
-               cmd::CatGroup::RemoveGroup(rest_id, group_id) => {
-                  // Запрос доп.данных не требуется, сразу удаяем, если это не основная.
-                  if db::rest_group_remove(rest_id, group_id).await {
-                     // Группы больше нет, показываем главное меню
-                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                     caterer::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, rest_id), false).await
-                  } else {
-                     next_with_cancel(cx, "Ошибка удаления группы, возможно в ней остались блюда (удалите или перенесите сначала их)").await
-                  }
-               }
-
-               // Добавление нового блюда
-               cmd::CatGroup::AddDish(rest_id, group_id) => {
-
-                  // Отправляем приглашение ввести строку со слешем в меню для отмены
-                  cx.answer(format!("Введите название блюда (/ для отмены)"))
-                  .reply_markup(cmd::Caterer::slash_markup())
-                  .disable_notification(true)
-                  .send()
-                  .await?;
-
-                  // Переходим в режим ввода названия блюда
-                  next(cmd::Dialogue::CatAddDish(rest_id, group_id))
-               }
-
-               // Редактирование блюда
-               cmd::CatGroup::EditDish(rest_id, group_id, dish_id) => {
-
-                  // Отображаем информацию о блюде и переходим в режим её редактирования
+               // Возможно это общая команда
+               if let Some(res) = eater::handle_common_commands(DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), command, origin).await {return res;}
+               else {
                   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  dish::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id))).await
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)), "Вы в меню группы: неизвестная команда").await
                }
-
-               // Ошибочная команда
-               cmd::CatGroup::UnknownCommand => {
-                  // Возможно это общая команда
-                  match cmd::Common::from(command) {
-                     cmd::Common::Start => {
-                        let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                        eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
-                     }
-                     cmd::Common::SendMessage(caterer_id) => {
-                        // Отправляем приглашение ввести строку со слешем в меню для отмены
-                        cx.answer(format!("Введите сообщение (/ для отмены)"))
-                        .reply_markup(cmd::Caterer::slash_markup())
-                        .disable_notification(true)
-                        .send()
-                        .await?;
-         
-                        // Переходим в режим ввода
-                        next(cmd::Dialogue::MessageToCaterer(rest_id, caterer_id, Box::new(cmd::Dialogue::CatEditGroup(rest_id, group_id)), Box::new(cmd::Caterer::main_menu_markup())))
-                     }
-                     cmd::Common::UnknownCommand => {
-                        let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                        next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)), "Вы в меню группы: неизвестная команда").await
-                     }
-                  }
-               }
+            }
          }
       }
    }

@@ -194,27 +194,15 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 
             // Ошибочная команда
             cmd::CatDish::UnknownCommand => {
+               // Сохраним текущее состояние для возврата
+               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id), m : cmd::Caterer::main_menu_markup()});
+
                // Возможно это общая команда
-               match cmd::Common::from(command) {
-                  cmd::Common::Start => {
-                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                     eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), false).await
-                  }
-                  cmd::Common::SendMessage(caterer_id) => {
-                     // Отправляем приглашение ввести строку со слешем в меню для отмены
-                     cx.answer(format!("Введите сообщение (/ для отмены)"))
-                     .reply_markup(cmd::Caterer::slash_markup())
-                     .disable_notification(true)
-                     .send()
-                     .await?;
-      
-                     // Переходим в режим ввода
-                     next(cmd::Dialogue::MessageToCaterer(rest_id, caterer_id, Box::new(cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id)), Box::new(cmd::Caterer::main_menu_markup())))
-                  }
-                  cmd::Common::UnknownCommand => {
-                     let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                     next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)), "Вы в меню блюда: неизвестная команда").await
-                  }
+               if let Some(res) = eater::handle_common_commands(DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), command, origin).await {return res;}
+               else {
+                  let s = String::from(command);
+                  let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)), &format!("Вы в меню блюда: неизвестная команда '{}'", s)).await
                }
             }
          }

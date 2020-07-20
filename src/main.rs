@@ -15,7 +15,7 @@ extern crate smart_default;
 use teloxide::{
    dispatching::update_listeners, 
    prelude::*, 
-   types::{CallbackQuery, InlineQuery, ChatId, ReplyKeyboardMarkup,},
+   types::{CallbackQuery, InlineQuery, ChatId, },
 };
 
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
@@ -169,8 +169,8 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
             basket::edit_address_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
                   .await
          }
-         cmd::Dialogue::MessageToCaterer(user_id, caterer_id, previous_mode, reply_markup) => {
-            edit_message_to_caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, (user_id, caterer_id, previous_mode, reply_markup)))
+         cmd::Dialogue::MessageToCaterer(user_id, caterer_id, origin) => {
+            edit_message_to_caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, (user_id, caterer_id, origin)))
                   .await
          }
          cmd::Dialogue::GearMode(compact_mode) => {
@@ -335,10 +335,9 @@ pub async fn send_message(bot: &Arc<Bot>, chat_id: ChatId, s: &str) -> bool {
 }
 
 // Отправить сообщение ресторатору
-pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::Dialogue>, Box<ReplyKeyboardMarkup>)>) -> cmd::Res {
+pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::DialogueState>)>) -> cmd::Res {
    // Извлечём параметры
-   let user_id = cx.dialogue.0;
-   let caterer_id = cx.dialogue.1;
+   let (user_id, caterer_id, boxed_origin) = cx.dialogue;
 
    if let Some(text) = cx.update.text() {
       // Удалим из строки слеши
@@ -362,17 +361,15 @@ pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::Dialog
       };
 
       // Уведомим о результате
-      let markup = *cx.dialogue.3.clone();
-      cx.answer(text)
-      .reply_markup(markup)
+      let new_cx = DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ());
+      new_cx.answer(text)
+      .reply_markup(boxed_origin.m)
       .disable_notification(true)
       .send()
       .await?;
    }
 
    // Возвращаемся в предыдущий режим c обновлением кнопок
-   // match
-   let previous_dialogue = cx.dialogue.2;
-   next(*previous_dialogue)
+   next(boxed_origin.d)
 }
 
