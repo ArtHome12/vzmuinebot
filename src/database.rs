@@ -762,7 +762,7 @@ pub async fn dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Option<(
                let price: i32 = data[0].get(4);
                let image_id: Option<String> = data[0].get(5);
                Some((
-                 String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nГруппа: {} /EditGroup\nСтатус: {} /Toggle\nЦена: {} /EditPrice\nЗагрузить фото /EditImg\nУдалить блюдо /Remove",
+                 String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nГруппа: {} /EditGroup\nСтатус: {} /Toggle\nЦена: {} /EditPrice\nЗагрузить фото /EditImg\nУдалить блюдо /Remove\nРекламировать /Promote",
                  title, info, group_num, active_to_str(active), settings::price_with_unit(price))), image_id
               ))
            } else {

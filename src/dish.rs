@@ -22,37 +22,37 @@ use crate::settings;
 // Показывает информацию о блюде 
 //
 pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
-    // Извлечём параметры
-    let (rest_id, group_id, dish_id) = cx.dialogue;
-    
+   // Извлечём параметры
+   let (rest_id, group_id, dish_id) = cx.dialogue;
+
    // Получаем информацию из БД
    let (info, dish_image_id) = match db::dish_info(rest_id, group_id, dish_id).await {
       Some(dish_info) => dish_info,
       None => (format!("Ошибка db::dish_info({})", rest_id), None)
    };
 
-    // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
-    if let Some(image_id) = dish_image_id {
-        // Создадим графический объект
-        let image = InputFile::file_id(image_id);
+   // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
+   if let Some(image_id) = dish_image_id {
+      // Создадим графический объект
+      let image = InputFile::file_id(image_id);
 
-        // Отправляем картинку и текст как комментарий
-        cx.answer_photo(image)
-        .caption(info)
-        .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
-        .disable_notification(true)
-        .send()
-        .await?;
-    } else {
-        cx.answer(info)
-        .reply_markup(cmd::Caterer::main_menu_markup())
-        .disable_notification(true)
-        .send()
-        .await?;
-    }
+      // Отправляем картинку и текст как комментарий
+      cx.answer_photo(image)
+      .caption(info)
+      .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
+      .disable_notification(true)
+      .send()
+      .await?;
+   } else {
+      cx.answer(info)
+      .reply_markup(cmd::Caterer::main_menu_markup())
+      .disable_notification(true)
+      .send()
+      .await?;
+   }
 
-    // Переходим (остаёмся) в режим редактирования блюда
-    next(cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id))
+   // Переходим (остаёмся) в режим редактирования блюда
+   next(cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id))
 }
 
 async fn next_with_cancel(cx: cmd::Cx<(i32, i32, i32)>, text: &str) -> cmd::Res {
@@ -68,7 +68,6 @@ async fn next_with_cancel(cx: cmd::Cx<(i32, i32, i32)>, text: &str) -> cmd::Res 
     // Остаёмся в режиме редактирования блюда
     next(cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id))
 }
-
 
 // Режим редактирования у ресторана rest_id группы group_id
 pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
@@ -190,6 +189,41 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                // Блюда больше нет, показываем меню группы
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                cat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
+            }
+
+            // Рекламировать блюдо
+            cmd::CatDish::Promote(rest_id, group_id, dish_num) => {
+               // Получаем информацию из БД
+               let (info, dish_image_id) = match db::eater_dish_info(rest_id, group_id, dish_num).await {
+                  Some(dish_info) => dish_info,
+                  None => (format!("Ошибка dish::handle_commands with Promote({}, {}, {})", rest_id, group_id, dish_num), None)
+               };
+
+               // Добавляем гиперссылку
+               let link = String::from("http://t.me/Muine_vzbot?start=");
+               let info = format!("{}\n{}{}", info, link, db::make_key_3_int(rest_id, group_id, dish_num));
+
+               // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
+               if let Some(image_id) = dish_image_id {
+                  // Создадим графический объект
+                  let image = InputFile::file_id(image_id);
+
+                  // Отправляем картинку и текст как комментарий
+                  cx.answer_photo(image)
+                  .caption(info)
+                  .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
+                  .disable_notification(true)
+                  .send()
+                  .await?;
+               } else {
+                  cx.answer(info)
+                  .reply_markup(cmd::Caterer::main_menu_markup())
+                  .disable_notification(true)
+                  .send()
+                  .await?;
+               }
+               // Остаёмся в прежнем режиме
+               next(cmd::Dialogue::CatEditDish(rest_id, group_id, dish_num))
             }
 
             // Ошибочная команда

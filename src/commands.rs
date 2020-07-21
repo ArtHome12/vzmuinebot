@@ -369,6 +369,8 @@ pub enum CatDish {
     EditImage(i32, i32, i32), // rest_id, group_id, dish_id
     // Удалить
     Remove(i32, i32, i32), // rest_id, group_id, dish_id
+    // Рекламировать
+    Promote(i32, i32, i32), // rest_id, group_id, dish_id
 }
 
 impl CatDish {
@@ -385,6 +387,7 @@ impl CatDish {
             "/EditPrice" => CatDish::EditPrice(rest_id, group_id, dish_id),
             "/EditImg" => CatDish::EditImage(rest_id, group_id, dish_id),
             "/Remove" => CatDish::Remove(rest_id, group_id, dish_id),
+            "/Promote" => CatDish::Promote(rest_id, group_id, dish_id),
             _ => CatDish::UnknownCommand,
         }
     }
