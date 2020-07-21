@@ -224,7 +224,10 @@ impl Vars {
          link: {
             // Определим собственное имя бота
             match bot.get_me().send().await {
-               Ok(me) => format!("http://t.me/{}?start=", me.user.first_name),
+               Ok(me) => match me.user.username {
+                  Some(name) => format!("http://t.me/{}?start=", name),
+                  None => String::from("Ошибка"),
+               }
                Err(_) => String::from("Ошибка"),
             }
          },
