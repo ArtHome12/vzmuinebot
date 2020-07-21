@@ -125,46 +125,7 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
             }
 
             // Выбор блюда
-            cmd::EaterDish::Dish(dish_num) => {
-               // Получаем информацию из БД
-               let (info, dish_image_id) = match db::eater_dish_info(rest_id, group_id, dish_num).await {
-                  Some(dish_info) => dish_info,
-                  None => (format!("Ошибка db::eater_dish_info({}, {}, {})", rest_id, group_id, dish_num), None)
-               };
-
-               // Идентифицируем пользователя
-               let user_id = cx.update.from().unwrap().id;
-
-               // Запросим из БД, сколько этих блюд пользователь уже выбрал
-               let ordered_amount = db::amount_in_basket(rest_id, group_id, dish_num, user_id).await;
-
-               // Создаём инлайн кнопки с указанием количества блюд
-               let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_key_3_int(rest_id, group_id, dish_num), ordered_amount);
-
-               // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
-               if let Some(image_id) = dish_image_id {
-                  // Создадим графический объект
-                  let image = InputFile::file_id(image_id);
-
-                  // Отправляем картинку и текст как комментарий
-                  cx.answer_photo(image)
-                  .caption(info)
-                  .reply_markup(ReplyMarkup::InlineKeyboardMarkup(inline_keyboard))
-                  .disable_notification(true)
-                  .send()
-                  .await?;
-                  
-                  next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
-               } else {
-                  cx.answer(info)
-                  .reply_markup(inline_keyboard)
-                  .disable_notification(true)
-                  .send()
-                  .await?;
-
-                  next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
-               }
-            }
+            cmd::EaterDish::Dish(dish_num) => show_dish(cx, dish_num).await,
 
             cmd::EaterDish::UnknownCommand => {
                // Сохраним текущее состояние для возврата
@@ -397,6 +358,51 @@ pub async fn force_dish_inline(cx: cmd::Cx<(i32, i32, i32)>) -> bool {
       Ok(_) => true,
    }
 }
+
+pub async fn show_dish(cx: cmd::Cx<(i32, i32, i32)>, dish_num :i32) -> cmd::Res {
+   // Извлечём параметры
+   let (cat_id, rest_id, group_id) = cx.dialogue;
+
+   // Получаем информацию из БД
+   let (info, dish_image_id) = match db::eater_dish_info(rest_id, group_id, dish_num).await {
+      Some(dish_info) => dish_info,
+      None => (format!("Ошибка db::eater_dish_info({}, {}, {})", rest_id, group_id, dish_num), None)
+   };
+
+   // Идентифицируем пользователя
+   let user_id = cx.update.from().unwrap().id;
+
+   // Запросим из БД, сколько этих блюд пользователь уже выбрал
+   let ordered_amount = db::amount_in_basket(rest_id, group_id, dish_num, user_id).await;
+
+   // Создаём инлайн кнопки с указанием количества блюд
+   let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_key_3_int(rest_id, group_id, dish_num), ordered_amount);
+
+   // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
+   if let Some(image_id) = dish_image_id {
+      // Создадим графический объект
+      let image = InputFile::file_id(image_id);
+
+      // Отправляем картинку и текст как комментарий
+      cx.answer_photo(image)
+      .caption(info)
+      .reply_markup(ReplyMarkup::InlineKeyboardMarkup(inline_keyboard))
+      .disable_notification(true)
+      .send()
+      .await?;
+      
+      next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
+   } else {
+      cx.answer(info)
+      .reply_markup(inline_keyboard)
+      .disable_notification(true)
+      .send()
+      .await?;
+
+      next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
+   }
+}
+
 
 // Информация о блюде, подготовленная к выводу
 struct DishData {

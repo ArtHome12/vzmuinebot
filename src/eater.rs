@@ -134,7 +134,6 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
          let s = format!("Добро пожаловать в {}!", rest_name);
          cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), &s, cmd::User::main_menu_markup()).await;
 
-
             // Режим "со ссылками"
          if compact_mode {
             // Если третий аргумент нулевой, надо отобразить группу
@@ -144,7 +143,7 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
             } else {
                // Отображаем сразу блюдо
                let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
-               Some(eat_dish::next_with_info(new_cx).await)
+               Some(eat_dish::show_dish(new_cx, third).await)
             }
          } else {
             // Режим с инлайн-кнопками
