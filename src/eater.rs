@@ -51,13 +51,6 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    // Если команды не было или она не распознана, отображаем приветственное сообщение и меню с кнопками.
    cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update.clone(), ()), &s, cmd::User::main_menu_markup()).await;
    
-   // Код едока
-/*   let user_id = cx.update.from().unwrap().id;
-
-   
-   if let Some(input) = cx.update.text() {
-   }*/
-
    // Переходим в режим получения выбранного пункта в главном меню
    next(cmd::Dialogue::UserMode)
 }
@@ -128,17 +121,41 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
          cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update.clone(), ()), s, cmd::User::main_menu_markup()).await;
 
          Some(next(cmd::Dialogue::UserMode))
-      }
+      },
       cmd::Common::StartArgs(first, second, third) => {
-         // Если третий аргумент нулевой, надо отобразить группу
-         if third == 0 {
-            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
-            Some(eat_dish::next_with_info(new_cx).await)
+         // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
+         let now = settings::current_date_time();
+         let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
+
+         // Режим "со ссылками"
+         if compact_mode {
+            // Если третий аргумент нулевой, надо отобразить группу
+            if third == 0 {
+               let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
+               Some(eat_dish::next_with_info(new_cx).await)
+            } else {
+               // Отображаем сразу блюдо
+               let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
+               Some(eat_dish::next_with_info(new_cx).await)
+            }
          } else {
-            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
-            Some(eat_dish::next_with_info(new_cx).await)
+            // Режим с инлайн-кнопками
+            if third == 0 {
+               let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
+               if eat_dish::force_inline_interface(new_cx).await {
+                  settings::log(&format!("Error handle_common_commands StartArgs: ({}, {}, {})", first, second, third)).await;
+               }
+            } else {
+               let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
+               if eat_dish::force_inline_interface(new_cx).await {
+                  settings::log(&format!("Error handle_common_commands StartArgs: ({}, {}, {})", first, second, third)).await;
+               }
+            }
+
+            // Всегда в главном меню
+            Some(next(cmd::Dialogue::UserMode))
          }
-      }
+      },
       cmd::Common::SendMessage(caterer_id) => {
          // Отправляем приглашение ввести строку со слешем в меню для отмены
          let res = cx.answer(format!("Введите сообщение (/ для отмены)"))
@@ -154,7 +171,7 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
             // Переходим в режим ввода
             Some(next(cmd::Dialogue::MessageToCaterer(user_id, caterer_id, origin)))
          } else {None}
-      }
+      },
       cmd::Common::UnknownCommand => None,
    }
 }

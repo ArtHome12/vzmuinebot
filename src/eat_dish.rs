@@ -24,8 +24,7 @@ use crate::basket;
 use crate::language as lang;
 use crate::settings;
 
-// Основную информацию режима
-//
+// Основная информация режима
 pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
    // Извлечём параметры
    let (cat_id, rest_num, group_num) = cx.dialogue;
@@ -83,8 +82,6 @@ async fn next_with_cancel(cx: cmd::Cx<(i32, i32, i32)>, text: &str) -> cmd::Res 
    // Остаёмся в прежнем режиме.
    next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
 }
-
-
 
 // Обработчик команд
 pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
@@ -186,15 +183,12 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
    }
 }
 
-// Выводит инлайн кнопки
-pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, cat_id: i32) -> bool {
-
-   // Если категория не задана, запросим её из базы
-   let cat_id = if cat_id != 0 {cat_id}
-   else if let Some(group) = db::group(rest_num, group_num).await {group.cat_id}
-   // Если не получилось, выходим
-   else {return false;};
-
+// Формирование данных для инлайн-сообщения
+struct InlineData {
+   text: String,
+   markup: InlineKeyboardMarkup,
+}
+async fn inline_data(cat_id: i32, rest_num: i32, group_num: i32) -> InlineData {
    // Получаем информацию из БД сначала о группе
    let (text, markup) = match db::group(rest_num, group_num).await {
       None => {
@@ -262,6 +256,21 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
       }
    };
 
+   InlineData{text, markup}
+}
+
+// Выводит инлайн кнопки, редактируя предыдущее сообщение
+pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_id: i32, rest_num: i32, group_num: i32) -> bool {
+
+   // Если категория не задана, запросим её из базы
+   let cat_id = if cat_id != 0 {cat_id}
+   else if let Some(group) = db::group(rest_num, group_num).await {group.cat_id}
+   // Если не получилось, выходим
+   else {return false;};
+
+   // Получаем информацию
+   let data = inline_data(cat_id, rest_num, group_num).await;
+
    // Достаём chat_id
    let message = cx.update.message.as_ref().unwrap();
    let chat_message = ChatOrInlineMessage::Chat {
@@ -272,13 +281,13 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
    // Приготовим структуру для редактирования
    let media = InputMedia::Photo{
       media: InputFile::file_id(settings::default_photo_id()),
-      caption: Some(text),
+      caption: Some(data.text),
       parse_mode: None,
    };
 
    // Отправляем изменения
    match cx.bot.edit_message_media(chat_message, media)
-   .reply_markup(markup)
+   .reply_markup(data.markup)
    .send()
    .await {
       Err(e) => {
@@ -289,8 +298,32 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
    }
 }
 
+// Выводит инлайн кнопки с новым сообщением
+pub async fn force_inline_interface(cx: cmd::Cx<(i32, i32, i32)>) -> bool {
+   // Извлечём параметры
+   let (cat_id, rest_num, group_num) = cx.dialogue;
+   
+   // Если категория не задана, запросим её из базы
+   let cat_id = if cat_id != 0 {cat_id}
+   else if let Some(group) = db::group(rest_num, group_num).await {group.cat_id}
+   // Если не получилось, выходим
+   else {return false;};
+
+   // Получаем информацию
+   let data = inline_data(cat_id, rest_num, group_num).await;
+
+   // Отправляем сообщение как фото
+   let res = cx.answer_photo(InputFile::file_id(settings::default_photo_id()))
+   .caption(data.text)
+   .reply_markup(ReplyMarkup::InlineKeyboardMarkup(data.markup))
+   .disable_notification(true)
+   .send()
+   .await;
+
+   if let Ok(_) = res {true} else {false}
+}
+
 // Показывает информацию о блюде
-//
 pub async fn show_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32) -> bool {
    // Получаем информацию из БД
    let (info, dish_image_id) = match db::eater_dish_info(rest_num, group_num, dish_num).await {
