@@ -130,12 +130,14 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
          // Название ресторана
          let rest_name = if let Some(rest) = db::restaurant(db::RestBy::Num(first)).await {rest.title} else {String::from("ошибка получения названия")};
 
-         // Отображаем приветственное сообщение и меню с кнопками (иначе нижнего меню не будет в инлайн-режиме)
+         // Приветственное сообщение и меню с кнопками (иначе нижнего меню не будет в инлайн-режиме)
          let s = format!("Добро пожаловать в {}!", rest_name);
-         cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), &s, cmd::User::main_menu_markup()).await;
 
             // Режим "со ссылками"
          if compact_mode {
+            // Приветственное сообщение с правильным миню
+            cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), &s, cmd::EaterGroup::markup()).await;
+
             // Если третий аргумент нулевой, надо отобразить группу
             if third == 0 {
                let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
@@ -146,6 +148,9 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
                Some(eat_dish::show_dish(new_cx, third).await)
             }
          } else {
+            // Приветственное сообщение с правильным миню
+            cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), &s, cmd::User::main_menu_markup()).await;
+
             // Режим с инлайн-кнопками
             if third == 0 {
                let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
