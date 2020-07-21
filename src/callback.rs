@@ -90,13 +90,13 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
             CallbackCommand::Add(rest_num, group_num, dish_num) => format!("Добавить {}: {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(add_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
             CallbackCommand::Remove(rest_num, group_num, dish_num) => format!("Удалить {}: {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(remove_dish(&cx, rest_num, group_num, dish_num, user_id).await)),
             CallbackCommand::GroupsByRestaurantAndCategory(rest_num, cat_id) => 
-               format!("Группы '{}' {}", db::id_to_category(cat_id), db::is_success(eat_group::show_inline_interface(&cx, rest_num, cat_id).await)),
+               format!("Группы '{}' {}", db::id_to_category(cat_id), db::is_success(eat_group::show_inline_interface(&cx, cat_id, rest_num).await)),
             CallbackCommand::ReturnToCategory(cat_id) => 
                format!("Возврат к '{}' {}", db::id_to_category(cat_id), db::is_success(eat_rest::show_inline_interface(&cx, cat_id).await)),
             CallbackCommand::Dishes(rest_num, group_num, cat_id) => 
                format!("Блюда {}:{} {}", rest_num, group_num, db::is_success(eat_dish::show_inline_interface(&cx, rest_num, group_num, cat_id).await)),
             CallbackCommand::ReturnToGroups(rest_num, cat_id) => 
-               format!("Группы '{}' {}", db::id_to_category(cat_id), db::is_success(eat_group::show_inline_interface(&cx, rest_num, cat_id).await)),
+               format!("Группы '{}' {}", db::id_to_category(cat_id), db::is_success(eat_group::show_inline_interface(&cx, cat_id, rest_num).await)),
             CallbackCommand::Dish(rest_num, group_num, dish_num) =>
                format!("Блюдо '{}': {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(eat_dish::show_dish(&cx, rest_num, group_num, dish_num).await)),
             CallbackCommand::ReturnToDishes(rest_num, group_num, cat_id) =>

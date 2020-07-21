@@ -160,7 +160,7 @@ struct InlineData {
    markup: InlineKeyboardMarkup,
    photo_id: String,
 }
-async fn inline_data(rest_num: i32, cat_id: i32) -> InlineData {
+async fn inline_data(cat_id: i32, rest_num: i32) -> InlineData {
    // Получаем информацию из БД - нужен текст, картинка и кнопки
    let (text, markup, photo_id) = match db::restaurant(db::RestBy::Num(rest_num)).await {
       None => {
@@ -239,10 +239,10 @@ async fn inline_data(rest_num: i32, cat_id: i32) -> InlineData {
 }
 
 // Выводит инлайн кнопки
-pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, cat_id: i32) -> bool {
+pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_id: i32, rest_num: i32) -> bool {
 
    // Получаем данные
-   let data = inline_data(rest_num, cat_id).await;
+   let data = inline_data(cat_id, rest_num).await;
 
    // Достаём chat_id
    let message = cx.update.message.as_ref().unwrap();
