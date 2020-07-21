@@ -139,6 +139,10 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
                Some(eat_dish::next_with_info(new_cx).await)
             }
          } else {
+            // Отображаем приветственное сообщение и меню с кнопками (иначе их не будет)
+            let s = "Добро пожаловать!";
+            cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), s, cmd::User::main_menu_markup()).await;
+
             // Режим с инлайн-кнопками
             if third == 0 {
                let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
