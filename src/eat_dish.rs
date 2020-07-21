@@ -330,25 +330,22 @@ pub async fn force_dish_inline(cx: cmd::Cx<(i32, i32, i32)>) -> bool {
    // Получим данные
    let data = prepare_dish_data(user_id, rest_num, group_num, dish_num).await;
 
-   // Отображаем информацию. Если задана картинка, то текст будет комментарием
-   let res = if let Some(image_id) = data.photo_id {
-      // Создадим графический объект
-      let image = InputFile::file_id(image_id);
-
-      // Отправляем картинку и текст как комментарий
-      cx.answer_photo(image)
-      .caption(data.text)
-      .reply_markup(ReplyMarkup::InlineKeyboardMarkup(data.markup))
-      .disable_notification(true)
-      .send()
-      .await
-   } else {
-      cx.answer(data.text)
-      .reply_markup(ReplyMarkup::InlineKeyboardMarkup(data.markup))
-      .disable_notification(true)
-      .send()
-      .await
+   // Картинка блюда
+   let photo_id = match data.photo_id {
+      Some(photo) => photo,
+      None => settings::default_photo_id(),
    };
+
+   // Создадим графический объект
+   let image = InputFile::file_id(photo_id);
+
+   // Отображаем информацию
+   let res = cx.answer_photo(image)
+   .caption(data.text)
+   .reply_markup(ReplyMarkup::InlineKeyboardMarkup(data.markup))
+   .disable_notification(true)
+   .send()
+   .await;
 
    match res {
       Err(e) => {
