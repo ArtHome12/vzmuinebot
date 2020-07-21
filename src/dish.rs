@@ -200,8 +200,7 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                };
 
                // Добавляем гиперссылку
-               let link = String::from("http://t.me/Muine_vzbot?start=");
-               let info = format!("{}\n{}{}", info, link, db::make_key_3_int(rest_id, group_id, dish_num));
+               let info = format!("{}\n{}{}", info, settings::link(), db::make_key_3_int(rest_id, group_id, dish_num));
 
                // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
                if let Some(image_id) = dish_image_id {

@@ -95,6 +95,9 @@ pub struct Vars {
 
    // Картинка по-умолчанию
    def_image_id: String,
+
+   // Ссылка для рекламы
+   link: String,
 }
 
 impl Vars {
@@ -218,6 +221,14 @@ impl Vars {
             }
          },
 
+         link: {
+            // Определим собственное имя бота
+            match bot.get_me().send().await {
+               Ok(me) => format!("http://t.me/{}?start=", me.user.first_name),
+               Err(_) => String::from("Ошибка"),
+            }
+         },
+
          // Служебный чат
          chat,
       }
@@ -260,3 +271,7 @@ pub fn default_photo_id() -> String {
    VARS.get().unwrap().def_image_id.clone()
 }
 
+// Ссылка для рекламы
+pub fn link() -> String {
+   VARS.get().unwrap().link.clone()
+}
