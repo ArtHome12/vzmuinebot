@@ -274,6 +274,13 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                         .disable_notification(true)
                         .send()
                         .await?;
+
+                        // Отправляем информацию о ресторане и кнопки
+                        cx.answer(info)
+                        .reply_markup(cmd::Caterer::main_menu_markup())
+                        .disable_notification(true)
+                        .send()
+                        .await?;
                      }
                   }
                }
