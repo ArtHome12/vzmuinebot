@@ -307,6 +307,8 @@ pub enum CatGroup {
     AddDish(i32, i32), // rest_id, group_id
     // Редактирование блюда
     EditDish(i32, i32, i32), // rest_id, group_id, dish_id
+    // Рекламировать
+    Promote(i32, i32), // rest_id, group_id
 }
 
 impl CatGroup {
@@ -323,6 +325,7 @@ impl CatGroup {
             "/EditTime" => CatGroup::EditTime(rest_id, group_id),
             "/Remove" => CatGroup::RemoveGroup(rest_id, group_id),
             "/AddDish" => CatGroup::AddDish(rest_id, group_id),
+            "/Promote" => CatGroup::Promote(rest_id, group_id),
             _ => {
                 // Ищем среди команд с цифровыми суффиксами - аргументами
                 match input.get(..5).unwrap_or_default() {

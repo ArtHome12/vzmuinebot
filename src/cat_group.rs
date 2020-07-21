@@ -10,6 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use chrono::{NaiveTime};
 use teloxide::{
     prelude::*, 
+    types::{InputFile, ReplyMarkup},
 };
 
 
@@ -57,7 +58,7 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
    .reply_markup(cmd::Caterer::main_menu_markup())
    .disable_notification(true)
    .send()
-.await?;
+   .await?;
 
    // Переходим (остаёмся) в режим редактирования группы
    next(cmd::Dialogue::CatEditGroup(rest_num, group_num))
@@ -204,6 +205,74 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                // Отображаем информацию о блюде и переходим в режим её редактирования
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
                dish::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id))).await
+            }
+
+            // Рекламировать группу
+            cmd::CatGroup::Promote(rest_num, group_num) => {
+               // Получаем информацию о группе из БД
+               let (info, photos_opt) = match db::group(rest_num, group_num).await {
+                  Some(group) => {
+                     // Сформируем информацию о группе
+                     let info = format!("{} ({}-{})\n{}", group.title, db::str_time(group.opening_time), db::str_time(group.closing_time), group.info);
+
+                     // Получим информацию о блюдах из БД
+                     let photos = match db::dish_list(db::DishesBy::All(rest_num, group_num)).await {
+                        None => {
+                           None
+                        }
+                        Some(dishes) => {
+                           // Соберём непустые фото, не более 10
+                           Some::<Vec::<String>>(dishes.into_iter().filter_map(|dish| (dish.image_id)).take(10).collect())
+                        }
+                     };
+                     (info, photos)
+                  },
+                  None => (String::from(lang::t("ru", lang::Res::CatGroupsEmpty)), None)
+               };
+
+               // Добавляем гиперссылку
+               let info = format!("{}\n{}{}", info, settings::link(), db::make_key_3_int(rest_id, group_id, 0));
+
+               // Отображаем информацию, либо с одной картинкой, либо с группой
+               if let Some(mut photo_iter) = photos_opt {
+                  let cnt = photo_iter.len();
+                  match cnt {
+                     0 => {
+                        cx.answer(info)
+                        .reply_markup(cmd::Caterer::main_menu_markup())
+                        .disable_notification(true)
+                        .send()
+                        .await?;
+                     }
+                     1 => {
+                        // Создадим графический объект
+                        let image = InputFile::file_id(photo_iter.pop().unwrap());
+
+                        // Отправляем картинку и текст как комментарий
+                        cx.answer_photo(image)
+                        .caption(info)
+                        .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
+                        .disable_notification(true)
+                        .send()
+                        .await?;
+                     }
+                     _ => {
+                        // Создадим графический объект
+                        let image = InputFile::file_id(photo_iter.pop().unwrap());
+
+                        // Отправляем картинку и текст как комментарий
+                        cx.answer_photo(image)
+                        .caption(info)
+                        .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
+                        .disable_notification(true)
+                        .send()
+                        .await?;
+                     }
+                  }
+               }
+
+               // Остаёмся в прежнем режиме
+               next(cmd::Dialogue::CatEditGroup(rest_num, group_num))
             }
 
             // Ошибочная команда
