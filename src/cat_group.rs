@@ -10,7 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use chrono::{NaiveTime};
 use teloxide::{
     prelude::*, 
-    types::{InputFile, ReplyMarkup},
+    types::{InputFile, ReplyMarkup, InputMedia,},
 };
 
 
@@ -33,7 +33,7 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
    let info = match db::group(rest_num, group_num).await {
       Some(group) => {
          // Сформируем информацию о группе
-         let group_info = String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime\nУдалить группу /Remove\nНовое блюдо /AddDish",
+         let group_info = String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nКатегория: {} /EditCat\nСтатус: {} /Toggle\nВремя: {}-{} /EditTime\nУдалить группу /Remove\nНовое блюдо /AddDish\nСообщение для рекламы /Promote",
             group.title, group.info, db::id_to_category(group.cat_id), db::active_to_str(group.active), group.opening_time.format("%H:%M"), group.closing_time.format("%H:%M")));
 
          // Получим информацию о блюдах из БД
@@ -222,7 +222,18 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                         }
                         Some(dishes) => {
                            // Соберём непустые фото, не более 10
-                           Some::<Vec::<String>>(dishes.into_iter().filter_map(|dish| (dish.image_id)).take(10).collect())
+                           Some::<Vec::<InputMedia>>(dishes.into_iter()
+                           .filter_map(|dish| 
+                              match dish.clone().image_id {
+                                 Some(image_id) => Some(InputMedia::Photo {
+                                    media : InputFile::file_id(image_id), 
+                                    caption: Some(dish.title_with_price()),
+                                    parse_mode: None,
+                                 }),
+                                 None => None,
+                              })
+                           .take(10)
+                           .collect())
                         }
                      };
                      (info, photos)
@@ -246,7 +257,8 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                      }
                      1 => {
                         // Создадим графический объект
-                        let image = InputFile::file_id(photo_iter.pop().unwrap());
+                        let media = photo_iter.pop().unwrap();
+                        let image = media.media().clone();
 
                         // Отправляем картинку и текст как комментарий
                         cx.answer_photo(image)
@@ -257,13 +269,8 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                         .await?;
                      }
                      _ => {
-                        // Создадим графический объект
-                        let image = InputFile::file_id(photo_iter.pop().unwrap());
-
-                        // Отправляем картинку и текст как комментарий
-                        cx.answer_photo(image)
-                        .caption(info)
-                        .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
+                        // Отправляем группу картинок
+                        cx.answer_media_group(photo_iter)
                         .disable_notification(true)
                         .send()
                         .await?;

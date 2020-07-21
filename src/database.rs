@@ -632,6 +632,7 @@ pub async fn rest_group_remove(rest_num: i32, group_num: i32) -> bool {
 // ============================================================================
 
 // Информация о блюде
+#[derive(Clone)]
 pub struct Dish {
    pub rest_num: i32,
    pub num: i32,
