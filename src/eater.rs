@@ -150,13 +150,13 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
             // Режим с инлайн-кнопками
             if third == 0 {
                let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
-               if eat_dish::force_inline_interface(new_cx).await {
+               if !eat_dish::force_inline_interface(new_cx).await {
                   settings::log(&format!("Error handle_common_commands StartArgs: ({}, {}, {})", first, second, third)).await;
                }
             } else {
-               let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
-               if eat_dish::force_inline_interface(new_cx).await {
-                  settings::log(&format!("Error handle_common_commands StartArgs: ({}, {}, {})", first, second, third)).await;
+               let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (first, second, third));
+               if !eat_dish::force_dish_inline(new_cx).await {
+                  settings::log(&format!("Error handle_common_commands2 StartArgs: ({}, {}, {})", first, second, third)).await;
                }
             }
 

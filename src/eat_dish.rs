@@ -324,32 +324,16 @@ pub async fn force_inline_interface(cx: cmd::Cx<(i32, i32, i32)>) -> bool {
 }
 
 // Показывает информацию о блюде
-pub async fn show_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32) -> bool {
-   // Получаем информацию из БД
-   let (info, dish_image_id) = match db::eater_dish_info(rest_num, group_num, dish_num).await {
-      Some(dish_info) => dish_info,
-      None => {
-         settings::log(&format!("Error eat_dish::show_dish_info({}, {}, {})", rest_num, group_num, dish_num)).await;
-         return false;
-      }
-   };
-
+pub async fn show_dish_inline(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32) -> bool {
    // Идентифицируем пользователя
    let user_id = cx.update.from.id;
 
-   // Запросим из БД, сколько этих блюд пользователь уже выбрал
-   let ordered_amount = db::amount_in_basket(rest_num, group_num, dish_num, user_id).await;
-
-   // Создаём инлайн кнопки с указанием количества блюд
-   let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrd{}", db::make_key_3_int(rest_num, group_num, 0)));
-   let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_key_3_int(rest_num, group_num, dish_num), ordered_amount)
-   .append_to_row(button_back, 0);
+   // Получим данные
+   let data = prepare_dish_data(user_id, rest_num, group_num, dish_num).await;
    // settings::log(&format!("rrg{}", db::make_key_3_int(est_num, group_num, cat_id))).await;
 
-
-
    // Картинка блюда
-   let photo_id = match dish_image_id {
+   let photo_id = match data.photo_id {
       Some(photo) => photo,
       None => settings::default_photo_id(),
    };
@@ -363,15 +347,79 @@ pub async fn show_dish(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, g
 
    // Отображаем информацию о блюде
    match cx.bot.send_photo(chat_id, image)
-   .caption(info)
-   .reply_markup(ReplyMarkup::InlineKeyboardMarkup(inline_keyboard))
+   .caption(data.text)
+   .reply_markup(ReplyMarkup::InlineKeyboardMarkup(data.markup))
    .disable_notification(true)
    .send()
    .await {
       Err(e) => {
-         settings::log(&format!("Error eat_dish::show_inline_interface {}", e)).await;
+         settings::log(&format!("Error eat_dish::show_dish {}", e)).await;
          false
       }
       _ => true,
    }
+}
+
+// Показывает информацию о блюде
+pub async fn force_dish_inline(cx: cmd::Cx<(i32, i32, i32)>) -> bool {
+   // Извлечём параметры
+   let (rest_num, group_num, dish_num) = cx.dialogue;
+   let user_id = cx.update.from().unwrap().id;
+
+   // Получим данные
+   let data = prepare_dish_data(user_id, rest_num, group_num, dish_num).await;
+
+   // Отображаем информацию. Если задана картинка, то текст будет комментарием
+   let res = if let Some(image_id) = data.photo_id {
+      // Создадим графический объект
+      let image = InputFile::file_id(image_id);
+
+      // Отправляем картинку и текст как комментарий
+      cx.answer_photo(image)
+      .caption(data.text)
+      .reply_markup(ReplyMarkup::InlineKeyboardMarkup(data.markup))
+      .disable_notification(true)
+      .send()
+      .await
+   } else {
+      cx.answer(data.text)
+      .reply_markup(ReplyMarkup::InlineKeyboardMarkup(data.markup))
+      .disable_notification(true)
+      .send()
+      .await
+   };
+
+   match res {
+      Err(e) => {
+         settings::log(&format!("Error eat_dish::show_dish {}", e)).await;
+         false
+      }
+      Ok(_) => true,
+   }
+}
+
+// Информация о блюде, подготовленная к выводу
+struct DishData {
+   text: String,
+   markup: InlineKeyboardMarkup,
+   photo_id: Option<String>,
+}
+
+async fn prepare_dish_data(user_id: i32, rest_num: i32, group_num: i32, dish_num: i32) -> DishData {
+   // Получаем информацию из БД
+   let (text, photo_id) = match db::eater_dish_info(rest_num, group_num, dish_num).await {
+      Some(dish_info) => dish_info,
+      None => (String::from("Блюдо не найдено"), None),
+   };
+
+   // Запросим из БД, сколько этих блюд пользователь уже выбрал
+   let ordered_amount = db::amount_in_basket(rest_num, group_num, dish_num, user_id).await;
+
+   // Создаём инлайн кнопки с указанием количества блюд
+   let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrd{}", db::make_key_3_int(rest_num, group_num, 0)));
+   let markup = cmd::EaterDish::inline_markup(&db::make_key_3_int(rest_num, group_num, dish_num), ordered_amount)
+   .append_to_row(button_back, 0);
+
+   // Возвращаем результат
+   DishData {text, markup, photo_id}
 }
