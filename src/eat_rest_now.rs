@@ -33,7 +33,7 @@ pub async fn next_with_info(cx: cmd::Cx<()>) -> cmd::Res {
    match db::rest_list(db::RestListBy::Time(time)).await {
       Some(rest_list) => {
          // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
-         let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
+         let compact_mode = db::user_compact_interface(cx.update.from()).await;
 
          // Выводим информацию либо ссылками, либо инлайн кнопками
          if compact_mode {

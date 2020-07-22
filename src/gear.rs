@@ -22,8 +22,7 @@ use crate::caterer;
 // Показывает приветствие
 pub async fn next_with_info(cx: cmd::Cx<()>) -> cmd::Res {
    // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
-   let now = settings::current_date_time();
-   let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
+   let compact_mode = db::user_compact_interface(cx.update.from()).await;
 
    // Отображаем приветствие
    let s = format!("Режим интерфейса: {} /toggle", db::interface_mode(compact_mode));
@@ -39,8 +38,7 @@ pub async fn next_with_info(cx: cmd::Cx<()>) -> cmd::Res {
 
 pub async fn next_with_cancel(cx: cmd::Cx<()>, text: &str) -> cmd::Res {
    // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
-   let now = settings::current_date_time();
-   let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
+   let compact_mode = db::user_compact_interface(cx.update.from()).await;
 
    // Отображаем сообщение
    let s = format!("{}\n\nРежим интерфейса: {} /toggle", text, db::interface_mode(compact_mode));
@@ -83,8 +81,7 @@ pub async fn handle_commands(cx: cmd::Cx<()>) -> cmd::Res {
             cmd::Gear::ToggleInterface => {
                // Переключим настройку интерфейса
                db::user_toggle_interface(cx.update.from()).await;
-               let now = settings::current_date_time();
-               let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
+               let compact_mode = db::user_compact_interface(cx.update.from()).await;
                let s = db::interface_mode(compact_mode);
                let s = &format!("Режим интерфейса изменён на '{}' (пояснение - режим с кнопками может быть удобнее, а со ссылками экономнее к трафику)", s);
                next_with_cancel(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), s).await

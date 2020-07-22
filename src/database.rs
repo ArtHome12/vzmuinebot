@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use chrono::{NaiveTime, NaiveDateTime, Timelike};
+use chrono::{NaiveTime, Timelike};
 use once_cell::sync::{OnceCell};
 use text_io::try_scan;
 use teloxide::{
@@ -830,6 +830,7 @@ pub async fn rest_dish_toggle(rest_num: i32, group_num: i32, dish_num: i32) -> b
 
 // Изменение группы блюда
 pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i32, new_group_num: i32) -> bool {
+   // Получим клиента БД из пула
    match DB.get().unwrap().get().await {
       Ok(client) => {
          // Проверим, что есть такая целевая группа
@@ -897,15 +898,14 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
 }
 
 
-// Удаление блюда
-//
+// Удаление блюда, ДОЛЖНА БЫТЬ ТРАНЗАКЦИЯ
 pub async fn rest_dish_remove(rest_num: i32, group_num: i32, dish_num: i32) -> bool {
   // Выполняем запрос. Должно быть начало транзакции, потом коммит, но transaction требует mut
   let query = DB.get().unwrap().get().await.unwrap()
   .execute("DELETE FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
   .await;
   match query {
-     Ok(_) => {
+     Ok(1) => {
         // Номера оставшихся блюд перенумеровываем для исключения дырки
         let query = DB.get().unwrap().get().await.unwrap()
         .execute("UPDATE dishes SET dish_num = dish_num - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num > $3::INTEGER", &[&rest_num, &group_num, &dish_num])
@@ -929,21 +929,19 @@ pub async fn rest_dish_edit_price(rest_num: i32, group_num: i32, dish_num: i32, 
    .execute("UPDATE dishes SET price = $1::INTEGER WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&price, &rest_num, &group_num, &dish_num])
    .await;
    match query {
-       Ok(_) => true,
+       Ok(1) => true,
        _ => false,
    }
 }
 
-
 // Изменение фото блюда
-//
 pub async fn rest_dish_edit_image(rest_num: i32, group_num: i32, dish_num: i32, image_id: &String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap().get().await.unwrap()
    .execute("UPDATE dishes SET image_id = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&image_id, &rest_num, &group_num, &dish_num])
    .await;
    match query {
-       Ok(_) => true,
+       Ok(1) => true,
        _ => false,
    }
 }
@@ -953,50 +951,61 @@ pub async fn rest_dish_edit_image(rest_num: i32, group_num: i32, dish_num: i32, 
 // ============================================================================
 
 // Возвращает настройку пользователя и временную отметку последнего входа
-pub async fn user_compact_interface(user: Option<&User>, dt: NaiveDateTime) -> bool {
+pub async fn user_compact_interface(user: Option<&User>) -> bool {
    if let Some(u) = user {
-      // Выполняем запрос на обновление
-      let query = DB.get().unwrap().get().await.unwrap()
-      .execute("UPDATE users SET last_seen = $1::TIMESTAMP WHERE user_id=$2::INTEGER", &[&dt, &u.id])
-      .await;
+      // Получим клиента БД из пула
+      match DB.get().unwrap().get().await {
+         Ok(client) => {
+            // Выполняем запрос на обновление времени последнего посещения
+            let query = client.execute("UPDATE users SET last_seen = NOW() WHERE user_id=$1::INTEGER", &[&u.id]).await;
 
-      // Если обновили 0 записей, вставим новую
-      if let Ok(num) = query {
-         if num == 0 {
-            // Информация о пользователе
-            let name = if let Some(last_name) = &u.last_name {
-               format!("{} {}", u.first_name, last_name)
-            } else {u.first_name.clone()};
-
-            let contact = if let Some(username) = &u.username {
-               format!(" @{}", username)
-            } else {String::from("-")};
-
-            let query = DB.get().unwrap().get().await.unwrap()
-            .execute("INSERT INTO users (user_id, user_name, contact, address, last_seen, compact, pickup) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::VARCHAR(100), '-', $4::TIMESTAMP, FALSE, TRUE)"
-               , &[&u.id, &name, &contact, &dt])
-            .await;
-
-            if let Err(e) = query {
-               settings::log(&format!("Error insert last seen record for {}\n{}", name, e)).await;
-            }
-         } else {
-            // Раз обновление было успешным, прочитаем настройку
-   let rows = DB.get().unwrap().get().await.unwrap()
-         .query("SELECT compact FROM users WHERE user_id=$1::INTEGER", &[&u.id])
-         .await;
-      
-            match rows {
-               Ok(data) => {
-                  if !data.is_empty() {
-                     return data[0].get(0);
+            match query {
+               Ok(num) => {
+                  // Если обновили 0 записей, вставим новую
+                  if num == 0 {
+                     // Информация о пользователе
+                     let name = if let Some(last_name) = &u.last_name {
+                        format!("{} {}", u.first_name, last_name)
+                     } else {u.first_name.clone()};
+            
+                     let contact = if let Some(username) = &u.username {
+                        format!(" @{}", username)
+                     } else {String::from("-")};
+            
+                     // Создаём новую запись о пользователе
+                     match DB.get().unwrap().get().await {
+                        Ok(client) => {
+                           let query = client
+                              .execute("INSERT INTO users (user_id, user_name, contact, address, last_seen, compact, pickup) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::VARCHAR(100), '-', NOW(), FALSE, TRUE)",
+                                 &[&u.id, &name, &contact]
+                              )
+                              .await;
+                           if let Err(e) = query {
+                              settings::log(&format!("Error insert last seen record for {}\n{}", name, e)).await;
+                           }
+                        }
+                        Err(e) => settings::log(&format!("Error user_compact_interface 2, no db client: {}", e)).await,
+                     }
+                  } else {
+                     // Раз обновление было успешным, прочитаем настройку из базы
+                     match DB.get().unwrap().get().await {
+                        Ok(client) => {
+                           let query = client.query_one("SELECT compact FROM users WHERE user_id=$1::INTEGER", &[&u.id]).await;
+                           match query {
+                              Ok(row) => return row.get(0), // и выходим
+                              Err(e) => settings::log(&format!("Error user_compact_interface reading interface settings: {}", e)).await,
+                           }
+                        }
+                        Err(e) => settings::log(&format!("Error user_compact_interface 2, no db client: {}", e)).await,
+                     }
                   }
                }
-               Err(e) => settings::log(&format!("Error reading interface settings: {}", e)).await,
+               Err(e) => settings::log(&format!("Error user_compact_interface: {}", e)).await,
             }
          }
+         Err(e) => settings::log(&format!("Error user_compact_interface, no db client: {}", e)).await,
       }
-   }
+   } else {settings::log(&format!("Error user_compact_interface, no user")).await;}
          
    // Возвращаем значение по-умолчанию
    false

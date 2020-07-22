@@ -124,8 +124,7 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
       },
       cmd::Common::StartArgs(first, second, third) => {
          // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
-         let now = settings::current_date_time();
-         let compact_mode = db::user_compact_interface(cx.update.from(), now).await;
+         let compact_mode = db::user_compact_interface(cx.update.from()).await;
 
          // Название ресторана
          let rest_name = if let Some(rest) = db::restaurant(db::RestBy::Num(first)).await {rest.title} else {String::from("ошибка получения названия")};
