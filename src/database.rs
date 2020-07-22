@@ -830,65 +830,55 @@ pub async fn rest_dish_toggle(rest_num: i32, group_num: i32, dish_num: i32) -> b
 
 // Изменение группы блюда
 pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i32, new_group_num: i32) -> bool {
-  // Проверим, что есть такая целевая группа
-  let rows = DB.get().unwrap().get().await.unwrap()
-.query("SELECT * FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &new_group_num])
-.await;
+   // Проверим, что есть такая целевая группа
+   let rows = DB.get().unwrap().get().await.unwrap()
+   .query_one("SELECT dish_num FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &new_group_num])
+   .await;
 
-  // Если целевой группы нет, выходим
-  match rows {
-     Ok(data) => {
-        if data.is_empty() {
-           return false;
-        }
-     }
-     _ => return false
-  }
+   // Если целевой группы нет, выходим
+   if let Err(_) = rows {
+      return false
+   }
 
-  // Сохраним информацию о блюде
-  let rows = DB.get().unwrap().get().await.unwrap()
-.query("SELECT title, info, active, price, image_id FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &old_group_num, &dish_num])
-.await;
-  match rows {
-     Ok(data) => {
-        if data.is_empty() {
-           return false;
-        } else {
-           let title: String = data[0].get(0);
-           let info: String = data[0].get(1);
-           let active: bool = data[0].get(2);
-           let price: i32 = data[0].get(3);
-           let image_id: Option<String> = data[0].get(4);
+   // Сохраним информацию о блюде
+   match dish(DishBy::All(rest_num, old_group_num, dish_num)) {
+      Some(dish) => {
+         // Получим клиента БД из пула
+         match DB.get().unwrap().get().await {
+            Ok(client) => {
+               // Добавляем блюдо в целевую группу
+               let query = client.execute("INSERT INTO dishes (rest_num, dish_num, title, info, active, group_num, price, image_id) 
+                  VALUES (
+                     $1::INTEGER, 
+                     (SELECT COUNT(*) FROM dishes WHERE rest_num = $1::INTEGER AND group_num = $2::INTEGER) + 1,
+                     $3::VARCHAR(100),
+                     $4::VARCHAR(255),
+                     $5::BOOLEAN,
+                     $2::INTEGER,
+                     $7::INTEGER,
+                     $8::VARCHAR(255)
+                  )", &[dish.rest_num, new_group_num, dish.title, dish.info, dish.active, dish.price, dish.image_id]
+               )
+               .await;
 
-           // Добавляем блюдо в целевую группу
-           let query = DB.get().unwrap().get().await.unwrap()
-           .execute("INSERT INTO dishes (rest_num, dish_num, title, info, active, group_num, price, image_id) 
-           VALUES (
-              $1::INTEGER, 
-              (SELECT COUNT(*) FROM dishes WHERE rest_num = $2::INTEGER AND group_num = $3::INTEGER) + 1,
-              $4::VARCHAR(100),
-              $5::VARCHAR(255),
-              $6::BOOLEAN,
-              $7::INTEGER,
-              $8::INTEGER,
-              $9::VARCHAR(255)
-           )", &[&rest_num, &rest_num, &new_group_num, &title, &info, &active, &new_group_num, &price, &image_id])
-           .await;
-           match query {
-              Ok(inserted_num) => {
-                 if inserted_num < 1 {
-                    return false;
-                 }
-              }
-              _ => return false
-           }
-
-           // Удалим блюдо из прежней группы
-           rest_dish_remove(rest_num, old_group_num, dish_num).await
-        }
-     }
-     _ => return false
-  }
+               // Должна была обновиться 1 запись
+               match query {
+                  Ok(1) => {
+                     // Удалим блюдо из прежней группы
+                     rest_dish_remove(rest_num, old_group_num, dish_num).await
+                     true
+                  }
+                  _ => false
+               }
+            }
+            Err(e) => {
+               settings::log(&format!("Error rest_dish_edit_group, no db client: {}", e)).await;
+               false
+            }
+         }      
+      },
+      None => false
+   }
 }
 
 
