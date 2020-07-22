@@ -508,16 +508,17 @@ pub async fn rest_add_group(rest_num: i32, new_str: String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap().get().await.unwrap()
    .execute("INSERT INTO groups (rest_num, group_num, title, info, active, cat_id, opening_time, closing_time) 
-   VALUES (
-      $1::INTEGER, 
-      (SELECT COUNT(*) FROM groups WHERE rest_num=$2::INTEGER) + 1,
-      $3::VARCHAR(100),
-      'Блюда подаются на тарелке',
-      TRUE,
-      2,
-      '07:00',
-      '23:00'
-   )", &[&rest_num, &rest_num, &new_str])
+      VALUES (
+         $1::INTEGER, 
+         (SELECT COUNT(*) FROM groups WHERE rest_num=$2::INTEGER) + 1,
+         $3::VARCHAR(100),
+         'Блюда подаются на тарелке',
+         TRUE,
+         2,
+         '07:00',
+         '23:00'
+      )", &[&rest_num, &rest_num, &new_str]
+   )
    .await;
    match query {
       Ok(1) => true,
@@ -585,7 +586,7 @@ pub async fn rest_group_edit_time(rest_num: i32, group_num: i32, opening_time: N
    }
 }
 
-// Удаляет группу и изменяет порядковый номер оставшихся групп, в т.ч. и у блюд
+// Удаляет группу и изменяет порядковый номер оставшихся групп, в т.ч. и у блюд. НУЖНЫ ТРАНЗАКЦИИ!!!
 pub async fn rest_group_remove(rest_num: i32, group_num: i32) -> bool {
    // Проверим, что у группы нет блюд
    let rows = DB.get().unwrap().get().await.unwrap()
@@ -630,7 +631,6 @@ pub async fn rest_group_remove(rest_num: i32, group_num: i32) -> bool {
 // ============================================================================
 // [Dishes table]
 // ============================================================================
-
 // Информация о блюде
 #[derive(Clone)]
 pub struct Dish {
@@ -662,6 +662,24 @@ impl Dish {
    pub fn title_with_price(&self) -> String {
       format!("{} {}", self.title, settings::price_with_unit(self.price))
    }
+
+   // Возвращает описание для едока
+   pub fn info_for_eater(&self) -> String {
+      // Если описание слишком короткое, не выводим его
+      let info_str = if self.info.len() < 3 {
+         String::default()
+      } else {
+         format!("Информация: {}\n", self.info)
+      };
+
+      format!("Название: {}\n{}Цена: {}", self.title, info_str, settings::price_with_unit(self.price))
+   }
+
+   // Возвращает описание для ресторатора
+   pub fn info_for_caterer(&self) -> String {
+      format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nГруппа: {} /EditGroup\nСтатус: {} /Toggle\nЦена: {} /EditPrice\nЗагрузить фото /EditImg\nУдалить блюдо /Remove\nСообщение для рекламы /Promote",
+      self.title, self.info, self.group_num, active_to_str(self.active), settings::price_with_unit(self.price))
+   }
 }
 
 // Тип запроса информации о блюдах
@@ -669,7 +687,6 @@ pub enum DishesBy {
    All(i32, i32),    // все по номеру ресторана и группы
    Active(i32, i32), // только активные по номеру ресторана и группы
 }
-
 
 // Список блюд
 pub type DishList = Vec<Dish>;
@@ -711,72 +728,50 @@ pub async fn dish_list(by: DishesBy) -> Option<DishList> {
    }
 }
 
-// Возвращает информацию о блюде - картинку, цену и описание.
-pub async fn eater_dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Option<(String, Option<String>)> {
-   // Выполняем запрос
-   let rows = DB.get().unwrap().get().await.unwrap()
-      .query("SELECT title, info, price, image_id FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND active = TRUE", &[&rest_num, &group_num, &dish_num])
-      .await;
-
-   // Проверяем результат
-    match rows {
-      Ok(data) => {
-          if !data.is_empty() {
-              // Параметры ресторана
-              let title: String = data[0].get(0);
-              let info: String = data[0].get(1);
-              let price: i32 = data[0].get(2);
-              let image_id: Option<String> = data[0].get(3);
-              
-              // Если описание слишком короткое, не выводим его
-              let info_str = if info.len() < 3 {
-                 String::default()
-              } else {
-                 format!("Информация: {}\n", info)
-              };
-              
-              Some((String::from(format!("Название: {}\n{}Цена: {}", title, info_str, settings::price_with_unit(price))), image_id))
-          } else {
-            None
-          }
-      }
-      _ => None,
-   }
+// Тип запроса информации о блюде
+pub enum DishBy {
+   All(i32, i32, i32),  // по номеру ресторана, группы и блюда
+   Active(i32, i32, i32),    // только активное по номеру ресторана, группы и блюда
 }
 
 // Возвращает информацию о блюде
-pub async fn dish_info(rest_num: i32, group_num: i32, dish_num: i32) -> Option<(String, Option<String>)> {
-    // Выполняем запрос
-     let rows = DB.get().unwrap().get().await.unwrap()
-  .query("SELECT title, info, active, group_num, price, image_id FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
-  .await;
+pub async fn dish(by: DishBy) -> Option<Dish> {
+   // Получим клиента БД из пула
+   match DB.get().unwrap().get().await {
+      Ok(client) => {
 
-   // Проверяем результат
-   match rows {
-       Ok(data) => {
-           if !data.is_empty() {
-               // Параметры ресторана
-               let title: String = data[0].get(0);
-               let info: String = data[0].get(1);
-               let active: bool = data[0].get(2);
-               let group_num: i32 = data[0].get(3);
-               let price: i32 = data[0].get(4);
-               let image_id: Option<String> = data[0].get(5);
-               Some((
-                 String::from(format!("Название: {} /EditTitle\nДоп.инфо: {} /EditInfo\nГруппа: {} /EditGroup\nСтатус: {} /Toggle\nЦена: {} /EditPrice\nЗагрузить фото /EditImg\nУдалить блюдо /Remove\nСообщение для рекламы /Promote",
-                 title, info, group_num, active_to_str(active), settings::price_with_unit(price))), image_id
-              ))
-           } else {
+         // Выполним нужный запрос
+         let rows =  match by {
+            DishBy::All(rest_num, group_num, dish_num) => {
+               client.query_one("SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
+               WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num]
+               ).await
+            },
+            DishBy::Active(rest_num, group_num, dish_num) => {
+               client.query_one("SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
+               WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND active = TRUE", &[&rest_num, &group_num, &dish_num]
+               ).await
+            },
+         };
+
+         // Возвращаем результат
+         match rows {
+            Ok(row) => Some(Dish::from_db(&row)),
+            Err(e) => {
+               // Сообщаем об ошибке и возвращаем пустой результат
+               settings::log(&format!("Error dish: {}", e)).await;
                None
-           }
-       }
-       _ => None,
+            }
+         }
+      },
+      Err(e) => {
+         settings::log(&format!("Error dish, no db client: {}", e)).await;
+         None
+      }
    }
 }
 
-
 // Добавляет новое блюдо
-//
 pub async fn rest_add_dish(rest_num: i32, group_num: i32, new_str: String) -> bool {
   // Выполняем запрос
   let query = DB.get().unwrap().get().await.unwrap()
@@ -797,9 +792,7 @@ pub async fn rest_add_dish(rest_num: i32, group_num: i32, new_str: String) -> bo
   }
 }
 
-
 // Редактирование названия блюда
-//
 pub async fn rest_dish_edit_title(rest_num: i32, group_num: i32, dish_num: i32, new_str: String) -> bool {
   // Выполняем запрос
   let query = DB.get().unwrap().get().await.unwrap()
@@ -811,9 +804,7 @@ pub async fn rest_dish_edit_title(rest_num: i32, group_num: i32, dish_num: i32, 
   }
 }
 
-
 // Редактирование описания блюда
-//
 pub async fn rest_dish_edit_info(rest_num: i32, group_num: i32, dish_num: i32, new_str: String) -> bool {
   // Выполняем запрос
   let query = DB.get().unwrap().get().await.unwrap()
@@ -825,9 +816,7 @@ pub async fn rest_dish_edit_info(rest_num: i32, group_num: i32, dish_num: i32, n
   }
 }
 
-
 // Переключение доступности блюда
-//
 pub async fn rest_dish_toggle(rest_num: i32, group_num: i32, dish_num: i32) -> bool {
   // Выполняем запрос
   let query = DB.get().unwrap().get().await.unwrap()
@@ -839,9 +828,7 @@ pub async fn rest_dish_toggle(rest_num: i32, group_num: i32, dish_num: i32) -> b
   }
 }
 
-
 // Изменение группы блюда
-//
 pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i32, new_group_num: i32) -> bool {
   // Проверим, что есть такая целевая группа
   let rows = DB.get().unwrap().get().await.unwrap()

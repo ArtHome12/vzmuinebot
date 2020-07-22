@@ -23,12 +23,12 @@ use crate::settings;
 //
 pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
    // Извлечём параметры
-   let (rest_id, group_id, dish_id) = cx.dialogue;
+   let (rest_num, group_num, dish_num) = cx.dialogue;
 
    // Получаем информацию из БД
-   let (info, dish_image_id) = match db::dish_info(rest_id, group_id, dish_id).await {
-      Some(dish_info) => dish_info,
-      None => (format!("Ошибка db::dish_info({})", rest_id), None)
+   let (info, dish_image_id) = match db::dish(db::DishBy::All(rest_num, group_num, dish_num)).await {
+      Some(dish) => (dish.info_for_caterer(), dish.image_id),
+      None => (String::from("Информация недоступна"), None)
    };
 
    // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
@@ -52,7 +52,7 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
    }
 
    // Переходим (остаёмся) в режим редактирования блюда
-   next(cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id))
+   next(cmd::Dialogue::CatEditDish(rest_num, group_num, dish_num))
 }
 
 async fn next_with_cancel(cx: cmd::Cx<(i32, i32, i32)>, text: &str) -> cmd::Res {
@@ -63,25 +63,25 @@ async fn next_with_cancel(cx: cmd::Cx<(i32, i32, i32)>, text: &str) -> cmd::Res 
     .await?;
 
     // Извлечём параметры
-    let (rest_id, group_id, dish_id) = cx.dialogue;
+    let (rest_num, group_num, dish_num) = cx.dialogue;
 
     // Остаёмся в режиме редактирования блюда
-    next(cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id))
+    next(cmd::Dialogue::CatEditDish(rest_num, group_num, dish_num))
 }
 
 // Режим редактирования у ресторана rest_id группы group_id
 pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
    // Извлечём параметры
-   let (rest_id, group_id, dish_id) = cx.dialogue;
+   let (rest_num, group_num, dish_num) = cx.dialogue;
    
-   // Разбираем команду.
+   // Разбираем команду
    match cx.update.text() {
       None => {
          let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-         next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)), "Текстовое сообщение, пожалуйста!").await
+         next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_num, group_num, dish_num)), "Текстовое сообщение, пожалуйста!").await
       }
       Some(command) => {
-         match cmd::CatDish::from(rest_id, group_id, dish_id, command) {
+         match cmd::CatDish::from(rest_num, group_num, dish_num, command) {
 
             // Показать информацию о ресторане (возврат в главное меню ресторатора)
             cmd::CatDish::Main(rest_id) => {
@@ -97,7 +97,7 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
             }
 
             // Изменение названия блюда
-            cmd::CatDish::EditTitle(rest_id, group_id, dish_id) => {
+            cmd::CatDish::EditTitle(rest_num, group_num, dish_num) => {
 
                // Отправляем приглашение ввести строку со слешем в меню для отмены
                cx.answer(format!("Введите название (/ для отмены)"))
@@ -107,11 +107,11 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                .await?;
 
                // Переходим в режим ввода нового названия
-               next(cmd::Dialogue::CatEditDishTitle(rest_id, group_id, dish_id))
+               next(cmd::Dialogue::CatEditDishTitle(rest_num, group_num, dish_num))
             }
 
             // Изменение информации о блюде
-            cmd::CatDish::EditInfo(rest_id, group_id, dish_id) => {
+            cmd::CatDish::EditInfo(rest_num, group_num, dish_num) => {
 
                // Отправляем приглашение ввести строку со слешем в меню для отмены
                cx.answer(format!("Введите пояснения для блюда (пояснения короче 3 символов клиентам показываться не будут)"))
@@ -121,21 +121,21 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                .await?;
 
                // Переходим в режим ввода информации о блюде
-               next(cmd::Dialogue::CatEditDishInfo(rest_id, group_id, dish_id))
+               next(cmd::Dialogue::CatEditDishInfo(rest_num, group_num, dish_num))
             }
 
             // Переключение активности блюда
-            cmd::CatDish::TogglePause(rest_id, group_id, dish_id) => {
+            cmd::CatDish::TogglePause(rest_num, group_num, dish_num) => {
                // Запрос доп.данных не требуется, сразу переключаем активность
-               db::rest_dish_toggle(rest_id, group_id, dish_id).await;
+               db::rest_dish_toggle(rest_num, group_num, dish_num).await;
 
                // Покажем изменённую информацию
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id))).await
+               next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_num, group_num, dish_num))).await
             }
 
             // Изменить группу блюда
-            cmd::CatDish::EditGroup(rest_id, group_id, dish_id) => {
+            cmd::CatDish::EditGroup(rest_num, group_num, dish_num) => {
 
                // Отправляем приглашение ввести строку с категориями в меню для выбора
                cx.answer(format!("Введите номер группы для переноса блюда из текущей группы в другую"))
@@ -145,11 +145,11 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                .await?;
 
                // Переходим в режим ввода информации о блюде
-               next(cmd::Dialogue::CatEditDishGroup(rest_id, group_id, dish_id))
+               next(cmd::Dialogue::CatEditDishGroup(rest_num, group_num, dish_num))
             }
 
             // Изменить цену блюда
-            cmd::CatDish::EditPrice(rest_id, group_id, dish_id) => {
+            cmd::CatDish::EditPrice(rest_num, group_num, dish_num) => {
 
                // Отправляем приглашение ввести строку с категориями в меню для выбора
                cx.answer(format!("Введите сумму в тыс. донгов"))
@@ -159,11 +159,11 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                .await?;
 
                // Переходим в режим ввода информации о блюде
-               next(cmd::Dialogue::CatEditDishPrice(rest_id, group_id, dish_id))
+               next(cmd::Dialogue::CatEditDishPrice(rest_num, group_num, dish_num))
             }
 
             // Изменить картинку
-            cmd::CatDish::EditImage(rest_id, group_id, dish_id) => {
+            cmd::CatDish::EditImage(rest_num, group_num, dish_num) => {
 
                // Отправляем приглашение ввести строку с категориями в меню для выбора
                cx.answer(format!("Загрузите картинку"))
@@ -173,34 +173,34 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                .await?;
 
                // Переходим в режим ввода картинки блюда
-               next(cmd::Dialogue::CatEditDishImage(rest_id, group_id, dish_id))
+               next(cmd::Dialogue::CatEditDishImage(rest_num, group_num, dish_num))
             }
 
             // Удалить блюдо
-            cmd::CatDish::Remove(rest_id, group_id, dish_id) => {
+            cmd::CatDish::Remove(rest_num, group_num, dish_num) => {
 
                // Удаяем
-               db::rest_dish_remove(rest_id, group_id, dish_id).await;
+               db::rest_dish_remove(rest_num, group_num, dish_num).await;
 
                // Сообщение в лог
-               let text = format!("{} удалил блюдо {}", db::user_info(cx.update.from(), false), db::make_key_3_int(rest_id, group_id, dish_id));
+               let text = format!("{} удалил блюдо {}", db::user_info(cx.update.from(), false), db::make_key_3_int(rest_num, group_num, dish_num));
                settings::log(&text).await;
 
                // Блюда больше нет, показываем меню группы
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               cat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
+               cat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_num, group_num))).await
             }
 
             // Рекламировать блюдо
-            cmd::CatDish::Promote(rest_id, group_id, dish_num) => {
+            cmd::CatDish::Promote(rest_num, group_num, dish_num) => {
                // Получаем информацию из БД
-               let (info, dish_image_id) = match db::eater_dish_info(rest_id, group_id, dish_num).await {
-                  Some(dish_info) => dish_info,
-                  None => (format!("Ошибка dish::handle_commands with Promote({}, {}, {})", rest_id, group_id, dish_num), None)
+               let (info, dish_image_id) = match db::dish(db::DishBy::Active(rest_num, group_num, dish_num)).await {
+                  Some(dish) => (dish.info_for_eater(), dish.image_id),
+                  None => (String::from("Информация недоступна для клиента, возможно позиция скрыта"), None)
                };
 
                // Добавляем гиперссылку
-               let info = format!("{}\n{}{}", info, settings::link(), db::make_key_3_int(rest_id, group_id, dish_num));
+               let info = format!("{}\n{}{}", info, settings::link(), db::make_key_3_int(rest_num, group_num, dish_num));
 
                // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
                if let Some(image_id) = dish_image_id {
@@ -222,20 +222,20 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                   .await?;
                }
                // Остаёмся в прежнем режиме
-               next(cmd::Dialogue::CatEditDish(rest_id, group_id, dish_num))
+               next(cmd::Dialogue::CatEditDish(rest_num, group_num, dish_num))
             }
 
             // Ошибочная команда
             cmd::CatDish::UnknownCommand => {
                // Сохраним текущее состояние для возврата
-               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id), m : cmd::Caterer::main_menu_markup()});
+               let origin = Box::new(cmd::DialogueState{ d : cmd::Dialogue::CatEditDish(rest_num, group_num, dish_num), m : cmd::Caterer::main_menu_markup()});
 
                // Возможно это общая команда
                if let Some(res) = eater::handle_common_commands(DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), command, origin).await {return res;}
                else {
                   let s = String::from(command);
                   let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)), &format!("Вы в меню блюда: неизвестная команда '{}'", s)).await
+                  next_with_cancel(DialogueDispatcherHandlerCx::new(bot, update, (rest_num, group_num, dish_num)), &format!("Вы в меню блюда: неизвестная команда '{}'", s)).await
                }
             }
          }
@@ -254,10 +254,10 @@ pub async fn edit_title_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
         // Если строка не пустая, продолжим
         if !s.is_empty() {
             // Извлечём параметры
-            let (rest_id, group_id, dish_id) = cx.dialogue;
+            let (rest_num, group_num, dish_num) = cx.dialogue;
         
             // Сохраним новое значение в БД
-            db::rest_dish_edit_title(rest_id, group_id, dish_id, s).await;
+            db::rest_dish_edit_title(rest_num, group_num, dish_num, s).await;
 
             // Покажем изменённую информацию о группе
             return next_with_info(cx).await;
@@ -277,10 +277,10 @@ pub async fn edit_info_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
         // Если строка не пустая, продолжим
         if !s.is_empty() {
             // Извлечём параметры
-            let (rest_id, group_id, dish_id) = cx.dialogue;
+            let (rest_num, group_num, dish_num) = cx.dialogue;
         
             // Сохраним новое значение в БД
-            db::rest_dish_edit_info(rest_id, group_id, dish_id, s).await;
+            db::rest_dish_edit_info(rest_num, group_num, dish_num, s).await;
 
             // Покажем изменённую информацию о группе
             return next_with_info(cx).await;
@@ -300,13 +300,13 @@ pub async fn edit_dish_group_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
         // Если группа не пустая, продолжим
         if new_group_id > 0 {
             // Извлечём параметры
-            let (rest_id, group_id, dish_id) = cx.dialogue;
+            let (rest_num, group_num, dish_num) = cx.dialogue;
         
             // Сохраним новое значение в БД
-            if db::rest_dish_edit_group(rest_id, group_id, dish_id, new_group_id).await {
+            if db::rest_dish_edit_group(rest_num, group_num, dish_num, new_group_id).await {
                // Покажем изменённую информацию о группе
                let DialogueDispatcherHandlerCx { bot, update, dialogue:_ } = cx;
-               cat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id))).await
+               cat_group::next_with_info(DialogueDispatcherHandlerCx::new(bot, update, (rest_num, group_num))).await
             } else {
                 // Сообщим об ошибке
                 next_with_cancel(cx, "Ошибка, возможно нет группы с таким кодом, отмена изменения группы").await
@@ -327,10 +327,10 @@ pub async fn edit_price_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
         let price = text.parse::<i32>().unwrap_or_default();
 
         // Извлечём параметры
-        let (rest_id, group_id, dish_id) = cx.dialogue;
+        let (rest_num, group_num, dish_num) = cx.dialogue;
         
         // Сохраним новое значение в БД
-        db::rest_dish_edit_price(rest_id, group_id, dish_id, price).await;
+        db::rest_dish_edit_price(rest_num, group_num, dish_num, price).await;
     }
     // Покажем изменённую информацию о группе
     next_with_info(cx).await
@@ -343,10 +343,10 @@ pub async fn edit_image_mode(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
         let image = &photo_size[0].file_id;
 
         // Извлечём параметры
-        let (rest_id, group_id, dish_id) = cx.dialogue;
+        let (rest_num, group_num, dish_num) = cx.dialogue;
         
         // Сохраним новое значение в БД
-        db::rest_dish_edit_image(rest_id, group_id, dish_id, image).await;
+        db::rest_dish_edit_image(rest_num, group_num, dish_num, image).await;
     }
     // Покажем изменённую информацию о группе
     next_with_info(cx).await

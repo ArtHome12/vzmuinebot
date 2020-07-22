@@ -361,9 +361,9 @@ pub async fn show_dish(cx: cmd::Cx<(i32, i32, i32)>, dish_num :i32) -> cmd::Res 
    let (cat_id, rest_id, group_id) = cx.dialogue;
 
    // Получаем информацию из БД
-   let (info, dish_image_id) = match db::eater_dish_info(rest_id, group_id, dish_num).await {
-      Some(dish_info) => dish_info,
-      None => (format!("Ошибка db::eater_dish_info({}, {}, {})", rest_id, group_id, dish_num), None)
+   let (info, dish_image_id) = match db::dish(db::DishBy::Active(rest_id, group_id, dish_num)).await {
+      Some(dish) => (dish.info_for_eater(), dish.image_id),
+      None => (String::from("Информация недоступна"), None)
    };
 
    // Идентифицируем пользователя
@@ -410,9 +410,9 @@ struct DishData {
 
 async fn prepare_dish_data(user_id: i32, rest_num: i32, group_num: i32, dish_num: i32) -> DishData {
    // Получаем информацию из БД
-   let (text, photo_id) = match db::eater_dish_info(rest_num, group_num, dish_num).await {
-      Some(dish_info) => dish_info,
-      None => (String::from("Блюдо не найдено"), None),
+   let (text, photo_id) = match db::dish(db::DishBy::Active(rest_num, group_num, dish_num)).await {
+      Some(dish) => (dish.info_for_eater(), dish.image_id),
+      None => (String::from("Информация недоступна"), None)
    };
 
    // Запросим из БД, сколько этих блюд пользователь уже выбрал
