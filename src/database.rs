@@ -830,6 +830,7 @@ pub async fn rest_dish_toggle(rest_num: i32, group_num: i32, dish_num: i32) -> b
 
 // Изменение группы блюда
 pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i32, new_group_num: i32) -> bool {
+   settings::log(&format!("Here 1")).await;
    match DB.get().unwrap().get().await {
       Ok(client) => {
          // Проверим, что есть такая целевая группа
@@ -847,10 +848,12 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
          return false
       }
    }
+   settings::log(&format!("Here 2")).await;
 
    // Сохраним информацию о блюде
    match dish(DishBy::All(rest_num, old_group_num, dish_num)).await {
       Some(dish) => {
+         settings::log(&format!("Here 3")).await;
          // Получим клиента БД из пула
          match DB.get().unwrap().get().await {
             Ok(client) => {
@@ -863,11 +866,12 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
                      $4::VARCHAR(255),
                      $5::BOOLEAN,
                      $2::INTEGER,
-                     $7::INTEGER,
-                     $8::VARCHAR(255)
+                     $6::INTEGER,
+                     $7::VARCHAR(255)
                   )", &[&dish.rest_num, &new_group_num, &dish.title, &dish.info, &dish.active, &dish.price, &dish.image_id]
                )
                .await;
+               settings::log(&format!("Here 4")).await;
 
                // Должна была обновиться 1 запись
                match query {
@@ -876,7 +880,14 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
                      rest_dish_remove(rest_num, old_group_num, dish_num).await;
                      true
                   }
-                  _ => false
+                  Err(e) => {
+                     settings::log(&format!("Error rest_dish_edit_group: {}", e)).await;
+                     false
+                  }
+                  _  => {
+                     settings::log(&format!("Error rest_dish_edit_group: Inserted non 1")).await;
+                     false
+                  }
                }
             }
             Err(e) => {
