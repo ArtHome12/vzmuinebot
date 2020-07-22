@@ -830,12 +830,11 @@ pub async fn rest_dish_toggle(rest_num: i32, group_num: i32, dish_num: i32) -> b
 
 // Изменение группы блюда
 pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i32, new_group_num: i32) -> bool {
-   settings::log(&format!("Here 1")).await;
    match DB.get().unwrap().get().await {
       Ok(client) => {
          // Проверим, что есть такая целевая группа
          let rows = client
-         .query_one("SELECT dish_num FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &new_group_num])
+         .query_one("SELECT group_num FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &new_group_num])
          .await;
 
          // Если целевой группы нет, выходим
@@ -848,12 +847,10 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
          return false
       }
    }
-   settings::log(&format!("Here 2")).await;
 
    // Сохраним информацию о блюде
    match dish(DishBy::All(rest_num, old_group_num, dish_num)).await {
       Some(dish) => {
-         settings::log(&format!("Here 3")).await;
          // Получим клиента БД из пула
          match DB.get().unwrap().get().await {
             Ok(client) => {
@@ -871,7 +868,6 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
                   )", &[&dish.rest_num, &new_group_num, &dish.title, &dish.info, &dish.active, &dish.price, &dish.image_id]
                )
                .await;
-               settings::log(&format!("Here 4")).await;
 
                // Должна была обновиться 1 запись
                match query {
