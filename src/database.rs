@@ -830,18 +830,26 @@ pub async fn rest_dish_toggle(rest_num: i32, group_num: i32, dish_num: i32) -> b
 
 // Изменение группы блюда
 pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i32, new_group_num: i32) -> bool {
-   // Проверим, что есть такая целевая группа
-   let rows = DB.get().unwrap().get().await.unwrap()
-   .query_one("SELECT dish_num FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &new_group_num])
-   .await;
+   match DB.get().unwrap().get().await {
+      Ok(client) => {
+         // Проверим, что есть такая целевая группа
+         let rows = client
+         .query_one("SELECT dish_num FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &new_group_num])
+         .await;
 
-   // Если целевой группы нет, выходим
-   if let Err(_) = rows {
-      return false
+         // Если целевой группы нет, выходим
+         if let Err(_) = rows {
+            return false
+         }
+      }
+      Err(e) => {
+         settings::log(&format!("Error rest_dish_edit_group, no db client: {}", e)).await;
+         return false
+      }
    }
 
    // Сохраним информацию о блюде
-   match dish(DishBy::All(rest_num, old_group_num, dish_num)) {
+   match dish(DishBy::All(rest_num, old_group_num, dish_num)).await {
       Some(dish) => {
          // Получим клиента БД из пула
          match DB.get().unwrap().get().await {
@@ -857,7 +865,7 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
                      $2::INTEGER,
                      $7::INTEGER,
                      $8::VARCHAR(255)
-                  )", &[dish.rest_num, new_group_num, dish.title, dish.info, dish.active, dish.price, dish.image_id]
+                  )", &[&dish.rest_num, &new_group_num, &dish.title, &dish.info, &dish.active, &dish.price, &dish.image_id]
                )
                .await;
 
@@ -865,14 +873,14 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
                match query {
                   Ok(1) => {
                      // Удалим блюдо из прежней группы
-                     rest_dish_remove(rest_num, old_group_num, dish_num).await
+                     rest_dish_remove(rest_num, old_group_num, dish_num).await;
                      true
                   }
                   _ => false
                }
             }
             Err(e) => {
-               settings::log(&format!("Error rest_dish_edit_group, no db client: {}", e)).await;
+               settings::log(&format!("Error rest_dish_edit_group 2, no db client: {}", e)).await;
                false
             }
          }      
