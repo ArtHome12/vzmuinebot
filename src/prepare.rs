@@ -7,14 +7,14 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use tokio_postgres::{Statement,};
+/*use tokio_postgres::{Statement,}; 
 
 // Поддерживаемые запросы
 pub struct PreparedStatements {
    pub rest_list_all : Statement,
    pub rest_list_category : Statement,
    pub rest_list_time : Statement,
-   /*pub restaurant_id : Statement,
+   pub restaurant_id : Statement,
    pub restaurant_num : Statement,
    pub group_list_all : Statement,
    pub group_list_category : Statement,
@@ -39,7 +39,7 @@ pub struct PreparedStatements {
    pub ticket_with_owners : Statement,
    pub basket_edit_stage : Statement,
    pub basket_next_stage : Statement,
-   pub basket_stage : Statement,*/
+   pub basket_stage : Statement,
 }
 
 type Client<'a> = bb8::PooledConnection<'a, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>;
@@ -81,6 +81,7 @@ impl PreparedStatements {
          basket_edit_stage : Statement,
          basket_next_stage : Statement,
          basket_stage : Statement,*/
+         // client,
       }
    }
-}
+}*/

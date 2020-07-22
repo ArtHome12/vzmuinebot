@@ -308,11 +308,11 @@ async fn run() {
    }
 
    // Подготовим запросы к БД
-   if let Err(_) = database::PREP.set(prepare::PreparedStatements::from_db(database::DB.get().unwrap().get().await.unwrap()).await) {
+   /*if let Err(_) = database::PREP.set(prepare::PreparedStatements::from_db(database::DB.get().unwrap().get().await.unwrap()).await) {
       let s = format!("Something wrong with PreparedStatements");
       settings::log(&s).await;
       panic!(s);
-   }
+   }*/
 
    // Проверим существование таблиц и если их нет, создадим
    if database::is_tables_exist().await {
