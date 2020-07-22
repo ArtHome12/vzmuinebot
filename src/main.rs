@@ -43,6 +43,7 @@ mod inline;
 mod language;
 mod settings;
 mod gear;
+mod prepare;
 
 use commands as cmd;
 
@@ -304,6 +305,13 @@ async fn run() {
          log::info!("Something wrong with database");
          settings::log("Something wrong with database").await;
       }
+   }
+
+   // Подготовим запросы к БД
+   if let Err(_) = database::PREP.set(prepare::PreparedStatements::from_db(database::DB.get().unwrap().get().await.unwrap()).await) {
+      let s = format!("Something wrong with PreparedStatements");
+      settings::log(&s).await;
+      panic!(s);
    }
 
    // Проверим существование таблиц и если их нет, создадим

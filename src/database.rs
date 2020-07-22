@@ -13,14 +13,18 @@ use text_io::try_scan;
 use teloxide::{
    types::{User},
 };
-use tokio_postgres::Row;
+use tokio_postgres::{Row, };
 use std::collections::BTreeMap;
 
 use crate::settings;
+use crate::prepare;
 
 // Пул клиентов БД
 type Pool = bb8::Pool<bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>;
 pub static DB: OnceCell<Pool> = OnceCell::new();
+
+// Подготовленные запросы
+pub static PREP: OnceCell<prepare::PreparedStatements> = OnceCell::new();
 
 
 // ============================================================================
@@ -77,26 +81,11 @@ pub async fn rest_list(by: RestListBy) -> Option<RestList> {
    // Получим клиента БД из пула
    match DB.get().unwrap().get().await {
       Ok(client) => {
-
          // Выполним нужный запрос
          let rows =  match by {
-            RestListBy::All => {
-               client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r
-                  ORDER BY rest_num", &[]
-               ).await
-            },
-            RestListBy::Category(cat_id) => {
-               client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
-                  INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
-                  WHERE r.active = TRUE", &[&cat_id]
-               ).await
-            },
-            RestListBy::Time(time) => {
-               client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
-                  INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
-                  ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&time]
-               ).await
-            }
+            RestListBy::All => client.query(&PREP.get().unwrap().rest_list_all, &[]).await,
+            RestListBy::Category(cat_id) => client.query(&PREP.get().unwrap().rest_list_category, &[&cat_id]).await,
+            RestListBy::Time(time) => client.query(&PREP.get().unwrap().rest_list_time, &[&time]).await,
          };
 
          // Возвращаем результат
@@ -950,8 +939,8 @@ pub async fn rest_dish_edit_image(rest_num: i32, group_num: i32, dish_num: i32, 
 // [Users table]
 // ============================================================================
 
-// Возвращает настройку пользователя и временную отметку последнего входа
-pub async fn user_compact_interface(user: Option<&User>) -> bool {
+// Обновляет временную отметку последнего входа, возвращая истину, если данные существовали ранее
+async fn user_update_last_seen(user: Option<&User>) -> bool {
    if let Some(u) = user {
       // Получим клиента БД из пула
       match DB.get().unwrap().get().await {
@@ -981,32 +970,43 @@ pub async fn user_compact_interface(user: Option<&User>) -> bool {
                               )
                               .await;
                            if let Err(e) = query {
-                              settings::log(&format!("Error insert last seen record for {}\n{}", name, e)).await;
+                              settings::log(&format!("Error user_update_last_seen insert for {}\n{}", name, e)).await;
                            }
                         }
-                        Err(e) => settings::log(&format!("Error user_compact_interface 2, no db client: {}", e)).await,
+                        Err(e) => settings::log(&format!("Error user_update_last_seen, no db client: {}", e)).await,
                      }
                   } else {
-                     // Раз обновление было успешным, прочитаем настройку из базы
-                     match DB.get().unwrap().get().await {
-                        Ok(client) => {
-                           let query = client.query_one("SELECT compact FROM users WHERE user_id=$1::INTEGER", &[&u.id]).await;
-                           match query {
-                              Ok(row) => return row.get(0), // и выходим
-                              Err(e) => settings::log(&format!("Error user_compact_interface reading interface settings: {}", e)).await,
-                           }
-                        }
-                        Err(e) => settings::log(&format!("Error user_compact_interface 2, no db client: {}", e)).await,
-                     }
+                     // Обновление было успешным
+                     return true;
                   }
                }
-               Err(e) => settings::log(&format!("Error user_compact_interface: {}", e)).await,
+               Err(e) => settings::log(&format!("Error user_update_last_seen: {}", e)).await,
+            }
+         }
+         Err(e) => settings::log(&format!("Error user_update_last_seen 2, no db client: {}", e)).await,
+      }
+   } else {settings::log(&format!("Error user_update_last_seen, no user")).await;}
+
+   // Возвращаем значение по-умолчанию
+   false
+}
+
+// Возвращает настройку пользователя и временную отметку последнего входа
+pub async fn user_compact_interface(user: Option<&User>) -> bool {
+   // Обновим отметку и узнаем, есть ли смысл читать настройку из базы
+   if user_update_last_seen(user).await {
+      match DB.get().unwrap().get().await {
+         Ok(client) => {
+            let query = client.query_one("SELECT compact FROM users WHERE user_id=$1::INTEGER", &[&user.unwrap().id]).await;
+            match query {
+               Ok(row) => return row.get(0), // и выходим
+               Err(e) => settings::log(&format!("Error user_compact_interface reading interface settings: {}", e)).await,
             }
          }
          Err(e) => settings::log(&format!("Error user_compact_interface, no db client: {}", e)).await,
       }
-   } else {settings::log(&format!("Error user_compact_interface, no user")).await;}
-         
+   }
+
    // Возвращаем значение по-умолчанию
    false
 }
@@ -1107,7 +1107,7 @@ pub async fn user_name_by_id(user_id: i32) -> String {
    }
 }
 
-// Изменение имени пользователя
+// Изменение контакта пользователя
 pub async fn basket_edit_contact(user_id: i32, s: String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap().get().await.unwrap()
@@ -1122,7 +1122,7 @@ pub async fn basket_edit_contact(user_id: i32, s: String) -> bool {
    }
 }
 
-// Изменение имени пользователя
+// Изменение адреса пользователя
 pub async fn basket_edit_address(user_id: i32, s: String) -> bool {
    // Выполняем запрос
    let query = DB.get().unwrap().get().await.unwrap()
@@ -1156,7 +1156,7 @@ pub async fn basket_toggle_pickup(user_id: i32) -> bool {
 // [Orders table]
 // ============================================================================
 
-// Перемещает заказ из таблицы orders в tickets
+// Перемещает заказ из таблицы orders в tickets, НУЖНА ТРАНЗАКЦИЯ
 pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, eater_msg_id: i32, caterer_msg_id: i32) -> bool {
    // Удаляем все блюда ресторана из orders
    let query = DB.get().unwrap().get().await.unwrap()
@@ -1209,7 +1209,6 @@ async fn dish_remove_from_orders(rest_num: i32, group_num: i32, dish_num: i32) {
 
 
 // Возвращает количество порций блюда в корзине
-//
 pub async fn amount_in_basket(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> i32 {
    // Выполняем запрос
    let query = DB.get().unwrap().get().await.unwrap()
@@ -1227,7 +1226,6 @@ pub async fn amount_in_basket(rest_num: i32, group_num: i32, dish_num: i32, user
 }
 
 // Добавляет блюдо в корзину, возвращая новое количество
-//
 pub async fn add_dish_to_basket(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> Result<i32, ()> {
    // Текущее количество экземпляров в корзине
    let old_amount = amount_in_basket(rest_num, group_num, dish_num, user_id).await;
@@ -1257,7 +1255,6 @@ pub async fn add_dish_to_basket(rest_num: i32, group_num: i32, dish_num: i32, us
 
 
 // Удаляет блюдо из корзины
-//
 pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> Result<i32, ()> {
    // Текущее количество экземпляров в корзине
    let old_amount = amount_in_basket(rest_num, group_num, dish_num, user_id).await;
@@ -1286,7 +1283,6 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
 
 
 // Содержимое корзины
-//
 pub struct Basket {
    pub rest_id: i32,
    pub restaurant: String,
@@ -1525,7 +1521,6 @@ pub async fn basket_stage(ticket_id: i32) -> i32 {
 // [Misc]
 // ============================================================================
 // Для отображения статуса
-//
 pub fn active_to_str(active : bool) -> &'static str {
    if active {
        "показывается"
@@ -1560,7 +1555,6 @@ pub fn is_success(flag : bool) -> &'static str {
 }
 
 // Используется при редактировании категории группы
-//
 pub fn id_to_category(cat_id : i32) -> &'static str {
    match cat_id {
       1 => "Соки воды",
