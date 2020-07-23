@@ -15,12 +15,14 @@ use teloxide::{
 };
 use tokio_postgres::{Row, };
 use std::collections::BTreeMap;
+use deadpool_postgres::{Pool,};
+
 
 use crate::settings;
 // use crate::prepare;
 
 // Пул клиентов БД
-type Pool = bb8::Pool<bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>;
+//type Pool = bb8::Pool<bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>;
 pub static DB: OnceCell<Pool> = OnceCell::new();
 
 // Подготовленные запросы

@@ -25,6 +25,7 @@ use bb8;
 use bb8_postgres;
 use warp::Filter;
 use reqwest::StatusCode;
+use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 
 mod database;
 mod commands;
@@ -287,7 +288,22 @@ async fn run() {
 
    // Откроем БД
    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL env variable missing");
-   let manager = bb8_postgres::PostgresConnectionManager::new_from_stringlike(database_url, NoTls).expect("DATABASE_URL env variable wrong");
+   let pg_config = database_url.parse::<tokio_postgres::Config>().expect("DATABASE_URL env variable wrong");
+   let mgr_config = ManagerConfig {recycling_method: RecyclingMethod::Fast};
+   let mgr = Manager::from_config(pg_config, NoTls, mgr_config);
+   let pool = Pool::new(mgr, 16);
+
+   // Протестируем соединение
+   // let test_pool = pool.clone();
+   tokio::spawn(async move {
+      if let Err(e) = pool.get().await {
+         settings::log(&format!("Database connection error: {}", e)).await;
+      }
+   });
+
+
+
+   /*let manager = bb8_postgres::PostgresConnectionManager::new_from_stringlike(database_url, NoTls).expect("DATABASE_URL env variable wrong");
    let pool = bb8::Pool::builder().build(manager).await.expect("Cannot connect to database");
 
    // Протестируем соединение
@@ -296,7 +312,7 @@ async fn run() {
       if let Err(e) = test_pool.get().await {
          settings::log(&format!("Database connection error: {}", e)).await;
       }
-   });
+   });*/
 
    // Сохраним доступ к БД
    match database::DB.set(pool) {
