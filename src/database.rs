@@ -1310,11 +1310,13 @@ pub async fn amount_in_basket(rest_num: i32, group_num: i32, dish_num: i32, user
          // Если запрос подготовлен успешно, выполняем его
          match statement {
             Ok(stmt) => {
-               let rows = client.query_one(&stmt, &[&user_id, &rest_num, &group_num, &dish_num]).await;
+               let rows = client.query(&stmt, &[&user_id, &rest_num, &group_num, &dish_num]).await;
 
                // Возвращаем результат
                match rows {
-                  Ok(data) => return data.get(0),
+                  Ok(data) => {
+                     if !data.is_empty() {return data[0].get(0);}
+                  }
                   Err(e) => {
                      // Сообщаем об ошибке и возвращаем пустой результат
                      settings::log(&format!("db::amount_in_basket(rest_num={}, group_num={}, dish_num={}, user_id={}): {}", rest_num, group_num, dish_num, user_id, e)).await;
