@@ -525,7 +525,7 @@ pub async fn group(rest_num: i32, group_num: i32) -> Option<Group> {
                   Ok(data) => Some(Group::from_db(&data)),
                   Err(e) => {
                      // Сообщаем об ошибке и возвращаем пустой результат
-                     settings::log(&format!("db::group(rest_num={}, group_num{}): {}", rest_num, group_num, e)).await;
+                     settings::log(&format!("db::group(rest_num={}, group_num={}): {}", rest_num, group_num, e)).await;
                      None
                   }
                }
@@ -1304,7 +1304,7 @@ pub async fn amount_in_basket(rest_num: i32, group_num: i32, dish_num: i32, user
       Ok(client) => {
 
          // Подготовим запрос
-         let statement = client.prepare("SELECT amount FROM orders WHERE user_id=$1::INTEGER AND  rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER")
+         let statement = client.prepare("SELECT amount FROM orders WHERE user_id=$1::INTEGER AND rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER")
          .await;
 
          // Если запрос подготовлен успешно, выполняем его
@@ -1317,18 +1317,18 @@ pub async fn amount_in_basket(rest_num: i32, group_num: i32, dish_num: i32, user
                   Ok(data) => return data.get(0),
                   Err(e) => {
                      // Сообщаем об ошибке и возвращаем пустой результат
-                     settings::log(&format!("db::group(rest_num={}, group_num{}): {}", rest_num, group_num, e)).await;
+                     settings::log(&format!("db::amount_in_basket(rest_num={}, group_num={}, dish_num={}, user_id={}): {}", rest_num, group_num, dish_num, user_id, e)).await;
                   }
                }
             }
             Err(e) => {
                // Сообщаем об ошибке и возвращаем пустой результат
-               settings::log(&format!("db::group prepare: {}", e)).await;
+               settings::log(&format!("db::amount_in_basket prepare: {}", e)).await;
             }
          }
       },
       Err(e) => {
-         settings::log(&format!("Error group, no db client: {}", e)).await;
+         settings::log(&format!("Error amount_in_basket, no db client: {}", e)).await;
       }
    }
 
