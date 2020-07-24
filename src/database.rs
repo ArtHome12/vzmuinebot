@@ -1014,46 +1014,62 @@ pub async fn rest_dish_edit_image(rest_num: i32, group_num: i32, dish_num: i32, 
 
 // Обновляет временную отметку последнего входа, возвращая истину, если данные существовали ранее
 async fn user_update_last_seen(user: Option<&User>) -> bool {
+   async fn insert(u : &User) -> bool {
+      // Информация о пользователе
+      let name = if let Some(last_name) = &u.last_name {
+         format!("{} {}", u.first_name, last_name)
+      } else {u.first_name.clone()};
+
+      let contact = if let Some(username) = &u.username {
+         format!(" @{}", username)
+      } else {String::from("-")};
+
+      // Создаём новую запись о пользователе
+      match DB.get().unwrap().get().await {
+         Ok(client) => {
+            let query = client
+               .execute("INSERT INTO users (user_id, user_name, contact, address, last_seen, compact, pickup) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::VARCHAR(100), '-', NOW(), FALSE, TRUE)",
+                  &[&u.id, &name, &contact]
+               )
+               .await;
+            if let Err(e) = query {
+               settings::log(&format!("Error user_update_last_seen insert for {}\n{}", name, e)).await;
+            }
+         }
+         Err(e) => settings::log(&format!("Error user_update_last_seen, no db client: {}", e)).await,
+      }
+   
+      // После создания новой записи возвращаем значение по-умолчанию
+      false
+   }
+
    if let Some(u) = user {
       // Получим клиента БД из пула
       match DB.get().unwrap().get().await {
          Ok(client) => {
-            // Выполняем запрос на обновление времени последнего посещения
-            let query = client.execute("UPDATE users SET last_seen = NOW() WHERE user_id=$1::INTEGER", &[&u.id]).await;
+            // Подготовим нужный запрос с кешем благодаря пулу на обновление времени последней активности
+            let statement = client.prepare("UPDATE users SET last_seen = NOW() WHERE user_id=$1::INTEGER").await;
 
-            match query {
-               Ok(num) => {
-                  // Если обновили 0 записей, вставим новую
-                  if num == 0 {
-                     // Информация о пользователе
-                     let name = if let Some(last_name) = &u.last_name {
-                        format!("{} {}", u.first_name, last_name)
-                     } else {u.first_name.clone()};
-            
-                     let contact = if let Some(username) = &u.username {
-                        format!(" @{}", username)
-                     } else {String::from("-")};
-            
-                     // Создаём новую запись о пользователе
-                     match DB.get().unwrap().get().await {
-                        Ok(client) => {
-                           let query = client
-                              .execute("INSERT INTO users (user_id, user_name, contact, address, last_seen, compact, pickup) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::VARCHAR(100), '-', NOW(), FALSE, TRUE)",
-                                 &[&u.id, &name, &contact]
-                              )
-                              .await;
-                           if let Err(e) = query {
-                              settings::log(&format!("Error user_update_last_seen insert for {}\n{}", name, e)).await;
-                           }
+            match statement {
+               Ok(stmt) => {
+                  // Если запрос подготовлен успешно, выполняем его
+                  let query = client.execute(&stmt, &[&u.id]).await;
+
+                  // Возвращаем результат
+                  match query {
+                     Ok(num) => {
+                        // Если обновили 0 записей, вставим новую
+                        if num == 0 {
+                           return insert(u).await;
+                        } else {
+                           // Обновление было успешным
+                           return true;
                         }
-                        Err(e) => settings::log(&format!("Error user_update_last_seen, no db client: {}", e)).await,
                      }
-                  } else {
-                     // Обновление было успешным
-                     return true;
+                     Err(e) => settings::log(&format!("Error user_update_last_seen: {}", e)).await,
                   }
-               }
-               Err(e) => settings::log(&format!("Error user_update_last_seen: {}", e)).await,
+               },
+               Err(e) => settings::log(&format!("db::dish_list prepare: {}", e)).await,
             }
          }
          Err(e) => settings::log(&format!("Error user_update_last_seen 2, no db client: {}", e)).await,
@@ -1064,7 +1080,7 @@ async fn user_update_last_seen(user: Option<&User>) -> bool {
    false
 }
 
-// Возвращает настройку пользователя и временную отметку последнего входа
+// Возвращает настройку пользователя и обновляет временную метку последнего входа
 pub async fn user_compact_interface(user: Option<&User>) -> bool {
    // Обновим отметку и узнаем, есть ли смысл читать настройку из базы
    if user_update_last_seen(user).await {
