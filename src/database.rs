@@ -19,14 +19,9 @@ use deadpool_postgres::{Pool,};
 
 
 use crate::settings;
-use crate::prepare;
 
 // Пул клиентов БД
-//type Pool = bb8::Pool<bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>;
 pub static DB: OnceCell<Pool> = OnceCell::new();
-
-// Подготовленные запросы
-pub static PREP: OnceCell<prepare::PreparedStatements> = OnceCell::new();
 
 
 // ============================================================================
@@ -84,43 +79,51 @@ pub async fn rest_list(by: RestListBy) -> Option<RestList> {
    match DB.get().unwrap().get().await {
       Ok(client) => {
 
-         // Выполним нужный запрос
-         let rows =  match by {
-            RestListBy::All => client.query(&PREP.get().unwrap().rest_list_all, &[]).await,
-            RestListBy::Category(cat_id) => client.query(&PREP.get().unwrap().rest_list_category, &[&cat_id]).await,
-            RestListBy::Time(time) => client.query(&PREP.get().unwrap().rest_list_time, &[&time]).await,
-
-            /*RestListBy::All => {
-               client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r
-                  ORDER BY rest_num", &[]
-               ).await
-            },
-            RestListBy::Category(cat_id) => {
-               client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
+         // Подготовим нужный запрос с кешем благодаря пулу
+         let statement =  match by {
+            RestListBy::All =>
+               client.prepare("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r
+               ORDER BY rest_num"),
+            RestListBy::Category(_cat_id) =>
+               client.prepare("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
                   INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
-                  WHERE r.active = TRUE", &[&cat_id]
-               ).await
-            },
-            RestListBy::Time(time) => {
-               client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
+                  WHERE r.active = TRUE"),
+            RestListBy::Time(_time) =>
+               client.prepare("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
                   INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
-                  ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&time]
-               ).await
-            }*/
-         };
+                  ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE"),
+         }.await;
 
-         // Возвращаем результат
-         match rows {
-            Ok(data) => if data.is_empty() {None} else {Some(data.into_iter().map(|row| (Restaurant::from_db(&row))).collect())},
+         // Если запрос подготовлен успешно, выполняем его
+         match statement {
+            Ok(stmt) => {
+               let rows = match by {
+                  RestListBy::All => client.query(&stmt, &[]).await,
+                  RestListBy::Category(cat_id) => client.query(&stmt, &[&cat_id]).await,
+                  RestListBy::Time(time) => client.query(&stmt, &[&time]).await,
+               };
+
+               // Возвращаем результат
+               match rows {
+                  Ok(data) => if data.is_empty() {None} else {Some(data.into_iter().map(|row| (Restaurant::from_db(&row))).collect())},
+                  Err(e) => {
+                     // Сообщаем об ошибке и возвращаем пустой результат
+                     settings::log(&format!("db::rest_list: {}", e)).await;
+                     None
+                  }
+               }
+            }
             Err(e) => {
                // Сообщаем об ошибке и возвращаем пустой результат
-               settings::log(&format!("Error restaurants_list: {}", e)).await;
+               settings::log(&format!("db::rest_list prepare: {}", e)).await;
                None
             }
          }
+
+
       },
       Err(e) => {
-         settings::log(&format!("Error restaurants_list, no db client: {}", e)).await;
+         settings::log(&format!("Error rest_list, no db client: {}", e)).await;
          None
       }
    }
