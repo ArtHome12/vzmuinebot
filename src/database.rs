@@ -629,45 +629,67 @@ pub async fn rest_group_edit_time(rest_num: i32, group_num: i32, opening_time: N
 
 // Удаляет группу и изменяет порядковый номер оставшихся групп, в т.ч. и у блюд. НУЖНЫ ТРАНЗАКЦИИ!!!
 pub async fn rest_group_remove(rest_num: i32, group_num: i32) -> bool {
-   // Проверим, что у группы нет блюд
-   let rows = DB.get().unwrap().get().await.unwrap()
-   .query("SELECT * FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
-   .await;
-   if let Ok(res) = rows {
-      if !res.is_empty() {
-         return false;
+   // Возвращает истину, если блюд у группы нет
+   async fn no_dishes(rest_num: i32, group_num: i32) -> bool {
+      // Получим клиента БД из пула
+      match DB.get().unwrap().get().await {
+         Ok(client) => {
+            // Проверим, что у группы нет блюд
+            let rows = client.query("SELECT dish_num FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num]).await;
+            match rows {
+               Ok(data) => if data.is_empty() {return true;},
+               Err(e) => settings::log(&format!("db::rest_group_remove no_dishes(rest_num={}, group_num={}): {}", rest_num, group_num, e)).await,
+            }
+         },
+         Err(e) => settings::log(&format!("Error no_dishes, no db client: {}", e)).await,
       }
-   } else {
-      return false;
+      false
    }
 
-   // Выполняем запрос. Должно быть начало транзакции, потом коммит, но transaction требует mut
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("DELETE FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
-   .await;
-   match query {
-      Ok(_) => {
-         // Номера групп перенумеровываем для исключения дырки
-         let query = DB.get().unwrap().get().await.unwrap()
-         .execute("UPDATE groups SET group_num = group_num - 1 WHERE rest_num=$1::INTEGER AND group_num>$2::INTEGER", &[&rest_num, &group_num])
-         .await;
-         match query {
-            Ok(_) => {
-               // Перенумеровываем группы у блюд
-               let query = DB.get().unwrap().get().await.unwrap()
-               .execute("UPDATE dishes SET group_num = group_num - 1 WHERE rest_num=$1::INTEGER AND group_num>$2::INTEGER", &[&rest_num, &group_num])
+   // Если у группы есть блюда, выходим с неудачей
+   if !no_dishes(rest_num, group_num).await {return false;}
+
+   // Получим клиента БД из пула
+   match DB.get().unwrap().get().await.as_mut() {
+      Ok(client) => {
+         // Начинаем транзакцию
+         match client.transaction().await {
+            Ok(trans) => {
+               // Удаляем группу
+               let res = trans.execute("DELETE FROM groups WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num])
                .await;
-               match query {
-                  Ok(_) => true,
-                  _ => false,
+               match res {
+                  Ok(_) => {
+
+                     // Номера групп перенумеровываем для исключения дырки
+                     let res = trans.execute("UPDATE groups SET group_num = group_num - 1 WHERE rest_num=$1::INTEGER AND group_num>$2::INTEGER", &[&rest_num, &group_num])
+                     .await;
+                     match res {
+                        Ok(_) => {
+
+                           // Перенумеровываем группы у блюд
+                           let res = trans.execute("UPDATE dishes SET group_num = group_num - 1 WHERE rest_num=$1::INTEGER AND group_num>$2::INTEGER", &[&rest_num, &group_num])
+                           .await;
+                           match res {
+                              Ok(_) => return true,   // возвращаем успех
+                              Err(e) => settings::log(&format!("db::rest_group_remove update dishes: {}", e)).await,
+                           }
+
+                        }
+                        Err(e) => settings::log(&format!("db::rest_group_remove update groups: {}", e)).await,
+                     }      
+      
+                  }
+                  Err(e) => settings::log(&format!("db::rest_group_remove delete from groups: {}", e)).await,
                }
             }
-            _ => false,
+            Err(e) => settings::log(&format!("db::rest_group_remove: {}", e)).await,
          }
-      }
-      _ => false,
+      },
+      Err(e) => settings::log(&format!("Error rest_group_remove, no db client: {}", e)).await,
    }
- }
+   false
+}
  
 // ============================================================================
 // [Dishes table]
