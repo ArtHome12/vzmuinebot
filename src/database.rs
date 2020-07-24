@@ -458,7 +458,6 @@ pub async fn group_list(by: GroupListBy) -> Option<GroupList> {
    // Получим клиента БД из пула
    match DB.get().unwrap().get().await {
       Ok(client) => {
-
          // Подготовим нужный запрос с кешем благодаря пулу
          let statement = match by {
             GroupListBy::All(_rest_num) =>
@@ -738,27 +737,37 @@ pub async fn dish_list(by: DishesBy) -> Option<DishList> {
    // Получим клиента БД из пула
    match DB.get().unwrap().get().await {
       Ok(client) => {
+         // Подготовим нужный запрос с кешем благодаря пулу
+         let statement = match by {
+            DishesBy::All(_rest_num, _group_num) =>
+               client.prepare("SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
+                  WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER ORDER BY dish_num"),
+            DishesBy::Active(_rest_num, _group_num) =>
+               client.prepare("SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
+                  WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE ORDER BY dish_num"),
+         }.await;
 
-         // Выполним нужный запрос
-         let rows =  match by {
-            DishesBy::All(rest_num, group_num) => {
-               client.query("SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
-                  WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER ORDER BY dish_num", &[&rest_num, &group_num]
-               ).await
-            },
-            DishesBy::Active(rest_num, group_num) => {
-               client.query("SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
-                  WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE ORDER BY dish_num", &[&rest_num, &group_num]
-               ).await
-            },
-         };
+         // Если запрос подготовлен успешно, выполняем его
+         match statement {
+            Ok(stmt) => {
+               let rows = match by {
+                  DishesBy::All(rest_num, group_num) => client.query(&stmt, &[&rest_num, &group_num]).await,
+                  DishesBy::Active(rest_num, group_num) => client.query(&stmt, &[&rest_num, &group_num]).await,
+               };
 
-         // Возвращаем результат
-         match rows {
-            Ok(data) => if data.is_empty() {None} else {Some(data.into_iter().map(|row| (Dish::from_db(&row))).collect())},
+               // Возвращаем результат
+               match rows {
+                  Ok(data) => if data.is_empty() {None} else {Some(data.into_iter().map(|row| (Dish::from_db(&row))).collect())},
+                  Err(e) => {
+                     // Сообщаем об ошибке и возвращаем пустой результат
+                     settings::log(&format!("db::dish_list: {}", e)).await;
+                     None
+                  }
+               }
+            }
             Err(e) => {
                // Сообщаем об ошибке и возвращаем пустой результат
-               settings::log(&format!("Error dish_list: {}", e)).await;
+               settings::log(&format!("db::dish_list prepare: {}", e)).await;
                None
             }
          }
@@ -782,26 +791,37 @@ pub async fn dish(by: DishBy) -> Option<Dish> {
    match DB.get().unwrap().get().await {
       Ok(client) => {
 
-         // Выполним нужный запрос
-         let rows =  match by {
-            DishBy::All(rest_num, group_num, dish_num) => {
-               client.query_one("SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
-               WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num]
-               ).await
-            },
-            DishBy::Active(rest_num, group_num, dish_num) => {
-               client.query_one("SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
-               WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND active = TRUE", &[&rest_num, &group_num, &dish_num]
-               ).await
-            },
-         };
+         // Подготовим нужный запрос с кешем благодаря пулу
+         let statement = match by {
+            DishBy::All(_rest_num, _group_num, _dish_num) =>
+               client.prepare("SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
+                  WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER"),
+               DishBy::Active(_rest_num, _group_num, _dish_num) =>
+                  client.prepare("SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
+                     WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND active = TRUE"),
+         }.await;
 
-         // Возвращаем результат
-         match rows {
-            Ok(row) => Some(Dish::from_db(&row)),
+         // Если запрос подготовлен успешно, выполняем его
+         match statement {
+            Ok(stmt) => {
+               let rows = match by {
+                  DishBy::All(rest_num, group_num, dish_num) => client.query_one(&stmt, &[&rest_num, &group_num, &dish_num]).await,
+                  DishBy::Active(rest_num, group_num, dish_num) => client.query_one(&stmt, &[&rest_num, &group_num, &dish_num]).await,
+               };
+
+               // Возвращаем результат
+               match rows {
+                  Ok(row) => Some(Dish::from_db(&row)),
+                  Err(e) => {
+                     // Сообщаем об ошибке и возвращаем пустой результат
+                     settings::log(&format!("Error dish: {}", e)).await;
+                     None
+                  }
+               }
+            }
             Err(e) => {
                // Сообщаем об ошибке и возвращаем пустой результат
-               settings::log(&format!("Error dish: {}", e)).await;
+               settings::log(&format!("db::dish_list prepare: {}", e)).await;
                None
             }
          }
