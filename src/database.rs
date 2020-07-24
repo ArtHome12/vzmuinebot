@@ -671,7 +671,14 @@ pub async fn rest_group_remove(rest_num: i32, group_num: i32) -> bool {
                            let res = trans.execute("UPDATE dishes SET group_num = group_num - 1 WHERE rest_num=$1::INTEGER AND group_num>$2::INTEGER", &[&rest_num, &group_num])
                            .await;
                            match res {
-                              Ok(_) => return true,   // возвращаем успех
+                              Ok(_) => {
+                                 // Завершаем транзацию и возвращаем успех
+                                 match trans.commit().await {
+                                    Ok(_) => return true,
+                                    Err(e) => settings::log(&format!("db::rest_group_remove commit: {}", e)).await,
+                                 }
+                                 
+                              }
                               Err(e) => settings::log(&format!("db::rest_group_remove update dishes: {}", e)).await,
                            }
 
