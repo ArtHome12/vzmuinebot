@@ -21,8 +21,6 @@ use teloxide::{
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_postgres::{NoTls};
-use bb8;
-use bb8_postgres;
 use warp::Filter;
 use reqwest::StatusCode;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
@@ -314,11 +312,12 @@ async fn run() {
    }
 
    // Подготовим запросы к БД
-   /*if let Err(_) = database::PREP.set(prepare::PreparedStatements::from_db(database::DB.get().unwrap().get().await.unwrap()).await) {
+   let client = database::DB.get().unwrap().get().await.unwrap();
+   if let Err(_) = database::PREP.set(prepare::PreparedStatements::from_db(client).await) {
       let s = format!("Something wrong with PreparedStatements");
       settings::log(&s).await;
       panic!(s);
-   }*/
+   }
 
    // Проверим существование таблиц и если их нет, создадим
    if database::is_tables_exist().await {

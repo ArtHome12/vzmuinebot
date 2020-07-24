@@ -7,14 +7,16 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-/*use tokio_postgres::{Statement,}; 
+use tokio_postgres::{Statement,}; 
+use deadpool_postgres::{Client,};
+
 
 // Поддерживаемые запросы
 pub struct PreparedStatements {
    pub rest_list_all : Statement,
    pub rest_list_category : Statement,
    pub rest_list_time : Statement,
-   pub restaurant_id : Statement,
+  /* pub restaurant_id : Statement,
    pub restaurant_num : Statement,
    pub group_list_all : Statement,
    pub group_list_category : Statement,
@@ -39,13 +41,11 @@ pub struct PreparedStatements {
    pub ticket_with_owners : Statement,
    pub basket_edit_stage : Statement,
    pub basket_next_stage : Statement,
-   pub basket_stage : Statement,
+   pub basket_stage : Statement,*/
 }
 
-type Client<'a> = bb8::PooledConnection<'a, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>;
-
 impl PreparedStatements {
-   pub async fn from_db<'a>(client: Client<'a>) -> Self {
+   pub async fn from_db(client: Client) -> Self {
       PreparedStatements{
          rest_list_all : client.prepare("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r
                ORDER BY rest_num").await.unwrap(),
@@ -84,4 +84,4 @@ impl PreparedStatements {
          // client,
       }
    }
-}*/
+}

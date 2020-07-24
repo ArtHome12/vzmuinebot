@@ -19,14 +19,14 @@ use deadpool_postgres::{Pool,};
 
 
 use crate::settings;
-// use crate::prepare;
+use crate::prepare;
 
 // Пул клиентов БД
 //type Pool = bb8::Pool<bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>;
 pub static DB: OnceCell<Pool> = OnceCell::new();
 
 // Подготовленные запросы
-// pub static PREP: OnceCell<prepare::PreparedStatements> = OnceCell::new();
+pub static PREP: OnceCell<prepare::PreparedStatements> = OnceCell::new();
 
 
 // ============================================================================
@@ -86,7 +86,11 @@ pub async fn rest_list(by: RestListBy) -> Option<RestList> {
 
          // Выполним нужный запрос
          let rows =  match by {
-            RestListBy::All => {
+            RestListBy::All => client.query(&PREP.get().unwrap().rest_list_all, &[]).await,
+            RestListBy::Category(cat_id) => client.query(&PREP.get().unwrap().rest_list_category, &[&cat_id]).await,
+            RestListBy::Time(time) => client.query(&PREP.get().unwrap().rest_list_time, &[&time]).await,
+
+            /*RestListBy::All => {
                client.query("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r
                   ORDER BY rest_num", &[]
                ).await
@@ -102,7 +106,7 @@ pub async fn rest_list(by: RestListBy) -> Option<RestList> {
                   INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
                   ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE", &[&time]
                ).await
-            }
+            }*/
          };
 
          // Возвращаем результат
