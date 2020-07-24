@@ -627,7 +627,7 @@ pub async fn rest_group_edit_time(rest_num: i32, group_num: i32, opening_time: N
    }
 }
 
-// Удаляет группу и изменяет порядковый номер оставшихся групп, в т.ч. и у блюд. НУЖНЫ ТРАНЗАКЦИИ!!!
+// Удаляет группу и изменяет порядковый номер оставшихся групп, в т.ч. и у блюд
 pub async fn rest_group_remove(rest_num: i32, group_num: i32) -> bool {
    // Возвращает истину, если блюд у группы нет
    async fn no_dishes(rest_num: i32, group_num: i32) -> bool {
@@ -677,15 +677,12 @@ pub async fn rest_group_remove(rest_num: i32, group_num: i32) -> bool {
                                     Ok(_) => return true,
                                     Err(e) => settings::log(&format!("db::rest_group_remove commit: {}", e)).await,
                                  }
-                                 
                               }
                               Err(e) => settings::log(&format!("db::rest_group_remove update dishes: {}", e)).await,
                            }
-
                         }
                         Err(e) => settings::log(&format!("db::rest_group_remove update groups: {}", e)).await,
                      }      
-      
                   }
                   Err(e) => settings::log(&format!("db::rest_group_remove delete from groups: {}", e)).await,
                }
@@ -988,29 +985,47 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
    }
 }
 
-
-// Удаление блюда, ДОЛЖНА БЫТЬ ТРАНЗАКЦИЯ
+// Удаление блюда
 pub async fn rest_dish_remove(rest_num: i32, group_num: i32, dish_num: i32) -> bool {
-  // Выполняем запрос. Должно быть начало транзакции, потом коммит, но transaction требует mut
-  let query = DB.get().unwrap().get().await.unwrap()
-  .execute("DELETE FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
-  .await;
-  match query {
-     Ok(1) => {
-        // Номера оставшихся блюд перенумеровываем для исключения дырки
-        let query = DB.get().unwrap().get().await.unwrap()
-        .execute("UPDATE dishes SET dish_num = dish_num - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num > $3::INTEGER", &[&rest_num, &group_num, &dish_num])
-        .await;
-        match query {
-           _ => {
-              // Удаляем блюдо из заказов пользователей
-              dish_remove_from_orders(rest_num, group_num, dish_num).await;
-              true
-           }
-        }
-     }
-     _ => false,
-  }
+   // Получим клиента БД из пула
+   match DB.get().unwrap().get().await.as_mut() {
+      Ok(client) => {
+         // Начинаем транзакцию
+         match client.transaction().await {
+            Ok(trans) => {
+
+               // Удаляем блюдо
+               let res = trans.execute("DELETE FROM dishes WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
+               .await;
+               match res {
+                  Ok(_) => {
+
+                     // Номера оставшихся блюд перенумеровываем для исключения дырки
+                     let res = trans.execute("UPDATE dishes SET dish_num = dish_num - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num > $3::INTEGER", &[&rest_num, &group_num, &dish_num])
+                     .await;
+                     match res {
+                        Ok(_) => {
+                           // Завершаем транзацию, удаляем блюдо из заказов пользователей и возвращаем успех
+                           match trans.commit().await {
+                              Ok(_) => {
+                                 dish_remove_from_orders(rest_num, group_num, dish_num).await;
+                                 return true;
+                              }
+                              Err(e) => settings::log(&format!("db::rest_group_remove commit: {}", e)).await,
+                           }
+                        }
+                        Err(e) => settings::log(&format!("db::rest_dish_remove update (rest_num={}, group_num={}, dish_num={}): {}", rest_num, group_num, dish_num, e)).await,
+                     }
+                  },
+                  Err(e) => settings::log(&format!("db::rest_dish_remove delete (rest_num={}, group_num={}, dish_num={}): {}", rest_num, group_num, dish_num, e)).await,
+               }
+            }
+            Err(e) => settings::log(&format!("db::rest_dish_remove transaction (rest_num={}, group_num={}, dish_num={}): {}", rest_num, group_num, dish_num, e)).await,
+         }
+      }
+      Err(e) => settings::log(&format!("db::rest_dish_remove no db client (rest_num={}, group_num={}, dish_num={}): {}", rest_num, group_num, dish_num, e)).await,
+   }
+   false
 }
 
 // Изменение цены блюда
