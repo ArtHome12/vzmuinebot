@@ -1299,46 +1299,87 @@ async fn dish_remove_from_orders(rest_num: i32, group_num: i32, dish_num: i32) {
 
 // Возвращает количество порций блюда в корзине
 pub async fn amount_in_basket(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> i32 {
-   // Выполняем запрос
-   let query = DB.get().unwrap().get().await.unwrap()
-   .query("SELECT amount FROM orders WHERE user_id=$1::INTEGER AND  rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&user_id, &rest_num, &group_num, &dish_num])
-   .await;
+   // Получим клиента БД из пула
+   match DB.get().unwrap().get().await {
+      Ok(client) => {
 
-   match query {
-      Ok(data) => if !data.is_empty() {
-         data[0].get(0)
-      } else {
-         0
+         // Подготовим запрос
+         let statement = client.prepare("SELECT amount FROM orders WHERE user_id=$1::INTEGER AND  rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER")
+         .await;
+
+         // Если запрос подготовлен успешно, выполняем его
+         match statement {
+            Ok(stmt) => {
+               let rows = client.query_one(&stmt, &[&user_id, &rest_num, &group_num, &dish_num]).await;
+
+               // Возвращаем результат
+               match rows {
+                  Ok(data) => return data.get(0),
+                  Err(e) => {
+                     // Сообщаем об ошибке и возвращаем пустой результат
+                     settings::log(&format!("db::group(rest_num={}, group_num{}): {}", rest_num, group_num, e)).await;
+                  }
+               }
+            }
+            Err(e) => {
+               // Сообщаем об ошибке и возвращаем пустой результат
+               settings::log(&format!("db::group prepare: {}", e)).await;
+            }
+         }
+      },
+      Err(e) => {
+         settings::log(&format!("Error group, no db client: {}", e)).await;
       }
-      _ => 0,
    }
+
+   // Раз попали сюда, значит ничего нет
+   0
 }
 
 // Добавляет блюдо в корзину, возвращая новое количество
 pub async fn add_dish_to_basket(rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> Result<i32, ()> {
+   // Выполняет запрос и обрабатывает результат
+   async fn execute(query_str: &str, rest_num: i32, group_num: i32, dish_num: i32, user_id: i32) -> bool {
+      match DB.get().unwrap().get().await {
+         Ok(client) => {
+            // Подготовим запрос
+            let statement = client.prepare(query_str).await;
+   
+            // Если запрос подготовлен успешно, выполняем его
+            match statement {
+               Ok(stmt) => {
+                  let rows = client.execute(&stmt, &[&rest_num, &group_num, &dish_num, &user_id]).await;
+   
+                  // Возвращаем результат
+                  match rows {
+                     Ok(1) => return true,
+                     Err(e) => settings::log(&format!("db::add_dish_to_basket (rest_num={}, group_num={}, dish_num={}, user_id={}): {}", rest_num, group_num, dish_num, user_id, e)).await,
+                     _ => settings::log(&format!("db::add_dish_to_basket more than 1 (rest_num={}, group_num={}, dish_num={}, user_id={})", rest_num, group_num, dish_num, user_id)).await,
+                  }
+               }
+               Err(e) => settings::log(&format!("db::add_dish_to_basket: {}", e)).await,
+            }
+         },
+         Err(e) => settings::log(&format!("Error db::add_dish_to_basket, no db client: {}", e)).await,
+      }
+      false
+   }
+   
    // Текущее количество экземпляров в корзине
    let old_amount = amount_in_basket(rest_num, group_num, dish_num, user_id).await;
 
    // Если такая запись уже есть, надо увеличить на единицу количество, иначе создать новую запись
-   if old_amount > 0 {
-      // Выполняем запрос
-      let query = DB.get().unwrap().get().await.unwrap()
-      .execute("UPDATE orders SET amount = amount + 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER", &[&rest_num, &group_num, &dish_num, &user_id])
-      .await;
-      match query {
-         Ok(_) => Ok(old_amount + 1),
-         _ => Err(()),
-      }
+   let query_str = if old_amount > 0 {
+      "UPDATE orders SET amount = amount + 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER"
    } else {
-      // Выполняем запрос
-      let query = DB.get().unwrap().get().await.unwrap()
-      .execute("INSERT INTO orders (rest_num, group_num, dish_num, user_id, amount) 
-         VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, 1)", &[&rest_num, &group_num, &dish_num, &user_id])
-      .await;
-      match query {
-         Ok(_) => Ok(1),
-         _ => Err(()),
-      }
+      "INSERT INTO orders (rest_num, group_num, dish_num, user_id, amount) VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, 1)"
+   };
+
+   // Выполняем запрос
+   if execute(query_str, rest_num, group_num, dish_num, user_id).await {
+      Ok(old_amount + 1)
+   } else {
+      Err(())
    }
 }
 
