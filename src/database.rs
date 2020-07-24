@@ -119,8 +119,6 @@ pub async fn rest_list(by: RestListBy) -> Option<RestList> {
                None
             }
          }
-
-
       },
       Err(e) => {
          settings::log(&format!("Error rest_list, no db client: {}", e)).await;
@@ -135,26 +133,35 @@ pub async fn restaurant(by: RestBy) -> Option<Restaurant> {
    match DB.get().unwrap().get().await {
       Ok(client) => {
 
-         // Выполним нужный запрос
-         let rows =  match by {
-            RestBy::Id(user_id) => {
-               client.query_one("SELECT user_id, title, info, active, enabled, rest_num, image_id, opening_time, closing_time FROM restaurants
-               WHERE user_id=$1::INTEGER", &[&user_id]
-               ).await
-            },
-            RestBy::Num(rest_num) => {
-               client.query_one("SELECT user_id, title, info, active, enabled, rest_num, image_id, opening_time, closing_time FROM restaurants
-               WHERE rest_num=$1::INTEGER", &[&rest_num]
-               ).await
-            },
-         };
+         // Подготовим нужный запрос с кешем благодаря пулу
+         let statement = match by {
+            RestBy::Id(_user_id) => client.prepare("SELECT user_id, title, info, active, enabled, rest_num, image_id, opening_time, closing_time FROM restaurants
+               WHERE user_id=$1::INTEGER"),
+            RestBy::Num(_rest_num) => client.prepare("SELECT user_id, title, info, active, enabled, rest_num, image_id, opening_time, closing_time FROM restaurants
+               WHERE rest_num=$1::INTEGER"),
+         }.await;
 
-         // Возвращаем результат
-         match rows {
-            Ok(row) => Some(Restaurant::from_db(&row)),
+         // Если запрос подготовлен успешно, выполняем его
+         match statement {
+            Ok(stmt) => {
+               let rows = match by {
+                  RestBy::Id(user_id) => client.query_one(&stmt, &[&user_id]).await,
+                  RestBy::Num(rest_num) => client.query_one(&stmt, &[&rest_num]).await,
+               };
+
+               // Возвращаем результат
+               match rows {
+                  Ok(row) => Some(Restaurant::from_db(&row)),
+                  Err(e) => {
+                     // Сообщаем об ошибке и возвращаем пустой результат
+                     settings::log(&format!("db::restaurant: {}", e)).await;
+                     None
+                  }
+               }
+            }
             Err(e) => {
                // Сообщаем об ошибке и возвращаем пустой результат
-               settings::log(&format!("Error restaurant: {}", e)).await;
+               settings::log(&format!("db::restaurant prepare: {}", e)).await;
                None
             }
          }
@@ -452,31 +459,41 @@ pub async fn group_list(by: GroupListBy) -> Option<GroupList> {
    match DB.get().unwrap().get().await {
       Ok(client) => {
 
-         // Выполним нужный запрос
-         let rows =  match by {
-            GroupListBy::All(rest_num) => {
-               client.query("SELECT g.rest_num, g.group_num, g.title, g.info, g.active, g.cat_id, g.opening_time, g.closing_time FROM groups as g
-                  WHERE rest_num=$1::INTEGER", &[&rest_num]
-            ).await
-            },
-            GroupListBy::Category(rest_num, cat_id) => {
-               client.query("SELECT g.rest_num, g.group_num, g.title, g.info, g.active, g.cat_id, g.opening_time, g.closing_time FROM groups as g
-                  WHERE active = TRUE AND rest_num=$1::INTEGER AND cat_id=$2::INTEGER", &[&rest_num, &cat_id]
-               ).await
-            },
-            GroupListBy::Time(rest_num, time) => {
-               client.query("SELECT g.rest_num, g.group_num, g.title, g.info, g.active, g.cat_id, g.opening_time, g.closing_time FROM groups as g
-                  WHERE active = TRUE AND rest_num=$1::INTEGER AND (($2::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $2::TIME > opening_time))", &[&rest_num, &time]
-               ).await
-            }
-         };
+         // Подготовим нужный запрос с кешем благодаря пулу
+         let statement = match by {
+            GroupListBy::All(_rest_num) =>
+               client.prepare("SELECT g.rest_num, g.group_num, g.title, g.info, g.active, g.cat_id, g.opening_time, g.closing_time FROM groups as g
+                  WHERE rest_num=$1::INTEGER"),
+            GroupListBy::Category(_rest_num, _cat_id) =>
+               client.prepare("SELECT g.rest_num, g.group_num, g.title, g.info, g.active, g.cat_id, g.opening_time, g.closing_time FROM groups as g
+                  WHERE active = TRUE AND rest_num=$1::INTEGER AND cat_id=$2::INTEGER"),
+            GroupListBy::Time(_rest_num, _time) =>
+               client.prepare("SELECT g.rest_num, g.group_num, g.title, g.info, g.active, g.cat_id, g.opening_time, g.closing_time FROM groups as g
+                  WHERE active = TRUE AND rest_num=$1::INTEGER AND (($2::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $2::TIME > opening_time))"),
+         }.await;
 
-         // Возвращаем результат
-         match rows {
-            Ok(data) => if data.is_empty() {None} else {Some(data.into_iter().map(|row| (Group::from_db(&row))).collect())},
+         // Если запрос подготовлен успешно, выполняем его
+         match statement {
+            Ok(stmt) => {
+               let rows = match by {
+                  GroupListBy::All(rest_num) => client.query(&stmt, &[&rest_num]).await,
+                  GroupListBy::Category(rest_num, cat_id) => client.query(&stmt, &[&rest_num, &cat_id]).await,
+                  GroupListBy::Time(rest_num, time) => client.query(&stmt, &[&rest_num, &time]).await,
+               };
+
+               // Возвращаем результат
+               match rows {
+                  Ok(data) => if data.is_empty() {None} else {Some(data.into_iter().map(|row| (Group::from_db(&row))).collect())},
+                  Err(e) => {
+                     // Сообщаем об ошибке и возвращаем пустой результат
+                     settings::log(&format!("db::group_list: {}", e)).await;
+                     None
+                  }
+               }
+            }
             Err(e) => {
                // Сообщаем об ошибке и возвращаем пустой результат
-               settings::log(&format!("Error group_list: {}", e)).await;
+               settings::log(&format!("db::group_list prepare: {}", e)).await;
                None
             }
          }
@@ -494,17 +511,29 @@ pub async fn group(rest_num: i32, group_num: i32) -> Option<Group> {
    match DB.get().unwrap().get().await {
       Ok(client) => {
 
-         // Выполняем запрос
-         let rows =  client.query_one("SELECT g.rest_num, g.group_num, g.title, g.info, g.active, g.cat_id, g.opening_time, g.closing_time FROM groups as g
-            WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num]
-         ).await;
+         // Подготовим запрос
+         let statement = client.prepare("SELECT g.rest_num, g.group_num, g.title, g.info, g.active, g.cat_id, g.opening_time, g.closing_time FROM groups as g
+            WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER")
+         .await;
 
-         // Возвращаем результат
-         match rows {
-            Ok(data) => Some(Group::from_db(&data)),
+         // Если запрос подготовлен успешно, выполняем его
+         match statement {
+            Ok(stmt) => {
+               let rows = client.query_one(&stmt, &[&rest_num, &group_num]).await;
+
+               // Возвращаем результат
+               match rows {
+                  Ok(data) => Some(Group::from_db(&data)),
+                  Err(e) => {
+                     // Сообщаем об ошибке и возвращаем пустой результат
+                     settings::log(&format!("db::group(rest_num={}, group_num{}): {}", rest_num, group_num, e)).await;
+                     None
+                  }
+               }
+            }
             Err(e) => {
                // Сообщаем об ошибке и возвращаем пустой результат
-               settings::log(&format!("Error group(rest_num={}, group_num{}): {}", rest_num, group_num, e)).await;
+               settings::log(&format!("db::group prepare: {}", e)).await;
                None
             }
          }
