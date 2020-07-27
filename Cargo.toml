@@ -1,6 +1,6 @@
 [package]
 name = "vzmuinebot"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Artem Khomenko <_mag12@yahoo.com>"]
 edition = "2018"
 
@@ -15,8 +15,8 @@ teloxide = "0.2.0"
 
 # Used to setup a webhook
 warp = "0.2.4"
-reqwest = "0.10.6"
-serde_json = "1.0.56"
+reqwest = "0.10.7"
+serde_json = "1.0.57"
 
 # My
 smart-default = "0.6.0"
@@ -24,12 +24,10 @@ parse-display = "0.1.2"
 enum-utils = "*"
 chrono = "*"
 text_io = "0.1.8"
-#runtime-fmt = "0.4.0"
+#runtime-fmt = "0.4.1"
 arraylib = "0.3.0"
 
 # Database
 once_cell = "*"
 tokio-postgres = { version = "0.5.5", features = ["with-chrono-0_4"] }
 deadpool-postgres = "0.5.6"
-#bb8 = "0.4.2"
-#bb8-postgres = "0.4.0"

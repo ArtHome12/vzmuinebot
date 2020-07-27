@@ -15,14 +15,23 @@ use teloxide::{
 };
 use tokio_postgres::{Row, };
 use std::collections::BTreeMap;
-use deadpool_postgres::{Pool,};
-
+use deadpool_postgres::{Pool, Client};
 
 use crate::settings;
 
 // Пул клиентов БД
 pub static DB: OnceCell<Pool> = OnceCell::new();
 
+// Обёртка, возвращает пул клиентов
+async fn db_client() -> Option<Client> {
+   match DB.get().unwrap().get().await {
+      Ok(client) => Some(client),
+      Err(e) => {
+         settings::log(&format!("No db client: {}", e)).await;
+         None
+      }
+   }
+}
 
 // ============================================================================
 // [Restaurants table]
@@ -76,52 +85,48 @@ pub type RestList = Vec<Restaurant>;
 // Возвращает список ресторанов
 pub async fn rest_list(by: RestListBy) -> Option<RestList> {
    // Получим клиента БД из пула
-   match DB.get().unwrap().get().await {
-      Ok(client) => {
+   let client = db_client().await?;
+   
+   // Выберем нужный текст запроса
+   let statement_text =  match by {
+      RestListBy::All =>
+         "SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r
+         ORDER BY rest_num",
+      RestListBy::Category(_cat_id) =>
+         "SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
+            INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
+            WHERE r.active = TRUE",
+      RestListBy::Time(_time) =>
+         "SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
+            INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
+            ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE",
+   };
 
-         // Подготовим нужный запрос с кешем благодаря пулу
-         let statement =  match by {
-            RestListBy::All =>
-               client.prepare("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r
-               ORDER BY rest_num"),
-            RestListBy::Category(_cat_id) =>
-               client.prepare("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
-                  INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE cat_id=$1::INTEGER AND active = TRUE) g ON r.rest_num = g.rest_num 
-                  WHERE r.active = TRUE"),
-            RestListBy::Time(_time) =>
-               client.prepare("SELECT r.user_id, r.title, r.info, r.active, r.enabled, r.rest_num, r.image_id, r.opening_time, r.closing_time FROM restaurants AS r 
-                  INNER JOIN (SELECT DISTINCT rest_num FROM groups WHERE active = TRUE AND 
-                  ($1::TIME BETWEEN opening_time AND closing_time) OR (opening_time > closing_time AND $1::TIME > opening_time)) g ON r.rest_num = g.rest_num WHERE r.active = TRUE"),
-         }.await;
+   // Подготовим нужный запрос с кешем благодаря пулу
+   let statement = client.prepare(statement_text).await;
 
-         // Если запрос подготовлен успешно, выполняем его
-         match statement {
-            Ok(stmt) => {
-               let rows = match by {
-                  RestListBy::All => client.query(&stmt, &[]).await,
-                  RestListBy::Category(cat_id) => client.query(&stmt, &[&cat_id]).await,
-                  RestListBy::Time(time) => client.query(&stmt, &[&time]).await,
-               };
+   // Если запрос подготовлен успешно, выполняем его
+   match statement {
+      Ok(stmt) => {
+         let rows = match by {
+            RestListBy::All => client.query(&stmt, &[]).await,
+            RestListBy::Category(cat_id) => client.query(&stmt, &[&cat_id]).await,
+            RestListBy::Time(time) => client.query(&stmt, &[&time]).await,
+         };
 
-               // Возвращаем результат
-               match rows {
-                  Ok(data) => if data.is_empty() {None} else {Some(data.into_iter().map(|row| (Restaurant::from_db(&row))).collect())},
-                  Err(e) => {
-                     // Сообщаем об ошибке и возвращаем пустой результат
-                     settings::log(&format!("db::rest_list: {}", e)).await;
-                     None
-                  }
-               }
-            }
+         // Возвращаем результат
+         match rows {
+            Ok(data) => if data.is_empty() {None} else {Some(data.into_iter().map(|row| (Restaurant::from_db(&row))).collect())},
             Err(e) => {
                // Сообщаем об ошибке и возвращаем пустой результат
-               settings::log(&format!("db::rest_list prepare: {}", e)).await;
+               settings::log(&format!("db::rest_list: {}", e)).await;
                None
             }
          }
-      },
+      }
       Err(e) => {
-         settings::log(&format!("Error rest_list, no db client: {}", e)).await;
+         // Сообщаем об ошибке и возвращаем пустой результат
+         settings::log(&format!("db::rest_list prepare: {}", e)).await;
          None
       }
    }
@@ -1832,3 +1837,13 @@ pub fn str_time(time: NaiveTime) -> String {
    }
 }
 
+// Выводит ошибку в лог
+/*impl<T, E: fmt::Debug> Result<T, E> {
+
+   pub async fn err(self, msg: &str) -> T {
+      match self {
+         Ok(t) => t,
+         Err(e) => settings::log(&format!("{}: {}", msg, e)).await;
+      }
+   }
+}*/
