@@ -13,7 +13,7 @@ use text_io::try_scan;
 use teloxide::{
    types::{User},
 };
-use tokio_postgres::{Row, };
+use tokio_postgres::{Row, types::ToSql, };
 use std::collections::BTreeMap;
 use deadpool_postgres::{Pool, Client};
 
@@ -86,7 +86,7 @@ pub type RestList = Vec<Restaurant>;
 pub async fn rest_list(by: RestListBy) -> Option<RestList> {
    // Получим клиента БД из пула
    let client = db_client().await?;
-   
+
    // Выберем нужный текст запроса
    let statement_text =  match by {
       RestListBy::All =>
@@ -135,44 +135,37 @@ pub async fn rest_list(by: RestListBy) -> Option<RestList> {
 // Возвращает информацию о ресторане
 pub async fn restaurant(by: RestBy) -> Option<Restaurant> {
    // Получим клиента БД из пула
-   match DB.get().unwrap().get().await {
-      Ok(client) => {
+   let client = db_client().await?;
 
-         // Подготовим нужный запрос с кешем благодаря пулу
-         let statement = match by {
-            RestBy::Id(_user_id) => client.prepare("SELECT user_id, title, info, active, enabled, rest_num, image_id, opening_time, closing_time FROM restaurants
-               WHERE user_id=$1::INTEGER"),
-            RestBy::Num(_rest_num) => client.prepare("SELECT user_id, title, info, active, enabled, rest_num, image_id, opening_time, closing_time FROM restaurants
-               WHERE rest_num=$1::INTEGER"),
-         }.await;
+   // Подготовим нужный запрос с кешем благодаря пулу
+   let statement = match by {
+      RestBy::Id(_user_id) => client.prepare("SELECT user_id, title, info, active, enabled, rest_num, image_id, opening_time, closing_time FROM restaurants
+         WHERE user_id=$1::INTEGER"),
+      RestBy::Num(_rest_num) => client.prepare("SELECT user_id, title, info, active, enabled, rest_num, image_id, opening_time, closing_time FROM restaurants
+         WHERE rest_num=$1::INTEGER"),
+   }.await;
 
-         // Если запрос подготовлен успешно, выполняем его
-         match statement {
-            Ok(stmt) => {
-               let rows = match by {
-                  RestBy::Id(user_id) => client.query_one(&stmt, &[&user_id]).await,
-                  RestBy::Num(rest_num) => client.query_one(&stmt, &[&rest_num]).await,
-               };
+   // Если запрос подготовлен успешно, выполняем его
+   match statement {
+      Ok(stmt) => {
+         let rows = match by {
+            RestBy::Id(user_id) => client.query_one(&stmt, &[&user_id]).await,
+            RestBy::Num(rest_num) => client.query_one(&stmt, &[&rest_num]).await,
+         };
 
-               // Возвращаем результат
-               match rows {
-                  Ok(row) => Some(Restaurant::from_db(&row)),
-                  Err(e) => {
-                     // Сообщаем об ошибке и возвращаем пустой результат
-                     settings::log(&format!("db::restaurant: {}", e)).await;
-                     None
-                  }
-               }
-            }
+         // Возвращаем результат
+         match rows {
+            Ok(row) => Some(Restaurant::from_db(&row)),
             Err(e) => {
                // Сообщаем об ошибке и возвращаем пустой результат
-               settings::log(&format!("db::restaurant prepare: {}", e)).await;
+               settings::log(&format!("db::restaurant: {}", e)).await;
                None
             }
          }
-      },
+      }
       Err(e) => {
-         settings::log(&format!("Error restaurant, no db client: {}", e)).await;
+         // Сообщаем об ошибке и возвращаем пустой результат
+         settings::log(&format!("db::restaurant prepare: {}", e)).await;
          None
       }
    }
@@ -184,7 +177,7 @@ pub async fn rest_num(user : Option<&teloxide::types::User>) -> Result<i32, ()> 
    let u = user.ok_or(())?;
 
    // Выполняем запрос
-   let rows = DB.get().unwrap().get().await.unwrap()
+   let rows = db_client().await.ok_or(())?
    .query_one("SELECT rest_num FROM restaurants WHERE user_id=$1::INTEGER AND enabled = TRUE", &[&u.id])
    .await;
 
@@ -195,15 +188,23 @@ pub async fn rest_num(user : Option<&teloxide::types::User>) -> Result<i32, ()> 
    }
 }
 
-pub async fn rest_edit_title(rest_num: i32, new_str: String) -> bool {
+async fn exec(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> bool {
+   // Получим клиента БД из пула
+   let client = db_client().await;
+   if client.is_none() {return false;}
+
    // Выполняем запрос
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("UPDATE restaurants SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER", &[&new_str, &rest_num])
-   .await;
+   let query = client.unwrap().execute(sql_text, params).await;
+
+   // При успешной операции должна быть обновлена 1 запись
    match query {
        Ok(1) => true,
        _ => false,
    }
+}
+
+pub async fn rest_edit_title(rest_num: i32, new_str: String) -> bool {
+   exec("UPDATE restaurants SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER", &[&new_str, &rest_num]).await
 }
 
 pub async fn rest_edit_info(rest_num: i32, new_str: String) -> bool {
@@ -1837,13 +1838,3 @@ pub fn str_time(time: NaiveTime) -> String {
    }
 }
 
-// Выводит ошибку в лог
-/*impl<T, E: fmt::Debug> Result<T, E> {
-
-   pub async fn err(self, msg: &str) -> T {
-      match self {
-         Ok(t) => t,
-         Err(e) => settings::log(&format!("{}: {}", msg, e)).await;
-      }
-   }
-}*/
