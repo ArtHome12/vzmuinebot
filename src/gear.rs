@@ -152,7 +152,7 @@ pub async fn handle_commands(cx: cmd::Cx<()>) -> cmd::Res {
          }
             cmd::Gear::HoldCaterer(user_id) => {
                let s = if settings::is_admin(cx.update.from()) {
-                  let res = db::is_success(db::hold_caterer(user_id).await.is_ok());
+                  let res = db::is_success(db::hold_caterer(user_id).await);
                   format!("Блокировка ресторатора {}: {}", user_id, res)
                } else {
                   String::from("Недостаточно прав")
