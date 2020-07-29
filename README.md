@@ -24,7 +24,7 @@ Connection to PostgeSQL database
 URL for webhook
 `HOST=your_app_name.herokuapp.com`
 
-Port of your https
+Port of your https. Perhaps you should not set the port explicitly, it will provide the hosting (try first without this variable)
 `PORT=443`
 
 Token from bot father
