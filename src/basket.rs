@@ -23,9 +23,6 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    // Извлечём параметры
    let user_id = cx.dialogue;
    
-   // Получаем информацию из БД
-   let (baskets, grand_total) = db::basket_contents(user_id).await;
-
    // Информация о едоке
    let basket_info = db::user_basket_info(user_id).await;
    let eater_info = if let Some(info) = basket_info {
@@ -35,34 +32,40 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       String::from("Информации о пользователе нет")
    };
 
-   if baskets.is_empty() {
-      // Отображаем информацию и кнопки меню
-      cx.answer(format!("{}\n\nКорзина пуста", eater_info))
-      .reply_markup(cmd::Basket::bottom_markup())
-      .disable_notification(true)
-      .send()
-      .await?;
-   } else {
-      // Отображаем приветствие
-      let s = format!("{}\n\nОбщая сумма заказа {}. Вы можете самостоятельно скопировать сообщения с заказом и переслать напрямую в заведение или в независимую доставку, а потом очистить корзину. Либо воспользоваться кнопками под заказом (перепроверьте ваши контактные данные)", eater_info, settings::price_with_unit(grand_total));
-      cx.answer(s)
-      .reply_markup(cmd::Basket::bottom_markup())
-      .disable_notification(true)
-      .send()
-      .await?;
-
-      // Отдельными сообщениями выводим рестораны
-      for basket in baskets {
-
-         // Текст сообщения о корзине
-         let s = make_basket_message_text(&basket);
-
-         // Отправляем сообщение
-         cx.answer(s)
-         .reply_markup(cmd::Basket::inline_markup_send(basket.rest_id))
+   // Получаем информацию из БД
+   match db::basket_contents(user_id).await {
+      None => {
+         // Отображаем информацию и кнопки меню
+         cx.answer(format!("{}\n\nКорзина пуста", eater_info))
+         .reply_markup(cmd::Basket::bottom_markup())
          .disable_notification(true)
          .send()
          .await?;
+      }
+      Some(baskets) => {
+         // Отображаем приветствие
+         let s = format!("{}\n\nОбщая сумма заказа {}. Вы можете самостоятельно скопировать сообщения с заказом и переслать напрямую в заведение или в независимую доставку, а потом очистить корзину. Либо воспользоваться кнопками под заказом (перепроверьте ваши контактные данные)", eater_info, settings::price_with_unit(baskets.grand_total));
+         cx.answer(s)
+         .reply_markup(cmd::Basket::bottom_markup())
+         .disable_notification(true)
+         .send()
+         .await?;
+
+         // Отдельными сообщениями выводим рестораны
+         for basket in baskets.baskets {
+
+            let rest_id = basket.rest_id;
+
+            // Текст сообщения о корзине
+            let s = make_basket_message_text(&Some(basket));
+
+            // Отправляем сообщение
+            cx.answer(s)
+            .reply_markup(cmd::Basket::inline_markup_send(rest_id))
+            .disable_notification(true)
+            .send()
+            .await?;
+         }
       }
    }
 
@@ -133,18 +136,23 @@ async fn send_messages_for_caterer(bot: Arc<Bot>, chat: ChatId, caterer_id: i32)
 }
 
 // Формирует сообщение с собственной корзиной
-pub fn make_basket_message_text(basket: &db::Basket) -> String {
-   // Заголовок с информацией о ресторане
-   let mut s = basket.restaurant.clone();
+pub fn make_basket_message_text(basket: &Option<db::Basket>) -> String {
+   match basket {
+      None => String::from("корзина пуста"),
+      Some(basket) => {
+         // Заголовок с информацией о ресторане
+         let mut s = basket.restaurant.clone();
 
-   // Дополняем данными о блюдах
-   for dish in basket.dishes.clone() {
-      s.push_str(&format!("\n{}", dish))
+         // Дополняем данными о блюдах
+         for dish in basket.dishes.clone() {
+            s.push_str(&format!("\n{}", dish))
+         }
+
+         // Итоговая стоимость
+         s.push_str(&format!("\nВсего: {}", settings::price_with_unit(basket.total)));
+         s
+      }
    }
-
-   // Итоговая стоимость
-   s.push_str(&format!("\nВсего: {}", settings::price_with_unit(basket.total)));
-   s
 }
 
 // Формирует сообщение с заказом для показа едоку

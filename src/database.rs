@@ -1000,11 +1000,9 @@ impl UserBasketInfo {
 
 pub async fn user_basket_info(user_id: i32) -> Option<UserBasketInfo> {
    // Получаем клиента БД
-   let client = db_client().await;
-   if client.is_none() {return None;}
+   let client = db_client().await?;
 
-   let query = client.unwrap()
-   .query("SELECT user_name, contact, address, pickup from users WHERE user_id=$1::INTEGER", &[&user_id])
+   let query = client.query("SELECT user_name, contact, address, pickup from users WHERE user_id=$1::INTEGER", &[&user_id])
    .await;
 
    match query {
@@ -1237,29 +1235,41 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
    let old_amount = amount_in_basket(rest_num, group_num, dish_num, user_id).await;
 
    // Если остался только один экземпляр или меньше, удаляем запись, иначе редактируем.
-   if old_amount > 1 {
-      // Выполняем запрос
-      let query = DB.get().unwrap().get().await.unwrap()
-      .execute("UPDATE orders SET amount = amount - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER", &[&rest_num, &group_num, &dish_num, &user_id])
-      .await;
-      match query {
-         Ok(_) => Ok(old_amount - 1),
-         _ => Err(()),
-      }
+   let query_str = if old_amount > 1 {
+      "UPDATE orders SET amount = amount - 1 WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER"
    } else {
-      // Выполняем запрос
-      let query = DB.get().unwrap().get().await.unwrap()
-      .execute("DELETE FROM orders WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER", &[&rest_num, &group_num, &dish_num, &user_id])
-      .await;
-      match query {
-         Ok(_) => Ok(0),
-         _ => Err(()),
+      "DELETE FROM orders WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER AND user_id=$4::INTEGER"
+   };
+
+   // Получим клиента БД из пула
+   let client = db_client().await;
+   if client.is_none() {return Err(());}
+
+   // В клиенте действительное значение, можно смело развернуть
+   let client = client.unwrap();
+
+   // Подготовим запрос
+   let statement = client.prepare(query_str).await;
+
+   // Если запрос подготовлен успешно, выполняем его
+   match statement {
+      Ok(stmt) => {
+         let rows = client.execute(&stmt, &[&rest_num, &group_num, &dish_num, &user_id]).await;
+
+         // Возвращаем результат
+         match rows {
+            Ok(1) => return Ok(old_amount - 1),
+            Err(e) => settings::log(&format!("db::remove_dish_from_basket (rest_num={}, group_num={}, dish_num={}, user_id={}): {}", rest_num, group_num, dish_num, user_id, e)).await,
+            _ => settings::log(&format!("db::remove_dish_from_basket more than 1 (rest_num={}, group_num={}, dish_num={}, user_id={})", rest_num, group_num, dish_num, user_id)).await,
+         }
       }
+      Err(e) => settings::log(&format!("db::remove_dish_from_basket: {}", e)).await,
    }
+   Err(())
 }
 
 
-// Содержимое корзины
+// Содержимое корзины одного ресторана
 pub struct Basket {
    pub rest_id: i32,
    pub restaurant: String,
@@ -1267,92 +1277,141 @@ pub struct Basket {
    pub total: i32,
 }
 
-// Возвращает содержимое корзины и итоговую сумму заказа
-pub async fn basket_contents(user_id: i32) -> (Vec<Basket>, i32) {
-   // Для возврата результата
-   let mut res = Vec::<Basket>::new();
-   let mut grand_total: i32 = 0;
+// Содержимое корзин всех ресторанов
+pub struct Baskets {
+   pub baskets: Vec<Basket>,
+   pub grand_total: i32,
+}
 
-   // Выберем все упомянутые рестораны
-   let rows = DB.get().unwrap().get().await.unwrap()
-   .query("SELECT DISTINCT r.title, r.info, r.rest_num, r.user_id FROM orders as o 
-      INNER JOIN restaurants r ON o.rest_num = r.rest_num 
-         WHERE o.user_id = $1::INTEGER
-         ORDER BY r.rest_num", 
-      &[&user_id])
-      .await;
 
-   // Двигаемся по каждому ресторану
-   if let Ok(data) = rows {
-      for record in data {
-         // Данные из запроса о ресторане
-         let rest_title: String = record.get(0);
-         let rest_info: String = record.get(1);
-         let rest_num: i32 = record.get(2);
-         let rest_id: i32 = record.get(3);
 
-         // Создаём корзину ресторана
-         let basket = basket_content(user_id, rest_num, rest_id, &rest_title, &rest_info, false).await;
-
-         // Обновляем общий итог
-         grand_total += basket.total;
-
-         // Помещаем ресторан в список
-         res.push(basket);
+/*impl Basket {
+   pub fn from_db(row: &Row) -> Self {
+      Self {
+         rest_id: row.get(0),
+         restaurant: row.get(1),
+         dishes: row.get(2),
+         total: row.get(3),
       }
    }
-   // Возвращаем результат
-   (res, grand_total)
+}*/
+
+// Возвращает содержимое корзины всех ресторанов и итоговую сумму заказа
+pub async fn basket_contents(user_id: i32) -> Option<Baskets> {
+   // Получим клиента БД из пула
+   let client = db_client().await?;
+
+   // Подготовим нужный запрос с кешем благодаря пулу - выберем все упомянутые рестораны
+   let statement = client.prepare("SELECT DISTINCT r.title, r.info, r.rest_num, r.user_id FROM orders as o 
+      INNER JOIN restaurants r ON o.rest_num = r.rest_num 
+      WHERE o.user_id = $1::INTEGER
+      ORDER BY r.rest_num"
+   ).await;
+
+   // Если запрос подготовлен успешно, выполняем его
+   match statement {
+      Ok(stmt) => {
+         let rows = client.query(&stmt, &[&user_id]).await;
+      
+         // Возвращаем результат
+         match rows {
+            Ok(data) => if !data.is_empty() {
+               // Для возврата результата
+               let mut baskets = Vec::<Basket>::new();
+               let mut grand_total: i32 = 0;
+
+               // Проходим по всем записям
+               for record in data {
+                  // Данные из запроса о ресторане
+                  let rest_title: String = record.get(0);
+                  let rest_info: String = record.get(1);
+                  let rest_num: i32 = record.get(2);
+                  let rest_id: i32 = record.get(3);
+         
+                  // Создаём корзину ресторана
+                  let basket_opt = basket_content(user_id, rest_num, rest_id, &rest_title, &rest_info, false).await;
+         
+                  if let Some(basket) = basket_opt {
+                     // Обновляем общий итог
+                     grand_total += basket.total;
+
+                     // Помещаем ресторан в список
+                     baskets.push(basket);
+                  }
+               }
+
+               // Возвращаем результат
+               return Some(Baskets{baskets, grand_total})
+            }
+            Err(e) => settings::log(&format!("db::basket_contents: {}", e)).await,
+         }
+      }
+      Err(e) => settings::log(&format!("db::basket_contents prepare: {}", e)).await,
+   }
+   None
 }
 
 // Возвращает содержимое корзины и итоговую сумму заказа
-pub async fn basket_content(user_id: i32, rest_num: i32, rest_id: i32, rest_title: &String, rest_info: &String, no_commands: bool) -> Basket {
-   // Запрашиваем информацию о блюдах ресторана
-   let rows = DB.get().unwrap().get().await.unwrap()
-   .query("SELECT d.title, d.price, o.amount, o.group_num, o.dish_num FROM orders as o 
+pub async fn basket_content(user_id: i32, rest_num: i32, rest_id: i32, rest_title: &String, rest_info: &String, no_commands: bool) -> Option<Basket> {
+   // Получим клиента БД из пула
+   let client = db_client().await?;
+
+   // Подготовим нужный запрос с кешем благодаря пулу - информация о блюдах ресторана
+   let statement = client.prepare("SELECT d.title, d.price, o.amount, o.group_num, o.dish_num FROM orders as o 
       INNER JOIN groups g ON o.rest_num = g.rest_num AND o.group_num = g.group_num
       INNER JOIN dishes d ON o.rest_num = d.rest_num AND o.group_num = d.group_num AND o.dish_num = d.dish_num
-         WHERE o.user_id = $1::INTEGER AND o.rest_num = $2::INTEGER
-         ORDER BY o.group_num, o.dish_num", 
-      &[&user_id, &rest_num])
-      .await;
-   
-   // Для общей суммы заказа по ресторану
-   let mut total: i32 = 0;
+      WHERE o.user_id = $1::INTEGER AND o.rest_num = $2::INTEGER
+      ORDER BY o.group_num, o.dish_num"
+   ).await;
 
-   // Двигаемся по каждой записи и сохраняем информацию о блюде
-   let mut dishes = Vec::<String>::new();
-   if let Ok(data) = rows {
-      for record in data {
-         // Данные из запроса
-         let title: String = record.get(0);
-         let price: i32 = record.get(1);
-         let amount: i32 = record.get(2);
-         let group_num: i32 = record.get(3);
-         let dish_num: i32 = record.get(4);
+   // Если запрос подготовлен успешно, выполняем его
+   match statement {
+      Ok(stmt) => {
+         let rows = client.query(&stmt, &[&user_id, &rest_num]).await;
+         match rows {
+            Ok(data) => if !data.is_empty() {
 
-         // Добавляем стоимость в итог
-         total += price * amount;
+               // Для общей суммы заказа по ресторану
+               let mut total: i32 = 0;
+               let mut dishes = Vec::<String>::new();
 
-         // Строка с информацией о блюде - с командами или без
-         let s = if no_commands {
-            format!("{}: {} x {} шт. = {}", title, price, amount, settings::price_with_unit(price * amount))
-         } else {
-            format!("{}: {} x {} шт. = {} /del{}", title, price, amount, settings::price_with_unit(price * amount), make_key_3_int(rest_num, group_num, dish_num))
-         };
+               // Двигаемся по каждой записи и сохраняем информацию о блюде
+               for record in data {
+                  // Данные из запроса
+                  let title: String = record.get(0);
+                  let price: i32 = record.get(1);
+                  let amount: i32 = record.get(2);
+                  let group_num: i32 = record.get(3);
+                  let dish_num: i32 = record.get(4);
 
-         // Помещаем блюдо в список
-         dishes.push(s);
+                  // Добавляем стоимость в итог
+                  total += price * amount;
+
+                  // Строка с информацией о блюде - с командами или без
+                  let s = if no_commands {
+                     format!("{}: {} x {} шт. = {}", title, price, amount, settings::price_with_unit(price * amount))
+                  } else {
+                     format!("{}: {} x {} шт. = {} /del{}", title, price, amount, settings::price_with_unit(price * amount), make_key_3_int(rest_num, group_num, dish_num))
+                  };
+
+                  // Помещаем блюдо в список
+                  dishes.push(s);
+               }
+            
+               // Возвращаем результат
+               return Some(Basket{
+                  rest_id,
+                  restaurant: format!("{}. {}. {}\n", rest_num, rest_title, rest_info),
+                  dishes,
+                  total,
+               })
+            }
+            Err(e) => settings::log(&format!("db::basket_content: {}", e)).await,
+         }
       }
+      Err(e) => settings::log(&format!("db::basket_content prepare: {}", e)).await,
    }
-
-   // Возвращаем корзину текущего ресторана
-   Basket {
-      rest_id,
-      restaurant: format!("{}. {}. {}\n", rest_num, rest_title, rest_info),
-      dishes,
-      total,
-   }
+   None
 }
 
 
