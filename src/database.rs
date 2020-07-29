@@ -1268,7 +1268,6 @@ pub async fn remove_dish_from_basket(rest_num: i32, group_num: i32, dish_num: i3
    Err(())
 }
 
-
 // Содержимое корзины одного ресторана
 pub struct Basket {
    pub rest_id: i32,
@@ -1282,19 +1281,6 @@ pub struct Baskets {
    pub baskets: Vec<Basket>,
    pub grand_total: i32,
 }
-
-
-
-/*impl Basket {
-   pub fn from_db(row: &Row) -> Self {
-      Self {
-         rest_id: row.get(0),
-         restaurant: row.get(1),
-         dishes: row.get(2),
-         total: row.get(3),
-      }
-   }
-}*/
 
 // Возвращает содержимое корзины всех ресторанов и итоговую сумму заказа
 pub async fn basket_contents(user_id: i32) -> Option<Baskets> {
@@ -1414,17 +1400,9 @@ pub async fn basket_content(user_id: i32, rest_num: i32, rest_id: i32, rest_titl
    None
 }
 
-
 // Очищает корзину указанного пользователя
 pub async fn clear_basket(user_id: i32) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("DELETE FROM orders WHERE user_id = $1::INTEGER", &[&user_id])
-   .await;
-   match query {
-      Ok(_) => true,
-      _ => false,
-   }
+   execute("DELETE FROM orders WHERE user_id = $1::INTEGER", &[&user_id]).await
 }
 
 // ============================================================================
@@ -1507,34 +1485,15 @@ pub async fn ticket_with_owners(ticket_id: i32) -> Option<TicketWithOwners> {
 
 // Изменяет стадию заказа
 pub async fn basket_edit_stage(ticket_id: i32, stage: i32) -> bool {
-   // Выполняем запрос
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("UPDATE tickets SET stage = $1::INTEGER WHERE ticket_id=$2::INTEGER AND stage < 5", &[&stage, &ticket_id])
-   .await;
-   match query {
-      Ok(1) => true,
-      Err(e) => {
-         settings::log(&format!("Error db::basket_edit_stage: {}", e)).await;
-      false
-      }
-      _ => false,
-   }
+   execute("UPDATE tickets SET stage = $1::INTEGER WHERE ticket_id=$2::INTEGER AND stage < 5", &[&stage, &ticket_id])
+   .await
 }
 
 // Увеличивает стадию заказа
 pub async fn basket_next_stage(user_id: i32, ticket_id: i32) -> bool {
    // Выполняем запрос, статус ещё должен быть незавешённым
-   let query = DB.get().unwrap().get().await.unwrap()
-   .execute("UPDATE tickets SET stage = stage + 1 WHERE ticket_id=$1::INTEGER AND stage < 5 AND (stage != 4 OR caterer_id != $2::INTEGER)", &[&ticket_id, &user_id])
-   .await;
-   match query {
-      Ok(1) => true,
-      Err(e) => {
-         settings::log(&format!("Error db::basket_next_stage: {}", e)).await;
-         false
-      }
-      _ => false,
-   }
+   execute("UPDATE tickets SET stage = stage + 1 WHERE ticket_id=$1::INTEGER AND stage < 5 AND (stage != 4 OR caterer_id != $2::INTEGER)", &[&ticket_id, &user_id])
+   .await
 }
 
 // Возвращает стадию заказа
@@ -1725,4 +1684,3 @@ async fn db_client() -> Option<Client> {
       }
    }
 }
-
