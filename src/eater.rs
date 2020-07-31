@@ -183,6 +183,30 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
             Some(next(cmd::Dialogue::MessageToCaterer(user_id, caterer_id, origin)))
          } else {None}
       },
-      cmd::Common::UnknownCommand => None,
+      cmd::Common::UnknownCommand => {
+         // Попробуем поискать блюда по заданной строке
+         match db::dish_list(db::DishesBy::Find(format!("%{}%", command))).await {
+            None => {
+               None
+            }
+            Some(dishes) => {
+               // Сформируем строку вида "название /ссылка\n"
+               let dishes_desc = dishes.into_iter().map(|dish| (format!("   {} /dish{}\n", dish.title_with_price(), dish.num))).collect::<String>();
+
+               // Отправляем пользователю результат
+               let res = cx.answer(dishes_desc)
+               .reply_markup(origin.m)
+               .disable_notification(true)
+               .send()
+               .await;
+
+               // Остаёмся в исходном режиме
+               Some(origin.d)
+            }
+         };
+
+
+         None
+      },
    }
 }

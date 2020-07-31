@@ -632,6 +632,7 @@ impl Dish {
 pub enum DishesBy {
    All(i32, i32),    // все по номеру ресторана и группы
    Active(i32, i32), // только активные по номеру ресторана и группы
+   Find(String), // поиск по названию
 }
 
 // Список блюд
@@ -650,6 +651,9 @@ pub async fn dish_list(by: DishesBy) -> Option<DishList> {
       DishesBy::Active(_rest_num, _group_num) =>
          "SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
          WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE ORDER BY dish_num",
+      DishesBy::Find(_) =>
+         "SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
+         WHERE UPPER(d.title) like UPPER($1::VARCHAR(100))",
    };
 
    // Подготовим нужный запрос с кешем благодаря пулу
@@ -661,6 +665,7 @@ pub async fn dish_list(by: DishesBy) -> Option<DishList> {
          let rows = match by {
             DishesBy::All(rest_num, group_num) => client.query(&stmt, &[&rest_num, &group_num]).await,
             DishesBy::Active(rest_num, group_num) => client.query(&stmt, &[&rest_num, &group_num]).await,
+            DishesBy::Find(text) => client.query(&stmt, &[&text]).await,
          };
 
          // Возвращаем результат
