@@ -652,10 +652,10 @@ pub async fn dish_list(by: DishesBy) -> Option<DishList> {
          "SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
          WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND active = TRUE ORDER BY dish_num",
       DishesBy::Find(_) =>
-         "SELECT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
+         "SELECT DISTINCT d.rest_num, d.dish_num, d.title, d.info, d.active, d.group_num, d.price, d.image_id FROM dishes as d
          INNER JOIN restaurants r ON r.rest_num = d.rest_num
          INNER JOIN groups g ON g.group_num = d.group_num
-         WHERE r.active = TRUE AND g.active = TRUE AND UPPER(d.title) like UPPER($1::VARCHAR(100))",
+         WHERE r.active = TRUE r.enabled = TRUE AND g.active = TRUE AND UPPER(d.title) like UPPER($1::VARCHAR(100)) ORDER BY r.rest_num, g.group_num",
    };
 
    // Подготовим нужный запрос с кешем благодаря пулу

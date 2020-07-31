@@ -70,8 +70,9 @@ pub struct DialogueState {
 #[derive(Copy, Clone, PartialEq)]
 pub enum Common {
    Start,
-   StartArgs(i32, i32, i32),
+   StartArgs(i32, i32, i32), // rest_num, group_num, dish_num
    SendMessage(i32), // caterer_id
+   Goto(i32, i32, i32),   // rest_num, group_num, dish_num
    UnknownCommand,
 }
 
@@ -87,6 +88,10 @@ impl Common {
             } else if input.get(..7).unwrap_or_default() == "/start " {
                let r_part = input.get(7..).unwrap_or_default();
                if let Ok((first, second, third)) = db::parse_key_3_int(r_part) {Common::StartArgs(first, second, third)}
+               else {Common::UnknownCommand}
+            } else if input.get(..5).unwrap_or_default() == "/goto" {
+               let r_part = input.get(5..).unwrap_or_default();
+               if let Ok((first, second, third)) = db::parse_key_3_int(r_part) {Common::Goto(first, second, third)}
                else {Common::UnknownCommand}
             } else {Common::UnknownCommand}
          }

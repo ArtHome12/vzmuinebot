@@ -32,10 +32,10 @@ pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
       if settings::is_admin(cx.update.from()) {
          String::from("Начат новый сеанс. Список команд администратора в описании: https://github.com/ArtHome12/vzmuinebot")
       } else {
-         String::from("Начат новый сеанс. Пожалуйста, выберите в основном меню снизу какие заведения показать.")
+         String::from("Начат новый сеанс. Пожалуйста, выберите в основном меню снизу какие заведения показать, либо отправьте часть названия блюда для поиска.")
       }
    } else {
-      String::from("Пожалуйста, выберите в основном меню снизу какие заведения показать.")
+      String::from("Пожалуйста, выберите в основном меню снизу какие заведения показать, либо отправьте часть названия блюда для поиска.")
    };
    
    // Если сессия началась с какой-то команды, то попробуем сразу её обработать
@@ -114,6 +114,53 @@ pub async fn handle_commands(cx: cmd::Cx<()>) -> cmd::Res {
 // Обработка глобальных команд
 pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box<cmd::DialogueState>) -> Option<cmd::Res> {
 
+   async fn goto(cx: cmd::Cx<()>, rest_num: i32, group_num: i32, dish_num: i32)-> Option<cmd::Res> {
+
+      // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
+      let compact_mode = db::user_compact_interface(cx.update.from()).await;
+
+      // Название ресторана
+      let rest_name = if let Some(rest) = db::restaurant(db::RestBy::Num(rest_num)).await {rest.title} else {String::from("ошибка получения названия")};
+
+      // Приветственное сообщение и меню с кнопками (иначе нижнего меню не будет в инлайн-режиме)
+      let s = format!("Добро пожаловать в {}!", rest_name);
+
+         // Режим "со ссылками"
+      if compact_mode {
+         // Приветственное сообщение с правильным миню
+         cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), &s, cmd::EaterGroup::markup()).await;
+
+         // Если третий аргумент нулевой, надо отобразить группу
+         if dish_num == 0 {
+            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, rest_num, group_num));
+            Some(eat_dish::next_with_info(new_cx).await)
+         } else {
+            // Отображаем сразу блюдо
+            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, rest_num, group_num));
+            Some(eat_dish::show_dish(new_cx, dish_num).await)
+         }
+      } else {
+         // Приветственное сообщение с правильным миню
+         cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), &s, cmd::User::main_menu_markup()).await;
+
+         // Режим с инлайн-кнопками
+         if dish_num == 0 {
+            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, rest_num, group_num));
+            if !eat_dish::force_inline_interface(new_cx).await {
+               settings::log(&format!("Error handle_common_commands StartArgs: ({}, {}, {})", rest_num, group_num, dish_num)).await;
+            }
+         } else {
+            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (rest_num, group_num, dish_num));
+            if !eat_dish::force_dish_inline(new_cx).await {
+               settings::log(&format!("Error handle_common_commands2 StartArgs: ({}, {}, {})", rest_num, group_num, dish_num)).await;
+            }
+         }
+
+         // Всегда в главном меню
+         Some(next(cmd::Dialogue::UserMode))
+      }
+   }
+
    match cmd::Common::from(command) {
       cmd::Common::Start => {
          // Отображаем приветственное сообщение и меню с кнопками
@@ -122,51 +169,8 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
 
          Some(next(cmd::Dialogue::UserMode))
       },
-      cmd::Common::StartArgs(first, second, third) => {
-         // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
-         let compact_mode = db::user_compact_interface(cx.update.from()).await;
-
-         // Название ресторана
-         let rest_name = if let Some(rest) = db::restaurant(db::RestBy::Num(first)).await {rest.title} else {String::from("ошибка получения названия")};
-
-         // Приветственное сообщение и меню с кнопками (иначе нижнего меню не будет в инлайн-режиме)
-         let s = format!("Добро пожаловать в {}!", rest_name);
-
-            // Режим "со ссылками"
-         if compact_mode {
-            // Приветственное сообщение с правильным миню
-            cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), &s, cmd::EaterGroup::markup()).await;
-
-            // Если третий аргумент нулевой, надо отобразить группу
-            if third == 0 {
-               let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
-               Some(eat_dish::next_with_info(new_cx).await)
-            } else {
-               // Отображаем сразу блюдо
-               let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
-               Some(eat_dish::show_dish(new_cx, third).await)
-            }
-         } else {
-            // Приветственное сообщение с правильным миню
-            cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), &s, cmd::User::main_menu_markup()).await;
-
-            // Режим с инлайн-кнопками
-            if third == 0 {
-               let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, first, second));
-               if !eat_dish::force_inline_interface(new_cx).await {
-                  settings::log(&format!("Error handle_common_commands StartArgs: ({}, {}, {})", first, second, third)).await;
-               }
-            } else {
-               let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (first, second, third));
-               if !eat_dish::force_dish_inline(new_cx).await {
-                  settings::log(&format!("Error handle_common_commands2 StartArgs: ({}, {}, {})", first, second, third)).await;
-               }
-            }
-
-            // Всегда в главном меню
-            Some(next(cmd::Dialogue::UserMode))
-         }
-      },
+      cmd::Common::StartArgs(first, second, third) => goto(cx, first, second, third).await,
+      cmd::Common::Goto(first, second, third) => goto(cx, first, second, third).await,
       cmd::Common::SendMessage(caterer_id) => {
          // Отправляем приглашение ввести строку со слешем в меню для отмены
          let res = cx.answer(format!("Введите сообщение (/ для отмены)"))
@@ -191,7 +195,7 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
             }
             Some(dishes) => {
                // Сформируем строку вида "название /ссылка\n"
-               let dishes_desc = dishes.into_iter().map(|dish| (format!("   {} /dish{}\n", dish.title_with_price(), dish.num))).collect::<String>();
+               let dishes_desc = dishes.into_iter().map(|dish| (format!("{} /goto{}\n", dish.title_with_price(), db::make_key_3_int(dish.rest_num, dish.group_num, dish.num)))).collect::<String>();
 
                // Отправляем пользователю результат
                let res = cx.answer(dishes_desc)
