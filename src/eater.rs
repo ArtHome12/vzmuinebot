@@ -200,13 +200,12 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
                .send()
                .await;
 
-               // Остаёмся в исходном режиме
-               Some(origin.d)
+               if let Ok(_) = res {
+                  // Остаёмся в исходном режиме
+                  Some(next(origin.d))
+               } else {None}
             }
-         };
-
-
-         None
+         }
       },
    }
 }
