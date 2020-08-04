@@ -1,6 +1,6 @@
 [package]
 name = "vzmuinebot"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Artem Khomenko <_mag12@yahoo.com>"]
 edition = "2018"
 
@@ -11,7 +11,7 @@ log = "0.4.11"
 futures = "0.3.5"
 tokio = "0.2.22"
 pretty_env_logger = "0.4.0"
-teloxide = "0.2.0"
+teloxide = "0.3.0"
 
 # Used to setup a webhook
 warp = "0.2.4"
