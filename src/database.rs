@@ -992,8 +992,10 @@ impl UserBasketInfo {
       if "Location" == self.address.get(..8).unwrap_or_default() {String::from("на карте")} else {self.address.clone()}
    }
 
-   // Возвращает id сообщения с локацией, если имеется
+   // Возвращает id сообщения с локацией, если имеется и не самовывоз
    pub fn address_message_id(&self) -> Option<i32> {
+      if self.pickup {return None;}
+
       if "Location" == self.address.get(..8).unwrap_or_default() {
          // Пытаемся получить продолжение строки
          if let Some(s) = self.address.get(8..) {
