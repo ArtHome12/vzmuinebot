@@ -178,42 +178,42 @@ pub async fn rest_num(user : Option<&teloxide::types::User>) -> Result<i32, ()> 
 }
 
 pub async fn rest_edit_title(rest_num: i32, new_str: String) -> bool {
-   execute("UPDATE restaurants SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER", true, &[&new_str, &rest_num]).await
+   execute_one("UPDATE restaurants SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER", &[&new_str, &rest_num]).await
 }
 
 pub async fn rest_edit_info(rest_num: i32, new_str: String) -> bool {
-   execute("UPDATE restaurants SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER", true, &[&new_str, &rest_num]).await
+   execute_one("UPDATE restaurants SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER", &[&new_str, &rest_num]).await
 }
 
 pub async fn rest_toggle(rest_num: i32) -> bool {
-   execute("UPDATE restaurants SET active = NOT active WHERE rest_num=$1::INTEGER", true, &[&rest_num]).await
+   execute_one("UPDATE restaurants SET active = NOT active WHERE rest_num=$1::INTEGER", &[&rest_num]).await
 }
 
 // Изменение фото ресторана
 pub async fn rest_edit_image(rest_num: i32, image_id: &String) -> bool {
-   execute("UPDATE restaurants SET image_id = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER", true, &[&image_id, &rest_num]).await
+   execute_one("UPDATE restaurants SET image_id = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER", &[&image_id, &rest_num]).await
 }
 
 // Изменяет владельца ресторана
 pub async fn transfer_ownership(rest_num: i32, new_user_id: i32) -> bool {
-   execute("UPDATE restaurants SET user_id = $1::INTEGER WHERE rest_num=$2::INTEGER", true, &[&new_user_id, &rest_num]).await
+   execute_one("UPDATE restaurants SET user_id = $1::INTEGER WHERE rest_num=$2::INTEGER", &[&new_user_id, &rest_num]).await
 }
 
 // Регистрация или разблокировка ресторатора
 pub async fn register_caterer(user_id: i32) -> bool {
    // Попробуем разблокировать пользователя
-   if execute("UPDATE restaurants SET enabled = TRUE WHERE user_id=$1::INTEGER", true, &[&user_id]).await {
+   if execute_one("UPDATE restaurants SET enabled = TRUE WHERE user_id=$1::INTEGER", &[&user_id]).await {
       return true;
    }
 
    // Cоздадим новую запись
-   execute("INSERT INTO restaurants (user_id, title, info, active, enabled, opening_time, closing_time) VALUES ($1::INTEGER, 'Мяу', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE, '07:00', '23:00')", true, &[&user_id])
+   execute_one("INSERT INTO restaurants (user_id, title, info, active, enabled, opening_time, closing_time) VALUES ($1::INTEGER, 'Мяу', 'Наш адрес 00NDC, доставка @nick, +84123', FALSE, TRUE, '07:00', '23:00')", &[&user_id])
    .await
 }
 
 // Приостановка доступа ресторатора
 pub async fn hold_caterer(user_id: i32) -> bool {
-   execute("UPDATE restaurants SET enabled = FALSE, active = FALSE WHERE user_id=$1::INTEGER", true, &[&user_id]).await
+   execute_one("UPDATE restaurants SET enabled = FALSE, active = FALSE WHERE user_id=$1::INTEGER", &[&user_id]).await
 }
 
 // Проверяет существование таблиц
@@ -315,9 +315,9 @@ pub async fn create_tables() -> bool {
 // Обновляет время работы ресторана на основании времени, заданного в группах
 pub async fn rest_edit_time(rest_num: i32) -> bool {
    // Определяем самое частое время открытия и закрытия групп и записываем его как время ресторана
-   execute("UPDATE restaurants SET opening_time = (SELECT opening_time FROM groups WHERE rest_num = $1::INTEGER GROUP BY opening_time ORDER BY Count(*) DESC LIMIT 1),
+   execute_one("UPDATE restaurants SET opening_time = (SELECT opening_time FROM groups WHERE rest_num = $1::INTEGER GROUP BY opening_time ORDER BY Count(*) DESC LIMIT 1),
       closing_time = (SELECT closing_time FROM groups WHERE rest_num = $1::INTEGER GROUP BY closing_time ORDER BY Count(*) DESC LIMIT 1)
-      WHERE rest_num = $1::INTEGER", true, &[&rest_num])
+      WHERE rest_num = $1::INTEGER", &[&rest_num])
    .await
 }
 
@@ -468,7 +468,7 @@ pub async fn group(rest_num: i32, group_num: i32) -> Option<Group> {
 
 // Добавляет новую группу
 pub async fn rest_add_group(rest_num: i32, new_str: String) -> bool {
-   execute("INSERT INTO groups (rest_num, group_num, title, info, active, cat_id, opening_time, closing_time) 
+   execute_one("INSERT INTO groups (rest_num, group_num, title, info, active, cat_id, opening_time, closing_time) 
       VALUES (
          $1::INTEGER, 
          (SELECT COUNT(*) FROM groups WHERE rest_num=$2::INTEGER) + 1,
@@ -478,34 +478,34 @@ pub async fn rest_add_group(rest_num: i32, new_str: String) -> bool {
          2,
          '07:00',
          '23:00'
-      )", true, &[&rest_num, &rest_num, &new_str]
+      )", &[&rest_num, &rest_num, &new_str]
    )
    .await
 }
 
 // Изменяет название группы
 pub async fn rest_group_edit_title(rest_num: i32, group_num: i32, new_str: String) -> bool {
-   execute("UPDATE groups SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", true, &[&new_str, &rest_num, &group_num]).await
+   execute_one("UPDATE groups SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_str, &rest_num, &group_num]).await
 }
 
 // Изменяет описание группы
 pub async fn rest_group_edit_info(rest_num: i32, group_num: i32, new_str: String) -> bool {
-   execute("UPDATE groups SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", true, &[&new_str, &rest_num, &group_num]).await
+   execute_one("UPDATE groups SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_str, &rest_num, &group_num]).await
 }
 
 // Переключает доступность группы
 pub async fn rest_group_toggle(rest_num: i32, group_num: i32) -> bool {
-   execute("UPDATE groups SET active = NOT active WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", true, &[&rest_num, &group_num]).await
+   execute_one("UPDATE groups SET active = NOT active WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER", &[&rest_num, &group_num]).await
 }
 
 // Изменяет категорию группы
 pub async fn rest_group_edit_category(rest_num: i32, group_num: i32, new_cat : i32) -> bool {
-   execute("UPDATE groups SET cat_id = $1::INTEGER WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", true, &[&new_cat, &rest_num, &group_num]).await
+   execute_one("UPDATE groups SET cat_id = $1::INTEGER WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_cat, &rest_num, &group_num]).await
 }
 
 // Изменяет время доступности группы
 pub async fn rest_group_edit_time(rest_num: i32, group_num: i32, opening_time: NaiveTime, closing_time: NaiveTime) -> bool {
-   if execute("UPDATE groups SET opening_time = $1::TIME, closing_time = $2::TIME WHERE rest_num=$3::INTEGER AND group_num=$4::INTEGER", true, &[&opening_time, &closing_time, &rest_num, &group_num]).await {
+   if execute_one("UPDATE groups SET opening_time = $1::TIME, closing_time = $2::TIME WHERE rest_num=$3::INTEGER AND group_num=$4::INTEGER", &[&opening_time, &closing_time, &rest_num, &group_num]).await {
       rest_edit_time(rest_num).await
    } else {
       false
@@ -740,7 +740,7 @@ pub async fn dish(by: DishBy) -> Option<Dish> {
 
 // Добавляет новое блюдо
 pub async fn rest_add_dish(rest_num: i32, group_num: i32, new_str: String) -> bool {
-   execute("INSERT INTO dishes (rest_num, dish_num, title, info, active, group_num, price) 
+   execute_one("INSERT INTO dishes (rest_num, dish_num, title, info, active, group_num, price) 
    VALUES (
       $1::INTEGER, 
       (SELECT COUNT(*) FROM dishes WHERE rest_num = $2::INTEGER AND group_num = $3::INTEGER) + 1,
@@ -749,25 +749,25 @@ pub async fn rest_add_dish(rest_num: i32, group_num: i32, new_str: String) -> bo
       TRUE,
       $5::INTEGER,
       0
-   )", true, &[&rest_num, &rest_num, &group_num, &new_str, &group_num])
+   )", &[&rest_num, &rest_num, &group_num, &new_str, &group_num])
    .await
 }
 
 // Редактирование названия блюда
 pub async fn rest_dish_edit_title(rest_num: i32, group_num: i32, dish_num: i32, new_str: String) -> bool {
-   execute("UPDATE dishes SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", true, &[&new_str, &rest_num, &group_num, &dish_num])
+   execute_one("UPDATE dishes SET title = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&new_str, &rest_num, &group_num, &dish_num])
    .await
 }
 
 // Редактирование описания блюда
 pub async fn rest_dish_edit_info(rest_num: i32, group_num: i32, dish_num: i32, new_str: String) -> bool {
-   execute("UPDATE dishes SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", true, &[&new_str, &rest_num, &group_num, &dish_num])
+   execute_one("UPDATE dishes SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&new_str, &rest_num, &group_num, &dish_num])
    .await
 }
 
 // Переключение доступности блюда
 pub async fn rest_dish_toggle(rest_num: i32, group_num: i32, dish_num: i32) -> bool {
-   execute("UPDATE dishes SET active = NOT active WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", true, &[&rest_num, &group_num, &dish_num])
+   execute_one("UPDATE dishes SET active = NOT active WHERE rest_num=$1::INTEGER AND group_num=$2::INTEGER AND dish_num=$3::INTEGER", &[&rest_num, &group_num, &dish_num])
    .await
 }
 
@@ -793,7 +793,7 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
    match dish(DishBy::All(rest_num, old_group_num, dish_num)).await {
       Some(dish) => {
          // Добавляем блюдо в целевую группу
-         let res = execute("INSERT INTO dishes (rest_num, dish_num, title, info, active, group_num, price, image_id) 
+         let res = execute_one("INSERT INTO dishes (rest_num, dish_num, title, info, active, group_num, price, image_id) 
             VALUES (
                $1::INTEGER, 
                (SELECT COUNT(*) FROM dishes WHERE rest_num = $1::INTEGER AND group_num = $2::INTEGER) + 1,
@@ -803,7 +803,7 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
                $2::INTEGER,
                $6::INTEGER,
                $7::VARCHAR(255)
-            )", true, &[&dish.rest_num, &new_group_num, &dish.title, &dish.info, &dish.active, &dish.price, &dish.image_id]
+            )", &[&dish.rest_num, &new_group_num, &dish.title, &dish.info, &dish.active, &dish.price, &dish.image_id]
          )
          .await;
 
@@ -868,13 +868,13 @@ pub async fn rest_dish_remove(rest_num: i32, group_num: i32, dish_num: i32) -> b
 
 // Изменение цены блюда
 pub async fn rest_dish_edit_price(rest_num: i32, group_num: i32, dish_num: i32, price: i32) -> bool {
-   execute("UPDATE dishes SET price = $1::INTEGER WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", true, &[&price, &rest_num, &group_num, &dish_num])
+   execute_one("UPDATE dishes SET price = $1::INTEGER WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&price, &rest_num, &group_num, &dish_num])
    .await
 }
 
 // Изменение фото блюда
 pub async fn rest_dish_edit_image(rest_num: i32, group_num: i32, dish_num: i32, image_id: &String) -> bool {
-   execute("UPDATE dishes SET image_id = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", true, &[&image_id, &rest_num, &group_num, &dish_num])
+   execute_one("UPDATE dishes SET image_id = $1::VARCHAR(100) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&image_id, &rest_num, &group_num, &dish_num])
    .await
 }
 
@@ -895,8 +895,8 @@ async fn user_update_last_seen(user: Option<&User>) -> bool {
       } else {String::from("-")};
 
       // Создаём новую запись о пользователе
-      execute("INSERT INTO users (user_id, user_name, contact, address, last_seen, compact, pickup) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::VARCHAR(100), '-', NOW(), FALSE, TRUE)",
-         true, &[&u.id, &name, &contact]
+      execute_one("INSERT INTO users (user_id, user_name, contact, address, last_seen, compact, pickup) VALUES ($1::INTEGER, $2::VARCHAR(100), $3::VARCHAR(100), '-', NOW(), FALSE, FALSE)",
+         &[&u.id, &name, &contact]
       )
       .await;
    }
@@ -960,7 +960,7 @@ pub async fn user_compact_interface(user: Option<&User>) -> bool {
 // Переключает режим интерфейса
 pub async fn user_toggle_interface(user: Option<&User>) {
    if let Some(u) = user {
-      execute("UPDATE users SET compact = NOT compact WHERE user_id=$1::INTEGER", true, &[&u.id])
+      execute_one("UPDATE users SET compact = NOT compact WHERE user_id=$1::INTEGER", &[&u.id])
       .await;
    } else {
       // Если не передали пользователя, сообщим об этом
@@ -1003,7 +1003,7 @@ impl UserBasketInfo {
             if let Ok(res) = s.parse::<i32>() {Some(res)} else {None}
          } else {None}
       } else {None}
-   } 
+   }
 }
 
 
@@ -1030,7 +1030,7 @@ pub async fn user_basket_info(user_id: i32) -> Option<UserBasketInfo> {
 
 // Изменение имени пользователя
 pub async fn basket_edit_name(user_id: i32, s: String) -> bool {
-   execute("UPDATE users SET user_name = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", true, &[&s, &user_id])
+   execute_one("UPDATE users SET user_name = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
    .await
 }
 
@@ -1055,19 +1055,19 @@ pub async fn user_name_by_id(user_id: i32) -> String {
 
 // Изменение контакта пользователя
 pub async fn basket_edit_contact(user_id: i32, s: String) -> bool {
-   execute("UPDATE users SET contact = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", true, &[&s, &user_id])
+   execute_one("UPDATE users SET contact = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
    .await
 }
 
 // Изменение адреса пользователя
 pub async fn basket_edit_address(user_id: i32, s: String) -> bool {
-   execute("UPDATE users SET address = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", true, &[&s, &user_id])
+   execute_one("UPDATE users SET address = $1::VARCHAR(100) WHERE user_id=$2::INTEGER", &[&s, &user_id])
    .await
 }
 
 // Изменение способа доставки
 pub async fn basket_toggle_pickup(user_id: i32) -> bool {
-   execute("UPDATE users SET pickup = NOT pickup WHERE user_id=$1::INTEGER", true, &[&user_id])
+   execute_one("UPDATE users SET pickup = NOT pickup WHERE user_id=$1::INTEGER", &[&user_id])
    .await
 }
 
@@ -1411,7 +1411,7 @@ pub async fn basket_content(user_id: i32, rest_num: i32, rest_id: i32, rest_titl
 
 // Очищает корзину указанного пользователя
 pub async fn clear_basket(user_id: i32) -> bool {
-   execute("DELETE FROM orders WHERE user_id = $1::INTEGER", false, &[&user_id]).await
+   execute("DELETE FROM orders WHERE user_id = $1::INTEGER", &[&user_id]).await
 }
 
 // ============================================================================
@@ -1494,14 +1494,14 @@ pub async fn ticket_with_owners(ticket_id: i32) -> Option<TicketWithOwners> {
 
 // Изменяет стадию заказа
 pub async fn basket_edit_stage(ticket_id: i32, stage: i32) -> bool {
-   execute("UPDATE tickets SET stage = $1::INTEGER WHERE ticket_id=$2::INTEGER AND stage < 5", true, &[&stage, &ticket_id])
+   execute_one("UPDATE tickets SET stage = $1::INTEGER WHERE ticket_id=$2::INTEGER AND stage < 5", &[&stage, &ticket_id])
    .await
 }
 
 // Увеличивает стадию заказа
 pub async fn basket_next_stage(user_id: i32, ticket_id: i32) -> bool {
    // Выполняем запрос, статус ещё должен быть незавешённым
-   execute("UPDATE tickets SET stage = stage + 1 WHERE ticket_id=$1::INTEGER AND stage < 5 AND (stage != 4 OR caterer_id != $2::INTEGER)", true, &[&ticket_id, &user_id])
+   execute_one("UPDATE tickets SET stage = stage + 1 WHERE ticket_id=$1::INTEGER AND stage < 5 AND (stage != 4 OR caterer_id != $2::INTEGER)", &[&ticket_id, &user_id])
    .await
 }
 
@@ -1661,7 +1661,7 @@ pub fn str_time(time: NaiveTime) -> String {
 }
 
 // Обёртка, выполняет запрос, обновляющий 1 запись и возвращает истину, если успешно
-async fn execute(sql_text: &str, only_one : bool, params: &[&(dyn ToSql + Sync)]) -> bool {
+async fn execute_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> bool {
    // Получим клиента БД из пула
    let client = db_client().await;
    if client.is_none() {return false;}
@@ -1671,13 +1671,30 @@ async fn execute(sql_text: &str, only_one : bool, params: &[&(dyn ToSql + Sync)]
 
    // При успешной операции должна быть обновлена 1 запись
    match query {
-       Ok(1) => true,
-       Ok(n) => {
-         if only_one {
-            settings::log(&format!("db::execute({}): updated {} records instead one", sql_text, n)).await;
-            false
-         } else {true}
+      Ok(1) => true,
+      Ok(n) => {
+         settings::log(&format!("db::execute({}): updated {} records instead one", sql_text, n)).await;
+         false
       }
+      Err(e) => {
+         settings::log(&format!("db::execute({}): {}", sql_text, e)).await;
+         false
+      }
+   }
+}
+
+// Обёртка, выполняет запрос, без проверки на обновление только одной записи и возвращает истину, если успешно
+async fn execute(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> bool {
+   // Получим клиента БД из пула
+   let client = db_client().await;
+   if client.is_none() {return false;}
+
+   // Выполняем запрос
+   let query = client.unwrap().execute(sql_text, params).await;
+
+   // При успешной операции должна быть обновлена 1 запись
+   match query {
+      Ok(_) => true,
       Err(e) => {
          settings::log(&format!("db::execute({}): {}", sql_text, e)).await;
          false

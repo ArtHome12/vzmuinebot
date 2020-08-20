@@ -434,13 +434,41 @@ pub async fn edit_address_mode(cx: cmd::Cx<i32>) -> cmd::Res {
 
 // Отправляет сообщение ресторатору с корзиной пользователя
 pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, user_id: i32, message_id: i32) -> bool {
+   // Откуда и куда
+   let from = ChatId::Id(i64::from(user_id));
+   let to = ChatId::Id(i64::from(rest_id));
+
+   // Проверим корректность контактных данных
+   let basket_info = db::user_basket_info(user_id).await;
+   if basket_info.is_none() {
+      // Этот код никогда не должен выполниться
+      let msg = String::from("send_basket: Информации о пользователе нет");
+      settings::log(&msg).await;
+      let res = cx.bot.send_message(from.clone(), msg).send().await;
+      if let Err(e) = res {
+         let msg = format!("basket::send_basket 1(): {}", e);
+         settings::log(&msg).await;
+      }
+      return false;
+   }
+
+   // Проверка выше гарантирует отсутствие паники на unwrap()
+   let basket_info = basket_info.unwrap();
+
+   // Если не самовывоз, то должен быть задан контакт и адрес
+   if basket_info.contact.is_empty() && basket_info.address.is_empty() {
+      let msg = String::from("Пожалуйста, введите или контактную информацию для связи с вами не через телеграм, нажав /edit_contact или адрес /edit_address или переключитесь на самовывоз /toggle\nЭта информация будет сохранена для последующих заказов, при необходимости вы всегда сможете её изменить");
+      let res = cx.bot.send_message(from.clone(), msg).send().await;
+      if let Err(e) = res {
+         let msg = format!("basket::send_basket 1(): {}", e);
+         settings::log(&msg).await;
+      }
+      return false;
+   }
+
    // Начнём с запроса информации о ресторане-получателе
    match db::restaurant(db::RestBy::Id(rest_id)).await {
       Some(rest) => {
-
-         // Откуда и куда
-         let from = ChatId::Id(i64::from(user_id));
-         let to = ChatId::Id(i64::from(rest_id));
 
          // Заново сгенерируем текст исходного сообщения уже без команд /del в тексте, чтобы пересылать его
          let basket_with_no_commands = db::basket_content(user_id, rest.num, rest_id, &rest.title, &rest.info, true).await;
@@ -458,20 +486,15 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
          }
          
          // Информация о едоке
-         let basket_info = db::user_basket_info(user_id).await;
-         let (eater_info, location_message_id) = if let Some(info) = basket_info {
-            let method = if info.pickup {String::from("Cамовывоз")} else {format!("Курьером по адресу {}", info.address_label())};
-            (format!("Заказ от {}\nКонтакт: {}\n{}", info.name, info.contact, method), info.address_message_id())
-         } else {
-            (String::from("Информации о пользователе нет"), None)
-         };
+         let method = if basket_info.pickup {String::from("Cамовывоз")} else {format!("Курьером по адресу {}", basket_info.address_label())};
+         let eater_info = format!("Заказ от {}\nКонтакт: {}\n{}", basket_info.name, basket_info.contact, method);
 
          // Отправим сообщение с контактными данными
          settings::log_and_notify(&eater_info).await;
          match cx.bot.send_message(to.clone(), eater_info).send().await {
             Ok(_) => {
                // Перешлём сообщение с геолокацией, если она задана
-               if let Some(location_message) = location_message_id {
+               if let Some(location_message) = basket_info.address_message_id() {
 
                   settings::log_forward(from.clone(), location_message).await;
                   if let Err(e) = cx.bot.forward_message(to.clone(), from.clone(), location_message).send().await {
