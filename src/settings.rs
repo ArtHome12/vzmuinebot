@@ -18,7 +18,6 @@ use teloxide::{
 // Настройки
 pub static VARS: OnceCell<Vars> = OnceCell::new();
 
-
 // Хранит данные для работы логирования в чат
 #[derive(Clone)]
 pub struct ServiceChat {
