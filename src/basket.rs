@@ -442,7 +442,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
    let basket_info = db::user_basket_info(user_id).await;
    if basket_info.is_none() {
       // Этот код никогда не должен выполниться
-      let msg = String::from("send_basket: Информации о пользователе нет");
+      let msg = String::from("send_basket: Информации о пользователе нет, нажмите кнопку 'В начало', выберите блюдо заново");
       settings::log(&msg).await;
       let res = cx.bot.send_message(from.clone(), msg).send().await;
       if let Err(e) = res {
@@ -456,7 +456,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
    let basket_info = basket_info.unwrap();
 
    // Если не самовывоз, то должен быть задан контакт и адрес
-   if basket_info.address == String::from("-") {
+   if basket_info.address.len() < 3 {
       let msg = String::from("Пожалуйста, введите адрес, нажав /edit_address или переключитесь на самовывоз /toggle\nЭта информация будет сохранена для последующих заказов, при необходимости вы всегда сможете её изменить");
       let res = cx.bot.send_message(from.clone(), msg).send().await;
       if let Err(e) = res {
