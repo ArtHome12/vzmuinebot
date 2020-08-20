@@ -457,7 +457,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
 
    // Если не самовывоз, то должен быть задан контакт и адрес
    if basket_info.contact.is_empty() && basket_info.address.is_empty() {
-      let msg = String::from("Пожалуйста, введите или контактную информацию для связи с вами не через телеграм, нажав /edit_contact или адрес /edit_address или переключитесь на самовывоз /toggle\nЭта информация будет сохранена для последующих заказов, при необходимости вы всегда сможете её изменить");
+      let msg = String::from("Пожалуйста, введите адрес, нажав /edit_address или переключитесь на самовывоз /toggle\nЭта информация будет сохранена для последующих заказов, при необходимости вы всегда сможете её изменить");
       let res = cx.bot.send_message(from.clone(), msg).send().await;
       if let Err(e) = res {
          let msg = format!("basket::send_basket 1(): {}", e);
