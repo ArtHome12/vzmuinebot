@@ -44,7 +44,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       }
       Some(baskets) => {
          // Отображаем приветствие
-         let s = format!("{}\n\nОбщая сумма заказа {}. Вы можете самостоятельно скопировать сообщения с заказом и переслать напрямую в заведение или в независимую доставку, а потом очистить корзину. Либо воспользоваться кнопками под заказом (перепроверьте ваши контактные данные)", eater_info, settings::price_with_unit(baskets.grand_total));
+         let s = format!("{}\n\nОбщая сумма заказа {}. Вы можете самостоятельно скопировать сообщения с заказом и переслать напрямую в заведение или в независимую доставку, а потом очистить корзину. Либо воспользоваться кнопкой под заказом, если заведение разрешило такую опцию, иначе она не видна (перепроверьте ваши контактные данные)", eater_info, settings::price_with_unit(baskets.grand_total));
          cx.answer(s)
          .reply_markup(cmd::Basket::bottom_markup())
          .disable_notification(true)
@@ -59,12 +59,19 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             // Текст сообщения о корзине
             let s = make_basket_message_text(&Some(basket));
 
-            // Отправляем сообщение
-            cx.answer(s)
-            .reply_markup(cmd::Basket::inline_markup_send(rest_id))
-            .disable_notification(true)
-            .send()
-            .await?;
+            // Отправляем сообщение, с кнопкой или без
+            if rest_id > 9999 {
+               cx.answer(s)
+               .reply_markup(cmd::Basket::inline_markup_send(rest_id))
+               .disable_notification(true)
+               .send()
+               .await?;
+            } else {
+               cx.answer(s)
+               .disable_notification(true)
+               .send()
+               .await?;
+            }
          }
       }
    }
