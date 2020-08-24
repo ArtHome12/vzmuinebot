@@ -23,33 +23,19 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    // Извлечём параметры
    let user_id = cx.dialogue;
    
-   // Информация о едоке
-   let basket_info = db::user_basket_info(user_id).await;
-   let eater_info = if let Some(info) = basket_info {
-      let method = if info.pickup {String::from("самовывоз")} else {String::from("курьером по адресу")};
-      format!("Ваше имя: {} /edit_name\nКонтакт: {} /edit_contact\nАдрес: {} /edit_address\nМетод доставки: {} /toggle", info.name, info.contact, info.address_label(), method)
-   } else {
-      String::from("Информации о пользователе нет")
-   };
-
    // Получаем информацию из БД
    match db::basket_contents(user_id).await {
       None => {
          // Отображаем информацию и кнопки меню
-         cx.answer(format!("{}\n\nКорзина пуста", eater_info))
+         cx.answer("Корзина пуста")
          .reply_markup(cmd::Basket::bottom_markup())
          .disable_notification(true)
          .send()
          .await?;
       }
       Some(baskets) => {
-         // Отображаем приветствие
-         let s = format!("{}\n\nОбщая сумма заказа {}. Скопируйте ваш заказ, тапнув по нему и отправьте по указанным контактным данным, а потом очистить корзину", eater_info, settings::price_with_unit(baskets.grand_total));
-         cx.answer(s)
-         .reply_markup(cmd::Basket::bottom_markup())
-         .disable_notification(true)
-         .send()
-         .await?;
+         // Для определения, был ли хоть один заказ с кнопкой
+         let mut was_button = false;
 
          // Отдельными сообщениями выводим рестораны
          for basket in baskets.baskets {
@@ -61,6 +47,10 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 
             // Отправляем сообщение, с кнопкой или без
             if rest_id > 9999 {
+               // Установим флаг
+               was_button = true;
+
+               // Отправим сообщение с кнопкой
                cx.answer(s)
                .parse_mode(ParseMode::HTML)
                .reply_markup(cmd::Basket::inline_markup_send(rest_id))
@@ -75,6 +65,27 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
                .await?;
             }
          }
+
+         // Если был хоть один заказ с кнопкой, выведем контактную информацию
+         let eater_info = if was_button {
+            // Информация о едоке
+            let basket_info = db::user_basket_info(user_id).await;
+            if let Some(info) = basket_info {
+               let method = if info.pickup {String::from("самовывоз")} else {String::from("курьером по адресу")};
+               format!("Ваше имя: {} /edit_name\nКонтакт: {} /edit_contact\nАдрес: {} /edit_address\nМетод доставки: {} /toggle\n\n", info.name, info.contact, info.address_label(), method)
+            } else {
+               String::from("Информации о пользователе нет\n\n")
+            }
+         } else {String::default()};
+
+         // Выводим информацию о пользователе, общий итог и инструкцию
+         let s = format!("{}<b>Общая сумма заказа {}</b>\n\n<i>Скопируйте ваш заказ, тапнув по нему и отправьте по указанным контактам</i>", eater_info, settings::price_with_unit(baskets.grand_total));
+         cx.answer(s)
+         .reply_markup(cmd::Basket::bottom_markup())
+         .disable_notification(true)
+         .send()
+         .await?;
+
       }
    }
 
