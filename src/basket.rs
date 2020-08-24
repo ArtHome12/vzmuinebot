@@ -62,14 +62,14 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             // Отправляем сообщение, с кнопкой или без
             if rest_id > 9999 {
                cx.answer(s)
-               .parse_mode(ParseMode::MarkdownV2)
+               .parse_mode(ParseMode::HTML)
                .reply_markup(cmd::Basket::inline_markup_send(rest_id))
                .disable_notification(true)
                .send()
                .await?;
             } else {
                cx.answer(s)
-               .parse_mode(ParseMode::MarkdownV2)
+               .parse_mode(ParseMode::HTML)
                .disable_notification(true)
                .send()
                .await?;
