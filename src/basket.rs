@@ -52,14 +52,12 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 
                // Отправим сообщение с кнопкой
                cx.answer(s)
-               .parse_mode(ParseMode::HTML)
                .reply_markup(cmd::Basket::inline_markup_send(rest_id))
                .disable_notification(true)
                .send()
                .await?;
             } else {
                cx.answer(s)
-               .parse_mode(ParseMode::HTML)
                .disable_notification(true)
                .send()
                .await?;
@@ -79,7 +77,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          } else {String::default()};
 
          // Выводим информацию о пользователе, общий итог и инструкцию
-         let s = format!("{}<b>Общая сумма заказа {}</b>\n\n<i>Скопируйте ваш заказ, тапнув по нему и отправьте по указанным контактам</i>", eater_info, settings::price_with_unit(baskets.grand_total));
+         let s = format!("{}<b>Общая сумма заказа {}</b>\n\n<i>Скопируйте ваш заказ и отправьте по указанным контактам</i>", eater_info, settings::price_with_unit(baskets.grand_total));
          cx.answer(s)
          .parse_mode(ParseMode::HTML)
          .reply_markup(cmd::Basket::bottom_markup())
@@ -162,7 +160,7 @@ pub fn make_basket_message_text(basket: &Option<db::Basket>) -> String {
       None => String::from("корзина пуста"),
       Some(basket) => {
          // Заголовок с информацией о ресторане
-         let mut s = format!("{}<pre>", basket.restaurant);
+         let mut s = basket.restaurant.clone();
 
          // Дополняем данными о блюдах
          for dish in basket.dishes.clone() {
@@ -170,7 +168,7 @@ pub fn make_basket_message_text(basket: &Option<db::Basket>) -> String {
          }
 
          // Итоговая стоимость
-         s.push_str(&format!("\nВсего: {}</pre>", settings::price_with_unit(basket.total)));
+         s.push_str(&format!("\nВсего: {}", settings::price_with_unit(basket.total)));
          s
       }
    }
