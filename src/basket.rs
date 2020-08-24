@@ -44,7 +44,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       }
       Some(baskets) => {
          // Отображаем приветствие
-         let s = format!("{}\n\nОбщая сумма заказа {}. Вы можете самостоятельно скопировать сообщения с заказом и переслать напрямую в заведение или в независимую доставку, а потом очистить корзину. Либо воспользоваться кнопкой под заказом, если она доступна", eater_info, settings::price_with_unit(baskets.grand_total));
+         let s = format!("{}\n\nОбщая сумма заказа {}. Скопируйте ваш заказ, тапнув по нему и отправьте по указанным контактным данным, а потом очистить корзину", eater_info, settings::price_with_unit(baskets.grand_total));
          cx.answer(s)
          .reply_markup(cmd::Basket::bottom_markup())
          .disable_notification(true)
