@@ -38,7 +38,6 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          // Отображаем информацию и кнопки меню
          cx.answer(format!("{}\n\nКорзина пуста", eater_info))
          .reply_markup(cmd::Basket::bottom_markup())
-         .parse_mode(ParseMode::MarkdownV2)
          .disable_notification(true)
          .send()
          .await?;
@@ -63,12 +62,14 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             // Отправляем сообщение, с кнопкой или без
             if rest_id > 9999 {
                cx.answer(s)
+               .parse_mode(ParseMode::MarkdownV2)
                .reply_markup(cmd::Basket::inline_markup_send(rest_id))
                .disable_notification(true)
                .send()
                .await?;
             } else {
                cx.answer(s)
+               .parse_mode(ParseMode::MarkdownV2)
                .disable_notification(true)
                .send()
                .await?;
