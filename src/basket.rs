@@ -44,7 +44,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       }
       Some(baskets) => {
          // Отображаем приветствие
-         let s = format!("{}\n\nОбщая сумма заказа {}. Вы можете самостоятельно скопировать сообщения с заказом и переслать напрямую в заведение или в независимую доставку, а потом очистить корзину. Либо воспользоваться кнопкой под заказом, если заведение разрешило такую опцию, иначе она не видна (перепроверьте ваши контактные данные)", eater_info, settings::price_with_unit(baskets.grand_total));
+         let s = format!("{}\n\nОбщая сумма заказа {}. Вы можете самостоятельно скопировать сообщения с заказом и переслать напрямую в заведение или в независимую доставку, а потом очистить корзину. Либо воспользоваться кнопкой под заказом, если она доступна", eater_info, settings::price_with_unit(baskets.grand_total));
          cx.answer(s)
          .reply_markup(cmd::Basket::bottom_markup())
          .disable_notification(true)
@@ -148,7 +148,7 @@ pub fn make_basket_message_text(basket: &Option<db::Basket>) -> String {
       None => String::from("корзина пуста"),
       Some(basket) => {
          // Заголовок с информацией о ресторане
-         let mut s = basket.restaurant.clone();
+         let mut s = format!("`{}", basket.restaurant);
 
          // Дополняем данными о блюдах
          for dish in basket.dishes.clone() {
@@ -156,7 +156,7 @@ pub fn make_basket_message_text(basket: &Option<db::Basket>) -> String {
          }
 
          // Итоговая стоимость
-         s.push_str(&format!("\nВсего: {}", settings::price_with_unit(basket.total)));
+         s.push_str(&format!("\nВсего: {}`", settings::price_with_unit(basket.total)));
          s
       }
    }
