@@ -150,15 +150,15 @@ pub fn make_basket_message_text(basket: &Option<db::Basket>) -> String {
       None => String::from("корзина пуста"),
       Some(basket) => {
          // Заголовок с информацией о ресторане
-         let mut s = basket.restaurant.clone();
+         let mut s = format!("{}\n```", basket.restaurant);
 
          // Дополняем данными о блюдах
          for dish in basket.dishes.clone() {
-            s.push_str(&format!("\n`{}`", dish))
+            s.push_str(&format!("\n{}", dish))
          }
 
          // Итоговая стоимость
-         s.push_str(&format!("\n`Всего: {}`", settings::price_with_unit(basket.total)));
+         s.push_str(&format!("\nВсего: {}```", settings::price_with_unit(basket.total)));
          s
       }
    }
