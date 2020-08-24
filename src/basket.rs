@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*,
-   types::{ChatId, InlineKeyboardMarkup, CallbackQuery, ChatOrInlineMessage,},
+   types::{ChatId, InlineKeyboardMarkup, CallbackQuery, ChatOrInlineMessage, ParseMode, },
 };
 use std::sync::Arc;
 
@@ -27,7 +27,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    let basket_info = db::user_basket_info(user_id).await;
    let eater_info = if let Some(info) = basket_info {
       let method = if info.pickup {String::from("самовывоз")} else {String::from("курьером по адресу")};
-      format!("Ваши контактные данные (для редактирования жмите на ссылки рядом): {} /edit_name\nКонтакт: {} /edit_contact\nАдрес: {} /edit_address\nМетод доставки: {} /toggle", info.name, info.contact, info.address_label(), method)
+      format!("Ваше имя: {} /edit_name\nКонтакт: {} /edit_contact\nАдрес: {} /edit_address\nМетод доставки: {} /toggle", info.name, info.contact, info.address_label(), method)
    } else {
       String::from("Информации о пользователе нет")
    };
@@ -38,6 +38,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          // Отображаем информацию и кнопки меню
          cx.answer(format!("{}\n\nКорзина пуста", eater_info))
          .reply_markup(cmd::Basket::bottom_markup())
+         .parse_mode(ParseMode::MarkdownV2)
          .disable_notification(true)
          .send()
          .await?;
