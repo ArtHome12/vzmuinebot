@@ -231,7 +231,7 @@ pub async fn remove_slash(s: &str) -> String {
    if s.get(..1).unwrap_or_default() == "/" {
       String::default()
    } else {
-      s.replace("/", "")
+      s  //.replace("/", "") делает невозможным ввод веб-ссылок
    }
 }
 
