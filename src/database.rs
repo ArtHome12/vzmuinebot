@@ -188,7 +188,7 @@ pub async fn rest_edit_title(rest_num: i32, new_str: String) -> bool {
 }
 
 pub async fn rest_edit_info(rest_num: i32, new_str: String) -> bool {
-   execute_one("UPDATE restaurants SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER", &[&new_str, &rest_num]).await
+   execute_one("UPDATE restaurants SET info = $1::VARCHAR(512) WHERE rest_num=$2::INTEGER", &[&new_str, &rest_num]).await
 }
 
 pub async fn rest_toggle(rest_num: i32) -> bool {
@@ -197,7 +197,7 @@ pub async fn rest_toggle(rest_num: i32) -> bool {
 
 // Изменение фото ресторана
 pub async fn rest_edit_image(rest_num: i32, image_id: &String) -> bool {
-   execute_one("UPDATE restaurants SET image_id = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER", &[&image_id, &rest_num]).await
+   execute_one("UPDATE restaurants SET image_id = $1::VARCHAR(512) WHERE rest_num=$2::INTEGER", &[&image_id, &rest_num]).await
 }
 
 // Изменяет владельца ресторана
@@ -251,11 +251,11 @@ pub async fn create_tables() -> bool {
          PRIMARY KEY (user_id),
          user_id        INTEGER        NOT NULL,
          title          VARCHAR(100)   NOT NULL,
-         info           VARCHAR(255)   NOT NULL,
+         info           VARCHAR(512)   NOT NULL,
          active         BOOLEAN        NOT NULL,
          enabled        BOOLEAN        NOT NULL,
          rest_num       SERIAL,
-         image_id       VARCHAR(255),
+         image_id       VARCHAR(512),
          opening_time   TIME           NOT NULL,    
          closing_time   TIME           NOT NULL);
 
@@ -264,7 +264,7 @@ pub async fn create_tables() -> bool {
          rest_num       INTEGER        NOT NULL,
          group_num      INTEGER        NOT NULL,
          title          VARCHAR(100)   NOT NULL,
-         info           VARCHAR(255)   NOT NULL,
+         info           VARCHAR(512)   NOT NULL,
          active         BOOLEAN        NOT NULL,
          cat_id         INTEGER        NOT NULL,
          opening_time   TIME           NOT NULL,    
@@ -275,11 +275,11 @@ pub async fn create_tables() -> bool {
          rest_num       INTEGER        NOT NULL,
          dish_num       INTEGER        NOT NULL,
          title          VARCHAR(100)   NOT NULL,
-         info           VARCHAR(255)   NOT NULL,
+         info           VARCHAR(512)   NOT NULL,
          active         BOOLEAN        NOT NULL,
          group_num      INTEGER        NOT NULL,
          price          INTEGER        NOT NULL,
-         image_id       VARCHAR(255));
+         image_id       VARCHAR(512));
 
       CREATE TABLE users (
          PRIMARY KEY (user_id),
@@ -496,7 +496,7 @@ pub async fn rest_group_edit_title(rest_num: i32, group_num: i32, new_str: Strin
 
 // Изменяет описание группы
 pub async fn rest_group_edit_info(rest_num: i32, group_num: i32, new_str: String) -> bool {
-   execute_one("UPDATE groups SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_str, &rest_num, &group_num]).await
+   execute_one("UPDATE groups SET info = $1::VARCHAR(512) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER", &[&new_str, &rest_num, &group_num]).await
 }
 
 // Переключает доступность группы
@@ -767,7 +767,7 @@ pub async fn rest_dish_edit_title(rest_num: i32, group_num: i32, dish_num: i32, 
 
 // Редактирование описания блюда
 pub async fn rest_dish_edit_info(rest_num: i32, group_num: i32, dish_num: i32, new_str: String) -> bool {
-   execute_one("UPDATE dishes SET info = $1::VARCHAR(255) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&new_str, &rest_num, &group_num, &dish_num])
+   execute_one("UPDATE dishes SET info = $1::VARCHAR(512) WHERE rest_num=$2::INTEGER AND group_num=$3::INTEGER AND dish_num=$4::INTEGER", &[&new_str, &rest_num, &group_num, &dish_num])
    .await
 }
 
@@ -804,11 +804,11 @@ pub async fn rest_dish_edit_group(rest_num: i32, old_group_num: i32, dish_num: i
                $1::INTEGER, 
                (SELECT COUNT(*) FROM dishes WHERE rest_num = $1::INTEGER AND group_num = $2::INTEGER) + 1,
                $3::VARCHAR(100),
-               $4::VARCHAR(255),
+               $4::VARCHAR(512),
                $5::BOOLEAN,
                $2::INTEGER,
                $6::INTEGER,
-               $7::VARCHAR(255)
+               $7::VARCHAR(512)
             )", &[&dish.rest_num, &new_group_num, &dish.title, &dish.info, &dish.active, &dish.price, &dish.image_id]
          )
          .await;
