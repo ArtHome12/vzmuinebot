@@ -1,6 +1,6 @@
 [package]
 name = "vzmuinebot"
-version = "0.4.6"
+version = "0.5.0"
 authors = ["Artem Khomenko <_mag12@yahoo.com>"]
 edition = "2018"
 
@@ -15,7 +15,7 @@ teloxide = "0.2.0"
 
 # Used to setup a webhook
 warp = "0.2.4"
-reqwest = "0.10.7"
+reqwest = "0.10.8"
 serde_json = "1.0.57"
 
 # My

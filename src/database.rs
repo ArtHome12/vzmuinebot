@@ -202,7 +202,7 @@ pub async fn transfer_ownership(rest_num: i32, new_user_id: i32) -> bool {
 // Регистрация или разблокировка ресторатора
 pub async fn register_caterer(user_id: i32) -> bool {
    // Попробуем разблокировать пользователя
-   if execute_one("UPDATE restaurants SET enabled = TRUE WHERE user_id=$1::INTEGER", &[&user_id]).await {
+   if execute_one_no_error("UPDATE restaurants SET enabled = TRUE WHERE user_id=$1::INTEGER", &[&user_id]).await {
       return true;
    }
 
@@ -1682,6 +1682,23 @@ async fn execute_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> bool {
       }
    }
 }
+
+// Подобна execute_one(), но не выводит сообщений об ошибках
+async fn execute_one_no_error(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> bool {
+   // Получим клиента БД из пула
+   let client = db_client().await;
+   if client.is_none() {return false;}
+
+   // Выполняем запрос
+   let query = client.unwrap().execute(sql_text, params).await;
+
+   // При успешной операции должна быть обновлена 1 запись
+   match query {
+      Ok(1) => true,
+      _ => false,
+   }
+}
+
 
 // Обёртка, выполняет запрос, без проверки на обновление только одной записи и возвращает истину, если успешно
 async fn execute(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> bool {
