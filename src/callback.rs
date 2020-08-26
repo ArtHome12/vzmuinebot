@@ -112,7 +112,6 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
                };
                format!("Отправка: {}", db::is_success(res))
             }
-            // CallbackCommand::BasketMessageToCaterer(rest_id) => format!("{}", db::is_success(basket::prepare_to_send_message(user_id, rest_id).await)),
             CallbackCommand::BasketCancel(ticket_id) => format!("{}", db::is_success(cancel_ticket(&cx, user_id, ticket_id).await)),
             CallbackCommand::BasketNext(ticket_id) => format!("{}", db::is_success(process_ticket(&cx, user_id, ticket_id).await)),
          }
@@ -205,7 +204,7 @@ pub async fn message_with_quote(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id
 }
 
 // Отредактировать сообщение
-/*pub async fn edit_message(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: ChatId, message_id: i32, s: &str) {
+pub async fn edit_message(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: ChatId, message_id: i32, s: &str) {
    let chat_message = ChatOrInlineMessage::Chat {
       chat_id,
       message_id,
@@ -214,7 +213,7 @@ pub async fn message_with_quote(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id
    if let Err(e) = cx.bot.edit_message_text(chat_message, s).send().await {
       settings::log(&format!("Error callback::message_with_quote: {}", e)).await;
    }
-}*/
+}
 
 // Удаляет инлайн-кнопки под сообщением
 /* async fn remove_inline_markup(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: i32, message_id: i32) {
@@ -294,9 +293,9 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
          // Новый статус заказа
          let status = db::basket_stage(ticket_id).await;
 
-         // Отправим сообщение другой стороне
+         // Отредактируем сообщение у другой стороны
          let s = format!("Статус заказа изменён на '{}'", db::stage_to_str(status));
-         message_with_quote(cx, ChatId::Id(i64::from(other_chat_id)), &s, other_msg_id).await;
+         edit_message(cx, ChatId::Id(i64::from(other_chat_id)), other_msg_id, &s).await;
 
          // Если заказ завершён едоком, то особое поведение
          if status == 5 {
@@ -305,7 +304,7 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
 
             // Изменим сообщение в своём (едока) чате
             let s = String::from("Вы подтвердили исполнение заказа");
-            message_with_quote(cx, this_chat.clone(), &s, this_msg_id).await;
+            edit_message(cx, this_chat.clone(), this_msg_id, &s).await;
 
             // Два сообщения в служебный чат - об отмене и сам отменённый заказ
             settings::log(&format!("Заказ завершён {}", user_id)).await;
