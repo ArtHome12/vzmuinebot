@@ -148,6 +148,7 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 struct InlineData {
    text: String,
    markup: InlineKeyboardMarkup,
+   photo_id: String,
 }
 async fn inline_data(cat_id: i32, rest_num: i32, group_num: i32) -> InlineData {
    // Получаем информацию из БД сначала о группе
@@ -217,7 +218,13 @@ async fn inline_data(cat_id: i32, rest_num: i32, group_num: i32) -> InlineData {
       }
    };
 
-   InlineData{text, markup}
+   // Попробуем получить картинку ресторана и если её нет, то используем картинку по-умолчанию
+   let photo_id = if let Some(rest) = db::restaurant(db::RestBy::Num(rest_num)).await {
+      rest.image_or_default()
+   }
+   else {settings::default_photo_id()};
+   
+   InlineData{text, markup, photo_id}
 }
 
 // Выводит инлайн кнопки, редактируя предыдущее сообщение
@@ -241,7 +248,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_
 
    // Приготовим структуру для редактирования
    let media = InputMedia::Photo{
-      media: InputFile::file_id(settings::default_photo_id()),
+      media: InputFile::file_id(data.photo_id),
       caption: Some(data.text),
       parse_mode: None,
    };
@@ -274,7 +281,7 @@ pub async fn force_inline_interface(cx: cmd::Cx<(i32, i32, i32)>) -> bool {
    let data = inline_data(cat_id, rest_num, group_num).await;
 
    // Отправляем сообщение как фото
-   let res = cx.answer_photo(InputFile::file_id(settings::default_photo_id()))
+   let res = cx.answer_photo(InputFile::file_id(data.photo_id))
    .caption(data.text)
    .reply_markup(ReplyMarkup::InlineKeyboardMarkup(data.markup))
    .disable_notification(true)

@@ -53,6 +53,12 @@ impl Restaurant {
          closing_time: row.get(8),
       }
    }
+
+   // Возвращает собственную картинку или картинку по-умолчанию
+   pub fn image_or_default(&self) -> String {
+      if let Some(id) = self.image_id.clone() {id}
+      else {settings::default_photo_id()}
+   }
 }
 
 // Тип запроса информации о ресторане
