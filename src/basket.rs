@@ -42,9 +42,6 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          .await?;
       }
       Some(baskets) => {
-         // Для определения, был ли хоть один заказ с кнопкой
-         let mut was_button = false;
-
          // Отдельными сообщениями выводим рестораны
          for basket in baskets.baskets {
 
@@ -53,39 +50,24 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             // Текст сообщения о корзине
             let s = make_basket_message_text(&Some(basket));
 
-            // Отправляем сообщение, с кнопкой или без
-            if rest_id > 9999 {
-               // Установим флаг
-               was_button = true;
-
-               // Отправим сообщение с кнопкой
-               cx.answer(s)
-               .reply_markup(cmd::Basket::inline_markup_send(rest_id))
-               .disable_notification(true)
-               .send()
-               .await?;
-            } else {
-               cx.answer(s)
-               .disable_notification(true)
-               .send()
-               .await?;
-            }
+            // Отправляем сообщение
+            cx.answer(s)
+            .reply_markup(cmd::Basket::inline_markup_send(rest_id))
+            .disable_notification(true)
+            .send()
+            .await?;
          }
 
-         // Если был хоть один заказ с кнопкой, выведем контактную информацию
-         let eater_info = if was_button {
-            // Информация о едоке
-            let basket_info = db::user_basket_info(user_id).await;
-            if let Some(info) = basket_info {
-               let method = if info.pickup {String::from("самовывоз")} else {String::from("курьером по адресу")};
-               format!("Ваше имя: {} /edit_name\nКонтакт: {} /edit_contact\nАдрес: {} /edit_address\nМетод доставки: {} /toggle\n\n", info.name, info.contact, info.address_label(), method)
-            } else {
-               String::from("Информации о пользователе нет\n\n")
-            }
-         } else {String::default()};
+         // Контактные данные едока
+         let eater_info = if let Some(info) = db::user_basket_info(user_id).await {
+            let method = if info.pickup {String::from("самовывоз")} else {String::from("курьером по адресу")};
+            format!("Ваше имя: {} /edit_name\nКонтакт: {} /edit_contact\nАдрес: {} /edit_address\nМетод доставки: {} /toggle\n\n", info.name, info.contact, info.address_label(), method)
+         } else {
+            String::from("Информации о пользователе нет\n\n")
+         };
 
          // Выводим информацию о пользователе, общий итог и инструкцию
-         let s = format!("{}<b>Общая сумма заказа {}</b>\n\n<i>Скопируйте ваш заказ и отправьте по указанным контактам</i>", eater_info, settings::price_with_unit(baskets.grand_total));
+         let s = format!("{}<b>Общая сумма заказа {}</b>", eater_info, settings::price_with_unit(baskets.grand_total));
          cx.answer(s)
          .parse_mode(ParseMode::HTML)
          .reply_markup(cmd::Basket::bottom_markup())
@@ -478,6 +460,17 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
    let from = ChatId::Id(i64::from(user_id));
    let to = ChatId::Id(i64::from(rest_id));
 
+   // Если у ресторана недействительный айди, предложим пользователю отправить заказ самостоятельно
+   if rest_id < 9999 {
+      let msg = String::from("Заведение пока не подключено к боту, пожалуйста скопируйте ваш заказ отправьте по указанным контактным данным напрямую, после чего можно очистить корзину");
+      let res = cx.bot.send_message(from.clone(), msg).send().await;
+      if let Err(e) = res {
+         let msg = format!("basket::send_basket 1(): {}", e);
+         settings::log(&msg).await;
+      }
+      return false;
+   }
+
    // Проверим корректность контактных данных
    let basket_info = db::user_basket_info(user_id).await;
    if basket_info.is_none() {
@@ -486,7 +479,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
       settings::log(&msg).await;
       let res = cx.bot.send_message(from.clone(), msg).send().await;
       if let Err(e) = res {
-         let msg = format!("basket::send_basket 1(): {}", e);
+         let msg = format!("basket::send_basket 2(): {}", e);
          settings::log(&msg).await;
       }
       return false;
