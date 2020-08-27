@@ -142,8 +142,8 @@ async fn send_message_for(bot: Arc<Bot>, chat: ChatId, show: InfoFor, ticket: &d
    
    // Сохраним ссылку на новое сообщение со статусом
    let (eater_status, caterer_status) = match show {
-      InfoFor::Eater => (res.id, ticket.caterer_status_msg_id.unwrap()),
-      InfoFor::Caterer => (ticket.eater_status_msg_id.unwrap(), res.id), 
+      InfoFor::Eater => (res.id, ticket.caterer_status_msg_id.unwrap_or_default()),
+      InfoFor::Caterer => (ticket.eater_status_msg_id.unwrap_or_default(), res.id), 
    };
    db::ticket_save_status_msg(ticket.ticket_id, eater_status, caterer_status).await;
 
@@ -463,7 +463,9 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
    // Если у ресторана недействительный айди, предложим пользователю отправить заказ самостоятельно
    if rest_id < 9999 {
       let msg = String::from("Заведение пока не подключено к боту, пожалуйста скопируйте ваш заказ отправьте по указанным контактным данным напрямую, после чего можно очистить корзину");
-      let res = cx.bot.send_message(from.clone(), msg).send().await;
+      let res = cx.bot.send_message(from.clone(), msg)
+      .reply_to_message_id(message_id)
+      .send().await;
       if let Err(e) = res {
          let msg = format!("basket::send_basket 1(): {}", e);
          settings::log(&msg).await;

@@ -1518,7 +1518,7 @@ pub async fn ticket(by: TicketBy) -> Option<Ticket> {
       TicketBy::TicketId(_id) =>
          "SELECT ticket_id, eater_id, caterer_id, eater_msg_id, caterer_msg_id, eater_status_msg_id, caterer_status_msg_id, stage FROM tickets WHERE ticket_id=$1::INTEGER",
       TicketBy::EaterAndCatererId(_eater_id, _caterer_id) =>
-         "SELECT ticket_id, eater_id, caterer_id, eater_msg_id, caterer_msg_id, eater_status_msg_id, caterer_status_msg_id, stage FROM tickets WHERE eater_id=$1::INTEGER AND caterer_id=$2::INTEGER",
+         "SELECT ticket_id, eater_id, caterer_id, eater_msg_id, caterer_msg_id, eater_status_msg_id, caterer_status_msg_id, stage FROM tickets WHERE eater_id=$1::INTEGER AND caterer_id=$2::INTEGER AND stage < 5",
    };
 
    // Подготовим нужный запрос с кешем благодаря пулу
