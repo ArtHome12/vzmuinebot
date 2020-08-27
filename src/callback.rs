@@ -10,7 +10,8 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use teloxide::{
    prelude::*, 
    types::{CallbackQuery, ChatOrInlineMessage, ChatId, InlineKeyboardButton,
-      },
+      InlineKeyboardMarkup,
+   },
 };
 
 use crate::database as db;
@@ -204,33 +205,25 @@ pub async fn message_with_quote(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id
 }
 
 // Отредактировать сообщение
-pub async fn edit_message(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: ChatId, message_id: i32, s: &str) {
+pub async fn edit_message(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: ChatId, message_id: i32, s: &str, markup: Option<InlineKeyboardMarkup>) {
    let chat_message = ChatOrInlineMessage::Chat {
       chat_id,
       message_id,
    };
 
-   if let Err(e) = cx.bot.edit_message_text(chat_message, s).send().await {
+   let res = if let Some(markup) = markup {
+      cx.bot.edit_message_text(chat_message, s)
+      .reply_markup(markup)
+      .send().await
+   } else {
+      cx.bot.edit_message_text(chat_message, s)
+      .send().await
+   };
+
+   if let Err(e) = res {
       settings::log(&format!("Error callback::message_with_quote: {}", e)).await;
    }
 }
-
-// Удаляет инлайн-кнопки под сообщением
-/* async fn remove_inline_markup(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: i32, message_id: i32) {
-
-   // Код чата и сообщения
-   let chat_message = ChatOrInlineMessage::Chat {
-      chat_id: ChatId::Id(i64::from(chat_id)),
-      message_id,
-   };
-
-   // Выполняем операцию, при ошибке - текст в служебный чат
-   if let Err(e) = cx.bot.edit_message(chat_message).send().await {
-      let text = format!("Error callback::remove_inline_markup({}, {}): {}", chat_id, message_id, e);
-      settings::log(&text).await;
-   }
-}
- */
 
 // Отменяет заказ, как со стороны ресторатора, так и едока
 async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ticket_id: i32) -> bool {
@@ -239,10 +232,6 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
       
       // Информация о тикете
       if let Some(ticket) = db::ticket(db::TicketBy::TicketId(ticket_id)).await {
-
-         // Удаляем инлайн кнопки под заказом в чате едока и ресторатора - не работает
-         // remove_inline_markup(cx, t.eater_id, t.ticket.eater_msg_id).await;
-         // remove_inline_markup(cx, t.caterer_id, t.ticket.caterer_msg_id).await;
 
          // Адрес другой стороны это адрес, не совпадающий с нашим собственным
          let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == ticket.caterer_id {
@@ -285,45 +274,25 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
             return false;
          }
 
-         // remove_inline_markup(cx, t.eater_id, t.ticket.eater_msg_id).await;
-         // remove_inline_markup(cx, t.caterer_id, t.ticket.caterer_msg_id).await;
-
-         // Адрес другой стороны это адрес, не совпадающий с нашим собственным
-         let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == ticket.caterer_id {
-            (ticket.eater_id, ticket.eater_status_msg_id.unwrap(), ticket.caterer_id, ticket.caterer_status_msg_id.unwrap())
-         } else {
-            (ticket.caterer_id, ticket.caterer_status_msg_id.unwrap(), ticket.eater_id, ticket.eater_status_msg_id.unwrap())
-         };
-
          // Новый статус заказа
          let status = db::basket_stage(ticket_id).await;
 
-         // Отредактируем сообщение у другой стороны
+         // Отредактируем сообщение у едока
          let s = format!("Статус заказа изменён на '{}'", db::stage_to_str(status));
-         edit_message(cx, ChatId::Id(i64::from(other_chat_id)), other_msg_id, &s).await;
+         let markup = basket::make_markup(&ticket, basket::InfoFor::Eater);
+         edit_message(cx, ChatId::Id(i64::from(ticket.eater_id)), ticket.eater_status_msg_id.unwrap(), &s, markup).await;
 
-         // Если заказ завершён едоком, то особое поведение
+         // Отредактируем сообщение у ресторатора
+         let markup = basket::make_markup(&ticket, basket::InfoFor::Caterer);
+         edit_message(cx, ChatId::Id(i64::from(ticket.caterer_id)), ticket.caterer_status_msg_id.unwrap(), &s, markup).await;
+
+         // Если заказ завершён едоком, то дополнительные действия
          if status == 5 {
-            // Свой чат (едока)
-            let this_chat = ChatId::Id(i64::from(this_chat_id));
+            // Два сообщения в служебный чат - о завершении и сам завершённый заказ
+            let eater_chat = ChatId::Id(i64::from(ticket.eater_id));
 
-            // Изменим сообщение в своём (едока) чате
-            let s = String::from("Вы подтвердили исполнение заказа");
-            edit_message(cx, this_chat.clone(), this_msg_id, &s).await;
-
-            // Два сообщения в служебный чат - об отмене и сам отменённый заказ
             settings::log(&format!("Заказ завершён {}", user_id)).await;
-            settings::log_forward(this_chat, this_msg_id).await;
-         } else {
-            // Отправим сообщение в своём чате ресторатора (при изменении A Telegram's error #400 Bad Request: MessageCantBeEdited)
-            let (text, markup) = basket::make_message_for_caterer(&ticket).await;
-            if let Err(e) = cx.bot.send_message(ChatId::Id(i64::from(this_chat_id)), text)
-            .reply_to_message_id(this_msg_id)
-            .reply_markup(markup)
-            .send()
-            .await {
-               settings::log(&format!("Error callback::message_with_quote: {}", e)).await;
-            }
+            settings::log_forward(eater_chat, ticket.eater_order_msg_id).await;
          }
 
          true

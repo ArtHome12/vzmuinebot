@@ -20,7 +20,7 @@ use crate::settings;
 
 // Вид отображаемого заказа
 #[derive(Copy, Clone)]
-enum InfoFor {
+pub enum InfoFor {
    Eater,   // заказ едока
    Caterer, // заказ для ресторана от едока
 }
@@ -132,22 +132,30 @@ async fn show_tickets(bot: Arc<Bot>, chat: ChatId, user_id: i32, show: InfoFor) 
 // Отправляет сообщение с информацией о заказе, ожидающем обработки другой стороной
 async fn send_message_for(bot: Arc<Bot>, chat: ChatId, show: InfoFor, ticket: &db::Ticket) -> Result<Message, RequestError> {
    // Сообщение с заказом
-   let (message_id, (text, markup)) = match show {
+   let (message_id, (text, markup_opt)) = match show {
       InfoFor::Eater => (ticket.eater_order_msg_id, make_message_for_eater(ticket).await),      // собственное сообщение с заказом
       InfoFor::Caterer => (ticket.caterer_order_msg_id, make_message_for_caterer(ticket).await),// сообщение с заказом от едока
    };
 
    // Отправляем стадию выполнения с цитированием заказа
-   let res = bot.send_message(chat, text)
-   .reply_to_message_id(message_id)
-   .reply_markup(markup)
-   .send()
-   .await?;
+   let res = if let Some(markup) = markup_opt {
+      bot.send_message(chat, text)
+      .reply_to_message_id(message_id)
+      .reply_markup(markup)
+      .send()
+      .await?
+   } else {
+      bot.send_message(chat, text)
+      .reply_to_message_id(message_id)
+      .send()
+      .await?
+   };
+   
    Ok(res)
 }
 
 // Формирует сообщение с заказом для показа едоку
-pub async fn make_message_for_eater(ticket: &db::Ticket) -> (String, InlineKeyboardMarkup) {
+pub async fn make_message_for_eater(ticket: &db::Ticket) -> (String, Option<InlineKeyboardMarkup>) {
 
    // Название ресторана
    let rest_name = match db::restaurant(db::RestBy::Id(ticket.caterer_id)).await {
@@ -158,28 +166,35 @@ pub async fn make_message_for_eater(ticket: &db::Ticket) -> (String, InlineKeybo
    // Текст сообщения со стадией выполнения 
    let stage = db::stage_to_str(ticket.stage);
    let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, ticket.caterer_id);
-
-   // Если заказ на последней стадии, то добавляем кнопку завершить кроме кнопки отмены
-   if ticket.stage == 4 {
-      (s, cmd::Basket::inline_markup_message_confirm(ticket.ticket_id))
-   } else {
-      (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id))
-   }
+   (s, make_markup(ticket, InfoFor::Eater))
 }
 
 // Формирует сообщение с заказом для показа ресторатору
-pub async fn make_message_for_caterer(ticket: &db::Ticket) -> (String, InlineKeyboardMarkup) {
+pub async fn make_message_for_caterer(ticket: &db::Ticket) -> (String, Option<InlineKeyboardMarkup>) {
    // Текст сообщения
    let eater_name = db::user_name_by_id(ticket.eater_id).await;
    let stage1 = db::stage_to_str(ticket.stage);
    let stage2 = db::stage_to_str(ticket.stage + 1);
    let s = format!("Заказ вам от {} в '{}'. Для отправки заказчику сообщения, например, с уточнением времени, нажмите на ссылку /snd{}\nДля изменения статуса на '{}' нажмите кнопку 'Далее'", eater_name, stage1, ticket.eater_id, stage2);
+   (s, make_markup(ticket, InfoFor::Caterer))
+}
 
-   // Если заказ на последней стадии, то только кнопка отмены
-   if ticket.stage == 4 {
-      (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id))
-   } else {
-      (s, cmd::Basket::inline_markup_message_next(ticket.ticket_id))
+pub fn make_markup(ticket: &db::Ticket, show: InfoFor) -> Option<InlineKeyboardMarkup> {
+   match show {
+      InfoFor::Eater => {
+         match ticket.stage {
+            1 | 2 | 3 => Some(cmd::Basket::inline_markup_message_cancel(ticket.ticket_id)),
+            4 => Some(cmd::Basket::inline_markup_message_confirm(ticket.ticket_id)),
+            _ => None,
+         }
+      }
+      InfoFor::Caterer => {
+         match ticket.stage {
+            1 | 2 | 3 => Some(cmd::Basket::inline_markup_message_next(ticket.ticket_id)),
+            4 => Some(cmd::Basket::inline_markup_message_cancel(ticket.ticket_id)),
+            _ => None,
+         }
+      }
    }
 }
 
