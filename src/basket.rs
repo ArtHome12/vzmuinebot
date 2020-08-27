@@ -519,7 +519,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
                   Ok(new_message) => {
 
                      // Переместим заказ из корзины в обработку
-                     if db::order_to_ticket(user_id, rest_id, message_id, new_message.id/*, eater_msg.id, caterer_msg.id*/).await {
+                     if db::order_to_ticket(user_id, rest_id, message_id, new_message.id).await {
 
                         // Прочитаем только что записанный тикет из базы
                         let ticket = db::ticket(db::TicketBy::EaterAndCatererId(user_id, rest_id)).await;
@@ -542,8 +542,8 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
                            return false;
                         }
 
-                        // Все операции прошли успешно
-                        return true;
+                        // Все операции прошли успешно, сохраним ссылки на сообщения со статусом для возможности их редактирования
+                        return db::ticket_save_status_msg(ticket.ticket_id, eater_msg.unwrap().id, caterer_msg.unwrap().id).await;
                      }
                   }
                   Err(err) =>  { settings::log(&format!("Error send_basket({}, {}, {}): {}", user_id, rest_id, message_id, err)).await;}

@@ -279,15 +279,20 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
       // Информация о тикете
       if let Some(ticket) = db::ticket(db::TicketBy::TicketId(ticket_id)).await {
 
-         // Обновляем инлайн кнопки под заказом в чате едока и ресторатора
+         // Проверим, что ссылки на сообщения со статусом заказа есть в базе
+         if ticket.eater_status_msg_id.is_none() || ticket.caterer_status_msg_id.is_none() {
+            settings::log(&format!("process_ticket({}, {}) status_msg_id is none", user_id, ticket_id)).await;
+            return false;
+         }
+
          // remove_inline_markup(cx, t.eater_id, t.ticket.eater_msg_id).await;
          // remove_inline_markup(cx, t.caterer_id, t.ticket.caterer_msg_id).await;
 
          // Адрес другой стороны это адрес, не совпадающий с нашим собственным
          let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == ticket.caterer_id {
-            (ticket.eater_id, ticket.eater_order_msg_id, ticket.caterer_id, ticket.caterer_order_msg_id)
+            (ticket.eater_id, ticket.eater_status_msg_id.unwrap(), ticket.caterer_id, ticket.caterer_status_msg_id.unwrap())
          } else {
-            (ticket.caterer_id, ticket.caterer_order_msg_id, ticket.eater_id, ticket.eater_order_msg_id)
+            (ticket.caterer_id, ticket.caterer_status_msg_id.unwrap(), ticket.eater_id, ticket.eater_status_msg_id.unwrap())
          };
 
          // Новый статус заказа

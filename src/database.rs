@@ -1550,6 +1550,12 @@ pub async fn ticket(by: TicketBy) -> Option<Ticket> {
    }
 }
 
+// Сохраняет ссылки на сообщения со статусом для последующего редактирования при изменении тикета
+pub async fn ticket_save_status_msg(ticket_id: i32, eater_status_msg_id: i32, caterer_status_msg_id: i32) -> bool {
+   execute_one("UPDATE tickets SET eater_status_msg_id = $1::INTEGER, caterer_status_msg_id = $2::INTEGER WHERE ticket_id=$2::INTEGER AND stage < 5", &[&ticket_id, &eater_status_msg_id, &caterer_status_msg_id])
+   .await
+}
+
 // Изменяет стадию заказа
 pub async fn basket_edit_stage(ticket_id: i32, stage: i32) -> bool {
    execute_one("UPDATE tickets SET stage = $1::INTEGER WHERE ticket_id=$2::INTEGER AND stage < 5", &[&stage, &ticket_id])
