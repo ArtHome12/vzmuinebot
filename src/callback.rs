@@ -197,13 +197,6 @@ async fn update_keyboard(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32,
    }
 }
 
-// Отправить сообщение с цитированием
-pub async fn message_with_quote(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: ChatId, s: &str, reply_id: i32) {
-   if let Err(e) = cx.bot.send_message(chat_id, s).reply_to_message_id(reply_id).send().await {
-      settings::log(&format!("Error callback::message_with_quote: {}", e)).await;
-   }
-}
-
 // Отредактировать сообщение
 pub async fn edit_message(cx: &DispatcherHandlerCx<CallbackQuery>, chat_id: ChatId, message_id: i32, s: &str, markup: Option<InlineKeyboardMarkup>) {
    let chat_message = ChatOrInlineMessage::Chat {
@@ -233,31 +226,33 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
       // Информация о тикете
       if let Some(ticket) = db::ticket(db::TicketBy::TicketId(ticket_id)).await {
 
-         // Адрес другой стороны это адрес, не совпадающий с нашим собственным
-         let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == ticket.caterer_id {
-            (ticket.eater_id, ticket.eater_order_msg_id, ticket.caterer_id, ticket.caterer_order_msg_id)
-         } else {
-            (ticket.caterer_id, ticket.caterer_order_msg_id, ticket.eater_id, ticket.eater_order_msg_id)
-         };
+         // Проверим, что ссылки на сообщения со статусом заказа есть в базе
+         if ticket.eater_status_msg_id.is_none() || ticket.caterer_status_msg_id.is_none() {
+            settings::log(&format!("cancel_ticket({}, {}) status_msg_id is none", user_id, ticket_id)).await;
+            return false;
+         }
 
-         // Отправим сообщение другой стороне
-         let s = String::from("Заказ был отменён другой стороной, для получения актуального списка заказов обновите корзину");
-         // let s = format!("{} (other_chat_id={}, other_msg_id={})", s, other_chat_id, other_msg_id);
-         message_with_quote(cx, ChatId::Id(i64::from(other_chat_id)), &s, other_msg_id).await;
+         // Подготовим текст сообщения
+         let s = if user_id == ticket.caterer_id {"заведения"} else {"клиента"};
+         let s = format!("Заказ отменён по инициативе {}", s);
 
-         // Сообщение в своём чате
-         let s = String::from("Вы отменили заказ, обновите корзину");
-         // let s = format!("{} (this_chat_id={}, this_msg_id={})", s, this_chat_id, this_msg_id);
-         let this_chat = ChatId::Id(i64::from(this_chat_id));
-         message_with_quote(cx, this_chat.clone(), &s, this_msg_id).await;
+         // Отредактируем сообщение у едока
+         let markup = basket::make_markup(&ticket, basket::InfoFor::Eater);
+         edit_message(cx, ChatId::Id(i64::from(ticket.eater_id)), ticket.eater_status_msg_id.unwrap(), &s, markup).await;
+
+         // Отредактируем сообщение у ресторатора
+         let markup = basket::make_markup(&ticket, basket::InfoFor::Caterer);
+         edit_message(cx, ChatId::Id(i64::from(ticket.caterer_id)), ticket.caterer_status_msg_id.unwrap(), &s, markup).await;
 
          // Два сообщения в служебный чат - об отмене и сам отменённый заказ
-         settings::log(&format!("Заказ отменён по инициативе {}", user_id)).await;
-         settings::log_forward(this_chat, this_msg_id).await;
+         settings::log(&s).await;
+         let eater_chat = ChatId::Id(i64::from(ticket.eater_id));
+         settings::log_forward(eater_chat, ticket.eater_order_msg_id).await;
 
-         true
-      } else {false}
-   } else {false}
+         return true;
+      }
+   }
+   false
 }
 
 // Переводит заказ на следующую стадию
@@ -295,8 +290,9 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
             settings::log_forward(eater_chat, ticket.eater_order_msg_id).await;
          }
 
-         true
-      } else {false}
-   } else {false}
+         return true;
+      }
+   }
+   false
 }
 
