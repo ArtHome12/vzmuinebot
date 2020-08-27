@@ -1426,13 +1426,13 @@ pub async fn clear_basket(user_id: i32) -> bool {
 // ============================================================================
 
 pub struct Ticket {
-   pub ticket_id: i32,              // Уникальный ключ БД
-   pub eater_id: i32,               // Уникальный ключ БД
-   pub caterer_id: i32,             // Уникальный ключ БД
-   pub eater_order_msg_id: i32,     // Сообщение с самим заказом в чате с едоком
-   pub caterer_order_msg_id: i32,   // Сообщение с самим заказом в чате с ресторатором
-   pub eater_status_msg_id: i32,    // Сообщение со статусом заказа в чате с едоком
-   pub caterer_status_msg_id: i32,  // Сообщение со статусом заказа в чате с ресторатором
+   pub ticket_id: i32,                    // Уникальный ключ БД
+   pub eater_id: i32,                     // Уникальный ключ БД
+   pub caterer_id: i32,                   // Уникальный ключ БД
+   pub eater_order_msg_id: i32,           // Сообщение с самим заказом в чате с едоком
+   pub caterer_order_msg_id: i32,         // Сообщение с самим заказом в чате с ресторатором
+   pub eater_status_msg_id: Option<i32>,  // Сообщение со статусом заказа в чате с едоком
+   pub caterer_status_msg_id: Option<i32>,// Сообщение со статусом заказа в чате с ресторатором
    pub stage: i32,
 }
 
