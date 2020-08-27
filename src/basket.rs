@@ -131,26 +131,40 @@ async fn show_tickets(bot: Arc<Bot>, chat: ChatId, user_id: i32, show: InfoFor) 
 
 // Отправляет сообщение с информацией о заказе, ожидающем обработки другой стороной
 async fn send_message_for(bot: Arc<Bot>, chat: ChatId, show: InfoFor, ticket: &db::Ticket) -> Result<Message, RequestError> {
-   // Сообщение с заказом
-   let (message_id, (text, markup_opt)) = match show {
-      InfoFor::Eater => (ticket.eater_order_msg_id, make_message_for_eater(ticket).await),      // собственное сообщение с заказом
-      InfoFor::Caterer => (ticket.caterer_order_msg_id, make_message_for_caterer(ticket).await),// сообщение с заказом от едока
+   // Исходные данные - сообщение с заказом, со статусом и новое сообщение со статусом
+   let (order_msg_id, status_msg_id, (text, markup_opt)) = match show {
+      InfoFor::Eater => (ticket.eater_order_msg_id, ticket.eater_status_msg_id, make_message_for_eater(ticket).await),      // собственное сообщение с заказом
+      InfoFor::Caterer => (ticket.caterer_order_msg_id, ticket.caterer_status_msg_id, make_message_for_caterer(ticket).await),// сообщение с заказом от едока
    };
+
+   // Если ранее уже было сообщение со статусом, его нужно удалить
+   if let Some(msg_id) = status_msg_id {
+      bot.delete_message(chat.clone(), msg_id)
+      .send()
+      .await?;
+   }
 
    // Отправляем стадию выполнения с цитированием заказа
    let res = if let Some(markup) = markup_opt {
       bot.send_message(chat, text)
-      .reply_to_message_id(message_id)
+      .reply_to_message_id(order_msg_id)
       .reply_markup(markup)
       .send()
       .await?
    } else {
       bot.send_message(chat, text)
-      .reply_to_message_id(message_id)
+      .reply_to_message_id(order_msg_id)
       .send()
       .await?
    };
    
+   // Сохраним ссылку на новое сообщение со статусом
+   let (eater_status, caterer_status) = match show {
+      InfoFor::Eater => (res.id, ticket.caterer_status_msg_id.unwrap()),
+      InfoFor::Caterer => (ticket.eater_status_msg_id.unwrap(), res.id), 
+   };
+   db::ticket_save_status_msg(ticket.ticket_id, eater_status, caterer_status).await;
+
    Ok(res)
 }
 
