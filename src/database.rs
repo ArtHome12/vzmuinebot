@@ -14,7 +14,6 @@ use teloxide::{
    types::{User},
 };
 use tokio_postgres::{Row, types::ToSql, };
-use std::collections::BTreeMap;
 use deadpool_postgres::{Pool, Client};
 
 use crate::settings;
@@ -306,7 +305,9 @@ pub async fn create_tables() -> bool {
          caterer_id     INTEGER        NOT NULL,
          eater_msg_id   INTEGER        NOT NULL,
          caterer_msg_id INTEGER        NOT NULL,
-         stage          INTEGER        NOT NULL);")
+         stage          INTEGER        NOT NULL,
+         eater_status_msg_id     INTEGER,
+         caterer_status_msg_id   INTEGER);")
    .await;
       
    match query {
@@ -1082,7 +1083,7 @@ pub async fn basket_toggle_pickup(user_id: i32) -> bool {
 // ============================================================================
 
 // Перемещает заказ из таблицы orders в tickets
-pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, eater_msg_id: i32, caterer_msg_id: i32) -> bool {
+pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, eater_order_msg_id: i32, caterer_order_msg_id: i32) -> bool {
    // Получаем клиента БД
    let client = db_client().await;
    if client.is_none() {return false;}
@@ -1104,7 +1105,7 @@ pub async fn order_to_ticket(eater_id: i32, caterer_id: i32, eater_msg_id: i32, 
    match res {
       Ok(_) => {
          // Создаём запись в tickets
-         let res = trans.execute("INSERT INTO tickets (eater_id, caterer_id, eater_msg_id, caterer_msg_id, stage) VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, 1)", &[&eater_id, &caterer_id, &eater_msg_id, &caterer_msg_id])
+         let res = trans.execute("INSERT INTO tickets (eater_id, caterer_id, eater_msg_id, caterer_msg_id, eater_status_msg_id, caterer_status_msg_id, stage) VALUES ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, NULL, NULL, 1)", &[&eater_id, &caterer_id, &eater_order_msg_id, &caterer_order_msg_id])
          .await;
          match res {
             Ok(_) => {
@@ -1425,74 +1426,125 @@ pub async fn clear_basket(user_id: i32) -> bool {
 // ============================================================================
 
 pub struct Ticket {
-   pub ticket_id: i32,  // Уникальный ключ БД
-   pub eater_msg_id: i32,
-   pub caterer_msg_id: i32,
+   pub ticket_id: i32,              // Уникальный ключ БД
+   pub eater_id: i32,               // Уникальный ключ БД
+   pub caterer_id: i32,             // Уникальный ключ БД
+   pub eater_order_msg_id: i32,     // Сообщение с самим заказом в чате с едоком
+   pub caterer_order_msg_id: i32,   // Сообщение с самим заказом в чате с ресторатором
+   pub eater_status_msg_id: i32,    // Сообщение со статусом заказа в чате с едоком
+   pub caterer_status_msg_id: i32,  // Сообщение со статусом заказа в чате с ресторатором
    pub stage: i32,
-} 
-pub type TicketInfo = BTreeMap<i32, Ticket>;
+}
 
-// Возвращает заказы указанного едока
-pub async fn eater_ticket_info(eater_id: i32) -> TicketInfo {
-   // Выполняем запрос
-   let rows = DB.get().unwrap().get().await.unwrap()
-   .query("SELECT caterer_id, ticket_id, eater_msg_id, caterer_msg_id, stage FROM tickets WHERE eater_id=$1::INTEGER AND stage < 5", &[&eater_id])
-   .await;
-
-   match rows {
-      Ok(data) => data.into_iter().map(|row| (row.get(0), Ticket{ticket_id: row.get(1), eater_msg_id: row.get(2), caterer_msg_id: row.get(3), stage: row.get(4)})).collect(),
-      Err(e) => {
-         // Сообщаем об ошибке и возвращаем пустой список
-         settings::log(&format!("Error db::eater_ticket_info({}): {}", eater_id, e)).await;
-         TicketInfo::new()
+impl Ticket {
+   pub fn from_db(row: &Row) -> Self {
+      Self {
+         ticket_id: row.get(0), 
+         eater_id: row.get(1), 
+         caterer_id: row.get(2), 
+         eater_order_msg_id: row.get(3),
+         caterer_order_msg_id: row.get(4),
+         eater_status_msg_id: row.get(5),
+         caterer_status_msg_id: row.get(6),
+         stage: row.get(7),
       }
    }
 }
 
-// Возвращает заказы указанного ресторана
-pub async fn caterer_ticket_info(caterer_id: i32) -> TicketInfo {
-   // Выполняем запрос
-   let rows = DB.get().unwrap().get().await.unwrap()
-   .query("SELECT eater_id, ticket_id, eater_msg_id, caterer_msg_id, stage FROM tickets WHERE caterer_id=$1::INTEGER AND stage < 5", &[&caterer_id])
-   .await;
-
-   match rows {
-      Ok(data) => data.into_iter().map(|row| (row.get(0), Ticket{ticket_id: row.get(1), eater_msg_id: row.get(2), caterer_msg_id: row.get(3), stage: row.get(4)})).collect(),
-      Err(e) => {
-         // Сообщаем об ошибке и возвращаем пустой список
-         settings::log(&format!("Error db::caterer_ticket_info({}): {}", caterer_id, e)).await;
-         TicketInfo::new()
-      }
-   }
+// Тип запроса информации о тикете
+pub enum TicketBy {
+   TicketId(i32),                // по коду
+   EaterAndCatererId(i32, i32),  // по номеру едока и ресторатора
 }
 
-pub struct TicketWithOwners {
-   pub caterer_id: i32,
-   pub eater_id: i32,
-   pub ticket: Ticket,
+// Тип запроса информации о списке тикетов
+pub enum TicketListBy {
+   EaterId(i32),     // по номеру едока
+   CatererId(i32),   // по номеру ресторатора
+}
+
+// Для списка тикетов
+pub type TicketList = Vec<Ticket>;
+
+// Возвращает список тикетов
+pub async fn ticket_list_by(by: TicketListBy) -> Option<TicketList> {
+   // Получим клиента БД из пула
+   let client = db_client().await?;
+
+   // Выберем нужный текст запроса
+   let statement_text =  match by {
+      TicketListBy::EaterId(_id) =>
+         "SELECT ticket_id, eater_id, caterer_id, eater_msg_id, caterer_msg_id, eater_status_msg_id, caterer_status_msg_id, stage FROM tickets WHERE eater_id=$1::INTEGER AND stage < 5",
+      TicketListBy::CatererId(_id) =>
+         "SELECT ticket_id, eater_id, caterer_id, eater_msg_id, caterer_msg_id, eater_status_msg_id, caterer_status_msg_id, stage FROM tickets WHERE caterer_id=$1::INTEGER AND stage < 5",
+   };
+
+   // Подготовим нужный запрос с кешем благодаря пулу
+   let statement = client.prepare(statement_text).await;
+
+   // Если запрос подготовлен успешно, выполняем его
+   match statement {
+      Ok(stmt) => {
+         let rows = match by {
+            TicketListBy::EaterId(id) => client.query(&stmt, &[&id]).await,
+            TicketListBy::CatererId(id) => client.query(&stmt, &[&id]).await,
+         };
+
+         // Возвращаем результат
+         match rows {
+            Ok(data) => if data.is_empty() {None} else {Some(data.into_iter().map(|row| (Ticket::from_db(&row))).collect())},
+            Err(e) => {
+               // Сообщаем об ошибке и возвращаем пустой результат
+               settings::log(&format!("db::ticket_list_by: {}", e)).await;
+               None
+            }
+         }
+      }
+      Err(e) => {
+         // Сообщаем об ошибке и возвращаем пустой результат
+         settings::log(&format!("db::ticket_list_by prepare: {}", e)).await;
+         None
+      }
+   }
 }
 
 // Возвращает тикеты с владельцами
-pub async fn ticket_with_owners(ticket_id: i32) -> Option<TicketWithOwners> {
-   // Выполняем запрос
-   let row = DB.get().unwrap().get().await.unwrap()
-   .query_one("SELECT caterer_id, eater_id, eater_msg_id, caterer_msg_id, stage FROM tickets WHERE ticket_id=$1::INTEGER", &[&ticket_id])
-   .await;
+pub async fn ticket(by: TicketBy) -> Option<Ticket> {
+   // Получим клиента БД из пула
+   let client = db_client().await?;
 
-   match row {
-      Ok(data) => Some(TicketWithOwners{
-         caterer_id: data.get(0),
-         eater_id: data.get(1),
-         ticket: Ticket {
-            ticket_id,
-            eater_msg_id: data.get(2),
-            caterer_msg_id: data.get(3),
-            stage: data.get(4),
+   // Выберем нужный текст запроса
+   let statement_text =  match by {
+      TicketBy::TicketId(_id) =>
+         "SELECT ticket_id, eater_id, caterer_id, eater_msg_id, caterer_msg_id, eater_status_msg_id, caterer_status_msg_id, stage FROM tickets WHERE ticket_id=$1::INTEGER",
+      TicketBy::EaterAndCatererId(_eater_id, _caterer_id) =>
+         "SELECT ticket_id, eater_id, caterer_id, eater_msg_id, caterer_msg_id, eater_status_msg_id, caterer_status_msg_id, stage FROM tickets WHERE eater_id=$1::INTEGER AND caterer_id=$2::INTEGER",
+   };
+
+   // Подготовим нужный запрос с кешем благодаря пулу
+   let statement = client.prepare(statement_text).await;
+
+   // Если запрос подготовлен успешно, выполняем его
+   match statement {
+      Ok(stmt) => {
+         let rows = match by {
+            TicketBy::TicketId(id) => client.query_one(&stmt, &[&id]).await,
+            TicketBy::EaterAndCatererId(eater_id, caterer_id) => client.query_one(&stmt, &[&eater_id, &caterer_id]).await,
+         };
+
+         // Возвращаем результат
+         match rows {
+            Ok(row) => Some(Ticket::from_db(&row)),
+            Err(e) => {
+               // Сообщаем об ошибке и возвращаем пустой результат
+               settings::log(&format!("db::ticket: {}", e)).await;
+               None
+            }
          }
-      }),
+      }
       Err(e) => {
-         // Сообщаем об ошибке и возвращаем пустой список
-         settings::log(&format!("Error db::ticket_with_owners({}): {}", ticket_id, e)).await;
+         // Сообщаем об ошибке и возвращаем пустой результат
+         settings::log(&format!("db::ticket prepare: {}", e)).await;
          None
       }
    }

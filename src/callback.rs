@@ -238,17 +238,17 @@ async fn cancel_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, ti
    if db::basket_edit_stage(ticket_id, 6).await {
       
       // Информация о тикете
-      if let Some(t) = db::ticket_with_owners(ticket_id).await {
+      if let Some(ticket) = db::ticket(db::TicketBy::TicketId(ticket_id)).await {
 
          // Удаляем инлайн кнопки под заказом в чате едока и ресторатора - не работает
          // remove_inline_markup(cx, t.eater_id, t.ticket.eater_msg_id).await;
          // remove_inline_markup(cx, t.caterer_id, t.ticket.caterer_msg_id).await;
 
          // Адрес другой стороны это адрес, не совпадающий с нашим собственным
-         let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == t.caterer_id {
-            (t.eater_id, t.ticket.eater_msg_id, t.caterer_id, t.ticket.caterer_msg_id)
+         let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == ticket.caterer_id {
+            (ticket.eater_id, ticket.eater_order_msg_id, ticket.caterer_id, ticket.caterer_order_msg_id)
          } else {
-            (t.caterer_id, t.ticket.caterer_msg_id, t.eater_id, t.ticket.eater_msg_id)
+            (ticket.caterer_id, ticket.caterer_order_msg_id, ticket.eater_id, ticket.eater_order_msg_id)
          };
 
          // Отправим сообщение другой стороне
@@ -277,17 +277,17 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
    if db::basket_next_stage(user_id, ticket_id).await {
       
       // Информация о тикете
-      if let Some(t) = db::ticket_with_owners(ticket_id).await {
+      if let Some(ticket) = db::ticket(db::TicketBy::TicketId(ticket_id)).await {
 
          // Обновляем инлайн кнопки под заказом в чате едока и ресторатора
          // remove_inline_markup(cx, t.eater_id, t.ticket.eater_msg_id).await;
          // remove_inline_markup(cx, t.caterer_id, t.ticket.caterer_msg_id).await;
 
          // Адрес другой стороны это адрес, не совпадающий с нашим собственным
-         let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == t.caterer_id {
-            (t.eater_id, t.ticket.eater_msg_id, t.caterer_id, t.ticket.caterer_msg_id)
+         let (other_chat_id, other_msg_id, this_chat_id, this_msg_id) = if user_id == ticket.caterer_id {
+            (ticket.eater_id, ticket.eater_order_msg_id, ticket.caterer_id, ticket.caterer_order_msg_id)
          } else {
-            (t.caterer_id, t.ticket.caterer_msg_id, t.eater_id, t.ticket.eater_msg_id)
+            (ticket.caterer_id, ticket.caterer_order_msg_id, ticket.eater_id, ticket.eater_order_msg_id)
          };
 
          // Новый статус заказа
@@ -311,7 +311,7 @@ async fn process_ticket(cx: &DispatcherHandlerCx<CallbackQuery>, user_id: i32, t
             settings::log_forward(this_chat, this_msg_id).await;
          } else {
             // Отправим сообщение в своём чате ресторатора (при изменении A Telegram's error #400 Bad Request: MessageCantBeEdited)
-            let (text, markup) = basket::make_message_for_caterer(t.eater_id, t.ticket).await;
+            let (text, markup) = basket::make_message_for_caterer(&ticket).await;
             if let Err(e) = cx.bot.send_message(ChatId::Id(i64::from(this_chat_id)), text)
             .reply_to_message_id(this_msg_id)
             .reply_markup(markup)

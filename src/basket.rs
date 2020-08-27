@@ -18,6 +18,14 @@ use crate::database as db;
 use crate::eater;
 use crate::settings;
 
+// Вид отображаемого заказа
+#[derive(Copy, Clone)]
+enum InfoFor {
+   Eater,   // заказ едока
+   Caterer, // заказ для ресторана от едока
+}
+
+
 // Показывает список заказов для user_id
 pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    // Извлечём параметры
@@ -84,7 +92,6 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
          .disable_notification(true)
          .send()
          .await?;
-
       }
    }
 
@@ -92,65 +99,87 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
    let chat = ChatId::Id(cx.chat_id());
 
    // Теперь выводим собственные заказы в обработке другой стороной
-   send_messages_for_eater(bot.clone(), chat.clone(), user_id).await;
+   show_tickets(bot.clone(), chat.clone(), user_id, InfoFor::Eater).await;
 
    // Теперь выводим заказы, отправленные едоками нам, если мы вдруг ресторан
-   send_messages_for_caterer(bot.clone(), chat.clone(), user_id).await;
+   show_tickets(bot.clone(), chat.clone(), user_id, InfoFor::Caterer).await;
    
    // Переходим (остаёмся) в режим выбора ресторана
    next(cmd::Dialogue::BasketMode(user_id))
 }
 
-// Отправляет сообщение с информацией о заказе, ожидающем обработки другой стороной
-async fn send_message_for_eater(bot: Arc<Bot>, chat: ChatId, caterer_id: i32, ticket: db::Ticket) {
-   // Извлечём данные
-   let message_id = ticket.eater_msg_id;
+// Отправляет сообщения с информацией о собственных заказах, находящихся в обработке другой стороной
+async fn show_tickets(bot: Arc<Bot>, chat: ChatId, user_id: i32, show: InfoFor) {
+   // Тип запроса к базе
+   let by = match show {
+      InfoFor::Eater => db::TicketListBy::EaterId(user_id),
+      InfoFor::Caterer => db::TicketListBy::CatererId(user_id),
+   };
 
-   // Отправляем стадию выполнения с цитированием заказа
-   let (text, markup) = make_message_for_eater(caterer_id, ticket).await;
-   let res = bot.send_message(chat, text)
-   .reply_to_message_id(message_id)
-   .reply_markup(markup)
-   .send()
-   .await;
-
-   if let Err(e) = res {
-      settings::log(&format!("Error send_message_for_eater: {}", e)).await
-   }
-}
-
-async fn send_messages_for_eater(bot: Arc<Bot>, chat: ChatId, eater_id: i32) {
-   let ticket_info = db::eater_ticket_info(eater_id).await;
-   for ticket_item in ticket_info {
-      let (caterer_id, ticket) = ticket_item;
-      send_message_for_eater(bot.clone(), chat.clone(), caterer_id, ticket).await;
+   // Получаем тикеты из БД
+   if let Some(tickets) = db::ticket_list_by(by).await {
+      for ticket in tickets {
+         // Отправляем сообщения с тикетами
+         let res = send_message_for(bot.clone(), chat.clone(), show, &ticket).await;
+            
+         if let Err(e) = res {
+            settings::log(&format!("Error show_tickets(): {}", e)).await
+         }
+      }
    }
 }
 
 // Отправляет сообщение с информацией о заказе, ожидающем обработки другой стороной
-async fn send_message_for_caterer(bot: Arc<Bot>, chat: ChatId, eater_id: i32, ticket: db::Ticket) {
-   // Извлечём данные
-   let message_id = ticket.caterer_msg_id;
+async fn send_message_for(bot: Arc<Bot>, chat: ChatId, show: InfoFor, ticket: &db::Ticket) -> Result<Message, RequestError> {
+   // Сообщение с заказом
+   let (message_id, (text, markup)) = match show {
+      InfoFor::Eater => (ticket.eater_order_msg_id, make_message_for_eater(ticket).await),      // собственное сообщение с заказом
+      InfoFor::Caterer => (ticket.caterer_order_msg_id, make_message_for_caterer(ticket).await),// сообщение с заказом от едока
+   };
 
    // Отправляем стадию выполнения с цитированием заказа
-   let (text, markup) = make_message_for_caterer(eater_id, ticket).await;
    let res = bot.send_message(chat, text)
    .reply_to_message_id(message_id)
    .reply_markup(markup)
    .send()
-   .await;
+   .await?;
+   Ok(res)
+}
+
+// Формирует сообщение с заказом для показа едоку
+pub async fn make_message_for_eater(ticket: &db::Ticket) -> (String, InlineKeyboardMarkup) {
+
+   // Название ресторана
+   let rest_name = match db::restaurant(db::RestBy::Id(ticket.caterer_id)).await {
+      Some(rest) => rest.title,
+      None => String::from("???"),
+   };
    
-   if let Err(e) = res {
-      settings::log(&format!("Error send_message_for_caterer(): {}", e)).await
+   // Текст сообщения со стадией выполнения 
+   let stage = db::stage_to_str(ticket.stage);
+   let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, ticket.caterer_id);
+
+   // Если заказ на последней стадии, то добавляем кнопку завершить кроме кнопки отмены
+   if ticket.stage == 4 {
+      (s, cmd::Basket::inline_markup_message_confirm(ticket.ticket_id))
+   } else {
+      (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id))
    }
 }
 
-async fn send_messages_for_caterer(bot: Arc<Bot>, chat: ChatId, caterer_id: i32) {
-   let ticket_info = db::caterer_ticket_info(caterer_id).await;
+// Формирует сообщение с заказом для показа ресторатору
+pub async fn make_message_for_caterer(ticket: &db::Ticket) -> (String, InlineKeyboardMarkup) {
+   // Текст сообщения
+   let eater_name = db::user_name_by_id(ticket.eater_id).await;
+   let stage1 = db::stage_to_str(ticket.stage);
+   let stage2 = db::stage_to_str(ticket.stage + 1);
+   let s = format!("Заказ вам от {} в '{}'. Для отправки заказчику сообщения, например, с уточнением времени, нажмите на ссылку /snd{}\nДля изменения статуса на '{}' нажмите кнопку 'Далее'", eater_name, stage1, ticket.eater_id, stage2);
 
-   for ticket_item in ticket_info {
-      let (eater_id, ticket) = ticket_item;
-      send_message_for_caterer(bot.clone(), chat.clone(), eater_id, ticket).await;
+   // Если заказ на последней стадии, то только кнопка отмены
+   if ticket.stage == 4 {
+      (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id))
+   } else {
+      (s, cmd::Basket::inline_markup_message_next(ticket.ticket_id))
    }
 }
 
@@ -171,43 +200,6 @@ pub fn make_basket_message_text(basket: &Option<db::Basket>) -> String {
          s.push_str(&format!("\nВсего: {}", settings::price_with_unit(basket.total)));
          s
       }
-   }
-}
-
-// Формирует сообщение с заказом для показа едоку
-pub async fn make_message_for_eater(caterer_id: i32, ticket: db::Ticket) -> (String, InlineKeyboardMarkup) {
-
-   // Название ресторана
-   let rest_name = match db::restaurant(db::RestBy::Id(caterer_id)).await {
-      Some(rest) => rest.title,
-      None => String::from("???"),
-   };
-   
-   // Текст сообщения со стадией выполнения 
-   let stage = db::stage_to_str(ticket.stage);
-   let s = format!("{}. Для отправки сообщения к '{}', например, с уточнением времени, нажмите на ссылку /snd{}", stage, rest_name, caterer_id);
-
-   // Если заказ на последней стадии, то добавляем кнопку завершить кроме кнопки отмены
-   if ticket.stage == 4 {
-      (s, cmd::Basket::inline_markup_message_confirm(ticket.ticket_id))
-   } else {
-      (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id))
-   }
-}
-
-// Формирует сообщение с заказом для показа ресторатору
-pub async fn make_message_for_caterer(eater_id: i32, ticket: db::Ticket) -> (String, InlineKeyboardMarkup) {
-   // Текст сообщения
-   let eater_name = db::user_name_by_id(eater_id).await;
-   let stage1 = db::stage_to_str(ticket.stage);
-   let stage2 = db::stage_to_str(ticket.stage + 1);
-   let s = format!("Заказ вам от {} в '{}'. Для отправки заказчику сообщения, например, с уточнением времени, нажмите на ссылку /snd{}\nДля изменения статуса на '{}' нажмите кнопку 'Далее'", eater_name, stage1, eater_id, stage2);
-
-   // Если заказ на последней стадии, то только кнопка отмены
-   if ticket.stage == 4 {
-      (s, cmd::Basket::inline_markup_message_cancel(ticket.ticket_id))
-   } else {
-      (s, cmd::Basket::inline_markup_message_next(ticket.ticket_id))
    }
 }
 
@@ -521,17 +513,34 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
                   }
                }
 
+               // Пересылаем сообщение с заказом
                settings::log_forward(from.clone(), message_id).await;
                match cx.bot.forward_message(to.clone(), from.clone(), message_id).send().await {
                   Ok(new_message) => {
 
                      // Переместим заказ из корзины в обработку
-                     if db::order_to_ticket(user_id, rest_id, message_id, new_message.id).await {
-                        // Отправим сообщение едоку, уже со статусом заказа
-                        send_messages_for_eater(cx.bot.clone(), from, user_id).await;
+                     if db::order_to_ticket(user_id, rest_id, message_id, new_message.id/*, eater_msg.id, caterer_msg.id*/).await {
 
-                        // Отправим сообщение ресторатору, уже со статусом заказа
-                        send_messages_for_caterer(cx.bot.clone(), to, rest_id).await;
+                        // Прочитаем только что записанный тикет из базы
+                        let ticket = db::ticket(db::TicketBy::EaterAndCatererId(user_id, rest_id)).await;
+                        if ticket.is_none() {
+                           return false;
+                        }
+                        let ticket = ticket.unwrap();
+
+                        // Отправим сообщение едоку, уже со статусом заказа
+                        let eater_msg = send_message_for(cx.bot.clone(), from, InfoFor::Eater, &ticket).await;
+                        if let Err(e) = eater_msg {
+                           settings::log(&format!("Error send_basket({}, {}, {}), send_messages_for_eater: {}", user_id, rest_id, message_id, e)).await;
+                           return false;
+                        }
+
+                        // И то же самое для ресторатора
+                        let caterer_msg = send_message_for(cx.bot.clone(), to, InfoFor::Caterer, &ticket).await;
+                        if let Err(e) = caterer_msg {
+                           settings::log(&format!("Error send_basket({}, {}, {}), send_messages_for_caterer: {}", user_id, rest_id, message_id, e)).await;
+                           return false;
+                        }
 
                         // Все операции прошли успешно
                         return true;
