@@ -516,8 +516,11 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
             // Отправим сообщение самому едоку для контроля и проверки, что нет ошибки
             let res = cx.bot.forward_message(from.clone(), to.clone(), msg_id).send().await;
             if let Err(e) = res {
-               let msg = format!("basket::send_basket 5(): {}", e);
-               settings::log(&msg).await;
+               let res = cx.bot.send_message(from.clone(), err_message).send().await;
+               if let Err(e) = res {
+                  let msg = format!("basket::send_basket 4(): {}", e);
+                  settings::log(&msg).await;
+               }
             }
             return false;
 
