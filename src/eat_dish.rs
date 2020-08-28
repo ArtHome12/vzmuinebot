@@ -252,7 +252,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_
    let media = InputMedia::Photo{
       media: InputFile::file_id(data.photo_id),
       caption: Some(data.text),
-      parse_mode: None,
+      parse_mode: Some(ParseMode::HTML),
    };
 
    // Отправляем изменения
@@ -285,6 +285,7 @@ pub async fn force_inline_interface(cx: cmd::Cx<(i32, i32, i32)>) -> bool {
    // Отправляем сообщение как фото
    let res = cx.answer_photo(InputFile::file_id(data.photo_id))
    .caption(data.text)
+   .parse_mode(ParseMode::HTML)
    .reply_markup(ReplyMarkup::InlineKeyboardMarkup(data.markup))
    .disable_notification(true)
    .send()
