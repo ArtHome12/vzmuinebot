@@ -10,7 +10,8 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use teloxide::{
    prelude::*, 
    types::{InputFile, ReplyMarkup, CallbackQuery, InlineKeyboardButton, 
-      ChatOrInlineMessage, InlineKeyboardMarkup, ChatId, InputMedia
+      ChatOrInlineMessage, InlineKeyboardMarkup, ChatId, InputMedia,
+      ParseMode,
    },
 };
 use arraylib::iter::IteratorExt;
@@ -316,6 +317,7 @@ pub async fn show_dish_inline(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num:
    // Отображаем информацию о блюде
    match cx.bot.send_photo(chat_id, image)
    .caption(data.text)
+   .parse_mode(ParseMode::HTML)
    .reply_markup(ReplyMarkup::InlineKeyboardMarkup(data.markup))
    .disable_notification(true)
    .send()
@@ -349,6 +351,7 @@ pub async fn force_dish_inline(cx: cmd::Cx<(i32, i32, i32)>) -> bool {
    // Отображаем информацию
    let res = cx.answer_photo(image)
    .caption(data.text)
+   .parse_mode(ParseMode::HTML)
    .reply_markup(ReplyMarkup::InlineKeyboardMarkup(data.markup))
    .disable_notification(true)
    .send()
@@ -390,6 +393,7 @@ pub async fn show_dish(cx: cmd::Cx<(i32, i32, i32)>, dish_num :i32) -> cmd::Res 
       // Отправляем картинку и текст как комментарий
       cx.answer_photo(image)
       .caption(info)
+      .parse_mode(ParseMode::HTML)
       .reply_markup(ReplyMarkup::InlineKeyboardMarkup(inline_keyboard))
       .disable_notification(true)
       .send()
@@ -398,6 +402,7 @@ pub async fn show_dish(cx: cmd::Cx<(i32, i32, i32)>, dish_num :i32) -> cmd::Res 
       next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
    } else {
       cx.answer(info)
+      .parse_mode(ParseMode::HTML)
       .reply_markup(inline_keyboard)
       .disable_notification(true)
       .send()

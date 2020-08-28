@@ -10,7 +10,8 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use teloxide::{
    prelude::*, 
    types::{InputFile, ReplyMarkup, CallbackQuery, InlineKeyboardButton, 
-      ChatOrInlineMessage, InlineKeyboardMarkup, ChatId, InputMedia
+      ChatOrInlineMessage, InlineKeyboardMarkup, ChatId, InputMedia,
+      ParseMode,
    },
 };
 use arraylib::iter::IteratorExt;
@@ -39,7 +40,7 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
       }
       Some(rest) => {
          // Сформируем информацию о ресторане
-         let rest_info = format!("Заведение: {}\nОписание: {}\nОсновное время работы: {}-{}", rest.title, rest.info, db::str_time(rest.opening_time), db::str_time(rest.closing_time));
+         let rest_info = format!("<b>{}</b>\n{}\nОсновное время работы: {}-{}", rest.title, rest.info, db::str_time(rest.opening_time), db::str_time(rest.closing_time));
 
          // Получаем из БД список групп
          let groups_desc = match db::group_list(db::GroupListBy::Category(rest_num, cat_id)).await {
@@ -64,12 +65,14 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
             // Отправляем картинку и текст как комментарий
             cx.answer_photo(image)
             .caption(s)
+            .parse_mode(ParseMode::HTML)
             .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::EaterGroup::markup()))
             .disable_notification(true)
             .send()
             .await?;
          } else {
                cx.answer(s)
+               .parse_mode(ParseMode::HTML)
                .reply_markup(cmd::EaterGroup::markup())
                .disable_notification(true)
                .send()
@@ -176,7 +179,7 @@ async fn inline_data(cat_id: i32, rest_num: i32) -> InlineData {
       }
       Some(rest) => {
          // Сформируем информацию о ресторане
-         let rest_info = format!("Заведение: {}\nОписание: {}\nОсновное время работы: {}-{}", rest.title, rest.info, db::str_time(rest.opening_time), db::str_time(rest.closing_time));
+         let rest_info = format!("<b>{}</b>\n{}\nОсновное время работы: {}-{}", rest.title, rest.info, db::str_time(rest.opening_time), db::str_time(rest.closing_time));
 
          // Получаем из БД список групп
          let (markup, photo_id) = match db::group_list(db::GroupListBy::Category(rest_num, cat_id)).await {
@@ -255,7 +258,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_
    let media = InputMedia::Photo{
       media: InputFile::file_id(data.photo_id),
       caption: Some(data.text),
-      parse_mode: None,
+      parse_mode: Some(ParseMode::HTML),
    };
 
    // Отправляем изменения

@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
     prelude::*,
-    types::{InputFile, ReplyMarkup},
+    types::{InputFile, ReplyMarkup, ParseMode, },
 };
 
 use crate::commands as cmd;
@@ -210,12 +210,14 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
                   // Отправляем картинку и текст как комментарий
                   cx.answer_photo(image)
                   .caption(info)
+                  .parse_mode(ParseMode::HTML)
                   .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
                   .disable_notification(true)
                   .send()
                   .await?;
                } else {
                   cx.answer(info)
+                  .parse_mode(ParseMode::HTML)
                   .reply_markup(cmd::Caterer::main_menu_markup())
                   .disable_notification(true)
                   .send()

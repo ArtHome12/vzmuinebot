@@ -10,7 +10,8 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use teloxide::{
    prelude::*, 
    types::{InputFile, ReplyMarkup, CallbackQuery, InlineKeyboardButton, 
-      ChatOrInlineMessage, InlineKeyboardMarkup, ChatId, InputMedia
+      ChatOrInlineMessage, InlineKeyboardMarkup, ChatId, InputMedia,
+      ParseMode,
    },
 };
 use arraylib::iter::IteratorExt;
@@ -39,7 +40,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       }
       Some(rest) => {
          // Сформируем информацию о ресторане
-         let rest_info = format!("Заведение: {}\nОписание: {}\nОсновное время работы: {}-{}", rest.title, rest.info, db::str_time(rest.opening_time), db::str_time(rest.closing_time));
+         let rest_info = format!("<b>{}</b>\n{}\nОсновное время работы: {}-{}", rest.title, rest.info, db::str_time(rest.opening_time), db::str_time(rest.closing_time));
 
          // Текущее время
          let time = settings::current_date_time().time();
@@ -66,6 +67,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 
             // Отправляем картинку и текст как комментарий
             cx.answer_photo(image)
+            .parse_mode(ParseMode::HTML)
             .caption(s)
             .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::EaterGroup::markup()))
             .disable_notification(true)
@@ -73,6 +75,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             .await?;
          } else {
                cx.answer(s)
+               .parse_mode(ParseMode::HTML)
                .reply_markup(cmd::EaterGroup::markup())
                .disable_notification(true)
                .send()
@@ -178,7 +181,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
       }
       Some(rest) => {
          // Сформируем информацию о ресторане
-         let rest_info = format!("Заведение: {}\nОписание: {}\nОсновное время работы: {}-{}", rest.title, rest.info, db::str_time(rest.opening_time), db::str_time(rest.closing_time));
+         let rest_info = format!("<b>{}</b>\n{}\nОсновное время работы: {}-{}", rest.title, rest.info, db::str_time(rest.opening_time), db::str_time(rest.closing_time));
 
          // Текущее время
          let time = settings::current_date_time().time();
@@ -250,7 +253,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
    let media = InputMedia::Photo{
       media: InputFile::file_id(photo_id),
       caption: Some(text),
-      parse_mode: None,
+      parse_mode: Some(ParseMode::HTML),
    };
 
    // Отправляем изменения

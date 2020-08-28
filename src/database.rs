@@ -622,10 +622,10 @@ impl Dish {
       let info_str = if self.info.len() < 3 {
          String::default()
       } else {
-         format!("Информация: {}\n", self.info)
+         format!("{}\n", self.info)
       };
 
-      format!("Название: {}\n{}Цена: {}", self.title, info_str, settings::price_with_unit(self.price))
+      format!("<b>{}</b>\n<i>{}</i>Цена: {}", self.title, info_str, settings::price_with_unit(self.price))
    }
 
    // Возвращает описание для ресторатора
