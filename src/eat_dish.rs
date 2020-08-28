@@ -58,6 +58,7 @@ pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
 
          // Отображаем список блюд
          cx.answer(s)
+         .parse_mode(ParseMode::HTML)
          .reply_markup(cmd::EaterGroup::markup())
          .disable_notification(true)
          .send()
