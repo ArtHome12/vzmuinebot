@@ -979,7 +979,7 @@ pub async fn user_toggle_interface(user: Option<&User>) {
 pub struct UserBasketInfo {
    pub name: String, 
    pub contact: String, 
-   pub address: String, 
+   pub address: String,    // лежит либо текст с адресом либо LocationNNN, где NNN это id сообщения с локацией
    pub pickup: bool,
 }
 
@@ -993,17 +993,22 @@ impl UserBasketInfo {
       }
    }
 
+   // Возвращает истину, если адрес задан геопозицией
+   pub fn is_geolocation(&self) -> bool {
+      return self.address.get(..8).unwrap_or_default() == "Location";
+   }
+
    // Возвращает либо сам адрес либо надпись, что задана точка
    pub fn address_label(&self) -> String {
       // Если адрес начинается с ключевого слова, значит там id сообщения с локацией
-      if "Location" == self.address.get(..8).unwrap_or_default() {String::from("на карте")} else {self.address.clone()}
+      if self.is_geolocation() {String::from("на карте")} else {self.address.clone()}
    }
 
    // Возвращает id сообщения с локацией, если имеется и не самовывоз
    pub fn address_message_id(&self) -> Option<i32> {
       if self.pickup {return None;}
 
-      if "Location" == self.address.get(..8).unwrap_or_default() {
+      if self.is_geolocation() {
          // Пытаемся получить продолжение строки
          if let Some(s) = self.address.get(8..) {
             // Пытаемся преобразовать в число.

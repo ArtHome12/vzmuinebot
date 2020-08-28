@@ -490,15 +490,46 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
    // Проверка выше гарантирует отсутствие паники на unwrap()
    let basket_info = basket_info.unwrap();
 
-   // Если не самовывоз, то должен быть задан контакт и адрес
-   if !basket_info.pickup && basket_info.address.len() < 3 {
-      let msg = String::from("Пожалуйста, введите адрес, нажав /edit_address или переключитесь на самовывоз, нажав /toggle\nЭта информация будет сохранена для последующих заказов, при необходимости вы всегда сможете её изменить");
-      let res = cx.bot.send_message(from.clone(), msg).send().await;
-      if let Err(e) = res {
-         let msg = format!("basket::send_basket 1(): {}", e);
-         settings::log(&msg).await;
+   // Сообщение с геолокацией, если есть
+   let location_message = basket_info.address_message_id();
+
+      // Если не самовывоз, то проверим контактную информацию
+   if !basket_info.pickup {
+      // Если адрес слишком короткий, выходим с сообщением
+      if basket_info.address.len() < 3 {
+         let msg = String::from("Пожалуйста, введите адрес, нажав /edit_address или переключитесь на самовывоз, нажав /toggle\nЭта информация будет сохранена для последующих заказов, при необходимости вы всегда сможете её изменить");
+         let res = cx.bot.send_message(from.clone(), msg).send().await;
+         if let Err(e) = res {
+            let msg = format!("basket::send_basket 3(): {}", e);
+            settings::log(&msg).await;
+         }
+         return false;
+      } 
+
+      // Если задано местоположение на карте, надо проверить, что сообщение с геолокацией ещё доступно
+      if basket_info.is_geolocation() {
+         // Заготовим текст сообщения с ошибкой заранее
+         let err_message = String::from("Недоступно сообщение с геопозицией, пожалуйста укажите адрес ещё раз, нажав /edit_address");
+
+         // Код сообщения
+         if let Some(msg_id) = location_message {
+            // Отправим сообщение самому едоку для контроля и проверки, что нет ошибки
+            let res = cx.bot.forward_message(from.clone(), to.clone(), msg_id).send().await;
+            if let Err(e) = res {
+               let msg = format!("basket::send_basket 5(): {}", e);
+               settings::log(&msg).await;
+            }
+            return false;
+
+         } else {
+            let res = cx.bot.send_message(from.clone(), err_message).send().await;
+            if let Err(e) = res {
+               let msg = format!("basket::send_basket 5(): {}", e);
+               settings::log(&msg).await;
+            }
+            return false;
+         }
       }
-      return false;
    }
 
    // Начнём с запроса информации о ресторане-получателе
@@ -514,7 +545,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
             message_id,
          };
 
-         // Исправим исходное сообщение на новый текст
+         // Исправим исходное сообщение на новый текст, чтобы исчезли команды и кнопка "оформить"
          if let Err(e) = cx.bot.edit_message_text(original_message, make_basket_message_text(&basket_with_no_commands)).send().await {
             let s = format!("Error send_basket edit_message_text(): {}", e);
             settings::log(&s).await;
