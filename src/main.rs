@@ -319,7 +319,13 @@ async fn run() {
    
    Dispatcher::new(Arc::clone(&bot))
    .messages_handler(DialogueDispatcher::new(|cx| async move {
-      handle_message(cx).await.expect("Something wrong with the bot!")
+      let res = handle_message(cx).await;
+      if let Err(e) = res {
+         settings::log(&format!("main:{}", e)).await;
+         DialogueStage::Exit
+      } else {
+         res.unwrap()
+      }
    }))
    .callback_queries_handler(handle_callback_query)
    .inline_queries_handler(handle_inline_query)
