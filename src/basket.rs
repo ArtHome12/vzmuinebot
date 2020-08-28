@@ -524,10 +524,10 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
                   let msg = format!("basket::send_basket 4(): {}", e);
                   settings::log(&msg).await;
                }
+               return false;
             }
-            return false;
-
          } else {
+            // Этот код никогда не должен выполниться
             let res = cx.bot.send_message(from.clone(), err_message).send().await;
             if let Err(e) = res {
                let msg = format!("basket::send_basket 5(): {}", e);
