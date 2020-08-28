@@ -52,6 +52,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
 
             // Отправляем сообщение
             cx.answer(s)
+            .parse_mode(ParseMode::HTML)
             .reply_markup(cmd::Basket::inline_markup_send(rest_id))
             .disable_notification(true)
             .send()
@@ -200,15 +201,15 @@ pub fn make_basket_message_text(basket: &Option<db::Basket>) -> String {
       None => String::from("корзина пуста"),
       Some(basket) => {
          // Заголовок с информацией о ресторане
-         let mut s = basket.restaurant.clone();
+         let mut s = String::default();
 
          // Дополняем данными о блюдах
          for dish in basket.dishes.clone() {
             s.push_str(&format!("\n{}", dish))
          }
 
-         // Итоговая стоимость
-         s.push_str(&format!("\nВсего: {}", settings::price_with_unit(basket.total)));
+         // Итоговая стоимость и информация о ресторане
+         s.push_str(&format!("\nВсего: {}\n\n{}", settings::price_with_unit(basket.total), basket.restaurant));
          s
       }
    }
