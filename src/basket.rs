@@ -514,7 +514,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
          // Код сообщения
          if let Some(msg_id) = location_message {
             // Отправим сообщение самому едоку для контроля и проверки, что нет ошибки
-            let res = cx.bot.forward_message(from.clone(), to.clone(), msg_id).send().await;
+            let res = cx.bot.forward_message(to.clone(), from.clone(), msg_id).send().await;
             if let Err(e) = res {
                let err_message = format!("{}\n<i>{}</i>", err_message, e);
                let res = cx.bot.send_message(from.clone(), err_message)
@@ -561,19 +561,10 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
          let method = if basket_info.pickup {String::from("Cамовывоз")} else {format!("Курьером по адресу {}", basket_info.address_label())};
          let eater_info = format!("Заказ от {}\nКонтакт: {}\n{}", basket_info.name, basket_info.contact, method);
 
-         // Отправим сообщение с контактными данными
+         // Отправим сообщение с контактными данными (геолокация уже отправлена выше)
          settings::log_and_notify(&eater_info).await;
          match cx.bot.send_message(to.clone(), eater_info).send().await {
             Ok(_) => {
-               // Перешлём сообщение с геолокацией, если она задана
-               if let Some(location_message) = basket_info.address_message_id() {
-
-                  settings::log_forward(from.clone(), location_message).await;
-                  if let Err(e) = cx.bot.forward_message(to.clone(), from.clone(), location_message).send().await {
-                     settings::log(&format!("Error send_basket forward location({}, {}, {}): {}", user_id, rest_id, message_id, e)).await;
-                  }
-               }
-
                // Пересылаем сообщение с заказом
                settings::log_forward(from.clone(), message_id).await;
                match cx.bot.forward_message(to.clone(), from.clone(), message_id).send().await {
