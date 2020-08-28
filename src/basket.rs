@@ -514,8 +514,9 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
          // Код сообщения
          if let Some(msg_id) = location_message {
             // Отправим сообщение самому едоку для контроля и проверки, что нет ошибки
+            let err_message = String::from("+Недоступно сообщение с геопозицией, пожалуйста укажите адрес ещё раз, нажав /edit_address");
             let res = cx.bot.forward_message(from.clone(), to.clone(), msg_id).send().await;
-            if let Err(e) = res {
+            if let Err(_) = res {
                let res = cx.bot.send_message(from.clone(), err_message).send().await;
                if let Err(e) = res {
                   let msg = format!("basket::send_basket 4(): {}", e);
@@ -525,6 +526,7 @@ pub async fn send_basket(cx: &DispatcherHandlerCx<CallbackQuery>, rest_id: i32, 
             return false;
 
          } else {
+            let err_message = String::from("-Недоступно сообщение с геопозицией, пожалуйста укажите адрес ещё раз, нажав /edit_address");
             let res = cx.bot.send_message(from.clone(), err_message).send().await;
             if let Err(e) = res {
                let msg = format!("basket::send_basket 5(): {}", e);
