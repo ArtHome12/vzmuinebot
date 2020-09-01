@@ -362,9 +362,9 @@ pub async fn show_dish<'a>(mode: DishMode<'_>) -> cmd::Res {
    let compact_mode = matches!(mode, DishMode::Compact(_cx, _dish_num));
    let dish_text = dish.info_for_eater();
 
-   // Если мы не в режиме со ссылками, надо добавить кнопку "назад"
+   // Если мы не в режиме со ссылками, надо добавить кнопку возврата
    if !compact_mode {
-      let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrd{}", db::make_key_3_int(rest_num, group_num, 0)));
+      let button_back = InlineKeyboardButton::callback(String::from("В меню"), format!("rrd{}", db::make_key_3_int(rest_num, group_num, 0)));
       buttons.push(button_back);
    }
 
