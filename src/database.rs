@@ -625,7 +625,11 @@ impl Dish {
          format!("{}\n", self.info)
       };
 
-      format!("<b>{}</b>\n<i>{}</i>Цена: {}", self.title, info_str, settings::price_with_unit(self.price))
+      // Если цена нулевая, не выводим её
+      let price_str = if self.price > 0 {format!("Цена: {}", settings::price_with_unit(self.price))}
+      else {String::default()};
+
+      format!("<b>{}</b>\n<i>{}</i>{}", self.title, info_str, price_str)
    }
 
    // Возвращает описание для ресторатора
