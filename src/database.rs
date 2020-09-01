@@ -751,7 +751,47 @@ pub async fn dish(by: DishBy) -> Option<Dish> {
 
 // Возвращает картинку блюда, если задана, иначе пытается получить картинку ресторана и т.д.
 pub async fn load_dish_image(dish: &Dish) -> InputFile {
-   let id = dish.image_id.to_owned().unwrap_or(settings::default_photo_id());
+   
+   // Возвращает картинку для указанного ресторана, если есть
+   async fn load_rest_image(rest_num: i32) -> Option<String> {
+      // Получаем клиента БД
+      let client = db_client().await;
+      if client.is_none() {return None;}
+
+      // В клиенте действительное значение, можно смело развернуть
+      let client = client.unwrap();
+
+      // Подготовим запрос
+      let statement = client.prepare("SELECT image_id FROM restaurants WHERE rest_num=$1::INTEGER").await;
+
+      // Если запрос подготовлен успешно, выполняем его
+      match statement {
+         Ok(stmt) => {
+            let rows = client.query_one(&stmt, &[&rest_num]).await;
+
+            // Возвращаем результат
+            match rows {
+               Ok(data) => return data.get(0),
+               Err(e) => {
+                  // Сообщаем об ошибке и возвращаем пустой результат
+                  settings::log(&format!("db::load_rest_image(rest_num={}): {}", rest_num, e)).await;
+               }
+            }
+         }
+         Err(e) => {
+            // Сообщаем об ошибке и возвращаем пустой результат
+            settings::log(&format!("db::load_rest_image prepare: {}", e)).await;
+         }
+      }
+      None
+   }
+
+   // Получаем идентификатор от первого доступного источника
+   let id = dish.image_id.to_owned()
+   .unwrap_or(load_rest_image(dish.rest_num).await
+   .unwrap_or(settings::default_photo_id()));
+
+   // Возврашаем объект
    InputFile::file_id(id)
 }
 
