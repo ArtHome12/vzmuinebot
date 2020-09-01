@@ -114,7 +114,7 @@ pub async fn handle_commands(cx: cmd::Cx<()>) -> cmd::Res {
 // Обработка глобальных команд
 pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box<cmd::DialogueState>) -> Option<cmd::Res> {
 
-   async fn goto(cx: cmd::Cx<()>, rest_num: i32, group_num: i32, dish_num: i32)-> Option<cmd::Res> {
+   async fn goto(cx: cmd::Cx<()>, rest_num: i32, group_num: i32, dish_num: i32)-> cmd::Res {
 
       // Запросим настройку пользователя с режимом интерфейса и обновим время последнего входа в БД
       let compact_mode = db::user_compact_interface(cx.update.from()).await;
@@ -127,37 +127,44 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
 
          // Режим "со ссылками"
       if compact_mode {
-         // Приветственное сообщение с правильным миню
+         // Приветственное сообщение с правильным меню
          cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), &s, cmd::EaterGroup::markup()).await;
 
          // Если третий аргумент нулевой, надо отобразить группу
          if dish_num == 0 {
             let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, rest_num, group_num));
-            Some(eat_dish::next_with_info(new_cx).await)
+            eat_dish::next_with_info(new_cx).await
          } else {
             // Отображаем сразу блюдо
             let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, rest_num, group_num));
-            Some(eat_dish::show_dish(new_cx, dish_num).await)
+            let res = eat_dish::show_dish(eat_dish::DishMode::Compact(&new_cx, dish_num)).await;
+            if let Err(e) = res.as_ref() {
+               settings::log(&format!("Error handle_common_commands1 goto({}, {}, {}): {}", rest_num, group_num, dish_num, e)).await;
+            }
+
+            // Остаёмся в режиме выбора блюд
+            res
          }
       } else {
-         // Приветственное сообщение с правильным миню
+         // Приветственное сообщение с правильным меню
          cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), &s, cmd::User::main_menu_markup()).await;
 
          // Режим с инлайн-кнопками
          if dish_num == 0 {
             let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, rest_num, group_num));
             if !eat_dish::force_inline_interface(new_cx).await {
-               settings::log(&format!("Error handle_common_commands StartArgs: ({}, {}, {})", rest_num, group_num, dish_num)).await;
+               settings::log(&format!("Error handle_common_commands2 goto({}, {}, {})", rest_num, group_num, dish_num)).await;
             }
          } else {
             let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (rest_num, group_num, dish_num));
-            if !eat_dish::force_dish_inline(new_cx).await {
-               settings::log(&format!("Error handle_common_commands2 StartArgs: ({}, {}, {})", rest_num, group_num, dish_num)).await;
+            let res = eat_dish::show_dish(eat_dish::DishMode::Inline(&new_cx)).await;
+            if let Err(e) = res {
+               settings::log(&format!("Error handle_common_commands3 goto({}, {}, {}): {}", rest_num, group_num, dish_num, e)).await;
             }
          }
 
          // Всегда в главном меню
-         Some(next(cmd::Dialogue::UserMode))
+         next(cmd::Dialogue::UserMode)
       }
    }
 
@@ -169,8 +176,8 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
 
          Some(next(cmd::Dialogue::UserMode))
       },
-      cmd::Common::StartArgs(first, second, third) => goto(cx, first, second, third).await,
-      cmd::Common::Goto(first, second, third) => goto(cx, first, second, third).await,
+      cmd::Common::StartArgs(first, second, third) => Some(goto(cx, first, second, third).await),
+      cmd::Common::Goto(first, second, third) => Some(goto(cx, first, second, third).await),
       cmd::Common::SendMessage(caterer_id) => {
          // Отправляем приглашение ввести строку со слешем в меню для отмены
          let res = cx.answer(format!("Введите сообщение (/ для отмены)"))

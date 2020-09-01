@@ -99,7 +99,7 @@ pub async fn handle_message(cx: DispatcherHandlerCx<CallbackQuery>) {
             CallbackCommand::ReturnToGroups(rest_num, cat_id) => 
                format!("Группы '{}' {}", db::id_to_category(cat_id), db::is_success(eat_group::show_inline_interface(&cx, cat_id, rest_num).await)),
             CallbackCommand::Dish(rest_num, group_num, dish_num) =>
-               format!("Блюдо '{}': {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(eat_dish::show_dish_inline(&cx, rest_num, group_num, dish_num).await)),
+               format!("Блюдо '{}': {}", db::make_key_3_int(rest_num, group_num, dish_num), db::is_success(eat_dish::show_dish(eat_dish::DishMode::CallbackInline(&cx, rest_num, group_num, dish_num)).await.is_ok())),
             CallbackCommand::ReturnToDishes(rest_num, group_num, cat_id) =>
                format!("Блюда {}:{} {}", rest_num, group_num, db::is_success(eat_dish::show_inline_interface(&cx, cat_id, rest_num, group_num).await)),
             CallbackCommand::GroupsByRestaurantNow(rest_num) => 

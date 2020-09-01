@@ -11,7 +11,7 @@ use chrono::{NaiveTime, Timelike};
 use once_cell::sync::{OnceCell};
 use text_io::try_scan;
 use teloxide::{
-   types::{User},
+   types::{User, InputFile, },
 };
 use tokio_postgres::{Row, types::ToSql, };
 use deadpool_postgres::{Pool, Client};
@@ -743,6 +743,12 @@ pub async fn dish(by: DishBy) -> Option<Dish> {
          None
       }
    }
+}
+
+// Возвращает картинку блюда, если задана, иначе пытается получить картинку ресторана и т.д.
+pub async fn load_dish_image(dish: &Dish) -> InputFile {
+   let id = dish.image_id.to_owned().unwrap_or(settings::default_photo_id());
+   InputFile::file_id(id)
 }
 
 // Добавляет новое блюдо

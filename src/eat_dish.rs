@@ -11,7 +11,7 @@ use teloxide::{
    prelude::*, 
    types::{InputFile, ReplyMarkup, CallbackQuery, InlineKeyboardButton, 
       ChatOrInlineMessage, InlineKeyboardMarkup, ChatId, InputMedia,
-      ParseMode,
+      ParseMode, 
    },
 };
 use arraylib::iter::IteratorExt;
@@ -24,6 +24,7 @@ use crate::eat_group_now;
 use crate::basket;
 use crate::language as lang;
 use crate::settings;
+
 
 // Основная информация режима
 pub async fn next_with_info(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
@@ -127,7 +128,7 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32, i32)>) -> cmd::Res {
             }
 
             // Выбор блюда
-            cmd::EaterDish::Dish(dish_num) => show_dish(cx, dish_num).await,
+            cmd::EaterDish::Dish(dish_num) => show_dish(DishMode::Compact(&cx, dish_num)).await,
 
             cmd::EaterDish::UnknownCommand => {
                // Сохраним текущее состояние для возврата
@@ -295,13 +296,12 @@ pub async fn force_inline_interface(cx: cmd::Cx<(i32, i32, i32)>) -> bool {
 }
 
 // Показывает информацию о блюде
-pub async fn show_dish_inline(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32) -> bool {
+/*pub async fn show_dish_inline(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32, group_num: i32, dish_num: i32) -> bool {
    // Идентифицируем пользователя
    let user_id = cx.update.from.id;
 
    // Получим данные
    let data = prepare_dish_data(user_id, rest_num, group_num, dish_num).await;
-   // settings::log(&format!("rrg{}", db::make_key_3_int(est_num, group_num, cat_id))).await;
 
    // Картинка блюда
    let photo_id = match data.photo_id {
@@ -370,47 +370,36 @@ pub async fn force_dish_inline(cx: cmd::Cx<(i32, i32, i32)>) -> bool {
 
 pub async fn show_dish(cx: cmd::Cx<(i32, i32, i32)>, dish_num :i32) -> cmd::Res {
    // Извлечём параметры
-   let (cat_id, rest_id, group_id) = cx.dialogue;
-
-   // Получаем информацию из БД
-   let (info, dish_image_id) = match db::dish(db::DishBy::Active(rest_id, group_id, dish_num)).await {
-      Some(dish) => (dish.info_for_eater(), dish.image_id),
-      None => (String::from("Информация недоступна"), None)
-   };
-
-   // Идентифицируем пользователя
+   let (cat_id, rest_num, group_num) = cx.dialogue;
    let user_id = cx.update.from().unwrap().id;
 
-   // Запросим из БД, сколько этих блюд пользователь уже выбрал
-   let ordered_amount = db::amount_in_basket(rest_id, group_id, dish_num, user_id).await;
-
-   // Создаём инлайн кнопки с указанием количества блюд
-   let inline_keyboard = cmd::EaterDish::inline_markup(&db::make_key_3_int(rest_id, group_id, dish_num), ordered_amount);
+   // Получим данные
+   let data = prepare_dish_data(user_id, rest_num, group_num, dish_num).await;
 
    // Отображаем информацию о блюде и оставляем кнопки главного меню. Если для блюда задана картинка, то текст будет комментарием
-   if let Some(image_id) = dish_image_id {
+   if let Some(image_id) = data.photo_id {
       // Создадим графический объект
       let image = InputFile::file_id(image_id);
 
       // Отправляем картинку и текст как комментарий
       cx.answer_photo(image)
-      .caption(info)
+      .caption(data.text)
       .parse_mode(ParseMode::HTML)
-      .reply_markup(ReplyMarkup::InlineKeyboardMarkup(inline_keyboard))
+      .reply_markup(ReplyMarkup::InlineKeyboardMarkup(data.markup))
       .disable_notification(true)
       .send()
       .await?;
       
-      next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
+      next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_num, group_num))
    } else {
-      cx.answer(info)
+      cx.answer(data.text)
       .parse_mode(ParseMode::HTML)
-      .reply_markup(inline_keyboard)
+      .reply_markup(data.markup)
       .disable_notification(true)
       .send()
       .await?;
 
-      next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id))
+      next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_num, group_num))
    }
 }
 
@@ -439,4 +428,113 @@ async fn prepare_dish_data(user_id: i32, rest_num: i32, group_num: i32, dish_num
 
    // Возвращаем результат
    DishData {text, markup, photo_id}
+}*/
+
+// Тип вывода информации о блюде
+pub enum DishMode<'a> {
+   CallbackInline(&'a DispatcherHandlerCx<CallbackQuery>, i32, i32, i32),  // для вызова из callback
+   Inline(&'a cmd::Cx<(i32, i32, i32)>),                                   // для режима с кнопками
+   Compact(&'a cmd::Cx<(i32, i32, i32)>, i32),                             // для режима со ссылками
+}
+
+pub async fn show_dish<'a>(mode: DishMode<'_>) -> cmd::Res {
+   // Извлечём параметры - бот, чат, категорию, ресторан, группу и блюдо
+   let (bot, chat_id, user_id, cat_id, rest_num, group_num, dish_num) = match mode {
+      // Вызов от инлайн-кнопки
+      DishMode::CallbackInline(cx, rest, group, dish) => {
+         // Обязательно должен быть идентификатор чата и этот код никогда не должен выполниться
+         let message = cx.update.message.as_ref();
+         if message.is_none() {
+            return exit();
+         }
+
+         (cx.bot.to_owned(), message.unwrap().chat_id(), cx.update.from.id, 0, rest, group, dish)
+      },
+
+      // Отобразить в режиме с кнопками
+      DishMode::Inline(cx) => (cx.bot.to_owned(), cx.chat_id(), cx.update.from().unwrap().id, 0, cx.dialogue.0, cx.dialogue.1, cx.dialogue.2),
+
+      // Отобразить в режиме со ссылками
+      DishMode::Compact(cx, dish_num) => (cx.bot.to_owned(), cx.chat_id(), cx.update.from().unwrap().id, cx.dialogue.0, cx.dialogue.1, cx.dialogue.2, dish_num),
+   };
+
+   // Получаем информацию из БД
+   let dish = db::dish(db::DishBy::Active(rest_num, group_num, dish_num)).await;
+   if dish.is_none() {
+      bot.send_message(chat_id, "Информация недоступна из БД")
+      .reply_markup(cmd::EaterDish::markup())
+      .disable_notification(true)
+      .send()
+      .await?;
+      return next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_num, group_num));
+   }
+   let dish = dish.unwrap();
+
+   // Вектор кнопок под блюдом, если цена ненулевая, добавляем инлайн-кнопки с количеством и +/-
+   let mut buttons = if dish.price > 0 {
+      let key = db::make_key_3_int(rest_num, group_num, dish_num);
+
+      // Запросим из БД, сколько этих блюд пользователь уже выбрал
+      let ordered_amount = db::amount_in_basket(rest_num, group_num, dish_num, user_id).await;
+
+      // Создадим кнопку с количеством и командой добавить
+      let add_button = InlineKeyboardButton::callback(format!("+1 ({})", ordered_amount), format!("add{}", key));
+
+      // Если блюд больше одного, добавим кнопку для убавления
+      if ordered_amount == 0 {
+         vec![add_button,]
+      } else {
+         vec![
+            add_button,
+            InlineKeyboardButton::callback("-1".to_string(), format!("del{}", key)),
+         ]
+      }
+   } else {
+      vec![]
+   };
+
+   // Для удобства
+   let compact_mode = matches!(mode, DishMode::Compact(_cx, _dish_num));
+   let dish_text = dish.info_for_eater();
+
+   // Если мы не в режиме со ссылками, надо добавить кнопку "назад"
+   if !compact_mode {
+      let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrd{}", db::make_key_3_int(rest_num, group_num, 0)));
+      buttons.push(button_back);
+   }
+
+   // Формируем и отправляем сообщение
+   let res = if compact_mode && dish.image_id.is_none() {
+      // Если мы в компактном режиме и картинка для блюда не задана, приготовим текстовое сообщение, иначе с картинкой
+      let msg = bot.send_message(chat_id, dish_text)
+      .parse_mode(ParseMode::HTML)
+      .disable_notification(true);
+      let msg = if buttons.is_empty() {msg} else {
+         let markup = InlineKeyboardMarkup::default()
+         .append_row(buttons);
+
+         msg.reply_markup(ReplyMarkup::InlineKeyboardMarkup(markup))
+      };
+      
+      msg.send().await
+   } else {
+      let msg = bot.send_photo(chat_id, db::load_dish_image(&dish).await)
+      .caption(dish_text)
+      .parse_mode(ParseMode::HTML)
+      .disable_notification(true);
+      let msg = if buttons.is_empty() {msg} else {
+         let markup = InlineKeyboardMarkup::default()
+         .append_row(buttons);
+
+         msg.reply_markup(ReplyMarkup::InlineKeyboardMarkup(markup))
+      };
+      
+      msg.send().await
+   };
+
+   if let Err(e) = res {
+      settings::log(&format!("Error eat_dish::show_dish({}, {}, {}, {}, {}): {}", user_id, cat_id, rest_num, group_num, dish_num, e)).await;
+   }
+
+   next(cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_num, group_num))
 }
