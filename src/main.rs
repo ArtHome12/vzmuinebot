@@ -7,6 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
+//#![type_length_limit="46255638"]
 #![allow(clippy::trivial_regex)]
 
 #[macro_use]
@@ -289,9 +290,6 @@ async fn run() {
    let mgr_config = ManagerConfig {recycling_method: RecyclingMethod::Fast};
    let mgr = Manager::from_config(pg_config, NoTls, mgr_config);
    let pool = Pool::new(mgr, 16);
-
-   // let manager = bb8_postgres::PostgresConnectionManager::new_from_stringlike(database_url, NoTls).expect("DATABASE_URL env variable wrong");
-   // let pool = bb8::Pool::builder().build(manager).await.expect("Cannot connect to database");
 
    // Протестируем соединение
    let test_pool = pool.clone();

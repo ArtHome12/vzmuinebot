@@ -21,6 +21,15 @@ use crate::settings;
 // Пул клиентов БД
 pub static DB: OnceCell<Pool> = OnceCell::new();
 
+// Картинки по-умолчанию для категорий блюд
+/*pub struct CategoryImages {
+   pub cat1: String,   
+   pub cat2: String,   
+   pub cat3: String,   
+   pub cat4: String,   
+}*/
+//pub static CF: OnceCell<String> = OnceCell::new();
+
 // ============================================================================
 // [Restaurants table]
 // ============================================================================
