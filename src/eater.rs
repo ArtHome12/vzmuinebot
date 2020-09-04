@@ -67,7 +67,7 @@ pub async fn handle_commands(cx: cmd::Cx<()>) -> cmd::Res {
 
                // Если картинка получена от админа, предложим установить её как картинку категории
                if settings::is_admin(cx.update.from()) {
-                  let s = format!("{}\nВы можете установить её как главную для бота через переменную окружения либо выберите внизу категорию, чтобы сделать её по-умолчанию для данной категории", s);
+                  let s = format!("{}\nВы можете установить её как главную для бота через переменную окружения либо выберите внизу категорию, чтобы сделать её по-умолчанию для данной категории (/ для отмены)", s);
                   cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update.clone(), ()), &s, cmd::CatGroup::category_markup()).await;
                   return next(cmd::Dialogue::UserModeEditCatImage(image_id))
                } else {
@@ -249,7 +249,8 @@ pub async fn edit_cat_image(cx: cmd::Cx<String>) -> cmd::Res {
            db::save_cat_image(cat_id, image_id).await;
 
          // Покажем группу
-         return eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, cat_id)).await;
+         cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Успешно, перезапустите бота", cmd::User::main_menu_markup()).await
+         // return eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, cat_id)).await;
 
        } else {
            // Сообщим об отмене
