@@ -24,7 +24,8 @@ use crate::settings;
 pub enum Dialogue {
    #[default]
    Start,
-   UserMode, 
+   UserMode,
+   UserModeEditCatImage(String), // new image id
    EatRestSelectionMode(i32), // cat_id
    EatRestGroupSelectionMode(i32, i32), // cat_id, rest_id
    EatRestGroupDishSelectionMode(i32, i32, i32), // cat_id, rest_id, group_id

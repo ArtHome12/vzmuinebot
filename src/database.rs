@@ -15,6 +15,7 @@ use teloxide::{
 };
 use tokio_postgres::{Row, types::ToSql, };
 use deadpool_postgres::{Pool, Client};
+use std::collections::HashMap;
 
 use crate::settings;
 
@@ -22,13 +23,8 @@ use crate::settings;
 pub static DB: OnceCell<Pool> = OnceCell::new();
 
 // Картинки по-умолчанию для категорий блюд
-/*pub struct CategoryImages {
-   pub cat1: String,   
-   pub cat2: String,   
-   pub cat3: String,   
-   pub cat4: String,   
-}*/
-//pub static CF: OnceCell<String> = OnceCell::new();
+type CatImageList = HashMap<i32, String>;
+pub static CI: OnceCell<CatImageList> = OnceCell::new();
 
 // ============================================================================
 // [Restaurants table]
@@ -306,6 +302,11 @@ pub async fn create_tables() -> bool {
          group_num      INTEGER        NOT NULL,
          dish_num       INTEGER        NOT NULL,
          amount         INTEGER        NOT NULL);
+
+      CREATE TABLE category (
+         PRIMARY KEY (cat_id),
+         cat_id         INTEGER        NOT NULL,
+         image_id       VARCHAR(512));
 
       CREATE TABLE tickets (
          PRIMARY KEY (ticket_id),
@@ -1855,5 +1856,63 @@ async fn db_client() -> Option<Client> {
          settings::log(&format!("No db client: {}", e)).await;
          None
       }
+   }
+}
+
+// Инициализирует структуру с картинками для категорий
+pub async fn cat_image_init() {
+   // Внесём значения по-умолчанию, а потом попытаемся прочесть их их базы
+   let mut hash: CatImageList = HashMap::new();
+   hash.insert(1, settings::default_photo_id());
+   hash.insert(2, settings::default_photo_id());
+   hash.insert(3, settings::default_photo_id());
+   hash.insert(4, settings::default_photo_id());
+
+   // Получаем клиента БД
+   let client = db_client().await;
+   if client.is_some() {
+      // Выполняем запрос
+      let query = client.unwrap()
+      .query("SELECT cat_id, image_id FROM category", &[])
+      .await;
+      match query {
+         Ok(rows) => {
+            for row in rows {
+               let s: Option<String> = row.get(1);
+               if s.is_some() {hash.insert(row.get(0), s.unwrap());}
+            }
+         }
+         Err(e) => {
+            settings::log(&format!("Error db::cat_image_init: {}", e)).await;
+         }
+      };
+   };
+
+   // Сохраняем данные
+   if let Err(_) = CI.set(hash) {
+      settings::log(&format!("Error db::cat_image_init2")).await;
+   }
+}
+
+// Возвращает картинку для категории
+pub fn cat_image(cat_id: i32) -> String {
+   if let Some(hash) = CI.get() {
+      hash.get(&cat_id).unwrap().to_owned()
+   } else {
+      settings::default_photo_id()
+   }
+}
+
+// Сохраняет новую картинку для категории
+pub async fn save_cat_image(cat_id: i32, image_id: String) {
+   /*if let Some(hash) = CI.get() {
+      let mut hash = hash;
+      hash.insert(cat_id, image_id);
+   }*/
+
+   // Поробуем обновить запись
+   if !execute_one_no_error("UPDATE category SET image_id = $1::VARCHAR(512) WHERE cat_id=$2::INTEGER", &[&image_id, &cat_id]).await {
+      // Если не получилось, вставляем новую
+      execute_one("INSERT INTO category(cat_id, image_id) VALUES ($1::INTEGER, $2::VARCHAR(512))", &[&cat_id, &image_id]).await;
    }
 }

@@ -61,7 +61,20 @@ pub async fn handle_commands(cx: cmd::Cx<()>) -> cmd::Res {
    match cx.update.text() {
       None => {
          let s = match cx.update.photo() {
-            Some(photo_size) => format!("Вы прислали картинку с id\n{}", &photo_size[0].file_id),
+            Some(photo_size) => {
+               let image_id = photo_size[0].file_id.to_owned();
+               let s = format!("Вы прислали картинку с id\n{}", &image_id);
+
+               // Если картинка получена от админа, предложим установить её как картинку категории
+               if settings::is_admin(cx.update.from()) {
+                  let s = format!("\nВы можете установить её как главную для бота через переменную окружения либо выберите внизу категорию, чтобы сделать её по-умолчанию для данной категории");
+                  cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update.clone(), ()), &s, cmd::User::main_menu_markup()).await;
+                  return next(cmd::Dialogue::UserModeEditCatImage(image_id))
+               } else {
+                  // Иначе просто сообщим её идентификатор
+                  s
+               }
+            }
             None => String::from("Текстовое сообщение, пожалуйста!"),
          };
          cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), &s, cmd::User::main_menu_markup()).await
@@ -220,3 +233,34 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
       },
    }
 }
+
+// Изменение категории группы rest_id, group_id
+pub async fn edit_cat_image(cx: cmd::Cx<String>) -> cmd::Res {
+   if let Some(text) = cx.update.text() {
+       // Попытаемся преобразовать ответ пользователя в код категории
+       let cat_id = db::category_to_id(text);
+
+       // Если категория не пустая, продолжим
+       if cat_id > 0 {
+           // Извлечём параметры
+           let image_id = cx.dialogue;
+       
+           // Сохраним новое значение в БД
+           db::save_cat_image(cat_id, image_id).await;
+
+         // Покажем группу
+         return eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, cat_id)).await;
+
+       } else {
+           // Сообщим об отмене
+           cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Неизвестная категория, отмена изменения", cmd::User::main_menu_markup()).await
+       }
+   } else {
+     // Сообщим об отмене
+     cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Отмена изменения", cmd::User::main_menu_markup()).await
+   }
+
+   // Остаёмся в пользовательском режиме.
+   next(cmd::Dialogue::UserMode)
+}
+

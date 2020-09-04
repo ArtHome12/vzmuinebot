@@ -364,7 +364,6 @@ pub async fn edit_info_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
 }
 
 // Изменение категории группы rest_id, group_id
-//
 pub async fn edit_category_mode(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
     if let Some(text) = cx.update.text() {
         // Попытаемся преобразовать ответ пользователя в код категории

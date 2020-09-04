@@ -52,7 +52,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             // Отправляем сообщение с плашкой в качестве картинки
             let s = String::from("Рестораны с подходящим меню:");
             let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
-            cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), settings::default_photo_id()).await;
+            cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), db::cat_image(cat_id)).await;
 
             // В инлайн-режиме всегда остаёмся в главном меню
             return next(cmd::Dialogue::UserMode);

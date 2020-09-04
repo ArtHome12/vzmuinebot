@@ -64,6 +64,9 @@ async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
          cmd::Dialogue::UserMode => {
             eater::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, ())).await
          }
+         cmd::Dialogue::UserModeEditCatImage(image_id) => {
+            eater::edit_cat_image(DialogueDispatcherHandlerCx::new(bot, update, image_id)).await
+         }
          cmd::Dialogue::CatererMode(rest_id) => {
             caterer::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
                   .await
@@ -314,6 +317,9 @@ async fn run() {
    } else {
       log::info!("Table restaurants do not exist, create new tables: {}", database::is_success(database::create_tables().await));
    }
+   
+   // Инициализируем структуру с картинками для категорий
+   database::cat_image_init().await;
    
    Dispatcher::new(Arc::clone(&bot))
    .messages_handler(DialogueDispatcher::new(|cx| async move {
