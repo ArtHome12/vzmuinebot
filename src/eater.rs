@@ -67,7 +67,7 @@ pub async fn handle_commands(cx: cmd::Cx<()>) -> cmd::Res {
 
                // Если картинка получена от админа, предложим установить её как картинку категории
                if settings::is_admin(cx.update.from()) {
-                  let s = format!("\nВы можете установить её как главную для бота через переменную окружения либо выберите внизу категорию, чтобы сделать её по-умолчанию для данной категории");
+                  let s = format!("{}\nВы можете установить её как главную для бота через переменную окружения либо выберите внизу категорию, чтобы сделать её по-умолчанию для данной категории", s);
                   cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update.clone(), ()), &s, cmd::CatGroup::category_markup()).await;
                   return next(cmd::Dialogue::UserModeEditCatImage(image_id))
                } else {
