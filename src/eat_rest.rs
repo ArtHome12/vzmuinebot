@@ -41,7 +41,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             let s: String = rest_list.into_iter().map(|restaurant| (format!("   {} /rest{}\n", restaurant.title, restaurant.num))).collect();
             
             // Отображаем информацию и кнопки меню
-            let s = format!("Рестораны с подходящим меню:\n{}", s);
+            let s = format!("Заведения с подходящим меню:\n{}", s);
             let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
             cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
       
@@ -50,7 +50,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
             let markup = make_markup(rest_list, cat_id);
 
             // Отправляем сообщение с плашкой в качестве картинки
-            let s = String::from("Рестораны с подходящим меню:");
+            let s = String::from("Заведения с подходящим меню:");
             let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
             cmd::send_photo(&new_cx, &s, ReplyMarkup::InlineKeyboardMarkup(markup), db::cat_image(cat_id)).await;
 
@@ -61,7 +61,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>) -> cmd::Res {
       None => {
          // Если там пусто, то сообщим об этом
          let s = String::from(lang::t("ru", lang::Res::EatRestEmpty));
-         let s = format!("Рестораны с подходящим меню:\n{}", s);
+         let s = format!("Заведения с подходящим меню:\n{}", s);
          let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ());
          cmd::send_text(&new_cx, &s, cmd::EaterRest::markup()).await;
       }
@@ -187,7 +187,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_
          // Приготовим структуру для редактирования
          let media = InputMedia::Photo{
             media: InputFile::file_id(settings::default_photo_id()),
-            caption: Some( String::from("Рестораны с подходящим меню:")),
+            caption: Some( String::from("Заведения с подходящим меню:")),
             parse_mode: None,
          };
 
