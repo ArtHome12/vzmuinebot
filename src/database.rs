@@ -1890,7 +1890,7 @@ pub async fn cat_image_init() {
    };
 
    // Сохраняем данные
-   if let Err(_) = CI.set(hash) {
+   if let Err(_) = CI.set(RwLock::new(hash)) {
       settings::log(&format!("Error db::cat_image_init2")).await;
    }
 }
@@ -1908,7 +1908,7 @@ pub fn cat_image(cat_id: i32) -> String {
 pub async fn save_cat_image(cat_id: i32, image_id: String) {
    if let Some(lock) = CI.get() {
       let mut hash = lock.write().unwrap();
-      hash.insert(id, image);    
+      hash.insert(cat_id, image_id.to_owned());    
    }
 
    // Поробуем обновить запись
