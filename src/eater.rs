@@ -248,9 +248,9 @@ pub async fn edit_cat_image(cx: cmd::Cx<String>) -> cmd::Res {
            // Сохраним новое значение в БД
            db::save_cat_image(cat_id, image_id).await;
 
-         // Покажем группу
-         cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Успешно, перезапустите бота", cmd::User::main_menu_markup()).await
-         // return eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, cat_id)).await;
+         // Покажем группу сообщение для восстановления кнопок внизу и обновлённую группу
+         cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot, cx.update, ()), "Картинка заменена успешно", cmd::User::main_menu_markup()).await
+         return eat_rest::next_with_info(DialogueDispatcherHandlerCx::new(cx.bot, cx.update, cat_id)).await;
 
        } else {
            // Сообщим об отмене
