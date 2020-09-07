@@ -186,7 +186,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, cat_
 
          // Приготовим структуру для редактирования
          let media = InputMedia::Photo{
-            media: InputFile::file_id(settings::default_photo_id()),
+            media: InputFile::file_id(db::cat_image(cat_id)),
             caption: Some( String::from("Заведения с подходящим меню:")),
             parse_mode: None,
          };

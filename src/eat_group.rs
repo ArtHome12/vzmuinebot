@@ -225,7 +225,7 @@ async fn inline_data(cat_id: i32, rest_num: i32) -> InlineData {
                // Если у ресторана есть собственная картинка, вставим её, иначе плашку
                let photo_id = match rest.image_id {
                   Some(photo) => photo,
-                  None => settings::default_photo_id(),
+                  None => db::cat_image(cat_id),
                };
 
                // Сформированные данные
