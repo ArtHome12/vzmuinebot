@@ -16,6 +16,7 @@ use teloxide::{
 use tokio_postgres::{Row, types::ToSql, };
 use deadpool_postgres::{Pool, Client};
 use std::collections::HashMap;
+use std::sync::RwLock;
 
 use crate::settings;
 
@@ -24,7 +25,7 @@ pub static DB: OnceCell<Pool> = OnceCell::new();
 
 // Картинки по-умолчанию для категорий блюд
 type CatImageList = HashMap<i32, String>;
-pub static CI: OnceCell<CatImageList> = OnceCell::new();
+pub static CI: OnceCell<RwLock<CatImageList>> = OnceCell::new();
 
 // ============================================================================
 // [Restaurants table]
@@ -1896,8 +1897,8 @@ pub async fn cat_image_init() {
 
 // Возвращает картинку для категории
 pub fn cat_image(cat_id: i32) -> String {
-   if let Some(hash) = CI.get() {
-      hash.get(&cat_id).unwrap().to_owned()
+   if let Some(lock) = CI.get() {
+      lock.read().unwrap().get(&cat_id).unwrap().to_owned()
    } else {
       settings::default_photo_id()
    }
@@ -1905,10 +1906,10 @@ pub fn cat_image(cat_id: i32) -> String {
 
 // Сохраняет новую картинку для категории
 pub async fn save_cat_image(cat_id: i32, image_id: String) {
-   /*if let Some(hash) = CI.get() {
-      let mut hash = hash;
-      hash.insert(cat_id, image_id);
-   }*/
+   if let Some(lock) = CI.get() {
+      let mut hash = lock.write().unwrap();
+      hash.insert(id, image);    
+   }
 
    // Поробуем обновить запись
    if !execute_one_no_error("UPDATE category SET image_id = $1::VARCHAR(512) WHERE cat_id=$2::INTEGER", &[&image_id, &cat_id]).await {
