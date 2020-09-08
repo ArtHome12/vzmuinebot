@@ -19,6 +19,7 @@ use crate::basket;
 use crate::settings;
 use crate::gear;
 use crate::eat_dish;
+use crate::eat_group_now;
 
 pub async fn start(cx: cmd::Cx<()>, after_restart: bool) -> cmd::Res {
    
@@ -143,8 +144,12 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
          // Приветственное сообщение с правильным меню
          cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), &s, cmd::EaterGroup::markup()).await;
 
-         // Если третий аргумент нулевой, надо отобразить группу
-         if dish_num == 0 {
+         // Если второй аргумент нулевой, надо отобразить группы ресторана
+         if group_num == 0 {
+            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, rest_num);
+            eat_group_now::next_with_info(new_cx).await
+         } else if dish_num == 0 {
+            // Если третий аргумент нулевой, надо отобразить группу
             let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, rest_num, group_num));
             eat_dish::next_with_info(new_cx).await
          } else {
@@ -163,16 +168,21 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
          cmd::send_text(&DialogueDispatcherHandlerCx::new(cx.bot.clone(), cx.update.clone(), ()), &s, cmd::User::main_menu_markup()).await;
 
          // Режим с инлайн-кнопками
-         if dish_num == 0 {
+         if group_num == 0 {
+            // let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, rest_num);
+            // if !eat_group_now::force_inline_interface(new_cx).await {
+            //    settings::log(&format!("Error handle_common_commands2 goto({}, {}, {})", rest_num, group_num, dish_num)).await;
+            // }
+         } else if dish_num == 0 {
             let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, rest_num, group_num));
             if !eat_dish::force_inline_interface(new_cx).await {
-               settings::log(&format!("Error handle_common_commands2 goto({}, {}, {})", rest_num, group_num, dish_num)).await;
+               settings::log(&format!("Error handle_common_commands3 goto({}, {}, {})", rest_num, group_num, dish_num)).await;
             }
          } else {
             let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (rest_num, group_num, dish_num));
             let res = eat_dish::show_dish(eat_dish::DishMode::Inline(&new_cx)).await;
             if let Err(e) = res {
-               settings::log(&format!("Error handle_common_commands3 goto({}, {}, {}): {}", rest_num, group_num, dish_num, e)).await;
+               settings::log(&format!("Error handle_common_commands4 goto({}, {}, {}): {}", rest_num, group_num, dish_num, e)).await;
             }
          }
 

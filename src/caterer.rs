@@ -9,7 +9,8 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
     prelude::*, 
-    types::{InputFile, ReplyMarkup},
+    types::{InputFile, ReplyMarkup, ParseMode,
+    },
 };
 
 
@@ -212,12 +213,14 @@ pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
                      cx.answer_photo(image)
                      .caption(info)
                      .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
+                     .parse_mode(ParseMode::HTML)
                      .disable_notification(true)
                      .send()
                      .await?;
                   } else {
                      cx.answer(info)
                      .reply_markup(cmd::Caterer::main_menu_markup())
+                     .parse_mode(ParseMode::HTML)
                      .disable_notification(true)
                      .disable_web_page_preview(true)
                      .send()
