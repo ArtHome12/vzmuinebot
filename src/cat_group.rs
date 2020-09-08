@@ -252,6 +252,7 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                         cx.answer(info)
                         .reply_markup(cmd::Caterer::main_menu_markup())
                         .disable_notification(true)
+                        .disable_web_page_preview(true)
                         .send()
                         .await?;
                      }
@@ -279,10 +280,19 @@ pub async fn handle_commands(cx: cmd::Cx<(i32, i32)>) -> cmd::Res {
                         cx.answer(info)
                         .reply_markup(cmd::Caterer::main_menu_markup())
                         .disable_notification(true)
+                        .disable_web_page_preview(true)
                         .send()
                         .await?;
                      }
                   }
+               } else {
+                  // Если ни одного блюда в группе нет, выведем просто описание группы
+                  cx.answer(info)
+                  .reply_markup(cmd::Caterer::main_menu_markup())
+                  .disable_notification(true)
+                  .disable_web_page_preview(true)
+                  .send()
+                  .await?;
                }
 
                // Остаёмся в прежнем режиме
