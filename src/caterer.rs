@@ -54,7 +54,7 @@ pub async fn next_with_info(cx: cmd::Cx<i32>, show_welcome: bool) -> cmd::Res {
          };
 
          // Итоговая информация
-         let info = format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nЗагрузить фото /EditImg\nГруппы и время работы (добавить новую /AddGroup):\n{}",
+         let info = format!("Название: {} /EditTitle\nОписание: {} /EditInfo\nСтатус: {} /Toggle\nЗагрузить фото /EditImg\nСообщение для рекламы /Promote\nГруппы и время работы (добавить новую /AddGroup):\n{}",
             rest.title, rest.info, db::active_to_str(rest.active), groups_desc);
          let info = format!("{}{}", welcome_msg, info);
 
@@ -191,6 +191,42 @@ pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
 
                // Переходим в режим ввода картинки ресторана
                next(cmd::Dialogue::CatEditRestImage(rest_id))
+            }
+
+            // Рекламировать
+            cmd::Caterer::Promote(rest_num) => {
+               // Информация о ресторане
+               if let Some(rest) = db::restaurant(db::RestBy::Num(rest_num)).await {
+                  // Сформируем информацию о ресторане
+                  let info = format!("<b>{}</b>\n{}\nОсновное время работы: {}-{}", rest.title, rest.info, db::str_time(rest.opening_time), db::str_time(rest.closing_time));
+
+                  // Добавляем гиперссылку
+                  let info = format!("{}\n{}{}", info, settings::link(), db::make_key_3_int(rest_id, 0, 0));
+
+                  // Отображаем информацию, либо с картинкой, либо только текст
+                  if let Some(image_id) = rest.image_id {
+                     // Создадим графический объект
+                     let image = InputFile::file_id(image_id);
+
+                     // Отправляем картинку и текст как комментарий
+                     cx.answer_photo(image)
+                     .caption(info)
+                     .reply_markup(ReplyMarkup::ReplyKeyboardMarkup(cmd::Caterer::main_menu_markup()))
+                     .disable_notification(true)
+                     .send()
+                     .await?;
+                  } else {
+                     cx.answer(info)
+                     .reply_markup(cmd::Caterer::main_menu_markup())
+                     .disable_notification(true)
+                     .disable_web_page_preview(true)
+                     .send()
+                     .await?;
+                  }
+               }
+            
+               // Остаёмся в режиме главного меню ресторатора.
+               next(cmd::Dialogue::CatererMode(rest_id))
             }
 
             // Команда редактирования групп ресторана

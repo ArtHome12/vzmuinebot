@@ -180,6 +180,8 @@ pub enum Caterer {
    AddGroup(i32), // rest_id
    // Передача владения новому ресторатору
    TransferOwnership(i32, i32), // rest_id, user_id
+   // Рекламировать
+   Promote(i32), // rest_id
 }
 
 impl Caterer {
@@ -194,6 +196,7 @@ impl Caterer {
          "/Toggle" => Caterer::TogglePause(rest_id),
          "/EditImg" => Caterer::EditImage(rest_id),
          "/AddGroup" => Caterer::AddGroup(rest_id),
+         "/Promote" => Caterer::Promote(rest_id),
          _ => {
                // Ищем среди команд с цифровыми суффиксами - аргументами
                match input.get(..5).unwrap_or_default() {
