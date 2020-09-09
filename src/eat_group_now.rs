@@ -162,12 +162,15 @@ pub async fn handle_commands(cx: cmd::Cx<i32>) -> cmd::Res {
    }
 }
 
-
-// Выводит инлайн кнопки
-pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32) -> bool {
-
+// Формирование данных для инлайн-сообщения
+struct InlineData {
+   text: String,
+   markup: InlineKeyboardMarkup,
+   photo_id: String,
+}
+async fn inline_data(rest_num: i32) -> InlineData {
    // Получаем информацию из БД - нужен текст, картинка и кнопки
-   let (text, markup, photo_id) = match db::restaurant(db::RestBy::Num(rest_num)).await {
+   let (text, markup, photo_opt) = match db::restaurant(db::RestBy::Num(rest_num)).await {
       None => {
          // Такая ситуация не должна возникнуть
 
@@ -177,7 +180,7 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          .append_row(buttons);
 
          // Сформированные данные
-         (String::from("Ошибка, информации о ресторане нет"), markup, settings::default_photo_id())
+         (String::from("Ошибка, информации о ресторане нет"), markup, None)
       }
       Some(rest) => {
          // Сформируем информацию о ресторане
@@ -186,14 +189,15 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
          // Текущее время
          let time = settings::current_date_time().time();
 
-         // Получаем из БД список групп
-         let (markup, photo_id) = match db::group_list(db::GroupListBy::Time(rest_num, time)).await {
+         // Получаем из БД список групп и формируем из них инлайн кнопки
+         let markup = match db::group_list(db::GroupListBy::Time(rest_num, time)).await {
             None => {
                // Такая ситуация может возникнуть, если ресторатор скрыл группы только что
                let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("rno{}", db::make_key_3_int(0, 0, 0)))]; 
-               let markup = InlineKeyboardMarkup::default()
-               .append_row(buttons);
-               (markup, settings::default_photo_id())
+
+               // Возвращаем меню, состоящее из одной кнопки назад
+               InlineKeyboardMarkup::default()
+               .append_row(buttons)
             }
             Some(groups) => {
                // Создадим кнопки
@@ -227,20 +231,30 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
                   markup.append_row(vec![button_back])
                };
 
-               // Если у ресторана есть собственная картинка, вставим её, иначе плашку
-               let photo_id = match rest.image_id {
-                  Some(photo) => photo,
-                  None => settings::default_photo_id(),
-               };
-
                // Сформированные данные
-               (markup, photo_id)
+               markup
             }
          };
 
-         (rest_info, markup, photo_id)
+         (rest_info, markup, rest.image_id)
       }
    };
+
+   // Если у ресторана есть собственная картинка, вставим её, иначе плашку
+   let photo_id = match photo_opt {
+      Some(photo) => photo,
+      None => settings::default_photo_id(),
+   };
+
+   // Возвращаем результат
+   InlineData{text, markup, photo_id}
+}
+
+// Выводит инлайн кнопки из колбека
+pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest_num: i32) -> bool {
+
+   // Получаем информацию
+   let data = inline_data(rest_num).await;
 
    // Достаём chat_id
    let message = cx.update.message.as_ref().unwrap();
@@ -251,14 +265,14 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
 
    // Приготовим структуру для редактирования
    let media = InputMedia::Photo{
-      media: InputFile::file_id(photo_id),
-      caption: Some(text),
+      media: InputFile::file_id(data.photo_id),
+      caption: Some(data.text),
       parse_mode: Some(ParseMode::HTML),
    };
 
    // Отправляем изменения
    match cx.bot.edit_message_media(chat_message, media)
-   .reply_markup(markup)
+   .reply_markup(data.markup)
    .send()
    .await {
       Err(e) => {
@@ -267,4 +281,24 @@ pub async fn show_inline_interface(cx: &DispatcherHandlerCx<CallbackQuery>, rest
       }
       _ => true,
    }
+}
+
+// Выводит инлайн кнопки для нового сообщения
+pub async fn force_inline_interface(cx: cmd::Cx<i32>) -> bool {
+   // Извлечём параметры
+   let rest_num = cx.dialogue;
+
+   // Получаем информацию
+   let data = inline_data(rest_num).await;
+
+   // Отправляем сообщение как фото
+   let res = cx.answer_photo(InputFile::file_id(data.photo_id))
+   .caption(data.text)
+   .parse_mode(ParseMode::HTML)
+   .reply_markup(ReplyMarkup::InlineKeyboardMarkup(data.markup))
+   .disable_notification(true)
+   .send()
+   .await;
+
+   if let Ok(_) = res {true} else {false}
 }

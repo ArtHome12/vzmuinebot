@@ -169,10 +169,10 @@ pub async fn handle_common_commands(cx: cmd::Cx<()>, command: &str, origin : Box
 
          // Режим с инлайн-кнопками
          if group_num == 0 {
-            // let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, rest_num);
-            // if !eat_group_now::force_inline_interface(new_cx).await {
-            //    settings::log(&format!("Error handle_common_commands2 goto({}, {}, {})", rest_num, group_num, dish_num)).await;
-            // }
+            let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, rest_num);
+            if !eat_group_now::force_inline_interface(new_cx).await {
+               settings::log(&format!("Error handle_common_commands2 goto({}, {}, {})", rest_num, group_num, dish_num)).await;
+            }
          } else if dish_num == 0 {
             let new_cx = DialogueDispatcherHandlerCx::new(cx.bot, cx.update, (0, rest_num, group_num));
             if !eat_dish::force_inline_interface(new_cx).await {
