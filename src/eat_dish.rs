@@ -159,7 +159,7 @@ async fn inline_data(cat_id: i32, rest_num: i32, group_num: i32) -> InlineData {
       None => {
          // Такая ситуация не должна возникнуть
          // Кнопка назад
-         let buttons = vec![InlineKeyboardButton::callback(String::from("назад"), format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0)))];
+         let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0)))];
          // Формируем меню
          let markup = InlineKeyboardMarkup::default()
          .append_row(buttons);
@@ -175,7 +175,7 @@ async fn inline_data(cat_id: i32, rest_num: i32, group_num: i32) -> InlineData {
          let markup = match db::dish_list(db::DishesBy::Active(rest_num, group_num)).await {
             None => {
                // Такая ситуация может возникнуть, если ресторатор скрыл группы только что
-               let buttons = vec![InlineKeyboardButton::callback(String::from("назад"), format!("rca{}", db::make_key_3_int(cat_id, 0, 0)))];
+               let buttons = vec![InlineKeyboardButton::callback(String::from("Назад"), format!("rca{}", db::make_key_3_int(cat_id, 0, 0)))];
                let markup = InlineKeyboardMarkup::default()
                .append_row(buttons);
                markup
@@ -203,7 +203,7 @@ async fn inline_data(cat_id: i32, rest_num: i32, group_num: i32) -> InlineData {
                .fold(markup, |acc, [left, right]| acc.append_row(vec![left, right]));
             
                // Кнопка назад
-               let button_back = InlineKeyboardButton::callback(String::from("назад"), format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0)));
+               let button_back = InlineKeyboardButton::callback(String::from("Назад"), format!("rrg{}", db::make_key_3_int(rest_num, cat_id, 0)));
 
                // Добавляем последнюю непарную кнопку и кнопку назад
                let markup = if let Some(last_button) = last {
