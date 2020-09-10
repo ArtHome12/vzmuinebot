@@ -382,7 +382,30 @@ pub async fn show_dish<'a>(mode: DishMode<'_>) -> cmd::Res {
       };
       
       msg.send().await
+   } else if let DishMode::CallbackInline(cx, _rest, _group, _dish) = mode {
+      // Редактируем существующее сообщение
+      let chat_message = ChatOrInlineMessage::Chat {
+         chat_id: ChatId::Id(chat_id),
+         message_id: cx.update.message.as_ref().unwrap().id,
+      };
+
+      let media = InputMedia::Photo{
+         media: db::load_dish_image(&dish).await,
+         caption: Some(dish_text),
+         parse_mode: Some(ParseMode::HTML),
+      };
+   
+      let msg = bot.edit_message_media(chat_message, media);
+      let msg = if buttons.is_empty() {msg} else {
+         let markup = InlineKeyboardMarkup::default()
+         .append_row(buttons);
+
+         msg.reply_markup(markup)
+      };
+      
+      msg.send().await
    } else {
+      // Выводим новое сообщение
       let msg = bot.send_photo(chat_id, db::load_dish_image(&dish).await)
       .caption(dish_text)
       .parse_mode(ParseMode::HTML)
