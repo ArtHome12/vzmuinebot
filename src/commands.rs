@@ -461,7 +461,7 @@ impl EaterGroup {
          // Сначала проверим на цельные команды.
          "🛒" => EaterGroup::Basket,
          "В начало" => EaterGroup::Main,
-         "Назад" => EaterGroup::Return,
+         "⏪⏪Назад" => EaterGroup::Return,
          _ => {
              // Ищем среди команд с цифровыми суффиксами - аргументами
              match input.get(..5).unwrap_or_default() {
@@ -477,7 +477,7 @@ impl EaterGroup {
          .append_row(vec![
             KeyboardButton::new("🛒"),
             KeyboardButton::new("В начало"),
-            KeyboardButton::new("Назад"),
+            KeyboardButton::new("⏪⏪Назад"),
          ])
          .resize_keyboard(true)
   }
@@ -501,7 +501,7 @@ impl EaterDish {
          // Сначала проверим на цельные команды.
          "🛒" => EaterDish::Basket,
          "В начало" => EaterDish::Main,
-         "Назад" => EaterDish::Return,
+         "⏪Назад" => EaterDish::Return,
          _ => {
              // Ищем среди команд с цифровыми суффиксами - аргументами
              match input.get(..5).unwrap_or_default() {
@@ -517,7 +517,7 @@ impl EaterDish {
       .append_row(vec![
          KeyboardButton::new("🛒"),
          KeyboardButton::new("В начало"),
-         KeyboardButton::new("Назад"),
+         KeyboardButton::new("⏪Назад"),
       ])
       .resize_keyboard(true)
    }
