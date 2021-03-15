@@ -21,7 +21,8 @@ use teloxide::{
 
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
 use tokio::sync::mpsc;
-use tokio_postgres::{NoTls};
+use native_tls::{TlsConnector};
+use postgres_native_tls::MakeTlsConnector;
 use warp::Filter;
 use reqwest::StatusCode;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
@@ -289,9 +290,17 @@ async fn run() {
 
    // Откроем БД
    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL env variable missing");
+
+   let connector = TlsConnector::builder()
+   // .add_root_certificate(cert)
+   .danger_accept_invalid_certs(true)
+   .build().unwrap();
+   let connector = MakeTlsConnector::new(connector);
+
    let pg_config = database_url.parse::<tokio_postgres::Config>().expect("DATABASE_URL env variable wrong");
    let mgr_config = ManagerConfig {recycling_method: RecyclingMethod::Fast};
-   let mgr = Manager::from_config(pg_config, NoTls, mgr_config);
+   // let mgr = Manager::from_config(pg_config, NoTls, mgr_config);
+   let mgr = Manager::from_config(pg_config, connector, mgr_config);
    let pool = Pool::new(mgr, 16);
 
    // Протестируем соединение
