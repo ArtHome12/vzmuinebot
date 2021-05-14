@@ -7,10 +7,24 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-//#![type_length_limit="46255638"]
 #![allow(clippy::trivial_regex)]
 
-#[macro_use]
+use std::{convert::Infallible, env, net::SocketAddr};
+use teloxide::{prelude::*, dispatching::update_listeners, 
+   requests::ResponseResult,
+};
+use tokio::sync::mpsc;
+use tokio_stream::wrappers::UnboundedReceiverStream;
+use native_tls::{TlsConnector};
+use postgres_native_tls::MakeTlsConnector;
+use warp::Filter;
+use reqwest::StatusCode;
+use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
+
+mod database;
+mod settings;
+
+/* #[macro_use]
 extern crate smart_default;
 
 use teloxide::{
@@ -19,15 +33,6 @@ use teloxide::{
    types::{CallbackQuery, InlineQuery, ChatId, },
 };
 
-use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
-use tokio::sync::mpsc;
-use native_tls::{TlsConnector};
-use postgres_native_tls::MakeTlsConnector;
-use warp::Filter;
-use reqwest::StatusCode;
-use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
-
-mod database;
 mod commands;
 mod eater;
 mod caterer;
@@ -42,160 +47,12 @@ mod callback;
 mod basket;
 mod inline;
 mod language;
-mod settings;
 mod gear;
 
 use commands as cmd;
+ */
 
-// ============================================================================
-// [Control a dialogue]
-// ============================================================================
-async fn handle_message(cx: cmd::Cx<cmd::Dialogue>) -> cmd::Res {
-   let DialogueDispatcherHandlerCx { bot, update, dialogue } = cx;
-
-   // Для различения, в личку или в группу пишут
-   let chat_id = update.chat_id();
-
-   // Обрабатываем команду, если она пришла в личку
-   if chat_id > 0 {
-      match dialogue {
-         cmd::Dialogue::Start => {
-            eater::start(DialogueDispatcherHandlerCx::new(bot, update, ()), true).await
-         }
-         cmd::Dialogue::UserMode => {
-            eater::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, ())).await
-         }
-         cmd::Dialogue::UserModeEditCatImage(image_id) => {
-            eater::edit_cat_image(DialogueDispatcherHandlerCx::new(bot, update, image_id)).await
-         }
-         cmd::Dialogue::CatererMode(rest_id) => {
-            caterer::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
-                  .await
-         }
-         cmd::Dialogue::CatEditRestTitle(rest_id) => {
-            caterer::edit_rest_title_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
-                  .await
-         }
-         cmd::Dialogue::CatEditRestInfo(rest_id) => {
-            caterer::edit_rest_info_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
-                  .await
-         }
-         cmd::Dialogue::CatEditRestImage(rest_id) => {
-            caterer::edit_rest_image_mode(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
-                  .await
-         }
-         cmd::Dialogue::CatEditGroup(rest_id, s) => {
-            cat_group::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, s)))
-                  .await
-         }
-         cmd::Dialogue::CatAddGroup(rest_id) => {
-            caterer::add_rest_group(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
-                  .await
-         }
-         cmd::Dialogue::CatEditGroupTitle(rest_id, group_id) => {
-            cat_group::edit_title_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
-                  .await
-         }
-         cmd::Dialogue::CatEditGroupInfo(rest_id, group_id) => {
-            cat_group::edit_info_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
-                  .await
-         }
-         cmd::Dialogue::CatEditGroupCategory(rest_id, group_id) => {
-            cat_group::edit_category_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
-                  .await
-         }
-         cmd::Dialogue::CatEditGroupTime(rest_id, group_id) => {
-            cat_group::edit_time_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
-                  .await
-         }
-         cmd::Dialogue::CatAddDish(rest_id, group_id) => {
-            cat_group::add_dish_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id)))
-                  .await
-         }
-         cmd::Dialogue::CatEditDish(rest_id, group_id, dish_id) => {
-            dish::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
-                  .await
-         }
-         cmd::Dialogue::CatEditDishTitle(rest_id, group_id, dish_id) => {
-            dish::edit_title_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
-                  .await
-         }
-         cmd::Dialogue::CatEditDishInfo(rest_id, group_id, dish_id) => {
-            dish::edit_info_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
-                  .await
-         }
-         cmd::Dialogue::CatEditDishGroup(rest_id, group_id, dish_id) => {
-            dish::edit_dish_group_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
-                  .await
-         }
-         cmd::Dialogue::CatEditDishPrice(rest_id, group_id, dish_id) => {
-            dish::edit_price_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
-                  .await
-         }
-         cmd::Dialogue::CatEditDishImage(rest_id, group_id, dish_id) => {
-            dish::edit_image_mode(DialogueDispatcherHandlerCx::new(bot, update, (rest_id, group_id, dish_id)))
-                  .await
-         }
-
-         cmd::Dialogue::EatRestSelectionMode(cat_id) => {
-            eat_rest::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, cat_id))
-                  .await
-         }
-         cmd::Dialogue::EatRestGroupSelectionMode(cat_id, rest_id) => {
-            eat_group::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id)))
-                  .await
-         }
-         cmd::Dialogue::EatRestGroupDishSelectionMode(cat_id, rest_id, group_id) => {
-            eat_dish::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, (cat_id, rest_id, group_id)))
-                  .await
-         }
-         cmd::Dialogue::EatRestNowSelectionMode => {
-            eat_rest_now::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, ()))
-                  .await
-         }
-         cmd::Dialogue::EatRestGroupNowSelectionMode(rest_id) => {
-            eat_group_now::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, rest_id))
-                  .await
-         }
-         cmd::Dialogue::BasketMode(user_id) => {
-            basket::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, user_id))
-                  .await
-         }
-         cmd::Dialogue::BasketEditName(user_id) => {
-            basket::edit_name_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
-                  .await
-         }
-         cmd::Dialogue::BasketEditContact(user_id) => {
-            basket::edit_contact_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
-                  .await
-         }
-         cmd::Dialogue::BasketEditAddress(user_id) => {
-            basket::edit_address_mode(DialogueDispatcherHandlerCx::new(bot, update, user_id))
-                  .await
-         }
-         cmd::Dialogue::MessageToCaterer(user_id, caterer_id, origin) => {
-            edit_message_to_caterer_mode(DialogueDispatcherHandlerCx::new(bot, update, (user_id, caterer_id, origin)))
-                  .await
-         }
-         cmd::Dialogue::GearMode => {
-            gear::handle_commands(DialogueDispatcherHandlerCx::new(bot, update, ()))
-                  .await
-         }
-      } 
-} else {
-      // Для сообщений не в личке обрабатываем только команду вывода id группы
-      if let Some(input) = update.text() {
-         match input.get(..5).unwrap_or_default() {
-            "/chat" => cmd::send_text_without_markup(&DialogueDispatcherHandlerCx::new(bot, update, ()), &format!("Chat id={}", chat_id)).await,
-            _ => (),
-         }
-      }
-      exit()
-   }
-}
-
-
-async fn handle_callback_query(rx: DispatcherHandlerRx<CallbackQuery>) {
+/* async fn handle_callback_query(rx: DispatcherHandlerRx<CallbackQuery>) {
    rx.for_each_concurrent(None, |cx| async move {
       callback::handle_message(cx).await
    })
@@ -207,7 +64,7 @@ async fn handle_inline_query(rx: DispatcherHandlerRx<InlineQuery>) {
       inline::handle_message(cx).await
    })
   .await;
-}
+} */
 
 
 // ============================================================================
@@ -223,8 +80,8 @@ async fn handle_rejection(error: warp::Rejection) -> Result<impl warp::Reply, In
    Ok(StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub async fn webhook<'a>(bot: Arc<Bot>) -> impl update_listeners::UpdateListener<Infallible> {
-   // Heroku defines auto defines a port value
+pub async fn webhook<'a>(bot: AutoSend<Bot>) -> impl update_listeners::UpdateListener<Infallible> {
+   // Heroku auto defines a port value
    let teloxide_token = env::var("TELOXIDE_TOKEN").expect("TELOXIDE_TOKEN env variable missing");
    let port: u16 = env::var("PORT")
       .expect("PORT env variable missing")
@@ -261,7 +118,7 @@ pub async fn webhook<'a>(bot: Arc<Bot>) -> impl update_listeners::UpdateListener
          };
          if let Ok(update) = try_parse {
                tx.send(Ok(update))
-                  .expect("Cannot send an incoming update from the webhook")
+               .expect("Cannot send an incoming update from the webhook")
          }
 
          StatusCode::OK
@@ -272,17 +129,17 @@ pub async fn webhook<'a>(bot: Arc<Bot>) -> impl update_listeners::UpdateListener
 
    let address = format!("0.0.0.0:{}", port);
    tokio::spawn(serve.run(address.parse::<SocketAddr>().unwrap()));
-   rx
+   UnboundedReceiverStream::new(rx)
 }
 
 async fn run() {
    teloxide::enable_logging!();
    log::info!("Starting...");
 
-   let bot = Bot::from_env();
+   let bot = Bot::from_env().auto_send();
 
    // Настройки из переменных окружения
-   let vars = settings::Vars::from_env(&bot).await;
+   let vars = settings::Vars::from_env(bot.clone()).await;
    match settings::VARS.set(vars) {
       Ok(_) => settings::log_and_notify("Bot restarted").await,
       _ => log::info!("Something wrong with TELEGRAM_LOG_CHAT"),
@@ -330,18 +187,23 @@ async fn run() {
    // Инициализируем структуру с картинками для категорий
    database::cat_image_init().await;
    
-   Dispatcher::new(Arc::clone(&bot))
-   .messages_handler(DialogueDispatcher::new(|cx| async move {
-      let res = handle_message(cx).await;
-      if let Err(e) = res {
-         settings::log(&format!("main:{}", e)).await;
-         DialogueStage::Exit
-      } else {
-         res.unwrap()
-      }
+   Dispatcher::new(bot.clone())
+   .messages_handler(|rx: DispatcherHandlerRx<AutoSend<Bot>, Message>| {
+      UnboundedReceiverStream::new(rx)
+      .for_each_concurrent(None, |message| async move {
+         let res = handle_message(message).await;
+         if let Err(e) = res {
+            settings::log(&format!("main:{}", e)).await;
+         }
+      })
+   })
+
+
+
+/*    .messages_handler(DialogueDispatcher::new(|cx| async move {
    }))
-   .callback_queries_handler(handle_callback_query)
-   .inline_queries_handler(handle_inline_query)
+ */   // .callback_queries_handler(handle_callback_query)
+   // .inline_queries_handler(handle_inline_query)
    .dispatch_with_listener(
       webhook(bot).await,
       LoggingErrorHandler::with_custom_text("An error from the update listener"),
@@ -349,8 +211,22 @@ async fn run() {
    .await;
 }
 
+async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>) -> ResponseResult<Message> {
+   // Для различения, в личку или в группу пишут
+   let chat_id = cx.update.chat_id();
+
+   // Обрабатываем сообщение, только если оно пришло в личку
+   if chat_id < 0 {
+      return Ok(cx.update);
+   }
+
+   cx.answer("Текстовое сообщение, пожалуйста!").await
+}
+
+
+
 // Отправить сообщение
-pub async fn send_message(bot: &Arc<Bot>, chat_id: ChatId, s: &str) -> bool {
+/* pub async fn send_message(bot: &Arc<Bot>, chat_id: ChatId, s: &str) -> bool {
    if let Err(e) = bot.send_message(chat_id, s).send().await {
       settings::log(&format!("Ошибка {}", e)).await;
       false
@@ -394,5 +270,5 @@ pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::Dialog
 
    // Возвращаемся в предыдущий режим c обновлением кнопок
    next(boxed_origin.d)
-}
+} */
 

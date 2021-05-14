@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use chrono::{FixedOffset, NaiveDateTime, Utc,};
 use once_cell::sync::{OnceCell};
-use std::{env, };
+use std::{env, sync::Arc};
 use teloxide::{
    prelude::*,
    types::{ChatId},
@@ -22,7 +22,7 @@ pub static VARS: OnceCell<Vars> = OnceCell::new();
 #[derive(Clone)]
 pub struct ServiceChat {
    pub id: i64,
-   pub bot: AutoSend<Bot>,
+   pub bot: std::sync::Arc<Bot>,
 }
 
 // Отправляет сообщение в телеграм группу для лога
@@ -82,9 +82,9 @@ pub struct Vars {
    admin_contact_info: String,
 
    // Идентификаторы админов, макс 3 штуки
-   admin_id1: i64,
-   admin_id2: i64,
-   admin_id3: i64,
+   admin_id1: i32,
+   admin_id2: i32,
+   admin_id3: i32,
 
    // Единица измерения цены
    price_unit: String,
@@ -100,29 +100,15 @@ pub struct Vars {
 }
 
 impl Vars {
-   pub async fn from_env(service_bot: AutoSend<Bot>) -> Self {
+   pub async fn from_env(bot: &Arc<Bot>) -> Self {
 
-      // Link to bot for advertise from its name
-      let link = service_bot
-      .get_me()
-      .send()
-      .await
-      .map_err(|_| ())
-      .and_then(|me| {
-         match me.user.username {
-            Some(name) => Ok(format!("http://t.me/{}?start=", name)),
-            None => Err(()),
-         }
-      });
-      let link = link.unwrap_or(String::from("Ошибка"));
-
-      // Служебный чат, чтобы иметь возможность выводить в него ошибки
+      // Начинаем со служебного чата, чтобы иметь возможность выводить в него ошибки
       let chat = if let Ok(log_group_id_env) = env::var("LOG_GROUP_ID") {
          if let Ok(log_group_id) = log_group_id_env.parse::<i64>() {
             // Сохраняем id и копию экземпляра бота в глобальной переменной
             Some(ServiceChat {
                id: log_group_id,
-               bot: service_bot,
+               bot: Arc::clone(bot),
             })
          } else {
             log::info!("Environment variable LOG_GROUP_ID must be integer");
@@ -151,7 +137,7 @@ impl Vars {
          // Идентификаторы админов, макс 3 штуки
          admin_id1: {
             match env::var("TELEGRAM_ADMIN_ID1") {
-               Ok(s) => match s.parse::<i64>() {
+               Ok(s) => match s.parse::<i32>() {
                      Ok(n) => n,
                      Err(e) => {
                         int_log(chat.clone(), &format!("Something wrong with TELEGRAM_ADMIN_ID1: {}", e)).await;
@@ -168,7 +154,7 @@ impl Vars {
          admin_id2: {
             match env::var("TELEGRAM_ADMIN_ID2") {
                Ok(s) => if s.is_empty() {0} else {
-                  match s.parse::<i64>() {
+                  match s.parse::<i32>() {
                      Ok(n) => n,
                      Err(e) => {
                         int_log(chat.clone(), &format!("Something wrong with TELEGRAM_ADMIN_ID2: {}", e)).await;
@@ -183,7 +169,7 @@ impl Vars {
          admin_id3: {
             match env::var("TELEGRAM_ADMIN_ID3") {
                Ok(s) => if s.is_empty() {0} else {
-                  match s.parse::<i64>() {
+                  match s.parse::<i32>() {
                      Ok(n) => n,
                      Err(e) => {
                         int_log(chat.clone(), &format!("Something wrong with TELEGRAM_ADMIN_ID3: {}", e)).await;
@@ -234,7 +220,16 @@ impl Vars {
             }
          },
 
-         link,
+         link: {
+            // Определим собственное имя бота
+            match bot.get_me().send().await {
+               Ok(me) => match me.user.username {
+                  Some(name) => format!("http://t.me/{}?start=", name),
+                  None => String::from("Ошибка"),
+               }
+               Err(_) => String::from("Ошибка"),
+            }
+         },
 
          // Служебный чат
          chat,
