@@ -31,8 +31,8 @@ use crate::states::Dialogue;
 extern crate smart_default;
 
 use teloxide::{
-   dispatching::update_listeners, 
-   prelude::*, 
+   dispatching::update_listeners,
+   prelude::*,
    types::{CallbackQuery, InlineQuery, ChatId, },
 };
 
@@ -99,7 +99,7 @@ pub async fn webhook<'a>(bot: AutoSend<Bot>) -> impl update_listeners::UpdateLis
       .send()
       .await
       .expect("Cannot setup a webhook");
-   
+
    let (tx, rx) = mpsc::unbounded_channel();
 
    let server = warp::post()
@@ -186,10 +186,10 @@ async fn run() {
    } else {
       log::info!("Table restaurants do not exist, create new tables: {}", database::is_success(database::create_tables().await));
    }
-   
+
    // Инициализируем структуру с картинками для категорий
    database::cat_image_init().await;
-   
+
    teloxide::dialogues_repl_with_listener(
       bot.clone(),
       |message, dialogue| async move {
@@ -229,7 +229,7 @@ async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dial
 
    if chat_id > 0 {
       if text == "" {
-         if let Err(e) = cx.answer("Текстовое сообщение, пожалуйста!").await {
+         if let Err(e) = cx.answer("Текстовое сообщение, пожалуйста+!").await {
             log::info!("Error main handle_message(): {}", e);
          }
       } else {
@@ -264,7 +264,7 @@ pub async fn edit_message_to_caterer_mode(cx: cmd::Cx<(i32, i32, Box<cmd::Dialog
 
          // Адресат сообщения
          let to = ChatId::Id(i64::from(caterer_id));
-      
+
          // Текст для отправки
          let user_name = if let Some(u) = cx.update.from() {&u.first_name} else {""};
          let s = format!("Сообщение от {}\n{}\n Для ответа нажмите ссылку /snd{}", user_name, s, user_id);
