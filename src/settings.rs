@@ -1,6 +1,6 @@
 /* ===============================================================================
-Бот для сбора меню у рестораторов и выдача их желающим покушать.
-Модуль хранения настроек. 18 July 2020.
+Restauran menu bot.
+Settings. 18 July 2020.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
@@ -259,13 +259,15 @@ pub fn current_date_time() -> NaiveDateTime {
 // Возвращает истину, если user_id принадлежит администратору
 pub fn is_admin(user_id: Option<&teloxide::types::User>) -> bool {
    match user_id { 
-      Some(user) => {
-         let vars = VARS.get().unwrap();
-         let test = user.id;
-         test == vars.admin_id1 || test == vars.admin_id2 || test == vars.admin_id3
-      }
+      Some(user) => is_admin_id(user.id),
       None => false,
    }
+}
+
+// Возвращает истину, если user_id принадлежит администратору
+pub fn is_admin_id(user_id: i64) -> bool {
+   let vars = VARS.get().unwrap();
+   user_id == vars.admin_id1 || user_id == vars.admin_id2 || user_id == vars.admin_id3
 }
 
 // Форматирование цены с единицей измерения

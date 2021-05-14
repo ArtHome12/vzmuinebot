@@ -1,6 +1,6 @@
 /* ===============================================================================
-Бот для сбора меню у рестораторов и выдача их желающим покушать.
-Главный модуль. 21 May 2020.
+Restauran menu bot.
+Main module. 21 May 2020.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
@@ -23,6 +23,9 @@ use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 
 mod database;
 mod settings;
+mod node;
+mod states;
+use crate::states::Dialogue;
 
 /* #[macro_use]
 extern crate smart_default;
@@ -187,7 +190,16 @@ async fn run() {
    // Инициализируем структуру с картинками для категорий
    database::cat_image_init().await;
    
-   Dispatcher::new(bot.clone())
+   teloxide::dialogues_repl_with_listener(
+      bot.clone(),
+      |message, dialogue| async move {
+         handle_message(message, dialogue).await.expect("Something wrong with the bot!")
+      },
+      webhook(bot).await
+   )
+   .await;
+
+   /* Dispatcher::new(bot.clone())
    .messages_handler(|rx: DispatcherHandlerRx<AutoSend<Bot>, Message>| {
       UnboundedReceiverStream::new(rx)
       .for_each_concurrent(None, |message| async move {
@@ -197,30 +209,35 @@ async fn run() {
          }
       })
    })
-
-
-
-/*    .messages_handler(DialogueDispatcher::new(|cx| async move {
-   }))
- */   // .callback_queries_handler(handle_callback_query)
+   // .callback_queries_handler(handle_callback_query)
    // .inline_queries_handler(handle_inline_query)
    .dispatch_with_listener(
       webhook(bot).await,
       LoggingErrorHandler::with_custom_text("An error from the update listener"),
    )
-   .await;
+   .await; */
 }
 
-async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>) -> ResponseResult<Message> {
-   // Для различения, в личку или в группу пишут
+// async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>) -> ResponseResult<Message> {
+async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dialogue) -> TransitionOut<Dialogue> {
+
+   // Collect info about update
+   let text = String::from(cx.update.text().unwrap_or_default());
+
+   // Negative for chats, positive personal
    let chat_id = cx.update.chat_id();
 
-   // Обрабатываем сообщение, только если оно пришло в личку
-   if chat_id < 0 {
-      return Ok(cx.update);
+   if chat_id > 0 {
+      if text == "" {
+         if let Err(e) = cx.answer("Текстовое сообщение, пожалуйста!").await {
+            log::info!("Error main handle_message(): {}", e);
+         }
+      } else {
+         // Private messages with FSM
+         return dialogue.react(cx, text).await;
+      }
    }
-
-   cx.answer("Текстовое сообщение, пожалуйста!").await
+   next(dialogue)
 }
 
 
