@@ -35,6 +35,9 @@ impl Default for Dialogue {
 // Commands for bot
 enum Command {
    Settings,  // settings menu
+   // Basket,  // basket menu
+   // All,  // show all items
+   // Now,  // show opened items
 }
 
 impl TryFrom<&str> for Command {
@@ -157,6 +160,6 @@ async fn settings(state: SettingsState, cx: TransitionIn<AutoSend<Bot>>, ans: St
    cx.answer(info)
    .reply_markup(one_button_markup("В начало"))
    .await?;
-   
+
    next(StartState { restarted: false })
 }

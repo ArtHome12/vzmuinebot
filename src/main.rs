@@ -190,32 +190,33 @@ async fn run() {
    // Инициализируем структуру с картинками для категорий
    database::cat_image_init().await;
 
-   teloxide::dialogues_repl_with_listener(
+   /* teloxide::dialogues_repl_with_listener(
       bot.clone(),
       |message, dialogue| async move {
          handle_message(message, dialogue).await.expect("Something wrong with the bot!")
       },
       webhook(bot).await
    )
-   .await;
+   .await; */
 
-   /* Dispatcher::new(bot.clone())
-   .messages_handler(|rx: DispatcherHandlerRx<AutoSend<Bot>, Message>| {
-      UnboundedReceiverStream::new(rx)
-      .for_each_concurrent(None, |message| async move {
-         let res = handle_message(message).await;
-         if let Err(e) = res {
-            settings::log(&format!("main:{}", e)).await;
-         }
-      })
-   })
+   Dispatcher::new(bot.clone())
+   .messages_handler(DialogueDispatcher::new(|DialogueWithCx { cx, dialogue }| async move {
+      let res = handle_message(cx, dialogue.unwrap()).await;
+
+      if let Err(e) = res {
+         settings::log(&format!("main:{}", e)).await;
+         DialogueStage::Exit
+      } else {
+         res.unwrap()
+      }
+   }))
    // .callback_queries_handler(handle_callback_query)
    // .inline_queries_handler(handle_inline_query)
    .dispatch_with_listener(
       webhook(bot).await,
       LoggingErrorHandler::with_custom_text("An error from the update listener"),
    )
-   .await; */
+   .await;
 }
 
 // async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>) -> ResponseResult<Message> {
