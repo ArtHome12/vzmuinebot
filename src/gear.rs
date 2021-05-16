@@ -18,23 +18,25 @@ pub struct GearState {
 
 #[teloxide(subtransition)]
 async fn settings(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
-   /* let info = if ans == "/" {
-      String::from("Настройки не изменёны")
-   } else {
-      // Save to database
-      // db::update_user_descr(state.state.user_id, &ans).await;
+   match ans.as_str() {
+      "/Add" => {
+         // Add a new child node
 
-      format!("Ваши новые настройки {} сохранены", ans)
+         // Reload node
+         return enter(state.state, cx).await;
+      }
+      "В начало" => {
+         // Return to waiting for commands of the main menu
+         return crate::states::enter(StartState { restarted: false }, cx, ans).await;
+      }
+      _ => {
+         cx.answer("Неизвестная команда, вы находитесь в меню настроек")
+         .await?;
+      }
    };
 
-   cx.answer(info)
-   .reply_markup(one_button_markup("В начало"))
-   .await?;
-
-   next(StartState { restarted: false }) */
-
-   // Return to waiting for commands of the main menu
-   crate::states::enter(StartState { restarted: false }, cx, ans).await
+   // Stay in place
+   next(state)
 }
 
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
