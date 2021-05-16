@@ -1,6 +1,6 @@
 /* ===============================================================================
-Бот для сбора меню у рестораторов и выдача их желающим покушать.
-Модуль для связи с СУБД. 28 May 2020.
+Restaurant menu bot.
+Database. 28 May 2020.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
@@ -12,7 +12,7 @@ use deadpool_postgres::{Pool, Client};
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-use crate::settings;
+use crate::environment;
 
 // Пул клиентов БД
 pub static DB: OnceCell<Pool> = OnceCell::new();
@@ -60,7 +60,7 @@ pub async fn create_tables() -> bool {
          enabled        BOOLEAN        NOT NULL,
          rest_num       SERIAL,
          image_id       VARCHAR(512),
-         opening_time   TIME           NOT NULL,    
+         opening_time   TIME           NOT NULL,
          closing_time   TIME           NOT NULL);
 
       CREATE TABLE groups (
@@ -71,7 +71,7 @@ pub async fn create_tables() -> bool {
          info           VARCHAR(512)   NOT NULL,
          active         BOOLEAN        NOT NULL,
          cat_id         INTEGER        NOT NULL,
-         opening_time   TIME           NOT NULL,    
+         opening_time   TIME           NOT NULL,
          closing_time   TIME           NOT NULL);
 
       CREATE TABLE dishes (
@@ -119,11 +119,11 @@ pub async fn create_tables() -> bool {
          eater_status_msg_id     INTEGER,
          caterer_status_msg_id   INTEGER);")
    .await;
-      
+
    match query {
       Ok(_) => true,
       Err(e) => {
-         settings::log(&format!("Error create_tables: {}", e)).await;
+         environment::log(&format!("Error create_tables: {}", e)).await;
          false
        }
    }
@@ -144,7 +144,7 @@ async fn db_client() -> Option<Client> {
    match DB.get().unwrap().get().await {
       Ok(client) => Some(client),
       Err(e) => {
-         settings::log(&format!("No db client: {}", e)).await;
+         environment::log(&format!("No db client: {}", e)).await;
          None
       }
    }
@@ -154,10 +154,10 @@ async fn db_client() -> Option<Client> {
 pub async fn cat_image_init() {
    // Внесём значения по-умолчанию, а потом попытаемся прочесть их их базы
    let mut hash: CatImageList = HashMap::new();
-   hash.insert(1, settings::default_photo_id());
-   hash.insert(2, settings::default_photo_id());
-   hash.insert(3, settings::default_photo_id());
-   hash.insert(4, settings::default_photo_id());
+   hash.insert(1, environment::default_photo_id());
+   hash.insert(2, environment::default_photo_id());
+   hash.insert(3, environment::default_photo_id());
+   hash.insert(4, environment::default_photo_id());
 
    // Получаем клиента БД
    let client = db_client().await;
@@ -174,13 +174,13 @@ pub async fn cat_image_init() {
             }
          }
          Err(e) => {
-            settings::log(&format!("Error db::cat_image_init: {}", e)).await;
+            environment::log(&format!("Error db::cat_image_init: {}", e)).await;
          }
       };
    };
 
    // Сохраняем данные
    if let Err(_) = CI.set(RwLock::new(hash)) {
-      settings::log(&format!("Error db::cat_image_init2")).await;
+      environment::log(&format!("Error db::cat_image_init2")).await;
    }
 }

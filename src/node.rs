@@ -1,5 +1,5 @@
 /* ===============================================================================
-Restauran menu bot.
+Restaurant menu bot.
 Menu item. 14 May 2021.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
@@ -13,6 +13,7 @@ use chrono::{NaiveTime};
 
 pub type Owners = [i64; 3];
 pub struct Node {
+   pub db_key: i32,  // zero for a new, not saved in database yet
    pub parent: Weak<Node>,
    pub children: Vec<Rc<Node>>,
    pub title: String,
@@ -24,4 +25,8 @@ pub struct Node {
    pub open: NaiveTime,
    pub close: NaiveTime,
    price: u32,
+}
+
+impl Node {
+   pub fn new
 } */

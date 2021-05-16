@@ -1,5 +1,5 @@
 /* ===============================================================================
-Restauran menu bot.
+Restaurant menu bot.
 Dialogue FSM. 14 May 2021.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
@@ -9,20 +9,19 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use derive_more::From;
 use teloxide_macros::{Transition, teloxide, };
-use teloxide::{prelude::*,
-   types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, },
-};
+use teloxide::{payloads::SendMessageSetters, prelude::*, types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, }};
 use std::convert::TryFrom;
 
 // use crate::database as db;
-use crate::settings as set;
+use crate::environment as set;
+use crate::gear::*;
 
 
 // FSM states
 #[derive(Transition, From)]
 pub enum Dialogue {
    Start(StartState), // initial state
-   Command(CommandState), // select menu item from bottom
+   Command(CommandState), // await for select menu item from bottom
    Settings(SettingsState), // in settings menu
 }
 
@@ -32,38 +31,38 @@ impl Default for Dialogue {
    }
 }
 
-// Commands for bot
-enum Command {
+// Main menu
+enum MainMenu {
    Settings,  // settings menu
    Basket,  // basket menu
    All,  // show all items
    Now,  // show opened items
 }
 
-impl TryFrom<&str> for Command {
+impl TryFrom<&str> for MainMenu {
    type Error = &'static str;
 
    fn try_from(s: &str) -> Result<Self, Self::Error> {
       match s {
-         "⚙" => Ok(Command::Settings),
+         "⚙" => Ok(MainMenu::Settings),
          _ => Err("Неизвестная команда"),
       }
    }
 }
 
-impl From<Command> for String {
-   fn from(c: Command) -> String {
+impl From<MainMenu> for String {
+   fn from(c: MainMenu) -> String {
       match c {
-         Command::Settings => String::from("⚙"),
-         Command::Basket => String::from("🛒"),
-         Command::All => String::from("Все"),
-         Command::Now => String::from("Открыто"),
+         MainMenu::Settings => String::from("⚙"),
+         MainMenu::Basket => String::from("🛒"),
+         MainMenu::All => String::from("Все"),
+         MainMenu::Now => String::from("Открыто"),
       }
    }
 }
 
 // Frequently used menu
-fn one_button_markup(label: &'static str) -> ReplyMarkup {
+pub fn one_button_markup(label: &'static str) -> ReplyMarkup {
    let keyboard = vec![vec![KeyboardButton::new(label)]];
    let keyboard = KeyboardMarkup::new(keyboard)
    .resize_keyboard(true);
@@ -73,7 +72,7 @@ fn one_button_markup(label: &'static str) -> ReplyMarkup {
 
 
 pub struct StartState {
-   restarted: bool,
+   pub restarted: bool,
 }
 
 #[teloxide(subtransition)]
@@ -91,10 +90,10 @@ async fn start(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: String,
 
    // Prepare menu
    let commands = vec![
-      KeyboardButton::new(Command::Basket),
-      KeyboardButton::new(Command::All),
-      KeyboardButton::new(Command::Now),
-      KeyboardButton::new(Command::Settings),
+      KeyboardButton::new(MainMenu::Basket),
+      KeyboardButton::new(MainMenu::All),
+      KeyboardButton::new(MainMenu::Now),
+      KeyboardButton::new(MainMenu::Settings),
    ];
 
    let keyboard = KeyboardMarkup::new(vec![commands])
@@ -111,19 +110,20 @@ async fn start(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: String,
 
    cx.answer(info)
    .reply_markup(markup)
+   .disable_web_page_preview(true)
    .await?;
    next(CommandState { user_id, is_admin })
 }
 
 pub struct CommandState {
-   user_id: i64,
-   is_admin: bool,
+   pub user_id: i64,
+   pub is_admin: bool,
 }
 
 #[teloxide(subtransition)]
 async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
    // Parse text from user
-   let command = Command::try_from(ans.as_str());
+   let command = MainMenu::try_from(ans.as_str());
    if command.is_err() {
       cx.answer(format!("Неизвестная команда {}. Пожалуйста, выберите одну из команд внизу (если панель с кнопками скрыта, откройте её)", ans)).await?;
 
@@ -133,7 +133,7 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
 
    // Handle commands
    match command.unwrap() {
-      Command::Settings => {
+      MainMenu::Settings => {
          // Collect info about update
          // let info = db::user_descr(state.user_id).await;
          let info = format!("Ваши текущие настройки\n{}\nПожалуйста, введите текст с новыми настройками\n Для отказа нажмите /", "info");
@@ -147,27 +147,4 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
 
       _ => next(state),
    }
-}
-
-// #[derive(Generic)]
-pub struct SettingsState {
-   state: CommandState,
-}
-
-#[teloxide(subtransition)]
-async fn settings(state: SettingsState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
-   let info = if ans == "/" {
-      String::from("Настройки не изменёны")
-   } else {
-      // Save to database
-      // db::update_user_descr(state.state.user_id, &ans).await;
-
-      format!("Ваши новые настройки {} сохранены", ans)
-   };
-
-   cx.answer(info)
-   .reply_markup(one_button_markup("В начало"))
-   .await?;
-
-   next(StartState { restarted: false })
 }

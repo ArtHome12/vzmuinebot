@@ -1,6 +1,6 @@
 /* ===============================================================================
-Restauran menu bot.
-Settings. 18 July 2020.
+Restaurant menu bot.
+Global vars, service chat. 18 July 2020.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html

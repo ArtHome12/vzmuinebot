@@ -1,5 +1,5 @@
 /* ===============================================================================
-Restauran menu bot.
+Restaurant menu bot.
 Main module. 21 May 2020.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
@@ -20,9 +20,10 @@ use reqwest::StatusCode;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 
 mod database;
-mod settings;
+mod environment;
 mod node;
 mod states;
+mod gear;
 use crate::states::Dialogue;
 
 /* #[macro_use]
@@ -140,9 +141,9 @@ async fn run() {
    let bot = Bot::from_env().auto_send();
 
    // Настройки из переменных окружения
-   let vars = settings::Vars::from_env(bot.clone()).await;
-   match settings::VARS.set(vars) {
-      Ok(_) => settings::log_and_notify("Bot restarted").await,
+   let vars = environment::Vars::from_env(bot.clone()).await;
+   match environment::VARS.set(vars) {
+      Ok(_) => environment::log_and_notify("Bot restarted").await,
       _ => log::info!("Something wrong with TELEGRAM_LOG_CHAT"),
    }
 
@@ -165,7 +166,7 @@ async fn run() {
    let test_pool = pool.clone();
    tokio::spawn(async move {
       if let Err(e) = test_pool.get().await {
-         settings::log(&format!("Database connection error: {}", e)).await;
+         environment::log(&format!("Database connection error: {}", e)).await;
       }
    });
 
@@ -174,7 +175,7 @@ async fn run() {
       Ok(_) => log::info!("Database connected"),
       _ => {
          log::info!("Something wrong with database");
-         settings::log("Something wrong with database").await;
+         environment::log("Something wrong with database").await;
       }
    }
 
@@ -202,7 +203,7 @@ async fn run() {
       let res = handle_message(cx, dialogue.unwrap()).await;
 
       if let Err(e) = res {
-         settings::log(&format!("main:{}", e)).await;
+         environment::log(&format!("main:{}", e)).await;
          DialogueStage::Exit
       } else {
          res.unwrap()
