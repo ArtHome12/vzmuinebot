@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use std::rc::{Rc, Weak};
+/* use std::rc::{Rc, Weak};
 use chrono::{NaiveTime};
 
 
@@ -24,4 +24,4 @@ pub struct Node {
    pub open: NaiveTime,
    pub close: NaiveTime,
    price: u32,
-}
+} */

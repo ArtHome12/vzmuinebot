@@ -90,11 +90,12 @@ async fn start(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: String,
    let is_admin = set::is_admin_id(user_id);
 
    // Prepare menu
-   let commands = if is_admin {
-      vec![KeyboardButton::new(Command::Settings),]
-   } else {
-      vec![KeyboardButton::new(Command::Settings),]
-   };
+   let commands = vec![
+      KeyboardButton::new(Command::Basket),
+      KeyboardButton::new(Command::All),
+      KeyboardButton::new(Command::Now),
+      KeyboardButton::new(Command::Settings),
+   ];
 
    let keyboard = KeyboardMarkup::new(vec![commands])
    .resize_keyboard(true);

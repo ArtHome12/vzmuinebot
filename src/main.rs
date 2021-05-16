@@ -10,9 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 #![allow(clippy::trivial_regex)]
 
 use std::{convert::Infallible, env, net::SocketAddr};
-use teloxide::{prelude::*, dispatching::update_listeners, 
-   requests::ResponseResult,
-};
+use teloxide::{prelude::*, dispatching::update_listeners,};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use native_tls::{TlsConnector};

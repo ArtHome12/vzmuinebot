@@ -7,12 +7,12 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use chrono::{FixedOffset, NaiveDateTime, Utc,};
+// use chrono::{FixedOffset, NaiveDateTime, Utc,};
 use once_cell::sync::{OnceCell};
 use std::{env, };
 use teloxide::{
    prelude::*,
-   types::{ChatId},
+   // types::{ChatId},
 };
 
 // Настройки
@@ -48,13 +48,13 @@ pub async fn log_and_notify(text: &str) {
 }
 
 // Пересылает в служебный чат сообщение, возвращая идентификатор этого сообщения в служебном чате
-pub async fn log_forward(from_chat: ChatId, message_id: i32) {
+/* pub async fn log_forward(from_chat: ChatId, message_id: i32) {
    if let Some(chat) = &VARS.get().unwrap().chat {
       if let Err(e) = chat.bot.forward_message(chat.id, from_chat, message_id).send().await {
          log::info!("Error log_forward(): {}", e);
       }
    }
-}
+} */
 
 // Отправляет сообщение без использования self
 async fn send_to_chat(chat: &ServiceChat, text: &str, silence: bool) {
@@ -79,7 +79,7 @@ pub struct Vars {
    chat: Option<ServiceChat>,
 
    // Контактная информация администраторов бота
-   admin_contact_info: String,
+   // admin_contact_info: String,
 
    // Идентификаторы админов, макс 3 штуки
    admin_id1: i64,
@@ -87,23 +87,23 @@ pub struct Vars {
    admin_id3: i64,
 
    // Единица измерения цены
-   price_unit: String,
+   // price_unit: String,
 
    // Часовой пояс
-   time_zone: FixedOffset,
+   // time_zone: FixedOffset,
 
    // Картинка по-умолчанию
    def_image_id: String,
 
    // Ссылка для рекламы
-   link: String,
+   // link: String,
 }
 
 impl Vars {
    pub async fn from_env(service_bot: AutoSend<Bot>) -> Self {
 
       // Link to bot for advertise from its name
-      let link = service_bot
+      /* let link = service_bot
       .get_me()
       .send()
       .await
@@ -114,7 +114,7 @@ impl Vars {
             None => Err(()),
          }
       });
-      let link = link.unwrap_or(String::from("Ошибка"));
+      let link = link.unwrap_or(String::from("Ошибка")); */
 
       // Служебный чат, чтобы иметь возможность выводить в него ошибки
       let chat = if let Ok(log_group_id_env) = env::var("LOG_GROUP_ID") {
@@ -132,10 +132,10 @@ impl Vars {
          log::info!("There is no environment variable LOG_GROUP_ID, no service chat");
          None
       };
-      
+   
       Vars {
          // Контактная информация администраторов бота
-         admin_contact_info: {
+         /* admin_contact_info: {
             match env::var("CONTACT_INFO") {
                Ok(s) => {
                   log::info!("admin name is {}", s);
@@ -146,7 +146,7 @@ impl Vars {
                   String::default()
                }
             }
-         },
+         }, */
 
          // Идентификаторы админов, макс 3 штуки
          admin_id1: {
@@ -196,7 +196,7 @@ impl Vars {
          },
 
          // Единица измерения цены
-         price_unit: {
+         /* price_unit: {
             match env::var("PRICE_UNIT") {
                Ok(s) => s,  
                Err(e) => {
@@ -221,7 +221,7 @@ impl Vars {
                   FixedOffset::east(0)
                }
             }
-         },
+         }, */
 
          // Картинка по-умолчанию
          def_image_id: {
@@ -234,7 +234,7 @@ impl Vars {
             }
          },
 
-         link,
+         // link,
 
          // Служебный чат
          chat,
@@ -243,26 +243,26 @@ impl Vars {
 }
 
 // Контактная информация администраторов бота
-pub fn admin_contact_info() -> String { 
+/* pub fn admin_contact_info() -> String {
    VARS.get().unwrap().admin_contact_info.clone()
-}
+} */
 
 // Возвращает текущее время с учётом часового пояса
-pub fn current_date_time() -> NaiveDateTime {
+/* pub fn current_date_time() -> NaiveDateTime {
    // Часовой пояс
    let our_timezone = VARS.get().unwrap().time_zone;
-   
+
    // Текущее время
    Utc::now().with_timezone(&our_timezone).naive_local()
-}
+} */
 
 // Возвращает истину, если user_id принадлежит администратору
-pub fn is_admin(user_id: Option<&teloxide::types::User>) -> bool {
-   match user_id { 
+/* pub fn is_admin(user_id: Option<&teloxide::types::User>) -> bool {
+   match user_id {
       Some(user) => is_admin_id(user.id),
       None => false,
    }
-}
+} */
 
 // Возвращает истину, если user_id принадлежит администратору
 pub fn is_admin_id(user_id: i64) -> bool {
@@ -271,16 +271,16 @@ pub fn is_admin_id(user_id: i64) -> bool {
 }
 
 // Форматирование цены с единицей измерения
-pub fn price_with_unit(price: i32) -> String {
+/* pub fn price_with_unit(price: i32) -> String {
    format!("{}{}", price,  VARS.get().unwrap().price_unit)
-}
+} */
 
 // Картинка по-умолчанию для использования в качестве заглушки в режиме с инлайн-кнопками
-pub fn default_photo_id() -> String { 
+pub fn default_photo_id() -> String {
    VARS.get().unwrap().def_image_id.clone()
 }
 
 // Ссылка для рекламы
-pub fn link() -> String {
+/* pub fn link() -> String {
    VARS.get().unwrap().link.clone()
-}
+} */
