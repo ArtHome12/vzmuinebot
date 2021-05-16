@@ -35,9 +35,9 @@ impl Default for Dialogue {
 // Commands for bot
 enum Command {
    Settings,  // settings menu
-   // Basket,  // basket menu
-   // All,  // show all items
-   // Now,  // show opened items
+   Basket,  // basket menu
+   All,  // show all items
+   Now,  // show opened items
 }
 
 impl TryFrom<&str> for Command {
@@ -55,6 +55,9 @@ impl From<Command> for String {
    fn from(c: Command) -> String {
       match c {
          Command::Settings => String::from("⚙"),
+         Command::Basket => String::from("🛒"),
+         Command::All => String::from("Все"),
+         Command::Now => String::from("Открыто"),
       }
    }
 }
@@ -99,7 +102,11 @@ async fn start(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: String,
    let markup = ReplyMarkup::Keyboard(keyboard);
 
    let info = String::from(if state.restarted { "Извините, бот был перезапущен.\n" } else {""});
-   let info = info + "Добро пожаловать. Выберите команду на кнопке внизу";
+   let info = info + if is_admin {
+      "Список команд администратора в описании: https://github.com/ArtHome12/vzmuinebot"
+   } else {
+      "Добро пожаловать. Пожалуйста, нажмите на 'Все' для отображения полного списка, 'Открыто' для работающих сейчас, либо отправьте текст для поиска."
+   };
 
    cx.answer(info)
    .reply_markup(markup)
