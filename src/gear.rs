@@ -7,10 +7,12 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use teloxide_macros::{teloxide, };
-use teloxide::{payloads::SendMessageSetters, prelude::*, };
+use teloxide_macros::teloxide;
+use teloxide::prelude::*;
 
 use crate::states::*;
+use crate::database as db;
+use crate::node::Node;
 
 pub struct GearState {
    pub state: CommandState,
@@ -40,10 +42,17 @@ async fn settings(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String
 }
 
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
-   let info = if state.is_admin {
-      "Записи:\n/Add Добавить"
+
+   let (node, info) = if state.is_admin {
+      // Create root node
+      let node = Node::new_root();
+
+      // Load children
+      let node = db::node(db::LoadNode::Children(node));
+
+      (node, "Записи:\n/Add Добавить")
    } else {
-      "Нет доступных настроек"
+      (db::node(db::LoadNode::Owner(state.user_id)), "Нет доступных настроек")
    };
 
    cx.answer(info)

@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use derive_more::From;
 use teloxide_macros::{Transition, teloxide, };
-use teloxide::{payloads::SendMessageSetters, prelude::*, types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, }};
+use teloxide::{prelude::*, types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, }};
 use std::convert::TryFrom;
 
 // use crate::database as db;
@@ -138,6 +138,7 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
    // Handle commands
    match command.unwrap() {
       MainMenu::Gear => crate::gear::enter(state, cx).await,
+      MainMenu::All => crate::node::enter(state, cx).await,
       _ => next(state),
    }
 }

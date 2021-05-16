@@ -11,8 +11,10 @@ use once_cell::sync::{OnceCell};
 use deadpool_postgres::{Pool, Client};
 use std::collections::HashMap;
 use std::sync::RwLock;
+use tokio_postgres::{Row, types::ToSql, };
 
 use crate::environment;
+use crate::node::Node;
 
 // Пул клиентов БД
 pub static DB: OnceCell<Pool> = OnceCell::new();
@@ -21,16 +23,48 @@ pub static DB: OnceCell<Pool> = OnceCell::new();
 type CatImageList = HashMap<i32, String>;
 pub static CI: OnceCell<RwLock<CatImageList>> = OnceCell::new();
 
-// ============================================================================
-// [Restaurants table]
-// ============================================================================
+pub enum LoadNode {
+   Owner(i64),
+   Children(Node),
+}
+
+pub async fn node(mode: LoadNode) -> Result<Node, String> {
+   // DB client from the pool
+   let client = db_client().await?;
+
+   // Statement
+   let select = String::from("SELECT id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price FROM nodes WHERE ");
+
+   let where_tuple = match mode {
+      LoadNode::Children(node) => ("parent = $1::INTEGER", node.id as i64),
+      LoadNode::Owner(id) =>  ("owner1 = $1::INTEGER OR owner2 = $1::INTEGER OR owner3 = $1::INTEGER", id),
+   };
+
+   let order = " ORDER BY id";
+
+   let statement_text = select + where_tuple.0 + order;
+
+   // Prepare query
+   let statement = client
+   .prepare(&statement_text)
+   .await
+   .map_err(|err| format!("node prepare: {}", err))?;
+
+   // Run query
+   let query = client
+   .query(&statement, &[&where_tuple.1])
+   .await
+   .map_err(|err| format!("node query: {}", err))?;
+
+   Ok(Node::new_root())
+}
 
 
 // Проверяет существование таблиц
 pub async fn is_tables_exist() -> bool {
    // Получаем клиента БД
    let client = db_client().await;
-   if client.is_none() {return false;}
+   if client.is_err() {return false;}
 
    // Выполняем запрос
    let rows = client.unwrap()
@@ -47,11 +81,27 @@ pub async fn is_tables_exist() -> bool {
 pub async fn create_tables() -> bool {
    // Получаем клиента БД
    let client = db_client().await;
-   if client.is_none() {return false;}
+   if client.is_err() {return false;}
 
    // Таблица с данными о ресторанах
    let query = client.unwrap()
-   .batch_execute("CREATE TABLE restaurants (
+   .batch_execute("CREATE TABLE nodes (
+         PRIMARY KEY (id),
+         id             SERIAL         NOT NULL,
+         parent         INTEGER        NOT NULL,
+         title          VARCHAR        NOT NULL,
+         descr          VARCHAR        NOT NULL,
+         picture        VARCHAR        NOT NULL,
+         enabled        BOOLEAN        NOT NULL,
+         banned         BOOLEAN        NOT NULL,
+         owner1         INTEGER        NOT NULL,
+         owner2         INTEGER        NOT NULL,
+         owner3         INTEGER        NOT NULL,
+         open           TIME           NOT NULL,
+         close          TIME           NOT NULL,
+         price          INTEGER        NOT NULL);
+
+      CREATE TABLE restaurants (
          PRIMARY KEY (user_id),
          user_id        INTEGER        NOT NULL,
          title          VARCHAR(100)   NOT NULL,
@@ -140,12 +190,13 @@ pub fn is_success(flag : bool) -> &'static str {
 
 
 // Обёртка, возвращает пул клиентов
-async fn db_client() -> Option<Client> {
+async fn db_client() -> Result<Client, String> {
    match DB.get().unwrap().get().await {
-      Ok(client) => Some(client),
+      Ok(client) => Ok(client),
       Err(e) => {
-         environment::log(&format!("No db client: {}", e)).await;
-         None
+         let error = format!("No db client: {}", e);
+         environment::log(&error).await;
+         Err(error)
       }
    }
 }
@@ -153,7 +204,7 @@ async fn db_client() -> Option<Client> {
 // Инициализирует структуру с картинками для категорий
 pub async fn cat_image_init() {
    // Внесём значения по-умолчанию, а потом попытаемся прочесть их их базы
-   let mut hash: CatImageList = HashMap::new();
+   /* let mut hash: CatImageList = HashMap::new();
    hash.insert(1, environment::default_photo_id());
    hash.insert(2, environment::default_photo_id());
    hash.insert(3, environment::default_photo_id());
@@ -182,5 +233,5 @@ pub async fn cat_image_init() {
    // Сохраняем данные
    if let Err(_) = CI.set(RwLock::new(hash)) {
       environment::log(&format!("Error db::cat_image_init2")).await;
-   }
+   } */
 }
