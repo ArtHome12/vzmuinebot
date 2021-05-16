@@ -33,7 +33,8 @@ async fn settings(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String
 
    next(StartState { restarted: false }) */
 
-   next(StartState { restarted: false })
+   // Return to waiting for commands of the main menu
+   next(state.state )
 }
 
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
