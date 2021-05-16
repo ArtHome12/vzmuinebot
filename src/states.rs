@@ -77,6 +77,10 @@ pub struct StartState {
 
 #[teloxide(subtransition)]
 async fn start(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: String,) -> TransitionOut<Dialogue> {
+   enter(state, cx, _ans).await
+}
+
+pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: String,) -> TransitionOut<Dialogue> {
    // Extract user id
    let user = cx.update.from();
    if user.is_none() {
