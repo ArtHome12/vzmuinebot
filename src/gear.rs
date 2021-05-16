@@ -33,15 +33,19 @@ async fn settings(state: SettingsState, cx: TransitionIn<AutoSend<Bot>>, ans: St
 
    next(StartState { restarted: false }) */
 
-   let info = if state.state.is_admin {
+   next(StartState { restarted: false })
+}
+
+pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
+   let info = if state.is_admin {
       "Привет"
    } else {
-      "Записи:"
+      "Записи:\n/Add Добавить"
    };
 
    cx.answer(info)
    .reply_markup(one_button_markup("В начало"))
    .await?;
 
-   next(StartState { restarted: false })
+   next(SettingsState { state })
 }

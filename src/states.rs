@@ -33,7 +33,7 @@ impl Default for Dialogue {
 
 // Main menu
 enum MainMenu {
-   Settings,  // settings menu
+   Gear,  // settings menu
    Basket,  // basket menu
    All,  // show all items
    Now,  // show opened items
@@ -44,7 +44,7 @@ impl TryFrom<&str> for MainMenu {
 
    fn try_from(s: &str) -> Result<Self, Self::Error> {
       match s {
-         "⚙" => Ok(MainMenu::Settings),
+         "⚙" => Ok(MainMenu::Gear),
          _ => Err("Неизвестная команда"),
       }
    }
@@ -53,7 +53,7 @@ impl TryFrom<&str> for MainMenu {
 impl From<MainMenu> for String {
    fn from(c: MainMenu) -> String {
       match c {
-         MainMenu::Settings => String::from("⚙"),
+         MainMenu::Gear => String::from("⚙"),
          MainMenu::Basket => String::from("🛒"),
          MainMenu::All => String::from("Все"),
          MainMenu::Now => String::from("Открыто"),
@@ -93,7 +93,7 @@ async fn start(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: String,
       KeyboardButton::new(MainMenu::Basket),
       KeyboardButton::new(MainMenu::All),
       KeyboardButton::new(MainMenu::Now),
-      KeyboardButton::new(MainMenu::Settings),
+      KeyboardButton::new(MainMenu::Gear),
    ];
 
    let keyboard = KeyboardMarkup::new(vec![commands])
@@ -133,18 +133,7 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
 
    // Handle commands
    match command.unwrap() {
-      MainMenu::Settings => {
-         // Collect info about update
-         // let info = db::user_descr(state.user_id).await;
-         let info = format!("Ваши текущие настройки\n{}\nПожалуйста, введите текст с новыми настройками\n Для отказа нажмите /", "info");
-
-         cx.answer(info)
-         .reply_markup(one_button_markup("/"))
-         .await?;
-
-         next(SettingsState { state })
-      }
-
+      MainMenu::Gear => crate::gear::enter(state, cx).await,
       _ => next(state),
    }
 }
