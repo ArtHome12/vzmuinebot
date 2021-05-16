@@ -22,7 +22,7 @@ use crate::gear::*;
 pub enum Dialogue {
    Start(StartState), // initial state
    Command(CommandState), // await for select menu item from bottom
-   Settings(SettingsState), // in settings menu
+   Settings(GearState), // in settings menu
 }
 
 impl Default for Dialogue {

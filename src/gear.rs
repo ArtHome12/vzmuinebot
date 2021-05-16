@@ -12,12 +12,12 @@ use teloxide::{payloads::SendMessageSetters, prelude::*, };
 
 use crate::states::*;
 
-pub struct SettingsState {
+pub struct GearState {
    pub state: CommandState,
 }
 
 #[teloxide(subtransition)]
-async fn settings(state: SettingsState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
+async fn settings(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
    /* let info = if ans == "/" {
       String::from("Настройки не изменёны")
    } else {
@@ -38,14 +38,14 @@ async fn settings(state: SettingsState, cx: TransitionIn<AutoSend<Bot>>, ans: St
 
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
    let info = if state.is_admin {
-      "Привет"
-   } else {
       "Записи:\n/Add Добавить"
+   } else {
+      "Нет доступных настроек"
    };
 
    cx.answer(info)
    .reply_markup(one_button_markup("В начало"))
    .await?;
 
-   next(SettingsState { state })
+   next(GearState { state })
 }
