@@ -45,7 +45,7 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
 
    let (node, info) = if state.is_admin {
       // Create root node
-      let node = Node::new_root();
+      let node = Node::default();
 
       // Load children
       let node = db::node(db::LoadNode::Children(node));

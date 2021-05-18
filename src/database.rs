@@ -9,9 +9,6 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use once_cell::sync::{OnceCell};
 use deadpool_postgres::{Pool, Client};
-use std::collections::HashMap;
-use std::sync::RwLock;
-use tokio_postgres::{Row, types::ToSql, };
 
 use crate::environment;
 use crate::node::Node;
@@ -19,25 +16,21 @@ use crate::node::Node;
 // Пул клиентов БД
 pub static DB: OnceCell<Pool> = OnceCell::new();
 
-// Картинки по-умолчанию для категорий блюд
-type CatImageList = HashMap<i32, String>;
-pub static CI: OnceCell<RwLock<CatImageList>> = OnceCell::new();
-
 pub enum LoadNode {
-   Owner(i64),
-   Children(Node),
+   Owner(i64), // load first node with this owner
+   Children(Node), // load children nodes for this
 }
 
 pub async fn node(mode: LoadNode) -> Result<Node, String> {
    // DB client from the pool
    let client = db_client().await?;
 
-   // Statement
-   let select = String::from("SELECT id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price FROM nodes WHERE ");
+   // Construct statement from 3 parts: select, where and order
+   let select = String::from(Node::SELECT);
 
-   let where_tuple = match mode {
+   let where_tuple = match &mode {
       LoadNode::Children(node) => ("parent = $1::INTEGER", node.id as i64),
-      LoadNode::Owner(id) =>  ("owner1 = $1::INTEGER OR owner2 = $1::INTEGER OR owner3 = $1::INTEGER", id),
+      LoadNode::Owner(id) =>  ("owner1 = $1::INTEGER OR owner2 = $1::INTEGER OR owner3 = $1::INTEGER", *id),
    };
 
    let order = " ORDER BY id";
@@ -56,7 +49,23 @@ pub async fn node(mode: LoadNode) -> Result<Node, String> {
    .await
    .map_err(|err| format!("node query: {}", err))?;
 
-   Ok(Node::new_root())
+   // Collect results
+   match mode {
+      LoadNode::Children(mut node) => {
+         // Clear any old and add new children
+         node.children.clear();
+         for row in query {
+            node.children.push(Node::from(&row))
+         }
+         
+         Ok(node)
+      }
+      LoadNode::Owner(id) => {
+         // Create new node and initialize it from database
+         if query.is_empty() {Err(format!("db::node::LoadNode::Owner Query empty for node={}", id))}
+         else {Ok(Node::from(&query[0]))}
+      }
+   }
 }
 
 
