@@ -8,7 +8,8 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide_macros::teloxide;
-use teloxide::prelude::*;
+use teloxide::{prelude::*, RequestError, ApiError, };
+use reqwest::StatusCode;
 
 use crate::states::*;
 use crate::database as db;
@@ -43,7 +44,7 @@ async fn gear(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -
 
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
-   /* let (node, info) = if state.is_admin {
+   let (node, info) = if state.is_admin {
       // Create root node
       let node = Node::default();
 
@@ -53,9 +54,10 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
       (node, "Записи:\n/Add Добавить")
    } else {
       (db::node(db::LoadNode::Owner(state.user_id)), "Нет доступных настроек")
-   }; */
+   };
+   node.await.map_err(|op| RequestError::ApiError{kind: ApiError::Unknown(op), status_code: StatusCode::OK})?;
 
-   cx.answer("info")
+   cx.answer(info)
    .reply_markup(one_button_markup("В начало"))
    .await?;
 
