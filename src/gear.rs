@@ -19,7 +19,7 @@ pub struct GearState {
 }
 
 #[teloxide(subtransition)]
-async fn settings(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
+async fn gear(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
    match ans.as_str() {
       "/Add" => {
          // Add a new child node
@@ -43,7 +43,7 @@ async fn settings(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String
 
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
-   let (node, info) = if state.is_admin {
+   /* let (node, info) = if state.is_admin {
       // Create root node
       let node = Node::default();
 
@@ -53,9 +53,9 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
       (node, "Записи:\n/Add Добавить")
    } else {
       (db::node(db::LoadNode::Owner(state.user_id)), "Нет доступных настроек")
-   };
+   }; */
 
-   cx.answer(info)
+   cx.answer("info")
    .reply_markup(one_button_markup("В начало"))
    .await?;
 

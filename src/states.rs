@@ -45,6 +45,9 @@ impl TryFrom<&str> for MainMenu {
    fn try_from(s: &str) -> Result<Self, Self::Error> {
       match s {
          "⚙" => Ok(MainMenu::Gear),
+         "🛒" => Ok(MainMenu::Basket),
+         "Все" => Ok(MainMenu::All),
+         "Открыто" => Ok(MainMenu::Now),
          _ => Err("Неизвестная команда"),
       }
    }
