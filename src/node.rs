@@ -50,18 +50,14 @@ impl From<&Row> for Node {
    }
 }
 
-
 impl Node {
-   // Fields in appropriate order for querying from database
-   pub const SELECT: &'static str = "SELECT id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price FROM nodes WHERE ";
-
-   pub fn new() -> Self {
+   pub fn new(parent: i32) -> Self {
       Self {
          id: 0,
-         parent: 0,
+         parent,
          children: Default::default(),
-         title: Default::default(),
-         descr: Default::default(),
+         title: String::from("Новая запись"),
+         descr: String::from("Здесь должно быть описание или 1 символ, что бы его скрыть"),
          picture: Default::default(),
          enabled: false,
          banned: false,

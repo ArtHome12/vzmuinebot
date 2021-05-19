@@ -10,7 +10,6 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use derive_more::From;
 use teloxide_macros::{Transition, teloxide, };
 use teloxide::{prelude::*, types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, }};
-use std::convert::TryFrom;
 
 // use crate::database as db;
 use crate::environment as set;
@@ -37,18 +36,17 @@ enum MainMenu {
    Basket,  // basket menu
    All,  // show all items
    Now,  // show opened items
+   Unknown,
 }
 
-impl TryFrom<&str> for MainMenu {
-   type Error = &'static str;
-
-   fn try_from(s: &str) -> Result<Self, Self::Error> {
+impl From<&str> for MainMenu {
+   fn from(s: &str) -> MainMenu {
       match s {
-         "⚙" => Ok(MainMenu::Gear),
-         "🛒" => Ok(MainMenu::Basket),
-         "Все" => Ok(MainMenu::All),
-         "Открыто" => Ok(MainMenu::Now),
-         _ => Err("Неизвестная команда"),
+         "⚙" => MainMenu::Gear,
+         "🛒" => MainMenu::Basket,
+         "Все" => MainMenu::All,
+         "Открыто" => MainMenu::Now,
+         _ => MainMenu::Unknown,
       }
    }
 }
@@ -60,12 +58,13 @@ impl From<MainMenu> for String {
          MainMenu::Basket => String::from("🛒"),
          MainMenu::All => String::from("Все"),
          MainMenu::Now => String::from("Открыто"),
+         MainMenu::Unknown => String::from("Неизвестная команда"),
       }
    }
 }
 
 // Frequently used menu
-pub fn one_button_markup(label: &'static str) -> ReplyMarkup {
+pub fn one_button_markup(label: String) -> ReplyMarkup {
    let keyboard = vec![vec![KeyboardButton::new(label)]];
    let keyboard = KeyboardMarkup::new(keyboard)
    .resize_keyboard(true);
@@ -129,19 +128,15 @@ pub struct CommandState {
 
 #[teloxide(subtransition)]
 async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
-   // Parse text from user
-   let command = MainMenu::try_from(ans.as_str());
-   if command.is_err() {
-      cx.answer(format!("Неизвестная команда {}. Пожалуйста, выберите одну из команд внизу (если панель с кнопками скрыта, откройте её)", ans)).await?;
-
-      // Stay in previous state
-      return next(state)
-   }
-
-   // Handle commands
-   match command.unwrap() {
+   // Parse and handle commands
+   match MainMenu::from(ans.as_str()) {
       MainMenu::Gear => crate::gear::enter(state, cx).await,
       MainMenu::All => crate::node::enter(state, cx).await,
-      _ => next(state),
+      MainMenu::Basket 
+      | MainMenu::Now 
+      | MainMenu::Unknown => {
+         cx.answer(format!("Неизвестная команда {}. Пожалуйста, выберите одну из команд внизу (если панель с кнопками скрыта, откройте её)", ans)).await?;
+         next(state)
+      }
    }
 }

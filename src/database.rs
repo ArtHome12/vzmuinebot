@@ -9,12 +9,19 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use once_cell::sync::{OnceCell};
 use deadpool_postgres::{Pool, Client};
+use tokio_postgres::types::ToSql;
 
 use crate::environment;
 use crate::node::Node;
 
 // Пул клиентов БД
 pub static DB: OnceCell<Pool> = OnceCell::new();
+
+pub type Params<'a> = &'a[&'a(dyn ToSql + Sync)];
+
+// ============================================================================
+// [Nodes table]
+// ============================================================================
 
 pub enum LoadNode {
    Owner(i64), // load first node with this owner
@@ -26,7 +33,7 @@ pub async fn node(mode: LoadNode) -> Result<Node, String> {
    let client = db_client().await?;
 
    // Construct statement from 3 parts: select, where and order
-   let select = String::from(Node::SELECT);
+   let select = String::from("SELECT id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price FROM nodes WHERE ");
 
    let where_tuple = match &mode {
       LoadNode::Children(node) => ("parent = $1::BIGINT", node.id as i64),
@@ -50,7 +57,6 @@ pub async fn node(mode: LoadNode) -> Result<Node, String> {
    .map_err(|err| format!("node query: {}", err))?;
 
    // Collect results
-   environment::log("here4").await;
    match mode {
       LoadNode::Children(mut node) => {
          // Clear any old and add new children
@@ -69,6 +75,47 @@ pub async fn node(mode: LoadNode) -> Result<Node, String> {
    }
 }
 
+pub async fn insert_node(node: &Node) -> Result<(), String> {
+   // DB client from the pool
+   let client = db_client().await?;
+
+   // Information for query
+   let statement_text = "INSERT INTO nodes (parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price) \
+      VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::BOOLEAN, $7::BIGINT, $8::BIGINT, $9::BIGINT, $10::TIME, $11::TIME, $12::INTEGER)";
+
+   let params: Params = &[&node.parent,
+      &node.title,
+      &node.descr,
+      &node.picture,
+      &node.enabled,
+      &node.banned,
+      &node.owners[0],
+      &node.owners[1],
+      &node.owners[2],
+      &node.open,
+      &node.close,
+      &node.price];
+
+   // Prepare query
+   let statement = client
+   .prepare(&statement_text)
+   .await
+   .map_err(|err| format!("insert_node prepare: {}", err))?;
+
+   // Run query
+   let query = client.execute(&statement, params)
+   .await
+   .map_err(|err| format!("insert_node execute: {}", err))?;
+
+   // Only one record has to be updated
+   if query == 1 { Ok(()) }
+   else { Err(format!("insert_node updated {} records", query)) }
+}
+
+
+// ============================================================================
+// [Misc]
+// ============================================================================
 
 // Проверяет существование таблиц
 pub async fn is_tables_exist() -> bool {
@@ -104,9 +151,9 @@ pub async fn create_tables() -> bool {
          picture        VARCHAR        NOT NULL,
          enabled        BOOLEAN        NOT NULL,
          banned         BOOLEAN        NOT NULL,
-         owner1         INTEGER        NOT NULL,
-         owner2         INTEGER        NOT NULL,
-         owner3         INTEGER        NOT NULL,
+         owner1         BIGINT         NOT NULL,
+         owner2         BIGINT         NOT NULL,
+         owner3         BIGINT         NOT NULL,
          open           TIME           NOT NULL,
          close          TIME           NOT NULL,
          price          INTEGER        NOT NULL);
