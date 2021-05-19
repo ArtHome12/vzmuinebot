@@ -14,6 +14,7 @@ use reqwest::StatusCode;
 use crate::states::*;
 use crate::database as db;
 use crate::node::Node;
+use crate::environment;
 
 pub struct GearState {
    pub state: CommandState,

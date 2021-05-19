@@ -18,7 +18,7 @@ use deadpool_postgres::{Pool, Client};
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-use crate::settings;
+use crate::environment;
 
 // Пул клиентов БД
 pub static DB: OnceCell<Pool> = OnceCell::new();
