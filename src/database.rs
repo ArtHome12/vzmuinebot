@@ -22,7 +22,6 @@ pub enum LoadNode {
 }
 
 pub async fn node(mode: LoadNode) -> Result<Node, String> {
-   environment::log("here").await;
    // DB client from the pool
    let client = db_client().await?;
 
@@ -30,8 +29,8 @@ pub async fn node(mode: LoadNode) -> Result<Node, String> {
    let select = String::from(Node::SELECT);
 
    let where_tuple = match &mode {
-      LoadNode::Children(node) => ("parent = $1::INTEGER", node.id as i64),
-      LoadNode::Owner(id) =>  ("owner1 = $1::INTEGER OR owner2 = $1::INTEGER OR owner3 = $1::INTEGER", *id),
+      LoadNode::Children(node) => ("parent = $1::BIGINT", node.id as i64),
+      LoadNode::Owner(id) =>  ("owner1 = $1::BIGINT OR owner2 = $1::BIGINT OR owner3 = $1::BIGINT", *id),
    };
 
    let order = " ORDER BY id";
@@ -39,14 +38,12 @@ pub async fn node(mode: LoadNode) -> Result<Node, String> {
    let statement_text = select + where_tuple.0 + order;
 
    // Prepare query
-   environment::log("here2").await;
    let statement = client
    .prepare(&statement_text)
    .await
    .map_err(|err| format!("node prepare: {}", err))?;
 
    // Run query
-   environment::log("here3").await;
    let query = client
    .query(&statement, &[&where_tuple.1])
    .await
