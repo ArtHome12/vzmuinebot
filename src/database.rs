@@ -22,6 +22,7 @@ pub enum LoadNode {
 }
 
 pub async fn node(mode: LoadNode) -> Result<Node, String> {
+   environment::log("here").await;
    // DB client from the pool
    let client = db_client().await?;
 
@@ -38,18 +39,21 @@ pub async fn node(mode: LoadNode) -> Result<Node, String> {
    let statement_text = select + where_tuple.0 + order;
 
    // Prepare query
+   environment::log("here2").await;
    let statement = client
    .prepare(&statement_text)
    .await
    .map_err(|err| format!("node prepare: {}", err))?;
 
    // Run query
+   environment::log("here3").await;
    let query = client
    .query(&statement, &[&where_tuple.1])
    .await
    .map_err(|err| format!("node query: {}", err))?;
 
    // Collect results
+   environment::log("here4").await;
    match mode {
       LoadNode::Children(mut node) => {
          // Clear any old and add new children

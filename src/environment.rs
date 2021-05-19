@@ -93,7 +93,7 @@ pub struct Vars {
    // time_zone: FixedOffset,
 
    // Картинка по-умолчанию
-   def_image_id: String,
+   // def_image_id: String,
 
    // Ссылка для рекламы
    // link: String,
@@ -224,7 +224,7 @@ impl Vars {
          }, */
 
          // Картинка по-умолчанию
-         def_image_id: {
+         /* def_image_id: {
             match env::var("DEFAULT_IMAGE_ID") {
                Ok(s) => s,
                Err(e) => {
@@ -232,7 +232,7 @@ impl Vars {
                   String::default()
                }
             }
-         },
+         }, */
 
          // link,
 
@@ -276,9 +276,9 @@ pub fn is_admin_id(user_id: i64) -> bool {
 } */
 
 // Картинка по-умолчанию для использования в качестве заглушки в режиме с инлайн-кнопками
-pub fn default_photo_id() -> String {
+/* pub fn def_image() -> String {
    VARS.get().unwrap().def_image_id.clone()
-}
+} */
 
 // Ссылка для рекламы
 /* pub fn link() -> String {
