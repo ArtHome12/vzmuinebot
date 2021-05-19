@@ -18,6 +18,7 @@ use crate::node::Node;
 enum Command {
    Add, // add a new node
    Exit, // return to start menu
+   Pass(i32), // make the specified node active
    Unknown,
 }
 
@@ -26,7 +27,15 @@ impl From<&str> for Command {
       match s {
          "Добавить" => Command::Add,
          "В начало" => Command::Exit,
-         _ => Command::Unknown,
+         _ => {
+            // Looking for the commands with arguments
+            if s.get(..4).unwrap_or_default() == "/pas" {
+               let r_part = s.get(4..).unwrap_or_default();
+               Command::Pass(r_part.parse().unwrap_or_default())
+            } else {
+               Command::Unknown
+            }
+         }
       }
    }
 }
@@ -35,7 +44,8 @@ impl From<Command> for String {
    fn from(c: Command) -> String {
       match c {
          Command::Add => String::from("Добавить"),
-         Command::Exit => String::from("В начало"),
+         Command::Exit => String::from("Выход"),
+         Command::Pass(index) => format!("/pas{}", index),
          Command::Unknown => String::from("Неизвестная команда"),
       }
    }
@@ -68,10 +78,30 @@ async fn update(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,)
          .map_err(|s| map_req_err(s))?;
 
          // Reload current node
-         enter(state.state, cx).await
+         view(state, cx).await
       }
 
       Command::Exit => crate::states::enter(StartState { restarted: false }, cx, ans).await,
+
+      Command::Pass(index) => {
+         // Get database id for child index
+         let id = state.node.children.get(index as usize);
+
+         // Set new node and reload or report error
+         if id.is_some() {
+            let state = GearState {
+               state: state.state, 
+               node: id.unwrap().clone()
+            };
+
+            view(state, cx).await
+         } else {
+            cx.answer(format!("Неверно указан номер записи '{}', нельзя перейти", index)).await?;
+
+            // Stay in place
+            next(state)
+         }
+      }
 
       Command::Unknown => {
          cx.answer(format!("Неизвестная команда '{}', вы находитесь в меню настроек", ans)).await?;

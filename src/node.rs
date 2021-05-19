@@ -16,6 +16,7 @@ use crate::states::*;
 
 pub type Owners = [i64; 3];
 
+#[derive(Clone)]
 pub struct Node {
    pub id: i32,  // zero for a new, not saved in database yet or for root
    pub parent: i32,
