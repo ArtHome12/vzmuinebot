@@ -44,7 +44,7 @@ impl From<Command> for String {
 
 pub struct GearState {
    pub state: CommandState,
-   node: Option<Node>, // current displaying node
+   node: Node, // current displaying node
 }
 
 fn map_req_err(s: String) -> RequestError {
@@ -56,14 +56,13 @@ fn map_req_err(s: String) -> RequestError {
 
 
 #[teloxide(subtransition)]
-async fn gear(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
+async fn update(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
    
    // Parse and handle commands
    match Command::from(ans.as_str()) {
       Command::Add => {
          // Store a new child node to database
-         let parent_id = state.node.map_or(0, |n| n.id);
-         let node = Node::new(parent_id);
+         let node = Node::new(state.node.id);
          db::insert_node(&node)
          .await
          .map_err(|s| map_req_err(s))?;
@@ -85,23 +84,34 @@ async fn gear(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -
 
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
-   let (node, info) = if state.is_admin {
+   // Define start node
+   let node = if state.is_admin {
       // Create root node
       let node = Node::new(0);
 
       // Load children
-      let node = db::node(db::LoadNode::Children(node));
-
-      (node, format!("Записи:\n{} Добавить", String::from(Command::Add)))
+      db::node(db::LoadNode::Children(node))
    } else {
-      (db::node(db::LoadNode::Owner(state.user_id)), String::from("Нет доступных настроек"))
+      db::node(db::LoadNode::Owner(state.user_id))
    };
    let node = node.await
    .map_err(|s| map_req_err(s))?;
+
+   // Display
+   let state = GearState { state, node };
+   view(state, cx).await
+}
+
+pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
+
+   let info = format!("Записи:\n{} Добавить", String::from(Command::Add));
+   let info = state.node.children.iter()
+   .fold(info, |acc, n| format!("{}\n/ent{} {}", acc, n.id, n.title));
 
    cx.answer(info)
    .reply_markup(one_button_markup(String::from(Command::Exit)))
    .await?;
 
-   next(GearState { state, node: Some(node) })
+   next(state)
 }
+
