@@ -65,11 +65,21 @@ impl From<MainMenu> for String {
 
 // Frequently used menu
 pub fn one_button_markup(label: String) -> ReplyMarkup {
-   let keyboard = vec![vec![KeyboardButton::new(label)]];
-   let keyboard = KeyboardMarkup::new(keyboard)
+   kb_markup(vec![vec![label]])
+}
+
+pub fn kb_markup(keyboard: Vec<Vec<String>>) -> ReplyMarkup {
+   let kb:  Vec<Vec<KeyboardButton>> = keyboard.iter()
+   .map(|row| {
+      row.iter()
+      .map(|label| KeyboardButton::new(label))
+      .collect()
+   }).collect();
+
+   let markup = KeyboardMarkup::new(kb)
    .resize_keyboard(true);
 
-   ReplyMarkup::Keyboard(keyboard)
+   ReplyMarkup::Keyboard(markup)
 }
 
 
@@ -96,16 +106,12 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: Str
 
    // Prepare menu
    let commands = vec![
-      KeyboardButton::new(MainMenu::Basket),
-      KeyboardButton::new(MainMenu::All),
-      KeyboardButton::new(MainMenu::Now),
-      KeyboardButton::new(MainMenu::Gear),
+      String::from(MainMenu::Basket),
+      String::from(MainMenu::All),
+      String::from(MainMenu::Now),
+      String::from(MainMenu::Gear),
    ];
-
-   let keyboard = KeyboardMarkup::new(vec![commands])
-   .resize_keyboard(true);
-
-   let markup = ReplyMarkup::Keyboard(keyboard);
+   let markup = kb_markup(vec![commands]);
 
    let info = String::from(if state.restarted { "Извините, бот был перезапущен.\n" } else {""});
    let info = info + if is_admin {

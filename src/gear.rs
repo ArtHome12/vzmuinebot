@@ -17,14 +17,14 @@ use crate::node::Node;
 
 enum Command {
    Add, // add a new node
-   Exit,  // return to start menu
+   Exit, // return to start menu
    Unknown,
 }
 
 impl From<&str> for Command {
    fn from(s: &str) -> Command {
       match s {
-         "/Add" => Command::Add,
+         "Добавить" => Command::Add,
          "В начало" => Command::Exit,
          _ => Command::Unknown,
       }
@@ -34,7 +34,7 @@ impl From<&str> for Command {
 impl From<Command> for String {
    fn from(c: Command) -> String {
       match c {
-         Command::Add => String::from("/Add"),
+         Command::Add => String::from("Добавить"),
          Command::Exit => String::from("В начало"),
          Command::Unknown => String::from("Неизвестная команда"),
       }
@@ -104,12 +104,18 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
 
 pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
-   let info = format!("Записи:\n{} Добавить", String::from(Command::Add));
+   let info = String::from("Записи:");
    let info = state.node.children.iter()
    .fold(info, |acc, n| format!("{}\n/ent{} {}", acc, n.id, n.title));
 
+   let commands = vec![
+      String::from(Command::Add),
+      String::from(Command::Exit),
+   ];
+   let markup = kb_markup(vec![commands]);
+
    cx.answer(info)
-   .reply_markup(one_button_markup(String::from(Command::Exit)))
+   .reply_markup(markup)
    .await?;
 
    next(state)
