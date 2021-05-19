@@ -48,7 +48,7 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
    let (node, info) = if state.is_admin {
       // Create root node
       environment::log("enter").await;
-      let node = Node::default();
+      let node = Node::new();
       environment::log("enter2").await;
 
       // Load children

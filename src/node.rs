@@ -31,16 +31,6 @@ pub struct Node {
    pub price: i32,
 }
 
-impl Default for Node {
-   fn default() -> Self {
-      Self {
-         open: NaiveTime::from_hms(0, 0, 0),
-         close: NaiveTime::from_hms(0, 0, 0),
-         ..Default::default()
-      }
-   }
-}
-
 impl From<&Row> for Node {
    fn from(row: &Row) -> Self {
       Self {
@@ -64,6 +54,23 @@ impl From<&Row> for Node {
 impl Node {
    // Fields in appropriate order for querying from database
    pub const SELECT: &'static str = "SELECT id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price FROM nodes WHERE ";
+
+   pub fn new() -> Self {
+      Self {
+         id: 0,
+         parent: 0,
+         children: Default::default(),
+         title: Default::default(),
+         descr: Default::default(),
+         picture: Default::default(),
+         enabled: false,
+         banned: false,
+         owners: Default::default(),
+         open: NaiveTime::from_hms(0, 0, 0),
+         close: NaiveTime::from_hms(0, 0, 0),
+         price: 0,
+      }
+   }
 }
 
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
