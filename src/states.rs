@@ -64,8 +64,8 @@ impl From<MainMenu> for String {
 }
 
 // Frequently used menu
-pub fn one_button_markup(label: String) -> ReplyMarkup {
-   kb_markup(vec![vec![label]])
+pub fn cancel_markup() -> ReplyMarkup {
+   kb_markup(vec![vec![String::from("/")]])
 }
 
 pub fn kb_markup(keyboard: Vec<Vec<String>>) -> ReplyMarkup {

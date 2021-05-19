@@ -8,7 +8,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide_macros::teloxide;
-use teloxide::{prelude::*, RequestError, ApiError, };
+use teloxide::{ApiError, RequestError, payloads::SendMessageSetters, prelude::*};
 use reqwest::StatusCode;
 
 use crate::states::*;
@@ -18,7 +18,19 @@ use crate::node::Node;
 enum Command {
    Add, // add a new node
    Exit, // return to start menu
+   Return, // return to parent node
    Pass(i32), // make the specified node active
+   Title,
+   Descr,
+   Picture,
+   Enable,
+   Ban,
+   Owner1,
+   Owner2,
+   Owner3,
+   Open,
+   Close,
+   Price,
    Unknown,
 }
 
@@ -26,7 +38,19 @@ impl From<&str> for Command {
    fn from(s: &str) -> Command {
       match s {
          "Добавить" => Command::Add,
-         "В начало" => Command::Exit,
+         "Выход" => Command::Exit,
+         "Назад" => Command::Return,
+         "Название" => Command::Title,
+         "Описание" => Command::Descr,
+         "Картинка" => Command::Picture,
+         "Доступность" => Command::Enable,
+         "Бан" => Command::Ban,
+         "Управ1" => Command::Owner1,
+         "Управ2" => Command::Owner2,
+         "Управ3" => Command::Owner3,
+         "Открытие" => Command::Open,
+         "Закрытие" => Command::Close,
+         "Цена" => Command::Price,
          _ => {
             // Looking for the commands with arguments
             if s.get(..4).unwrap_or_default() == "/pas" {
@@ -45,7 +69,19 @@ impl From<Command> for String {
       match c {
          Command::Add => String::from("Добавить"),
          Command::Exit => String::from("Выход"),
+         Command::Return => String::from("Назад"),
          Command::Pass(index) => format!("/pas{}", index),
+         Command::Title => String::from("Название"),
+         Command::Descr => String::from("Описание"),
+         Command::Picture => String::from("Картинка"),
+         Command::Enable => String::from("Доступность"),
+         Command::Ban => String::from("Бан"),
+         Command::Owner1 => String::from("Управ1"),
+         Command::Owner2 => String::from("Управ2"),
+         Command::Owner3 => String::from("Управ3"),
+         Command::Open => String::from("Открытие"),
+         Command::Close => String::from("Закрытие"),
+         Command::Price => String::from("Цена"),
          Command::Unknown => String::from("Неизвестная команда"),
       }
    }
@@ -103,10 +139,24 @@ async fn update(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,)
          }
       }
 
+      Command::Title => {
+         cx.answer(format!("Текущее название '{}', введите новое или / для отмены", state.node.title))
+         .reply_markup(cancel_markup())
+         .await?;
+
+         // Stay in place
+         next(state)
+      }
+
       Command::Unknown => {
          cx.answer(format!("Неизвестная команда '{}', вы находитесь в меню настроек", ans)).await?;
 
          // Stay in place
+         next(state)
+      }
+
+      _ => {
+         cx.answer(format!("Команда '{}' ещё не реализована", ans)).await?;
          next(state)
       }
    }
@@ -136,13 +186,45 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
 
    let info = String::from("Записи:");
    let info = state.node.children.iter()
-   .fold(info, |acc, n| format!("{}\n/ent{} {}", acc, n.id, n.title));
+   .fold(info, |acc, n| format!("{}\n{} {}", acc, String::from(Command::Pass(n.id)), n.title));
 
-   let commands = vec![
+   let row1 = vec![
       String::from(Command::Add),
+      String::from(Command::Title),
+      String::from(Command::Descr),
+      String::from(Command::Picture),
+   ];
+   let row2 = vec![
+      String::from(Command::Enable),
+      String::from(Command::Open),
+      String::from(Command::Close),
+      String::from(Command::Picture),
+   ];
+   let mut row3 = vec![
       String::from(Command::Exit),
    ];
-   let markup = kb_markup(vec![commands]);
+
+   // Condition-dependent menu items
+   if state.state.is_admin {
+      row3.insert(0, String::from(Command::Ban))
+   }
+   if state.node.id != 0 {
+      row3.push(String::from(Command::Return))
+   }
+
+   let mut keyboard = vec![row1, row2, row3];
+
+   if state.state.is_admin {
+      let row_admin = vec![
+         String::from(Command::Price),
+         String::from(Command::Owner1),
+         String::from(Command::Owner2),
+         String::from(Command::Owner3),
+      ];
+      keyboard.insert(2, row_admin);
+   }
+
+   let markup = kb_markup(keyboard);
 
    cx.answer(info)
    .reply_markup(markup)
