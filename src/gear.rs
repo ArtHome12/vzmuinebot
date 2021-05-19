@@ -46,10 +46,13 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
 
    let (node, info) = if state.is_admin {
       // Create root node
+      environment::log("enter").await;
       let node = Node::default();
+      environment::log("enter2").await;
 
       // Load children
       let node = db::node(db::LoadNode::Children(node));
+      environment::log("enter3").await;
 
       (node, "Записи:\n/Add Добавить")
    } else {
