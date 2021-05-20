@@ -17,6 +17,7 @@ use crate::node::Node;
 
 enum Command {
    Add, // add a new node
+   Delete, // delete node
    Exit, // return to start menu
    Return, // return to parent node
    Pass(i32), // make the specified node active
@@ -38,12 +39,13 @@ impl From<&str> for Command {
    fn from(s: &str) -> Command {
       match s {
          "Добавить" => Command::Add,
+         "Удалить" => Command::Delete,
          "Выход" => Command::Exit,
          "Назад" => Command::Return,
          "Название" => Command::Title,
          "Описание" => Command::Descr,
          "Картинка" => Command::Picture,
-         "Доступность" => Command::Enable,
+         "Доступ" => Command::Enable,
          "Бан" => Command::Ban,
          "Управ1" => Command::Owner1,
          "Управ2" => Command::Owner2,
@@ -68,6 +70,7 @@ impl From<Command> for String {
    fn from(c: Command) -> String {
       match c {
          Command::Add => String::from("Добавить"),
+         Command::Delete => String::from("Удалить"),
          Command::Exit => String::from("Выход"),
          Command::Return => String::from("Назад"),
          Command::Pass(index) => format!("/pas{}", index),
@@ -186,13 +189,13 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
 
    let info = String::from("Записи:");
    let info = state.node.children.iter()
-   .fold(info, |acc, n| format!("{}\n{} {}", acc, String::from(Command::Pass(n.id)), n.title));
+   .enumerate()
+   .fold(info, |acc, n| format!("{}\n{} {}", acc, String::from(Command::Pass(n.0 as i32)), n.1.title));
 
-   let row1 = vec![
+   let mut row1 = vec![
       String::from(Command::Add),
       String::from(Command::Title),
       String::from(Command::Descr),
-      String::from(Command::Picture),
    ];
    let row2 = vec![
       String::from(Command::Enable),
@@ -209,6 +212,7 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
       row3.insert(0, String::from(Command::Ban))
    }
    if state.node.id != 0 {
+      row1.insert(1, String::from(Command::Delete));
       row3.push(String::from(Command::Return))
    }
 
