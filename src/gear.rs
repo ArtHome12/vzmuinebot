@@ -90,12 +90,18 @@ async fn update(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,)
    match cmd {
       Command::Add => {
          // Store a new child node to database
-         let node = Node::new(state.node.id);
-         db::insert_node(&node)
+         let child = Node::new(state.node.id);
+         db::insert_node(&child)
          .await
          .map_err(|s| map_req_err(s))?;
 
-         // Reload current node
+         // Show
+         let mut node = state.node.clone();
+         node.children.push(child);
+         let state = GearState {
+            state: state.state, 
+            node,
+         };
          view(state, cx).await
       }
 
@@ -104,9 +110,17 @@ async fn update(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,)
       Command::Return => {
          // Go to parent node or exit
          if can_return(&state) {
-            // Load from database
+            // Load from database or create for root
             let parent = state.node.parent;
-            let node = db::node(db::LoadNode::Id(parent)).await
+            let node = if parent > 0 {
+               db::node(db::LoadNode::Id(parent)).await
+               .map_err(|s| map_req_err(s))?
+            } else {
+               Node::new(0)
+            };
+
+            // Load children
+            let node = db::node(db::LoadNode::Children(node)).await
             .map_err(|s| map_req_err(s))?;
 
             // Show
@@ -219,7 +233,7 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    if state.node.id != 0 {
       row1.insert(1, String::from(Command::Delete.as_ref()));
    }
-   if can_return(&state) {
+   if !can_return(&state) {
       row3.push(String::from(Command::Return.as_ref()))
    }
 
