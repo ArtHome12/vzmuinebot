@@ -68,10 +68,6 @@ impl Node {
          price: 0,
       }
    }
-
-   pub fn is_owner(&self, id: i64) -> bool {
-      self.owners[0] == id || self.owners[1] == id || self.owners[2] == id
-   }
 }
 
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {

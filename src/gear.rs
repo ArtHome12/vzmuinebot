@@ -71,7 +71,7 @@ impl Command {
 
 pub struct GearState {
    pub state: CommandState,
-   node: Node, // current displaying node
+   stack: Vec<Node>, // from start to current displaying node
 }
 
 fn map_req_err(s: String) -> RequestError {
@@ -83,51 +83,37 @@ fn map_req_err(s: String) -> RequestError {
 
 
 #[teloxide(subtransition)]
-async fn update(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
+async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
    
    // Parse and handle commands
    let cmd = Command::parse(ans.as_str());
    match cmd {
       Command::Add => {
-         // Store a new child node to database
-         let child = Node::new(state.node.id);
+         // Extract current node from stack
+         let mut node = state.stack.pop().unwrap();
+
+         // Store a new child node in database
+         let child = Node::new(node.id);
          db::insert_node(&child)
          .await
          .map_err(|s| map_req_err(s))?;
 
-         // Show
-         let mut node = state.node.clone();
+         // Update current node and push to stack
          node.children.push(child);
-         let state = GearState {
-            state: state.state, 
-            node,
-         };
+         state.stack.push(node);
+
+         // Show
          view(state, cx).await
       }
 
       Command::Exit => crate::states::enter(StartState { restarted: false }, cx, ans).await,
 
       Command::Return => {
-         // Go to parent node or exit
-         if can_return(&state) {
-            // Load from database or create for root
-            let parent = state.node.parent;
-            let node = if parent > 0 {
-               db::node(db::LoadNode::Id(parent)).await
-               .map_err(|s| map_req_err(s))?
-            } else {
-               Node::new(0)
-            };
+         // Extract current node from stack
+         state.stack.pop().unwrap();
 
-            // Load children
-            let node = db::node(db::LoadNode::Children(node)).await
-            .map_err(|s| map_req_err(s))?;
-
-            // Show
-            let state = GearState {
-               state: state.state, 
-               node,
-            };
+         // Go if there are still nodes left
+         if !state.stack.is_empty() {
             view(state, cx).await
          } else {
             crate::states::enter(StartState { restarted: false }, cx, ans).await
@@ -135,22 +121,21 @@ async fn update(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,)
       }
 
       Command::Pass(index) => {
+         // Extract current node from stack
+         let node = state.stack.last().unwrap();
+
          // Get database id for child index
-         let id = state.node.children.get(index as usize);
+         let id = node.children.get(index as usize);
 
          // Set new node or report error
          if id.is_some() {
-            let node = id.unwrap().clone();
-
             // Load children
+            let node = node.clone(); // Clone child node as an independent element
             let node = db::node(db::LoadNode::Children(node)).await
             .map_err(|s| map_req_err(s))?;
 
-            let state = GearState {
-               state: state.state, 
-               node,
-            };
-
+            // Push new node and show
+            state.stack.push(node);
             view(state, cx).await
          } else {
             cx.answer(format!("Неверно указан номер записи '{}', нельзя перейти", index)).await?;
@@ -161,7 +146,8 @@ async fn update(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,)
       }
 
       Command::Title => {
-         cx.answer(format!("Текущее название '{}', введите новое или / для отмены", state.node.title))
+         let node = state.stack.last().unwrap();
+         cx.answer(format!("Текущее название '{}', введите новое или / для отмены", node.title))
          .reply_markup(cancel_markup())
          .await?;
 
@@ -200,14 +186,16 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
    .map_err(|s| map_req_err(s))?;
 
    // Display
-   let state = GearState { state, node };
+   let state = GearState { state, stack: vec![node] };
    view(state, cx).await
 }
 
 pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
    let info = String::from("Записи:");
-   let info = state.node.children.iter()
+   let info = state.stack
+   .last().unwrap()
+   .children.iter()
    .enumerate()
    .fold(info, |acc, n| format!("{}\n{}{} {}", acc, Command::Pass(0).as_ref(), n.0, n.1.title));
 
@@ -230,10 +218,8 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    if state.state.is_admin {
       row3.insert(0, String::from(Command::Ban.as_ref()))
    }
-   if state.node.id != 0 {
+   if state.stack.len() > 1 {
       row1.insert(1, String::from(Command::Delete.as_ref()));
-   }
-   if can_return(&state) {
       row3.push(String::from(Command::Return.as_ref()))
    }
 
@@ -256,11 +242,4 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    .await?;
 
    next(state)
-}
-
-// Returns true if can go to a higher level
-fn can_return(state: &GearState) -> bool {
-   // admin can go until top, owner until his entry point
-   state.node.id > 0 
-   // && state.state.is_admin || !state.node.is_owner(state.state.user_id)
 }
