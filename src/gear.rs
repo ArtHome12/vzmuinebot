@@ -121,16 +121,16 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
       }
 
       Command::Pass(index) => {
-         // Extract current node from stack
+         // Peek current node from stack
          let node = state.stack.last().unwrap();
 
          // Get database id for child index
-         let id = node.children.get(index as usize);
+         let child = node.children.get(index as usize);
 
          // Set new node or report error
-         if id.is_some() {
+         if child.is_some() {
             // Load children
-            let node = node.clone(); // Clone child node as an independent element
+            let node = child.unwrap().clone(); // Clone child node as an independent element
             let node = db::node(db::LoadNode::Children(node)).await
             .map_err(|s| map_req_err(s))?;
 
