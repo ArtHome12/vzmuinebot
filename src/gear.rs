@@ -101,16 +101,40 @@ async fn update(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,)
 
       Command::Exit => crate::states::enter(StartState { restarted: false }, cx, ans).await,
 
+      Command::Return => {
+         // Go to parent node or exit
+         if can_return(&state) {
+            // Load from database
+            let parent = state.node.parent;
+            let node = db::node(db::LoadNode::Id(parent)).await
+            .map_err(|s| map_req_err(s))?;
+
+            // Show
+            let state = GearState {
+               state: state.state, 
+               node,
+            };
+            view(state, cx).await
+         } else {
+            crate::states::enter(StartState { restarted: false }, cx, ans).await
+         }
+      }
+
       Command::Pass(index) => {
          // Get database id for child index
          let id = state.node.children.get(index as usize);
 
-         // Set new node and reload or report error
+         // Set new node or report error
          if id.is_some() {
-            cx.answer(format!("Pas index={}, id={}", index, id.unwrap().id)).await?;
+            let node = id.unwrap().clone();
+
+            // Load children
+            let node = db::node(db::LoadNode::Children(node)).await
+            .map_err(|s| map_req_err(s))?;
+
             let state = GearState {
                state: state.state, 
-               node: id.unwrap().clone()
+               node,
             };
 
             view(state, cx).await
@@ -150,14 +174,15 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
    // Define start node
    let node = if state.is_admin {
       // Create root node
-      let node = Node::new(0);
-
-      // Load children
-      db::node(db::LoadNode::Children(node))
+      Node::new(0)
    } else {
-      db::node(db::LoadNode::Owner(state.user_id))
+      // Find node for owner
+      db::node(db::LoadNode::Owner(state.user_id)).await
+      .map_err(|s| map_req_err(s))?
    };
-   let node = node.await
+
+   // Load children
+   let node = db::node(db::LoadNode::Children(node)).await
    .map_err(|s| map_req_err(s))?;
 
    // Display
@@ -193,6 +218,8 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    }
    if state.node.id != 0 {
       row1.insert(1, String::from(Command::Delete.as_ref()));
+   }
+   if can_return(&state) {
       row3.push(String::from(Command::Return.as_ref()))
    }
 
@@ -217,3 +244,9 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    next(state)
 }
 
+// Returns true if can go to a higher level
+fn can_return(state: &GearState) -> bool {
+   // admin can go until top, owner until his entry point
+   state.node.id > 0 
+   && state.state.is_admin || !state.node.is_owner(state.state.user_id)
+}
