@@ -10,6 +10,8 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use derive_more::From;
 use teloxide_macros::{Transition, teloxide, };
 use teloxide::{prelude::*, types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, }};
+use std::str::FromStr;
+use strum::{AsRefStr, EnumString,};
 
 // use crate::database as db;
 use crate::environment as set;
@@ -31,36 +33,17 @@ impl Default for Dialogue {
 }
 
 // Main menu
+#[derive(AsRefStr, EnumString)]
 enum MainMenu {
+   #[strum(to_string = "⚙")]
    Gear,  // settings menu
+   #[strum(to_string = "🛒")]
    Basket,  // basket menu
+   #[strum(to_string = "Все")]
    All,  // show all items
+   #[strum(to_string = "Открыто")]
    Now,  // show opened items
    Unknown,
-}
-
-impl From<&str> for MainMenu {
-   fn from(s: &str) -> MainMenu {
-      match s {
-         "⚙" => MainMenu::Gear,
-         "🛒" => MainMenu::Basket,
-         "Все" => MainMenu::All,
-         "Открыто" => MainMenu::Now,
-         _ => MainMenu::Unknown,
-      }
-   }
-}
-
-impl From<MainMenu> for String {
-   fn from(c: MainMenu) -> String {
-      match c {
-         MainMenu::Gear => String::from("⚙"),
-         MainMenu::Basket => String::from("🛒"),
-         MainMenu::All => String::from("Все"),
-         MainMenu::Now => String::from("Открыто"),
-         MainMenu::Unknown => String::from("Неизвестная команда"),
-      }
-   }
 }
 
 // Frequently used menu
@@ -106,10 +89,10 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: Str
 
    // Prepare menu
    let commands = vec![
-      String::from(MainMenu::Basket),
-      String::from(MainMenu::All),
-      String::from(MainMenu::Now),
-      String::from(MainMenu::Gear),
+      String::from(MainMenu::Basket.as_ref()),
+      String::from(MainMenu::All.as_ref()),
+      String::from(MainMenu::Now.as_ref()),
+      String::from(MainMenu::Gear.as_ref()),
    ];
    let markup = kb_markup(vec![commands]);
 
@@ -135,7 +118,8 @@ pub struct CommandState {
 #[teloxide(subtransition)]
 async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
    // Parse and handle commands
-   match MainMenu::from(ans.as_str()) {
+   let cmd = MainMenu::from_str(ans.as_str()).unwrap_or(MainMenu::Unknown);
+   match cmd {
       MainMenu::Gear => crate::gear::enter(state, cx).await,
       MainMenu::All => crate::node::enter(state, cx).await,
       MainMenu::Basket 

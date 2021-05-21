@@ -8,86 +8,50 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide_macros::teloxide;
-use teloxide::{ApiError, RequestError, payloads::SendMessageSetters, prelude::*};
+use teloxide::{prelude::*, ApiError, RequestError, payloads::SendMessageSetters,};
 use reqwest::StatusCode;
+use std::str::FromStr;
+use strum::{AsRefStr, EnumString,};
 
 use crate::states::*;
 use crate::database as db;
 use crate::node::Node;
 
+#[derive(AsRefStr, EnumString)]
 enum Command {
+   #[strum(to_string = "Добавить")]
    Add, // add a new node
+   #[strum(to_string = "Удалить")]
    Delete, // delete node
+   #[strum(to_string = "Выход")]
    Exit, // return to start menu
+   #[strum(to_string = "Назад")]
    Return, // return to parent node
+   #[strum(to_string = "/pas")]
    Pass(i32), // make the specified node active
+   #[strum(to_string = "Название")]
    Title,
+   #[strum(to_string = "Описание")]
    Descr,
+   #[strum(to_string = "Картинка")]
    Picture,
+   #[strum(to_string = "Доступ")]
    Enable,
+   #[strum(to_string = "Бан")]
    Ban,
+   #[strum(to_string = "Управ1")]
    Owner1,
+   #[strum(to_string = "Управ2")]
    Owner2,
+   #[strum(to_string = "Управ3")]
    Owner3,
+   #[strum(to_string = "Открытие")]
    Open,
+   #[strum(to_string = "Закрытие")]
    Close,
+   #[strum(to_string = "Цена")]
    Price,
    Unknown,
-}
-
-impl From<&str> for Command {
-   fn from(s: &str) -> Command {
-      match s {
-         "Добавить" => Command::Add,
-         "Удалить" => Command::Delete,
-         "Выход" => Command::Exit,
-         "Назад" => Command::Return,
-         "Название" => Command::Title,
-         "Описание" => Command::Descr,
-         "Картинка" => Command::Picture,
-         "Доступ" => Command::Enable,
-         "Бан" => Command::Ban,
-         "Управ1" => Command::Owner1,
-         "Управ2" => Command::Owner2,
-         "Управ3" => Command::Owner3,
-         "Открытие" => Command::Open,
-         "Закрытие" => Command::Close,
-         "Цена" => Command::Price,
-         _ => {
-            // Looking for the commands with arguments
-            if s.get(..4).unwrap_or_default() == "/pas" {
-               let r_part = s.get(4..).unwrap_or_default();
-               Command::Pass(r_part.parse().unwrap_or_default())
-            } else {
-               Command::Unknown
-            }
-         }
-      }
-   }
-}
-
-impl From<Command> for String {
-   fn from(c: Command) -> String {
-      match c {
-         Command::Add => String::from("Добавить"),
-         Command::Delete => String::from("Удалить"),
-         Command::Exit => String::from("Выход"),
-         Command::Return => String::from("Назад"),
-         Command::Pass(index) => format!("/pas{}", index),
-         Command::Title => String::from("Название"),
-         Command::Descr => String::from("Описание"),
-         Command::Picture => String::from("Картинка"),
-         Command::Enable => String::from("Доступность"),
-         Command::Ban => String::from("Бан"),
-         Command::Owner1 => String::from("Управ1"),
-         Command::Owner2 => String::from("Управ2"),
-         Command::Owner3 => String::from("Управ3"),
-         Command::Open => String::from("Открытие"),
-         Command::Close => String::from("Закрытие"),
-         Command::Price => String::from("Цена"),
-         Command::Unknown => String::from("Неизвестная команда"),
-      }
-   }
 }
 
 
@@ -108,7 +72,8 @@ fn map_req_err(s: String) -> RequestError {
 async fn update(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
    
    // Parse and handle commands
-   match Command::from(ans.as_str()) {
+   let cmd = Command::from_str(ans.as_str()).unwrap_or(Command::Unknown);
+   match cmd {
       Command::Add => {
          // Store a new child node to database
          let node = Node::new(state.node.id);
@@ -190,40 +155,40 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    let info = String::from("Записи:");
    let info = state.node.children.iter()
    .enumerate()
-   .fold(info, |acc, n| format!("{}\n{} {}", acc, String::from(Command::Pass(n.0 as i32)), n.1.title));
+   .fold(info, |acc, n| format!("{}\n{}{} {}", acc, Command::Pass{0: 0}.as_ref(), n.0, n.1.title));
 
    let mut row1 = vec![
-      String::from(Command::Add),
-      String::from(Command::Title),
-      String::from(Command::Descr),
+      String::from(Command::Add.as_ref()),
+      String::from(Command::Title.as_ref()),
+      String::from(Command::Descr.as_ref()),
    ];
    let row2 = vec![
-      String::from(Command::Enable),
-      String::from(Command::Open),
-      String::from(Command::Close),
-      String::from(Command::Picture),
+      String::from(Command::Enable.as_ref()),
+      String::from(Command::Open.as_ref()),
+      String::from(Command::Close.as_ref()),
+      String::from(Command::Picture.as_ref()),
    ];
    let mut row3 = vec![
-      String::from(Command::Exit),
+      String::from(Command::Exit.as_ref()),
    ];
 
    // Condition-dependent menu items
    if state.state.is_admin {
-      row3.insert(0, String::from(Command::Ban))
+      row3.insert(0, String::from(Command::Ban.as_ref()))
    }
    if state.node.id != 0 {
-      row1.insert(1, String::from(Command::Delete));
-      row3.push(String::from(Command::Return))
+      row1.insert(1, String::from(Command::Delete.as_ref()));
+      row3.push(String::from(Command::Return.as_ref()))
    }
 
    let mut keyboard = vec![row1, row2, row3];
 
    if state.state.is_admin {
       let row_admin = vec![
-         String::from(Command::Price),
-         String::from(Command::Owner1),
-         String::from(Command::Owner2),
-         String::from(Command::Owner3),
+         String::from(Command::Price.as_ref()),
+         String::from(Command::Owner1.as_ref()),
+         String::from(Command::Owner2.as_ref()),
+         String::from(Command::Owner3.as_ref()),
       ];
       keyboard.insert(2, row_admin);
    }

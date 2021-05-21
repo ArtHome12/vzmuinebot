@@ -15,6 +15,7 @@ pretty_env_logger = "0.4.0"
 teloxide = { version = "0.4.0", features = ["auto-send"] }
 teloxide-macros = "0.4.0"
 derive_more = "0.99.9"
+strum = { version = "0.20", features = ["derive"] }
 
 # Used to setup a webhook
 warp = "0.3.0"
