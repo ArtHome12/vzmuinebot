@@ -233,7 +233,7 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    if state.node.id != 0 {
       row1.insert(1, String::from(Command::Delete.as_ref()));
    }
-   if !can_return(&state) {
+   if can_return(&state) {
       row3.push(String::from(Command::Return.as_ref()))
    }
 
@@ -262,5 +262,5 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
 fn can_return(state: &GearState) -> bool {
    // admin can go until top, owner until his entry point
    state.node.id > 0 
-   && state.state.is_admin || !state.node.is_owner(state.state.user_id)
+   // && state.state.is_admin || !state.node.is_owner(state.state.user_id)
 }
