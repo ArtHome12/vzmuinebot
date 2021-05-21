@@ -192,12 +192,17 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
 
 pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
-   let info = String::from("Записи:");
+   // Collect path from the beginning
+   let title = state.stack
+   .iter()
+   .rev()
+   .fold(String::default(), |acc, n| acc + &n.title);
+
    let info = state.stack
    .last().unwrap()
    .children.iter()
    .enumerate()
-   .fold(info, |acc, n| format!("{}\n{}{} {}", acc, Command::Pass(0).as_ref(), n.0, n.1.title));
+   .fold(title, |acc, n| format!("{}\n{}{} {}", acc, Command::Pass(0).as_ref(), n.0, n.1.title));
 
    let mut row1 = vec![
       String::from(Command::Add.as_ref()),

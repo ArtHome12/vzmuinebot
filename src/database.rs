@@ -26,7 +26,7 @@ pub type Params<'a> = &'a[&'a(dyn ToSql + Sync)];
 pub enum LoadNode {
    Owner(i64), // load first node with this owner
    Children(Node), // load children nodes for this
-   Id(i32), // load node with specified id
+   // Id(i32), // load node with specified id
 }
 
 pub async fn node(mode: LoadNode) -> Result<Node, String> {
@@ -39,7 +39,7 @@ pub async fn node(mode: LoadNode) -> Result<Node, String> {
    let where_tuple = match &mode {
       LoadNode::Children(node) => ("parent = $1::BIGINT", node.id as i64),
       LoadNode::Owner(user_id) =>  ("owner1 = $1::BIGINT OR owner2 = $1::BIGINT OR owner3 = $1::BIGINT", *user_id),
-      LoadNode::Id(id) =>  ("id = $1::BIGINT", *id as i64),
+      // LoadNode::Id(id) =>  ("id = $1::BIGINT", *id as i64),
    };
 
    let order = " ORDER BY id";
@@ -77,10 +77,10 @@ pub async fn node(mode: LoadNode) -> Result<Node, String> {
          else {Ok(Node::from(&query[0]))}
       }
 
-      LoadNode::Id(id) => {
-         if query.is_empty() {Err(format!("db::node::LoadNode::Owner Query empty for id={}", id))}
-         else {Ok(Node::from(&query[0]))}
-      }
+      // LoadNode::Id(id) => {
+      //    if query.is_empty() {Err(format!("db::node::LoadNode::Owner Query empty for id={}", id))}
+      //    else {Ok(Node::from(&query[0]))}
+      // }
    }
 }
 
