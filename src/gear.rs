@@ -107,6 +107,7 @@ async fn update(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,)
 
          // Set new node and reload or report error
          if id.is_some() {
+            cx.answer(format!("Pas index={}, id={}", index, id.unwrap().id)).await?;
             let state = GearState {
                state: state.state, 
                node: id.unwrap().clone()
