@@ -54,6 +54,20 @@ enum Command {
    Unknown,
 }
 
+impl Command {
+   fn parse(s: &str) -> Self {
+      Self::from_str(s)
+      .unwrap_or_else(|_| {
+         // Looking for the commands with arguments
+         if s.get(..4).unwrap_or_default() == Self::Pass(0).as_ref() {
+            let r_part = s.get(4..).unwrap_or_default();
+            Command::Pass(r_part.parse().unwrap_or_default())
+         } else {
+            Command::Unknown
+         }
+      })
+   }
+}
 
 pub struct GearState {
    pub state: CommandState,
@@ -72,7 +86,7 @@ fn map_req_err(s: String) -> RequestError {
 async fn update(state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
    
    // Parse and handle commands
-   let cmd = Command::from_str(ans.as_str()).unwrap_or(Command::Unknown);
+   let cmd = Command::parse(ans.as_str());
    match cmd {
       Command::Add => {
          // Store a new child node to database
@@ -155,7 +169,7 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    let info = String::from("Записи:");
    let info = state.node.children.iter()
    .enumerate()
-   .fold(info, |acc, n| format!("{}\n{}{} {}", acc, Command::Pass{0: 0}.as_ref(), n.0, n.1.title));
+   .fold(info, |acc, n| format!("{}\n{}{} {}", acc, Command::Pass(0).as_ref(), n.0, n.1.title));
 
    let mut row1 = vec![
       String::from(Command::Add.as_ref()),
