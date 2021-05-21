@@ -195,6 +195,7 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    // Collect path from the beginning
    let title = state.stack
    .iter()
+   .skip(1)
    .fold(String::default(), |acc, n| acc + "/" + &n.title);
 
    let info = state.stack
