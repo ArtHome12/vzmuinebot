@@ -17,6 +17,9 @@ use crate::states::*;
 use crate::database as db;
 use crate::node::Node;
 
+// ============================================================================
+// [Main entry]
+// ============================================================================
 #[derive(AsRefStr, EnumString)]
 enum Command {
    #[strum(to_string = "Добавить")]
@@ -80,7 +83,6 @@ fn map_req_err(s: String) -> RequestError {
       status_code: StatusCode::OK,
    }
 }
-
 
 #[teloxide(subtransition)]
 async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
@@ -177,12 +179,17 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
 
       Command::Title => {
          let node = state.stack.last().unwrap();
-         cx.answer(format!("Текущее название '{}', введите новое или / для отмены", node.title))
-         .reply_markup(cancel_markup())
-         .await?;
+         let old_val = node.title.clone();
+         let state = GearStateEditing {
+            state,
+            update: db::UpdateNode {
+               kind: db::UpdateKind::Text(old_val), // put old value for info
+               field: "title".into(),
+            }
+         };
 
-         // Stay in place
-         next(state)
+         // Move to editing mode
+         enter_edit(state, cx).await
       }
 
       Command::Unknown => {
@@ -278,3 +285,46 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
 
    next(state)
 }
+
+
+// ============================================================================
+// [Fields editing mode]
+// ============================================================================
+pub struct GearStateEditing {
+   pub state: GearState,
+   update: db::UpdateNode,
+}
+
+#[teloxide(subtransition)]
+async fn update_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
+
+   // Report result
+   let info = if ans == String::from("/") {
+      "Отмена, значение не изменено"
+   } else {
+      let node = state.state.stack.last().unwrap();
+      db::update_node(node.id, state.update)
+      .await
+      .map_err(|s| map_req_err(s))?;
+
+      "Новое значение сохранено"
+   };
+   cx.answer(info)
+   .await?;
+
+   // Reload node
+   view(state.state, cx).await
+}
+
+async fn enter_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
+      let old_val = match &state.update.kind {
+      db::UpdateKind::Text(old_val) => old_val.clone(),
+   };
+
+   cx.answer(format!("Текущее значение '{}', введите новое или / для отмены", old_val))
+   .reply_markup(cancel_markup())
+   .await?;
+
+   next(state)
+}
+

@@ -24,6 +24,7 @@ pub enum Dialogue {
    Start(StartState), // initial state
    Command(CommandState), // await for select menu item from bottom
    Settings(GearState), // in settings menu
+   SettingsTitle(GearStateEditing), // in settings menu edit field
 }
 
 impl Default for Dialogue {

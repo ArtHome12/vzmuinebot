@@ -29,6 +29,15 @@ pub enum LoadNode {
    // Id(i32), // load node with specified id
 }
 
+pub enum UpdateKind {
+   Text(String),
+}
+
+pub struct UpdateNode {
+   pub kind: UpdateKind,
+   pub field: String,
+}
+
 pub async fn node(mode: LoadNode) -> Result<Node, String> {
    // DB client from the pool
    let client = db_client().await?;
@@ -137,12 +146,16 @@ pub async fn delete_node(id: i32) -> Result<(), String> {
 
    // Delete node
    let text = "DELETE FROM nodes WHERE id = $1::INTEGER";
-   let query = client.execute(text, &[&id])
-   .await
-   .map_err(|err| format!("delete_node execute: {}", err))?;
+   execute_one(text, &[&id]).await
+}
 
-   if query == 1 { Ok(()) }
-   else { Err(format!("delete_node deleted {} records", query)) }
+pub async fn update_node(id: i32, update: UpdateNode) -> Result<(), String> {
+   match update.kind {
+      UpdateKind::Text(new_val) => {
+         let text = format!("UPDATE nodes SET {} = $1::VARCHAR WHERE id=$2::INTEGER", update.field);
+         execute_one(text.as_str(), &[&new_val, &id]).await
+      }
+   }
 }
 
 // ============================================================================
@@ -324,3 +337,18 @@ pub async fn cat_image_init() {
       environment::log(&format!("Error db::cat_image_init2")).await;
    } */
 }
+
+async fn execute_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(), String> {
+   // DB client from the pool
+   let client = db_client().await?;
+
+   // Run query
+   let query = client.execute(sql_text, params)
+   .await
+   .map_err(|err| format!("execute_one {} execute: {}", sql_text, err))?;
+   
+   // Only one records has to be affected
+   if query == 1 { Ok(()) }
+   else { Err(format!("execute_one {}: affected {} records instead one", sql_text, query)) }
+}
+
