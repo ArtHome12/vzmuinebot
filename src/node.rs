@@ -94,7 +94,7 @@ impl Node {
          }
          "descr" => {
             if let UpdateKind::Text(new_val) = info.kind {
-               self.title = new_val;
+               self.descr = new_val;
                Ok(())
             } else {
                Err("node::update type mismatch for descr".into())
