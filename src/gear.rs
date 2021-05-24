@@ -305,13 +305,24 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
       // Change in memory
       state.update.kind = UpdateKind::Text(ans.clone());
       let node = state.state.stack.last_mut().unwrap();
+      let node_id = node.id;
 
-      db::update_node(node.id, &state.update)
+      db::update_node(node_id, &state.update)
       .await
       .map_err(|s| map_req_err(s))?;
 
-      // Only after database
-      node.update(state.update);
+      // If change in databse is successful, update the stack
+      node.update(state.update.clone());
+      let len = state.state.stack.len();
+      if len > 1 {
+         let parent = state.state.stack.get_mut(len - 2).unwrap();
+         for child in &mut parent.children {
+            if child.id == node_id {
+               child.update(state.update);
+               break;
+            }
+         }
+      }
 
       "Новое значение сохранено"
    };

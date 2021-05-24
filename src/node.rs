@@ -52,10 +52,12 @@ impl From<&Row> for Node {
 }
 
 // For update fields by name
+#[derive(Debug, Clone)]
 pub enum UpdateKind {
    Text(String),
 }
 
+#[derive(Debug, Clone)]
 pub struct UpdateNode {
    pub kind: UpdateKind,
    pub field: String,
