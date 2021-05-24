@@ -335,13 +335,16 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
       .map_err(|s| map_req_err(s))?;
 
       // If change in databse is successful, update the stack
-      node.update(state.update.clone());
+      node.update(state.update.clone())
+      .map_err(|s| map_req_err(s))?;
+      
       let len = state.state.stack.len();
       if len > 1 {
          let parent = state.state.stack.get_mut(len - 2).unwrap();
          for child in &mut parent.children {
             if child.id == node_id {
-               child.update(state.update);
+               child.update(state.update)
+               .map_err(|s| map_req_err(s))?;
                break;
             }
          }

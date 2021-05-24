@@ -82,15 +82,25 @@ impl Node {
       }
    }
 
-   pub fn update(&mut self, info: UpdateNode) {
+   pub fn update(&mut self, info: UpdateNode) -> Result<(), String> {
       match info.field.as_str() {
          "title" => {
-            if let UpdateKind::Text(new_val) = info.kind { self.title = new_val } else { panic!("node::update type mismatch for title"); }
+            if let UpdateKind::Text(new_val) = info.kind {
+               self.title = new_val;
+               Ok(())
+            } else {
+               Err("node::update type mismatch for title".into())
+            }
          }
          "descr" => {
-            if let UpdateKind::Text(new_val) = info.kind { self.title = new_val } else { panic!("node::update type mismatch for descr"); }
+            if let UpdateKind::Text(new_val) = info.kind {
+               self.title = new_val;
+               Ok(())
+            } else {
+               Err("node::update type mismatch for descr".into())
+            }
          }
-         _ => panic!("node::update unknown field {}", info.field),
+         _ => Err(format!("node::update unknown field {}", info.field)),
       }
    }
 }
