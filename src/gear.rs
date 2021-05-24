@@ -83,7 +83,18 @@ fn map_req_err(s: String) -> RequestError {
 
 
 #[teloxide(subtransition)]
-async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
+async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
+   async fn do_return(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
+      // Extract current node from stack
+      state.stack.pop().unwrap();
+
+      // Go if there are still nodes left
+      if !state.stack.is_empty() {
+         view(state, cx).await
+      } else {
+         crate::states::enter(StartState { restarted: false }, cx, String::default()).await
+      }
+   }
    
    // Parse and handle commands
    let cmd = Command::parse(ans.as_str());
@@ -106,19 +117,9 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          view(state, cx).await
       }
 
-      Command::Exit => crate::states::enter(StartState { restarted: false }, cx, ans).await,
+      Command::Exit => crate::states::enter(StartState { restarted: false }, cx, String::default()).await,
 
-      Command::Return => {
-         // Extract current node from stack
-         state.stack.pop().unwrap();
-
-         // Go if there are still nodes left
-         if !state.stack.is_empty() {
-            view(state, cx).await
-         } else {
-            crate::states::enter(StartState { restarted: false }, cx, ans).await
-         }
-      }
+      Command::Return => do_return(state, cx).await,
 
       Command::Pass(index) => {
          // Peek current node from stack
@@ -142,6 +143,27 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
 
             // Stay in place
             next(state)
+         }
+      }
+
+      Command::Delete => {
+         // Peek current node from stack
+         let node = state.stack.last().unwrap();
+
+         // Delete record if it has no children
+         let children_num = node.children.len();
+         if children_num > 0 {
+            cx.answer(format!("У записи '{}' есть {} дочерних, для защиты от случайного удаления большого объёма информации удалите сначала их", node.title, children_num)).await?;
+
+            // Stay in place
+            next(state)
+         } else {
+            db::delete_node(node.id)
+            .await
+            .map_err(|s| map_req_err(s))?;
+
+            cx.answer(format!("Запись '{}' удалена, переходим на уровень выше", node.title)).await?;
+            do_return(state, cx).await
          }
       }
 

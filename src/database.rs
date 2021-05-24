@@ -121,6 +121,29 @@ pub async fn insert_node(node: &Node) -> Result<(), String> {
    else { Err(format!("insert_node updated {} records", query)) }
 }
 
+pub async fn delete_node(id: i32) -> Result<(), String> {
+   let client = db_client().await?;
+
+   // Check no children
+   let text = "SELECT COUNT(id) FROM nodes WHERE parent = $1::INTEGER";
+   let query = client.query(text, &[&id])
+   .await
+   .map_err(|err| format!("delete_node prepare: {}", err))?;
+
+   let children_num = query.len();
+   if children_num > 0 {
+      return Err(format!("delete_node has {} children", children_num));
+   }
+
+   // Delete node
+   let text = "DELETE FROM nodes WHERE id = $1::INTEGER";
+   let query = client.execute(text, &[&id])
+   .await
+   .map_err(|err| format!("delete_node execute: {}", err))?;
+
+   if query == 1 { Ok(()) }
+   else { Err(format!("delete_node deleted {} records", query)) }
+}
 
 // ============================================================================
 // [Misc]
