@@ -125,8 +125,8 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          // Peek current node from stack
          let node = state.stack.last().unwrap();
 
-         // Get database id for child index
-         let child = node.children.get(index as usize);
+         // Get database id for child index, starting from zero
+         let child = node.children.get((index - 1) as usize);
 
          // Set new node or report error
          if child.is_some() {
@@ -147,6 +147,14 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
       }
 
       Command::Delete => {
+         // Root/start node cannot to delete
+         if state.stack.len() <= 1 {
+            cx.answer("Нельзя удалить начальный узел").await?;
+
+            // Stay in place
+            return next(state);
+         }
+
          // Peek current node from stack
          let node = state.stack.last().unwrap();
 
@@ -224,7 +232,7 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    .last().unwrap()
    .children.iter()
    .enumerate()
-   .fold(title, |acc, n| format!("{}\n{}{} {}", acc, Command::Pass(0).as_ref(), n.0, n.1.title));
+   .fold(title, |acc, n| format!("{}\n{}{} {}", acc, Command::Pass(0).as_ref(), n.0 + 1, n.1.title));
 
    let mut row1 = vec![
       String::from(Command::Add.as_ref()),
