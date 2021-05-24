@@ -125,7 +125,7 @@ pub async fn delete_node(id: i32) -> Result<(), String> {
    let client = db_client().await?;
 
    // Check no children
-   let text = "SELECT COUNT(id) FROM nodes WHERE parent = $1::INTEGER";
+   let text = "SELECT id FROM nodes WHERE parent = $1::INTEGER";
    let query = client.query(text, &[&id])
    .await
    .map_err(|err| format!("delete_node prepare: {}", err))?;
