@@ -87,6 +87,9 @@ impl Node {
          "title" => {
             if let UpdateKind::Text(new_val) = info.kind { self.title = new_val } else { panic!("node::update type mismatch for title"); }
          }
+         "descr" => {
+            if let UpdateKind::Text(new_val) = info.kind { self.title = new_val } else { panic!("node::update type mismatch for descr"); }
+         }
          _ => panic!("node::update unknown field {}", info.field),
       }
    }
