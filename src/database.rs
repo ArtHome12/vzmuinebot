@@ -349,6 +349,6 @@ async fn execute_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(
    
    // Only one records has to be affected
    if query == 1 { Ok(()) }
-   else { Err(format!("execute_one {}: affected {} records instead one", sql_text, query)) }
+   else { Err(format!("execute_one {}: affected {} records instead one (params: {:?})", sql_text, query, params)) }
 }
 
