@@ -26,7 +26,7 @@ pub type Params<'a> = &'a[&'a(dyn ToSql + Sync)];
 pub enum LoadNode {
    Owner(i64), // load first node with this owner
    Children(Node), // load children nodes for this
-   // Id(i32), // load node with specified id
+   Id(i32), // load node with specified id
 }
 
 pub async fn node(mode: LoadNode) -> Result<Node, String> {
@@ -39,7 +39,7 @@ pub async fn node(mode: LoadNode) -> Result<Node, String> {
    let where_tuple = match &mode {
       LoadNode::Children(node) => ("parent = $1::BIGINT", node.id as i64),
       LoadNode::Owner(user_id) =>  ("owner1 = $1::BIGINT OR owner2 = $1::BIGINT OR owner3 = $1::BIGINT", *user_id),
-      // LoadNode::Id(id) =>  ("id = $1::BIGINT", *id as i64),
+      LoadNode::Id(id) =>  ("id = $1::BIGINT", *id as i64),
    };
 
    let order = " ORDER BY id";
@@ -77,10 +77,10 @@ pub async fn node(mode: LoadNode) -> Result<Node, String> {
          else {Ok(Node::from(&query[0]))}
       }
 
-      // LoadNode::Id(id) => {
-      //    if query.is_empty() {Err(format!("db::node::LoadNode::Owner Query empty for id={}", id))}
-      //    else {Ok(Node::from(&query[0]))}
-      // }
+      LoadNode::Id(id) => {
+         if query.is_empty() {Err(format!("db::node::LoadNode::Owner Query empty for id={}", id))}
+         else {Ok(Node::from(&query[0]))}
+      }
    }
 }
 
@@ -161,7 +161,7 @@ pub async fn is_tables_exist() -> bool {
 
    // Выполняем запрос
    let rows = client.unwrap()
-   .query("SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='restaurants'", &[]).await;
+   .query("SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='nodes'", &[]).await;
 
    // Проверяем результат
    match rows {
@@ -194,73 +194,9 @@ pub async fn create_tables() -> bool {
          close          TIME           NOT NULL,
          price          INTEGER        NOT NULL);
 
-      CREATE TABLE restaurants (
-         PRIMARY KEY (user_id),
-         user_id        INTEGER        NOT NULL,
-         title          VARCHAR(100)   NOT NULL,
-         info           VARCHAR(512)   NOT NULL,
-         active         BOOLEAN        NOT NULL,
-         enabled        BOOLEAN        NOT NULL,
-         rest_num       SERIAL,
-         image_id       VARCHAR(512),
-         opening_time   TIME           NOT NULL,
-         closing_time   TIME           NOT NULL);
-
-      CREATE TABLE groups (
-         PRIMARY KEY (rest_num, group_num),
-         rest_num       INTEGER        NOT NULL,
-         group_num      INTEGER        NOT NULL,
-         title          VARCHAR(100)   NOT NULL,
-         info           VARCHAR(512)   NOT NULL,
-         active         BOOLEAN        NOT NULL,
-         cat_id         INTEGER        NOT NULL,
-         opening_time   TIME           NOT NULL,
-         closing_time   TIME           NOT NULL);
-
-      CREATE TABLE dishes (
-         PRIMARY KEY (rest_num, group_num, dish_num),
-         rest_num       INTEGER        NOT NULL,
-         dish_num       INTEGER        NOT NULL,
-         title          VARCHAR(100)   NOT NULL,
-         info           VARCHAR(512)   NOT NULL,
-         active         BOOLEAN        NOT NULL,
-         group_num      INTEGER        NOT NULL,
-         price          INTEGER        NOT NULL,
-         image_id       VARCHAR(512));
-
-      CREATE TABLE users (
-         PRIMARY KEY (user_id),
-         user_id        INTEGER        NOT NULL,
-         user_name      VARCHAR(100)   NOT NULL,
-         contact        VARCHAR(100)   NOT NULL,
-         address        VARCHAR(100)   NOT NULL,
-         last_seen      TIMESTAMP      NOT NULL,
-         compact        BOOLEAN        NOT NULL,
-         pickup         BOOLEAN        NOT NULL);
-
-      CREATE TABLE orders (
-         PRIMARY KEY (user_id, rest_num, group_num, dish_num),
-         user_id        INTEGER        NOT NULL,
-         rest_num       INTEGER        NOT NULL,
-         group_num      INTEGER        NOT NULL,
-         dish_num       INTEGER        NOT NULL,
-         amount         INTEGER        NOT NULL);
-
-      CREATE TABLE category (
-         PRIMARY KEY (cat_id),
-         cat_id         INTEGER        NOT NULL,
-         image_id       VARCHAR(512));
-
-      CREATE TABLE tickets (
-         PRIMARY KEY (ticket_id),
-         ticket_id      SERIAL         NOT NULL,
-         eater_id       INTEGER        NOT NULL,
-         caterer_id     INTEGER        NOT NULL,
-         eater_msg_id   INTEGER        NOT NULL,
-         caterer_msg_id INTEGER        NOT NULL,
-         stage          INTEGER        NOT NULL,
-         eater_status_msg_id     INTEGER,
-         caterer_status_msg_id   INTEGER);")
+         INSERT INTO nodes (id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price)
+         VALUES (0, 0, 'Добро пожаловать', '-', '', true, false, 0, 0, 0, '00:00', '00:00', 0);
+   ")
    .await;
 
    match query {

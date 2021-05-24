@@ -224,14 +224,16 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
    // Define start node
-   let node = if state.is_admin {
-      // Create root node
-      Node::new(0)
+   let mode = if state.is_admin {
+      // Root node
+      db::LoadNode::Id(0)
    } else {
       // Find node for owner
-      db::node(db::LoadNode::Owner(state.user_id)).await
-      .map_err(|s| map_req_err(s))?
+      db::LoadNode::Owner(state.user_id)
    };
+
+   let node = db::node(mode).await
+      .map_err(|s| map_req_err(s))?;
 
    // Load children
    let node = db::node(db::LoadNode::Children(node)).await
