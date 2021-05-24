@@ -15,7 +15,7 @@ use strum::{AsRefStr, EnumString,};
 
 use crate::states::*;
 use crate::database as db;
-use crate::node::Node;
+use crate::node::*;
 
 // ============================================================================
 // [Main entry]
@@ -182,8 +182,8 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          let old_val = node.title.clone();
          let state = GearStateEditing {
             state,
-            update: db::UpdateNode {
-               kind: db::UpdateKind::Text(old_val), // put old value for info
+            update: UpdateNode {
+               kind: UpdateKind::Text(old_val), // put old value for info
                field: "title".into(),
             }
          };
@@ -292,20 +292,26 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
 // ============================================================================
 pub struct GearStateEditing {
    pub state: GearState,
-   update: db::UpdateNode,
+   update: UpdateNode,
 }
 
 #[teloxide(subtransition)]
-async fn update_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
+async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
 
    // Report result
    let info = if ans == String::from("/") {
       "Отмена, значение не изменено"
    } else {
-      let node = state.state.stack.last().unwrap();
-      db::update_node(node.id, state.update)
+      // Change in memory
+      state.update.kind = UpdateKind::Text(ans.clone());
+      let node = state.state.stack.last_mut().unwrap();
+
+      db::update_node(node.id, &state.update)
       .await
       .map_err(|s| map_req_err(s))?;
+
+      // Only after database
+      node.update(state.update);
 
       "Новое значение сохранено"
    };
@@ -318,7 +324,7 @@ async fn update_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>, a
 
 async fn enter_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
       let old_val = match &state.update.kind {
-      db::UpdateKind::Text(old_val) => old_val.clone(),
+      UpdateKind::Text(old_val) => old_val.clone(),
    };
 
    cx.answer(format!("Текущее значение '{}', введите новое или / для отмены", old_val))

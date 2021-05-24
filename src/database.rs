@@ -12,7 +12,7 @@ use deadpool_postgres::{Pool, Client};
 use tokio_postgres::types::ToSql;
 
 use crate::environment;
-use crate::node::Node;
+use crate::node::*;
 
 // Пул клиентов БД
 pub static DB: OnceCell<Pool> = OnceCell::new();
@@ -27,15 +27,6 @@ pub enum LoadNode {
    Owner(i64), // load first node with this owner
    Children(Node), // load children nodes for this
    // Id(i32), // load node with specified id
-}
-
-pub enum UpdateKind {
-   Text(String),
-}
-
-pub struct UpdateNode {
-   pub kind: UpdateKind,
-   pub field: String,
 }
 
 pub async fn node(mode: LoadNode) -> Result<Node, String> {
@@ -149,8 +140,8 @@ pub async fn delete_node(id: i32) -> Result<(), String> {
    execute_one(text, &[&id]).await
 }
 
-pub async fn update_node(id: i32, update: UpdateNode) -> Result<(), String> {
-   match update.kind {
+pub async fn update_node(id: i32, update: &UpdateNode) -> Result<(), String> {
+   match &update.kind {
       UpdateKind::Text(new_val) => {
          let text = format!("UPDATE nodes SET {} = $1::VARCHAR WHERE id=$2::INTEGER", update.field);
          execute_one(text.as_str(), &[&new_val, &id]).await

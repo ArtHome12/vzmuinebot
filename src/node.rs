@@ -51,6 +51,17 @@ impl From<&Row> for Node {
    }
 }
 
+// For update fields by name
+pub enum UpdateKind {
+   Text(String),
+}
+
+pub struct UpdateNode {
+   pub kind: UpdateKind,
+   pub field: String,
+}
+
+
 impl Node {
    pub fn new(parent: i32) -> Self {
       Self {
@@ -66,6 +77,15 @@ impl Node {
          open: NaiveTime::from_hms(0, 0, 0),
          close: NaiveTime::from_hms(0, 0, 0),
          price: 0,
+      }
+   }
+
+   pub fn update(&mut self, info: UpdateNode) {
+      match info.field.as_str() {
+         "title" => {
+            if let UpdateKind::Text(new_val) = info.kind { self.title = new_val } else { panic!("node::update type mismatch for title"); }
+         }
+         _ => panic!("node::update unknown field {}", info.field),
       }
    }
 }
