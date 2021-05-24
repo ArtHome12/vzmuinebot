@@ -192,6 +192,21 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          enter_edit(state, cx).await
       }
 
+      Command::Descr => {
+         let node = state.stack.last().unwrap();
+         let old_val = node.descr.clone();
+         let state = GearStateEditing {
+            state,
+            update: UpdateNode {
+               kind: UpdateKind::Text(old_val), // put old value for info
+               field: "descr".into(),
+            }
+         };
+
+         // Move to editing mode
+         enter_edit(state, cx).await
+      }
+
       Command::Unknown => {
          cx.answer(format!("Неизвестная команда '{}', вы находитесь в меню настроек", ans)).await?;
 
@@ -230,10 +245,18 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
 pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
    // Collect path from the beginning
-   let title = state.stack
+   let mut title = state.stack
    .iter()
    .skip(1)
    .fold(String::default(), |acc, n| acc + "/" + &n.title);
+
+   // Add descr if set
+   let node = state.stack.last();
+   if let Some(node) = node {
+      if node.descr.len() >= 3 {
+         title = title + "\nОписание: " + node.descr.as_str();
+      }
+   }
 
    let info = state.stack
    .last().unwrap()
