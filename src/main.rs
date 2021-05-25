@@ -221,15 +221,21 @@ async fn run() {
 // async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>) -> ResponseResult<Message> {
 async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dialogue) -> TransitionOut<Dialogue> {
 
-   // Collect info about update
-   let text = String::from(cx.update.text().unwrap_or_default());
-
    // Negative for chats, positive personal
    let chat_id = cx.update.chat_id();
 
    if chat_id > 0 {
+      // Collect info about update
+      let text = String::from(cx.update
+      .text()
+      .unwrap_or_else(|| {
+         let picture = cx.update.photo();
+         if let Some(sizes) = picture { sizes[0].file_id.as_str() }
+         else { "" }
+      }));
+
       if text == "" {
-         if let Err(e) = cx.answer("Текстовое сообщение, пожалуйста+!").await {
+         if let Err(e) = cx.answer("Текстовое сообщение, пожалуйста!").await {
             log::info!("Error main handle_message(): {}", e);
          }
       } else {
