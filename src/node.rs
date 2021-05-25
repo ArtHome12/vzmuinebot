@@ -55,6 +55,8 @@ impl From<&Row> for Node {
 #[derive(Debug, Clone)]
 pub enum UpdateKind {
    Text(String),
+   Picture(String),
+   Flag(bool),
 }
 
 #[derive(Debug, Clone)]
@@ -83,25 +85,27 @@ impl Node {
    }
 
    pub fn update(&mut self, info: UpdateNode) -> Result<(), String> {
-      match info.field.as_str() {
-         "title" => {
-            if let UpdateKind::Text(new_val) = info.kind {
-               self.title = new_val;
-               Ok(())
-            } else {
-               Err("node::update type mismatch for title".into())
-            }
-         }
-         "descr" => {
-            if let UpdateKind::Text(new_val) = info.kind {
-               self.descr = new_val;
-               Ok(())
-            } else {
-               Err("node::update type mismatch for descr".into())
-            }
-         }
-         _ => Err(format!("node::update unknown field {}", info.field)),
+      fn check_str(kind: UpdateKind) -> Result<String, String> {
+         match kind {
+            UpdateKind::Text(res) | UpdateKind::Picture(res) => Ok(res),
+            _ => Err(String::from("node::update type string mismatch")),
+         }      
       }
+
+      fn check_bool(kind: UpdateKind) -> Result<bool, String> {
+         if let UpdateKind::Flag(res) = kind { Ok(res) }
+         else { Err(String::from("node::update type bool mismatch")) }
+      }
+
+      match info.field.as_str() {
+         "title" => self.title = check_str(info.kind)?,
+         "descr" => self.descr = check_str(info.kind)?,
+         "picture" => self.picture = check_str(info.kind)?,
+         "enabled" => self.enabled = check_bool(info.kind)?,
+         "banned" => self.banned = check_bool(info.kind)?,
+         _ => return Err(format!("node::update unknown field {}", info.field)),
+      }
+      Ok(())
    }
 }
 

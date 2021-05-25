@@ -207,6 +207,19 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          enter_edit(state, cx).await
       }
 
+      Command::Picture => {
+         let state = GearStateEditing {
+            state,
+            update: UpdateNode {
+               kind: UpdateKind::Picture("".into()), // put old value for info
+               field: "picture".into(),
+            }
+         };
+
+         // Move to editing mode
+         enter_edit(state, cx).await
+      }
+
       Command::Unknown => {
          cx.answer(format!("Неизвестная команда '{}', вы находитесь в меню настроек", ans)).await?;
 
@@ -362,12 +375,14 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
 }
 
 async fn enter_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
-      let old_val = match &state.update.kind {
-      UpdateKind::Text(old_val) => old_val.clone(),
+   let (info, markup) = match &state.update.kind {
+      UpdateKind::Text(old_val) => (format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup()),
+      UpdateKind::Picture(_) => (String::from("Отправьте изображение"), cancel_markup()),
+      UpdateKind::Flag(old_val) => (format!("Текущее значение '{}', выберите новое", old_val), cancel_markup()),
    };
 
-   cx.answer(format!("Текущее значение '{}', введите новое или / для отмены", old_val))
-   .reply_markup(cancel_markup())
+   cx.answer(info)
+   .reply_markup(markup)
    .await?;
 
    next(state)

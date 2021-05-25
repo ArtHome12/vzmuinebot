@@ -142,9 +142,13 @@ pub async fn delete_node(id: i32) -> Result<(), String> {
 
 pub async fn update_node(id: i32, update: &UpdateNode) -> Result<(), String> {
    match &update.kind {
-      UpdateKind::Text(new_val) => {
+      UpdateKind::Text(new_val) | UpdateKind::Picture(new_val) => {
          let text = format!("UPDATE nodes SET {} = $1::VARCHAR WHERE id=$2::INTEGER", update.field);
-         execute_one(text.as_str(), &[&new_val, &id]).await
+         execute_one(text.as_str(), &[new_val, &id]).await
+      }
+      UpdateKind::Flag(new_val) => {
+         let text = format!("UPDATE nodes SET {} = $1::BOOLEAN WHERE id=$2::INTEGER", update.field);
+         execute_one(text.as_str(), &[new_val, &id]).await
       }
    }
 }
@@ -195,7 +199,7 @@ pub async fn create_tables() -> bool {
          price          INTEGER        NOT NULL);
 
          INSERT INTO nodes (id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price)
-         VALUES (0, 0, 'Добро пожаловать', '-', '', true, false, 0, 0, 0, '00:00', '00:00', 0);
+         VALUES (0, -1, 'Добро пожаловать', '-', '', true, false, 0, 0, 0, '00:00', '00:00', 0);
    ")
    .await;
 
