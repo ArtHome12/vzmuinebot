@@ -101,8 +101,8 @@ pub async fn insert_node(node: &Node) -> Result<(), String> {
       &node.owners[0],
       &node.owners[1],
       &node.owners[2],
-      &node.open,
-      &node.close,
+      &node.time.0,
+      &node.time.1,
       &node.price];
 
    // Prepare query
@@ -154,6 +154,10 @@ pub async fn update_node(id: i32, update: &UpdateNode) -> Result<(), String> {
       UpdateKind::Int(new_val) => {
          let text = format!("UPDATE nodes SET {} = $1::BIGINT WHERE id=$2::INTEGER", update.field);
          execute_one(text.as_str(), &[new_val, &id]).await
+      }
+      UpdateKind::Time(open, close) => {
+         let text = "UPDATE nodes SET open = $1::TIME, close = $2::TIME WHERE id=$3::INTEGER";
+         execute_one(text, &[open, close, &id]).await
       }
    }
 }

@@ -12,6 +12,7 @@ use teloxide::{prelude::*, ApiError, RequestError, payloads::SendMessageSetters,
 use reqwest::StatusCode;
 use std::str::FromStr;
 use strum::{AsRefStr, EnumString,};
+use chrono::{NaiveTime};
 
 use crate::states::*;
 use crate::database as db;
@@ -48,10 +49,8 @@ enum Command {
    Owner2,
    #[strum(to_string = "ID 3")]
    Owner3,
-   #[strum(to_string = "Открытие")]
-   Open,
-   #[strum(to_string = "Закрытие")]
-   Close,
+   #[strum(to_string = "Время")]
+   Time,
    #[strum(to_string = "Цена")]
    Price,
    Unknown,
@@ -201,7 +200,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
 
       Command::Picture => {
          let kind = UpdateKind::Picture("".into());
-         do_edit(state, cx, kind, "descr".into()).await
+         do_edit(state, cx, kind, "picture".into()).await
       }
 
       Command::Enable => {
@@ -232,6 +231,12 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          let node = state.stack.last().unwrap();
          let kind = UpdateKind::Int(node.owners[2]);
          do_edit(state, cx, kind, "owner3".into()).await
+      }
+
+      Command::Time => {
+         let node = state.stack.last().unwrap();
+         let kind = UpdateKind::Time(node.time.0, node.time.1);
+         do_edit(state, cx, kind, "time".into()).await
       }
 
       Command::Unknown => {
@@ -300,8 +305,7 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    ];
    let row2 = vec![
       String::from(Command::Enable.as_ref()),
-      String::from(Command::Open.as_ref()),
-      String::from(Command::Close.as_ref()),
+      String::from(Command::Time.as_ref()),
       String::from(Command::Picture.as_ref()),
    ];
    let mut row3 = vec![
@@ -370,7 +374,19 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
                if let Ok(int) = res {
                   UpdateKind::Int(int)
                } else {
-                  return Ok(format!("Ошибка, не удаётся {} преобразовать в число, значение не изменено", ans))
+                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать в число, значение не изменено", ans))
+               }
+            }
+            UpdateKind::Time(_, _) => {
+               let part1 = ans.get(..5).unwrap_or_default();
+               let part2 = ans.get(6..).unwrap_or_default();
+               let part1 = NaiveTime::parse_from_str(part1, "%H:%M");
+               let part2 = NaiveTime::parse_from_str(part2, "%H:%M");
+
+               if part1.is_ok() && part2.is_ok() {
+                  UpdateKind::Time(part1.unwrap(), part2.unwrap())
+               } else {
+                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать во время работы типа '07:00-21:00', значение не изменено", ans))
                }
             }
          };
@@ -419,6 +435,7 @@ async fn enter_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>) ->
       UpdateKind::Picture(_) => (String::from("Отправьте изображение или один любой символ для удаления предыдущего или / для отмены"), cancel_markup()),
       UpdateKind::Flag(old_val) => (format!("Текущее значение '{}', выберите новое", from_flag(*old_val)), flag_markup()),
       UpdateKind::Int(old_val) => (format!("Текущее значение user id='{}', введите новое или / для отмены", old_val), cancel_markup()),
+      UpdateKind::Time(open, close) => (format!("Текущее время '{}-{}', введите новое или / для отмены", open.format("%H:%M"), close.format("%H:%M")), cancel_markup()),
    };
 
    cx.answer(info)

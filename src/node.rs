@@ -27,8 +27,7 @@ pub struct Node {
    pub enabled: bool,
    pub banned: bool,
    pub owners: Owners,
-   pub open: NaiveTime,
-   pub close: NaiveTime,
+   pub time: (NaiveTime, NaiveTime),
    pub price: i32,
 }
 
@@ -44,8 +43,7 @@ impl From<&Row> for Node {
          enabled: row.get(5),
          banned: row.get(6),
          owners: [row.get(7), row.get(8), row.get(9)],
-         open: row.get(10),
-         close: row.get(11),
+         time: (row.get(10), row.get(11)),
          price: row.get(12),
       }
    }
@@ -58,6 +56,7 @@ pub enum UpdateKind {
    Picture(String),
    Flag(bool),
    Int(i64),
+   Time(NaiveTime, NaiveTime),
 }
 
 #[derive(Debug, Clone)]
@@ -69,6 +68,8 @@ pub struct UpdateNode {
 
 impl Node {
    pub fn new(parent: i32) -> Self {
+      let t = NaiveTime::from_hms(0, 0, 0);
+
       Self {
          id: 0,
          parent,
@@ -79,8 +80,7 @@ impl Node {
          enabled: false,
          banned: false,
          owners: Default::default(),
-         open: NaiveTime::from_hms(0, 0, 0),
-         close: NaiveTime::from_hms(0, 0, 0),
+         time: (t, t),
          price: 0,
       }
    }
@@ -103,6 +103,11 @@ impl Node {
          else { Err(String::from("node::update type int mismatch")) }
       }
 
+      fn check_time(kind: &UpdateKind) -> Result<(NaiveTime, NaiveTime), String> {
+         if let UpdateKind::Time(open, close) = kind { Ok((*open, *close)) }
+         else { Err(String::from("node::update type time mismatch")) }
+      }
+
       match info.field.as_str() {
          "title" => self.title = check_str(&info.kind)?,
          "descr" => self.descr = check_str(&info.kind)?,
@@ -112,6 +117,7 @@ impl Node {
          "owner1" => self.owners[0] = check_int(&info.kind)?,
          "owner2" => self.owners[1] = check_int(&info.kind)?,
          "owner3" => self.owners[2] = check_int(&info.kind)?,
+         "time" => self.time = check_time(&info.kind)?,
          _ => return Err(format!("node::update unknown field {}", info.field)),
       }
       Ok(())
