@@ -8,14 +8,16 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use once_cell::sync::{OnceCell};
-use deadpool_postgres::{Pool, Client};
-use tokio_postgres::types::ToSql;
+use deadpool_postgres::{Pool, Client, };
+use postgres_native_tls::MakeTlsConnector;
+use tokio_postgres::{types::ToSql, };
 
 use crate::environment;
 use crate::node::*;
 
 // Пул клиентов БД
-pub static DB: OnceCell<Pool> = OnceCell::new();
+pub type PoolAlias = Pool<MakeTlsConnector>;
+pub static DB: OnceCell<PoolAlias> = OnceCell::new();
 
 pub type Params<'a> = &'a[&'a(dyn ToSql + Sync)];
 
@@ -231,7 +233,7 @@ pub fn is_success(flag : bool) -> &'static str {
 }
 
 // Обёртка, возвращает пул клиентов
-async fn db_client() -> Result<Client, String> {
+async fn db_client() -> Result<Client::<MakeTlsConnector>, String> {
    match DB.get().unwrap().get().await {
       Ok(client) => Ok(client),
       Err(e) => {

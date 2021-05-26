@@ -158,9 +158,8 @@ async fn run() {
 
    let pg_config = database_url.parse::<tokio_postgres::Config>().expect("DATABASE_URL env variable wrong");
    let mgr_config = ManagerConfig {recycling_method: RecyclingMethod::Fast};
-   // let mgr = Manager::from_config(pg_config, NoTls, mgr_config);
    let mgr = Manager::from_config(pg_config, connector, mgr_config);
-   let pool = Pool::new(mgr, 16);
+   let pool: database::PoolAlias = Pool::new(mgr, 16);
 
    // Протестируем соединение
    let test_pool = pool.clone();
