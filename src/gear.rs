@@ -216,6 +216,24 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          do_edit(state, cx, kind, "banned".into()).await
       }
 
+      Command::Owner1 => {
+         let node = state.stack.last().unwrap();
+         let kind = UpdateKind::Int(node.owners[0]);
+         do_edit(state, cx, kind, "owner1".into()).await
+      }
+
+      Command::Owner2 => {
+         let node = state.stack.last().unwrap();
+         let kind = UpdateKind::Int(node.owners[1]);
+         do_edit(state, cx, kind, "owner2".into()).await
+      }
+
+      Command::Owner3 => {
+         let node = state.stack.last().unwrap();
+         let kind = UpdateKind::Int(node.owners[2]);
+         do_edit(state, cx, kind, "owner3".into()).await
+      }
+
       Command::Unknown => {
          cx.answer(format!("Неизвестная команда '{}', вы находитесь в меню настроек", ans)).await?;
 
@@ -331,49 +349,63 @@ pub struct GearStateEditing {
 
 #[teloxide(subtransition)]
 async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
-
-   // Report result
-   let info = if ans == String::from("/") {
-      "Отмена, значение не изменено"
-   } else {
-      // Store new value
-      state.update.kind = match state.update.kind {
-         UpdateKind::Text(_) => UpdateKind::Text(ans),
-         UpdateKind::Picture(_) => UpdateKind::Picture(ans),
-         UpdateKind::Flag(_) => {
-            let flag = to_flag(ans)
-            .map_err(|s| map_req_err(s))?;
-            UpdateKind::Flag(flag)
-         }
-      };
-
-      // Peek current node
-      let node = state.state.stack.last_mut().unwrap();
-
-      // Update database
-      let node_id = node.id;
-      db::update_node(node_id, &state.update)
-      .await
-      .map_err(|s| map_req_err(s))?;
-
-      // If change in databse is successful, update the stack
-      node.update(state.update.clone())
-      .map_err(|s| map_req_err(s))?;
-      
-      let len = state.state.stack.len();
-      if len > 1 {
-         let parent = state.state.stack.get_mut(len - 2).unwrap();
-         for child in &mut parent.children {
-            if child.id == node_id {
-               child.update(state.update)
-               .map_err(|s| map_req_err(s))?;
-               break;
+   async fn do_update(state: &mut GearStateEditing, ans: String) -> Result<String, String> {
+      let res = if ans == String::from("/") {
+         String::from("Отмена, значение не изменено")
+      } else {
+         // Store new value
+         state.update.kind = match state.update.kind {
+            UpdateKind::Text(_) => UpdateKind::Text(ans),
+            UpdateKind::Picture(_) => {
+               // Delete previous if new id too short
+               let id = if ans.len() >= 3 { ans } else { String::default() };
+               UpdateKind::Picture(id)
+            }
+            UpdateKind::Flag(_) => {
+               let flag = to_flag(ans)?;
+               UpdateKind::Flag(flag)
+            }
+            UpdateKind::Int(_) => {
+               let res = ans.parse::<i64>();
+               if let Ok(int) = res {
+                  UpdateKind::Int(int)
+               } else {
+                  return Ok(format!("Ошибка, не удаётся {} преобразовать в число, значение не изменено", ans))
+               }
+            }
+         };
+   
+         // Peek current node
+         let node = state.state.stack.last_mut().unwrap();
+   
+         // Update database
+         let node_id = node.id;
+         db::update_node(node_id, &state.update).await?;
+   
+         // If change in databse is successful, update the stack
+         node.update(&state.update)?;
+         
+         let len = state.state.stack.len();
+         if len > 1 {
+            let parent = state.state.stack.get_mut(len - 2).unwrap();
+            for child in &mut parent.children {
+               if child.id == node_id {
+                  child.update(&state.update)?;
+                  break;
+               }
             }
          }
-      }
+   
+         String::from("Новое значение сохранено")
+      };
+      Ok(res)
+   }
 
-      "Новое значение сохранено"
-   };
+   // Report result
+   let info = do_update(&mut state, ans)
+   .await
+   .map_err(|s| map_req_err(s))?;
+
    cx.answer(info)
    .await?;
 
@@ -384,8 +416,9 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
 async fn enter_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
    let (info, markup) = match &state.update.kind {
       UpdateKind::Text(old_val) => (format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup()),
-      UpdateKind::Picture(_) => (String::from("Отправьте изображение"), cancel_markup()),
+      UpdateKind::Picture(_) => (String::from("Отправьте изображение или один любой символ для удаления предыдущего или / для отмены"), cancel_markup()),
       UpdateKind::Flag(old_val) => (format!("Текущее значение '{}', выберите новое", from_flag(*old_val)), flag_markup()),
+      UpdateKind::Int(old_val) => (format!("Текущее значение user id='{}', введите новое или / для отмены", old_val), cancel_markup()),
    };
 
    cx.answer(info)

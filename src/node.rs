@@ -57,6 +57,7 @@ pub enum UpdateKind {
    Text(String),
    Picture(String),
    Flag(bool),
+   Int(i64),
 }
 
 #[derive(Debug, Clone)]
@@ -84,25 +85,33 @@ impl Node {
       }
    }
 
-   pub fn update(&mut self, info: UpdateNode) -> Result<(), String> {
-      fn check_str(kind: UpdateKind) -> Result<String, String> {
+   pub fn update(&mut self, info: &UpdateNode) -> Result<(), String> {
+      fn check_str(kind: &UpdateKind) -> Result<String, String> {
          match kind {
-            UpdateKind::Text(res) | UpdateKind::Picture(res) => Ok(res),
+            UpdateKind::Text(res) | UpdateKind::Picture(res) => Ok(res.clone()),
             _ => Err(String::from("node::update type string mismatch")),
          }      
       }
 
-      fn check_bool(kind: UpdateKind) -> Result<bool, String> {
-         if let UpdateKind::Flag(res) = kind { Ok(res) }
+      fn check_bool(kind: &UpdateKind) -> Result<bool, String> {
+         if let UpdateKind::Flag(res) = kind { Ok(*res) }
          else { Err(String::from("node::update type bool mismatch")) }
       }
 
+      fn check_int(kind: &UpdateKind) -> Result<i64, String> {
+         if let UpdateKind::Int(res) = kind { Ok(*res) }
+         else { Err(String::from("node::update type int mismatch")) }
+      }
+
       match info.field.as_str() {
-         "title" => self.title = check_str(info.kind)?,
-         "descr" => self.descr = check_str(info.kind)?,
-         "picture" => self.picture = check_str(info.kind)?,
-         "enabled" => self.enabled = check_bool(info.kind)?,
-         "banned" => self.banned = check_bool(info.kind)?,
+         "title" => self.title = check_str(&info.kind)?,
+         "descr" => self.descr = check_str(&info.kind)?,
+         "picture" => self.picture = check_str(&info.kind)?,
+         "enabled" => self.enabled = check_bool(&info.kind)?,
+         "banned" => self.banned = check_bool(&info.kind)?,
+         "owner1" => self.owners[0] = check_int(&info.kind)?,
+         "owner2" => self.owners[1] = check_int(&info.kind)?,
+         "owner3" => self.owners[2] = check_int(&info.kind)?,
          _ => return Err(format!("node::update unknown field {}", info.field)),
       }
       Ok(())

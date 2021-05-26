@@ -142,12 +142,17 @@ pub async fn delete_node(id: i32) -> Result<(), String> {
 
 pub async fn update_node(id: i32, update: &UpdateNode) -> Result<(), String> {
    match &update.kind {
-      UpdateKind::Text(new_val) | UpdateKind::Picture(new_val) => {
+      UpdateKind::Text(new_val) 
+      | UpdateKind::Picture(new_val) => {
          let text = format!("UPDATE nodes SET {} = $1::VARCHAR WHERE id=$2::INTEGER", update.field);
          execute_one(text.as_str(), &[new_val, &id]).await
       }
       UpdateKind::Flag(new_val) => {
          let text = format!("UPDATE nodes SET {} = $1::BOOLEAN WHERE id=$2::INTEGER", update.field);
+         execute_one(text.as_str(), &[new_val, &id]).await
+      }
+      UpdateKind::Int(new_val) => {
+         let text = format!("UPDATE nodes SET {} = $1::BIGINT WHERE id=$2::INTEGER", update.field);
          execute_one(text.as_str(), &[new_val, &id]).await
       }
    }
