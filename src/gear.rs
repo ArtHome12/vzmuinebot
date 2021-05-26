@@ -239,15 +239,16 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          do_edit(state, cx, kind, "time".into()).await
       }
 
+      Command::Price => {
+         let node = state.stack.last().unwrap();
+         let kind = UpdateKind::Money(node.price);
+         do_edit(state, cx, kind, "price".into()).await
+      }
+
       Command::Unknown => {
          cx.answer(format!("Неизвестная команда '{}', вы находитесь в меню настроек", ans)).await?;
 
          // Stay in place
-         next(state)
-      }
-
-      _ => {
-         cx.answer(format!("Команда '{}' ещё не реализована", ans)).await?;
          next(state)
       }
    }
@@ -389,6 +390,14 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
                   return Ok(format!("Ошибка, не удаётся '{}' преобразовать во время работы типа '07:00-21:00', значение не изменено", ans))
                }
             }
+            UpdateKind::Money(_) => {
+               let res = ans.parse::<i32>();
+               if let Ok(int) = res {
+                  UpdateKind::Money(int)
+               } else {
+                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать в число, значение не изменено", ans))
+               }
+            }
          };
    
          // Peek current node
@@ -436,6 +445,7 @@ async fn enter_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>) ->
       UpdateKind::Flag(old_val) => (format!("Текущее значение '{}', выберите новое", from_flag(*old_val)), flag_markup()),
       UpdateKind::Int(old_val) => (format!("Текущее значение user id='{}', введите новое или / для отмены", old_val), cancel_markup()),
       UpdateKind::Time(open, close) => (format!("Текущее время '{}-{}', введите новое или / для отмены", open.format("%H:%M"), close.format("%H:%M")), cancel_markup()),
+      UpdateKind::Money(old_val) => (format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup()),
    };
 
    cx.answer(info)

@@ -57,6 +57,7 @@ pub enum UpdateKind {
    Flag(bool),
    Int(i64),
    Time(NaiveTime, NaiveTime),
+   Money(i32),
 }
 
 #[derive(Debug, Clone)]
@@ -108,6 +109,11 @@ impl Node {
          else { Err(String::from("node::update type time mismatch")) }
       }
 
+      fn check_money(kind: &UpdateKind) -> Result<i32, String> {
+         if let UpdateKind::Money(res) = kind { Ok(*res) }
+         else { Err(String::from("node::update type int mismatch")) }
+      }
+
       match info.field.as_str() {
          "title" => self.title = check_str(&info.kind)?,
          "descr" => self.descr = check_str(&info.kind)?,
@@ -118,6 +124,7 @@ impl Node {
          "owner2" => self.owners[1] = check_int(&info.kind)?,
          "owner3" => self.owners[2] = check_int(&info.kind)?,
          "time" => self.time = check_time(&info.kind)?,
+         "price" => self.price = check_money(&info.kind)?,
          _ => return Err(format!("node::update unknown field {}", info.field)),
       }
       Ok(())

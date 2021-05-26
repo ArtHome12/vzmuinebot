@@ -161,6 +161,10 @@ pub async fn update_node(id: i32, update: &UpdateNode) -> Result<(), String> {
          let text = "UPDATE nodes SET open = $1::TIME, close = $2::TIME WHERE id=$3::INTEGER";
          execute_one(text, &[open, close, &id]).await
       }
+      UpdateKind::Money(new_val) => {
+         let text = format!("UPDATE nodes SET {} = $1::INTEGER WHERE id=$2::INTEGER", update.field);
+         execute_one(text.as_str(), &[new_val, &id]).await
+      }
    }
 }
 
