@@ -11,8 +11,9 @@ use teloxide_macros::teloxide;
 use teloxide::{prelude::*, ApiError, RequestError, payloads::SendMessageSetters,};
 use reqwest::StatusCode;
 use std::str::FromStr;
-use strum::{AsRefStr, EnumString,};
+use strum::{AsRefStr, EnumString, EnumMessage, };
 use chrono::{NaiveTime};
+use enum_default::EnumDefault;
 
 use crate::states::*;
 use crate::database as db;
@@ -21,6 +22,7 @@ use crate::node::*;
 // ============================================================================
 // [Main entry]
 // ============================================================================
+// Main commands
 #[derive(AsRefStr, EnumString)]
 enum Command {
    #[strum(to_string = "Добавить")]
@@ -33,27 +35,33 @@ enum Command {
    Return, // return to parent node
    #[strum(to_string = "/pas")]
    Pass(i32), // make the specified node active
-   #[strum(to_string = "Название")]
-   Title,
-   #[strum(to_string = "Описание")]
-   Descr,
-   #[strum(to_string = "Картинка")]
-   Picture,
-   #[strum(to_string = "Доступ")]
-   Enable,
-   #[strum(to_string = "Бан")]
-   Ban,
-   #[strum(to_string = "ID 1")]
-   Owner1,
-   #[strum(to_string = "ID 2")]
-   Owner2,
-   #[strum(to_string = "ID 3")]
-   Owner3,
-   #[strum(to_string = "Время")]
-   Time,
-   #[strum(to_string = "Цена")]
-   Price,
+   Edit(EditCmd),
    Unknown,
+}
+
+// Main commands
+#[derive(AsRefStr, EnumString, EnumMessage, EnumDefault)]
+enum EditCmd {
+   #[strum(to_string = "Название", message = "title")] // Button caption and db field name
+   Title,
+   #[strum(to_string = "Описание", message = "descr")]
+   Descr,
+   #[strum(to_string = "Картинка", message = "picture")]
+   Picture,
+   #[strum(to_string = "Доступ", message = "enabled")]
+   Enable,
+   #[strum(to_string = "Бан", message = "banned")]
+   Ban,
+   #[strum(to_string = "ID 1", message = "owner1")]
+   Owner1,
+   #[strum(to_string = "ID 2", message = "owner2")]
+   Owner2,
+   #[strum(to_string = "ID 3", message = "owner3")]
+   Owner3,
+   #[strum(to_string = "Время", message = "open, close")]
+   Time,
+   #[strum(to_string = "Цена", message = "price")]
+   Price,
 }
 
 impl Command {
@@ -95,16 +103,6 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
       } else {
          crate::states::enter(StartState { restarted: false }, cx, String::default()).await
       }
-   }
-
-   async fn do_edit(state: GearState, cx: TransitionIn<AutoSend<Bot>>, kind: UpdateKind, field: String) -> TransitionOut<Dialogue> {
-      let state = GearStateEditing {
-         state,
-         update: UpdateNode { kind, field, }
-      };
-
-      // Move to editing mode
-      enter_edit(state, cx).await
    }
    
    // Parse and handle commands
@@ -186,63 +184,33 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          }
       }
 
-      Command::Title => {
+      Command::Edit(cmd) => {
+         // Editing node
          let node = state.stack.last().unwrap();
-         let kind = UpdateKind::Text(node.title.clone()); // put old value for info
-         do_edit(state, cx, kind, "title".into()).await
-      }
 
-      Command::Descr => {
-         let node = state.stack.last().unwrap();
-         let kind = UpdateKind::Text(node.descr.clone());
-         do_edit(state, cx, kind, "descr".into()).await
-      }
+         // Underlying data
+         let kind = match cmd {
+            EditCmd::Title => UpdateKind::Text(node.title.clone()),
+            EditCmd::Descr => UpdateKind::Text(node.descr.clone()),
+            EditCmd::Picture => UpdateKind::Picture("".into()),
+            EditCmd::Enable => UpdateKind::Flag(node.enabled),
+            EditCmd::Ban => UpdateKind::Flag(node.banned),
+            EditCmd::Owner1 => UpdateKind::Int(node.owners[0]),
+            EditCmd::Owner2 => UpdateKind::Int(node.owners[1]),
+            EditCmd::Owner3 => UpdateKind::Int(node.owners[3]),
+            EditCmd::Time => UpdateKind::Time(node.time.0, node.time.1),
+            EditCmd::Price => UpdateKind::Money(node.price),
+         };
 
-      Command::Picture => {
-         let kind = UpdateKind::Picture("".into());
-         do_edit(state, cx, kind, "picture".into()).await
-      }
+         // Appropriate database field name
+         let field = String::from(cmd.get_message().unwrap());
 
-      Command::Enable => {
-         let node = state.stack.last().unwrap();
-         let kind = UpdateKind::Flag(node.enabled);
-         do_edit(state, cx, kind, "enabled".into()).await
-      }
-
-      Command::Ban => {
-         let node = state.stack.last().unwrap();
-         let kind = UpdateKind::Flag(node.banned);
-         do_edit(state, cx, kind, "banned".into()).await
-      }
-
-      Command::Owner1 => {
-         let node = state.stack.last().unwrap();
-         let kind = UpdateKind::Int(node.owners[0]);
-         do_edit(state, cx, kind, "owner1".into()).await
-      }
-
-      Command::Owner2 => {
-         let node = state.stack.last().unwrap();
-         let kind = UpdateKind::Int(node.owners[1]);
-         do_edit(state, cx, kind, "owner2".into()).await
-      }
-
-      Command::Owner3 => {
-         let node = state.stack.last().unwrap();
-         let kind = UpdateKind::Int(node.owners[2]);
-         do_edit(state, cx, kind, "owner3".into()).await
-      }
-
-      Command::Time => {
-         let node = state.stack.last().unwrap();
-         let kind = UpdateKind::Time(node.time.0, node.time.1);
-         do_edit(state, cx, kind, "time".into()).await
-      }
-
-      Command::Price => {
-         let node = state.stack.last().unwrap();
-         let kind = UpdateKind::Money(node.price);
-         do_edit(state, cx, kind, "price".into()).await
+         // Move to editing mode
+         let state = GearStateEditing {
+            state,
+            update: UpdateNode { kind, field, }
+         };
+         enter_edit(state, cx).await
       }
 
       Command::Unknown => {
@@ -301,35 +269,33 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
 
    let mut row1 = vec![
       String::from(Command::Add.as_ref()),
-      String::from(Command::Title.as_ref()),
-      String::from(Command::Descr.as_ref()),
+      String::from(EditCmd::Title.as_ref()),
+      String::from(EditCmd::Descr.as_ref()),
    ];
    let row2 = vec![
-      String::from(Command::Enable.as_ref()),
-      String::from(Command::Time.as_ref()),
-      String::from(Command::Picture.as_ref()),
+      String::from(EditCmd::Enable.as_ref()),
+      String::from(EditCmd::Time.as_ref()),
+      String::from(EditCmd::Picture.as_ref()),
    ];
    let mut row3 = vec![
       String::from(Command::Exit.as_ref()),
    ];
 
    // Condition-dependent menu items
-   if state.state.is_admin {
-      row3.insert(0, String::from(Command::Ban.as_ref()))
-   }
    if state.stack.len() > 1 {
       row1.insert(1, String::from(Command::Delete.as_ref()));
-      row3.push(String::from(Command::Return.as_ref()))
+      row3.push(String::from(EditCmd::Price.as_ref()));
+      row3.push(String::from(Command::Return.as_ref()));
    }
 
    let mut keyboard = vec![row1, row2, row3];
 
    if state.state.is_admin {
       let row_admin = vec![
-         String::from(Command::Price.as_ref()),
-         String::from(Command::Owner1.as_ref()),
-         String::from(Command::Owner2.as_ref()),
-         String::from(Command::Owner3.as_ref()),
+         String::from(EditCmd::Ban.as_ref()),
+         String::from(EditCmd::Owner1.as_ref()),
+         String::from(EditCmd::Owner2.as_ref()),
+         String::from(EditCmd::Owner3.as_ref()),
       ];
       keyboard.insert(2, row_admin);
    }
