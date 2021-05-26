@@ -42,11 +42,11 @@ enum Command {
    Enable,
    #[strum(to_string = "Бан")]
    Ban,
-   #[strum(to_string = "Управ1")]
+   #[strum(to_string = "ID 1")]
    Owner1,
-   #[strum(to_string = "Управ2")]
+   #[strum(to_string = "ID 2")]
    Owner2,
-   #[strum(to_string = "Управ3")]
+   #[strum(to_string = "ID 3")]
    Owner3,
    #[strum(to_string = "Открытие")]
    Open,
@@ -96,6 +96,16 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
       } else {
          crate::states::enter(StartState { restarted: false }, cx, String::default()).await
       }
+   }
+
+   async fn do_edit(state: GearState, cx: TransitionIn<AutoSend<Bot>>, kind: UpdateKind, field: String) -> TransitionOut<Dialogue> {
+      let state = GearStateEditing {
+         state,
+         update: UpdateNode { kind, field, }
+      };
+
+      // Move to editing mode
+      enter_edit(state, cx).await
    }
    
    // Parse and handle commands
@@ -179,45 +189,31 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
 
       Command::Title => {
          let node = state.stack.last().unwrap();
-         let old_val = node.title.clone();
-         let state = GearStateEditing {
-            state,
-            update: UpdateNode {
-               kind: UpdateKind::Text(old_val), // put old value for info
-               field: "title".into(),
-            }
-         };
-
-         // Move to editing mode
-         enter_edit(state, cx).await
+         let kind = UpdateKind::Text(node.title.clone()); // put old value for info
+         do_edit(state, cx, kind, "title".into()).await
       }
 
       Command::Descr => {
          let node = state.stack.last().unwrap();
-         let old_val = node.descr.clone();
-         let state = GearStateEditing {
-            state,
-            update: UpdateNode {
-               kind: UpdateKind::Text(old_val), // put old value for info
-               field: "descr".into(),
-            }
-         };
-
-         // Move to editing mode
-         enter_edit(state, cx).await
+         let kind = UpdateKind::Text(node.descr.clone());
+         do_edit(state, cx, kind, "descr".into()).await
       }
 
       Command::Picture => {
-         let state = GearStateEditing {
-            state,
-            update: UpdateNode {
-               kind: UpdateKind::Picture("".into()), // put old value for info
-               field: "picture".into(),
-            }
-         };
+         let kind = UpdateKind::Picture("".into());
+         do_edit(state, cx, kind, "descr".into()).await
+      }
 
-         // Move to editing mode
-         enter_edit(state, cx).await
+      Command::Enable => {
+         let node = state.stack.last().unwrap();
+         let kind = UpdateKind::Flag(node.enabled);
+         do_edit(state, cx, kind, "enabled".into()).await
+      }
+
+      Command::Ban => {
+         let node = state.stack.last().unwrap();
+         let kind = UpdateKind::Flag(node.banned);
+         do_edit(state, cx, kind, "banned".into()).await
       }
 
       Command::Unknown => {
@@ -340,11 +336,22 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
    let info = if ans == String::from("/") {
       "Отмена, значение не изменено"
    } else {
-      // Change in memory
-      state.update.kind = UpdateKind::Text(ans.clone());
-      let node = state.state.stack.last_mut().unwrap();
-      let node_id = node.id;
+      // Store new value
+      state.update.kind = match state.update.kind {
+         UpdateKind::Text(_) => UpdateKind::Text(ans),
+         UpdateKind::Picture(_) => UpdateKind::Picture(ans),
+         UpdateKind::Flag(_) => {
+            let flag = to_flag(ans)
+            .map_err(|s| map_req_err(s))?;
+            UpdateKind::Flag(flag)
+         }
+      };
 
+      // Peek current node
+      let node = state.state.stack.last_mut().unwrap();
+
+      // Update database
+      let node_id = node.id;
       db::update_node(node_id, &state.update)
       .await
       .map_err(|s| map_req_err(s))?;
@@ -378,7 +385,7 @@ async fn enter_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>) ->
    let (info, markup) = match &state.update.kind {
       UpdateKind::Text(old_val) => (format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup()),
       UpdateKind::Picture(_) => (String::from("Отправьте изображение"), cancel_markup()),
-      UpdateKind::Flag(old_val) => (format!("Текущее значение '{}', выберите новое", old_val), cancel_markup()),
+      UpdateKind::Flag(old_val) => (format!("Текущее значение '{}', выберите новое", from_flag(*old_val)), flag_markup()),
    };
 
    cx.answer(info)
