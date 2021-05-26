@@ -186,18 +186,6 @@ async fn run() {
       log::info!("Table restaurants do not exist, create new tables: {}", database::is_success(database::create_tables().await));
    }
 
-   // Инициализируем структуру с картинками для категорий
-   database::cat_image_init().await;
-
-   /* teloxide::dialogues_repl_with_listener(
-      bot.clone(),
-      |message, dialogue| async move {
-         handle_message(message, dialogue).await.expect("Something wrong with the bot!")
-      },
-      webhook(bot).await
-   )
-   .await; */
-
    Dispatcher::new(bot.clone())
    .messages_handler(DialogueDispatcher::new(|DialogueWithCx { cx, dialogue }| async move {
       let res = handle_message(cx, dialogue.unwrap()).await;

@@ -47,10 +47,30 @@ enum MainMenu {
    Unknown,
 }
 
+// Convert for flag value
+pub fn to_flag(text: String) -> Result<bool, String> {
+   match text.as_str() {
+      "Вкл." => Ok(true),
+      "Выкл." => Ok(false),
+      _ => Err(format!("Ожидается Вкл. или Выкл., получили {}", text)),
+   }
+}
+
+pub fn from_flag(flag: bool) -> String {
+   if flag { String::from("Вкл.") }
+   else { String::from("Выкл.") }
+}
+
+
 // Frequently used menu
 pub fn cancel_markup() -> ReplyMarkup {
    kb_markup(vec![vec![String::from("/")]])
 }
+
+pub fn flag_markup() -> ReplyMarkup {
+   kb_markup(vec![vec![from_flag(true), from_flag(false)]])
+}
+
 
 pub fn kb_markup(keyboard: Vec<Vec<String>>) -> ReplyMarkup {
    let kb:  Vec<Vec<KeyboardButton>> = keyboard.iter()

@@ -212,7 +212,7 @@ pub async fn create_tables() -> bool {
    }
 }
 
-// Успешно-неуспешно
+// Convert bool to text
 pub fn is_success(flag : bool) -> &'static str {
    if flag {
       "успешно"
@@ -220,7 +220,6 @@ pub fn is_success(flag : bool) -> &'static str {
       "ошибка"
   }
 }
-
 
 // Обёртка, возвращает пул клиентов
 async fn db_client() -> Result<Client, String> {
@@ -232,41 +231,6 @@ async fn db_client() -> Result<Client, String> {
          Err(error)
       }
    }
-}
-
-// Инициализирует структуру с картинками для категорий
-pub async fn cat_image_init() {
-   // Внесём значения по-умолчанию, а потом попытаемся прочесть их их базы
-   /* let mut hash: CatImageList = HashMap::new();
-   hash.insert(1, environment::default_photo_id());
-   hash.insert(2, environment::default_photo_id());
-   hash.insert(3, environment::default_photo_id());
-   hash.insert(4, environment::default_photo_id());
-
-   // Получаем клиента БД
-   let client = db_client().await;
-   if client.is_some() {
-      // Выполняем запрос
-      let query = client.unwrap()
-      .query("SELECT cat_id, image_id FROM category", &[])
-      .await;
-      match query {
-         Ok(rows) => {
-            for row in rows {
-               let s: Option<String> = row.get(1);
-               if s.is_some() {hash.insert(row.get(0), s.unwrap());}
-            }
-         }
-         Err(e) => {
-            environment::log(&format!("Error db::cat_image_init: {}", e)).await;
-         }
-      };
-   };
-
-   // Сохраняем данные
-   if let Err(_) = CI.set(RwLock::new(hash)) {
-      environment::log(&format!("Error db::cat_image_init2")).await;
-   } */
 }
 
 async fn execute_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(), String> {
