@@ -66,16 +66,22 @@ enum EditCmd {
 
 impl Command {
    fn parse(s: &str) -> Self {
-      Self::from_str(s)
-      .unwrap_or_else(|_| {
-         // Looking for the commands with arguments
-         if s.get(..4).unwrap_or_default() == Self::Pass(0).as_ref() {
-            let r_part = s.get(4..).unwrap_or_default();
-            Command::Pass(r_part.parse().unwrap_or_default())
-         } else {
-            Command::Unknown
-         }
-      })
+      // Try as edit subcommand
+      if let Ok(edit) = EditCmd::from_str(s) {
+         Self::Edit(edit)
+      } else {
+         // Try as main command
+         Self::from_str(s)
+         .unwrap_or_else(|_| {
+            // Looking for the commands with arguments
+            if s.get(..4).unwrap_or_default() == Self::Pass(0).as_ref() {
+               let r_part = s.get(4..).unwrap_or_default();
+               Command::Pass(r_part.parse().unwrap_or_default())
+            } else {
+               Command::Unknown
+            }
+         })
+      }
    }
 }
 
