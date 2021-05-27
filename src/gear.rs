@@ -209,7 +209,10 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          // Underlying data
          let kind = match cmd {
             EditCmd::Title => UpdateKind::Text(node.title.clone()),
-            EditCmd::Descr => UpdateKind::Text(node.descr.clone()),
+            EditCmd::Descr => {
+               cx.answer("Подсказка - если в описании всего один символ, оно не отображается").await?;
+               UpdateKind::Text(node.descr.clone())
+            }
             EditCmd::Picture => UpdateKind::Picture("".into()),
             EditCmd::Enable => UpdateKind::Flag(node.enabled),
             EditCmd::Ban => UpdateKind::Flag(node.banned),

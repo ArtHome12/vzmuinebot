@@ -76,7 +76,7 @@ impl Node {
          parent,
          children: Default::default(),
          title: String::from("Новая запись"),
-         descr: String::from("Здесь должно быть описание или 1 символ, что бы его скрыть"),
+         descr: String::from("-"),
          picture: Default::default(),
          enabled: false,
          banned: false,
