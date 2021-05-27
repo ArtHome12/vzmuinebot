@@ -24,6 +24,7 @@ mod environment;
 mod node;
 mod states;
 mod gear;
+mod inline;
 use crate::states::Dialogue;
 
 /* #[macro_use]
@@ -47,7 +48,6 @@ mod eat_rest_now;
 mod eat_group_now;
 mod callback;
 mod basket;
-mod inline;
 mod language;
 mod gear;
 

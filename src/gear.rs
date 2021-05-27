@@ -8,8 +8,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide_macros::teloxide;
-use teloxide::{prelude::*, ApiError, RequestError, payloads::SendMessageSetters,};
-use reqwest::StatusCode;
+use teloxide::{prelude::*, payloads::SendMessageSetters,};
 use std::str::FromStr;
 use strum::{AsRefStr, EnumString, EnumMessage, };
 use chrono::{NaiveTime};
@@ -88,13 +87,6 @@ impl Command {
 pub struct GearState {
    pub state: CommandState,
    stack: Vec<Node>, // from start to current displaying node
-}
-
-fn map_req_err(s: String) -> RequestError {
-   RequestError::ApiError{
-      kind: ApiError::Unknown(s), 
-      status_code: StatusCode::OK,
-   }
 }
 
 #[teloxide(subtransition)]

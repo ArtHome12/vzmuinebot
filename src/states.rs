@@ -9,7 +9,10 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use derive_more::From;
 use teloxide_macros::{Transition, teloxide, };
-use teloxide::{prelude::*, types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, }};
+use teloxide::{prelude::*, ApiError, RequestError, 
+   types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, }
+};
+use reqwest::StatusCode;
 use std::str::FromStr;
 use strum::{AsRefStr, EnumString,};
 
@@ -24,7 +27,7 @@ pub enum Dialogue {
    Start(StartState), // initial state
    Command(CommandState), // await for select menu item from bottom
    Settings(GearState), // in settings menu
-   SettingsTitle(GearStateEditing), // in settings menu edit field
+   SettingsSubmode(GearStateEditing), // in settings menu edit field
 }
 
 impl Default for Dialogue {
@@ -61,6 +64,13 @@ pub fn from_flag(flag: bool) -> String {
    else { String::from("Выкл.") }
 }
 
+pub fn map_req_err(s: String) -> RequestError {
+   RequestError::ApiError{
+      kind: ApiError::Unknown(s), 
+      status_code: StatusCode::OK,
+   }
+}
+
 
 // Frequently used menu
 pub fn cancel_markup() -> ReplyMarkup {
@@ -71,7 +81,7 @@ pub fn flag_markup() -> ReplyMarkup {
    kb_markup(vec![vec![from_flag(true), from_flag(false)]])
 }
 
-
+// Construct keyboard from strings
 pub fn kb_markup(keyboard: Vec<Vec<String>>) -> ReplyMarkup {
    let kb:  Vec<Vec<KeyboardButton>> = keyboard.iter()
    .map(|row| {
@@ -142,7 +152,7 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
    let cmd = MainMenu::from_str(ans.as_str()).unwrap_or(MainMenu::Unknown);
    match cmd {
       MainMenu::Gear => crate::gear::enter(state, cx).await,
-      MainMenu::All => crate::node::enter(state, cx).await,
+      MainMenu::All => crate::inline::enter(state, cx).await,
       MainMenu::Basket 
       | MainMenu::Now 
       | MainMenu::Unknown => {

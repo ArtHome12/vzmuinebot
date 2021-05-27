@@ -8,10 +8,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use chrono::{NaiveTime};
-use teloxide::prelude::*;
 use tokio_postgres::{Row, };
-
-use crate::states::*;
 
 
 pub type Owners = [i64; 3];
@@ -138,12 +135,3 @@ impl Node {
    }
 }
 
-pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
-   let info = "Записей нет";
-
-   cx.answer(info)
-   .await?;
-
-   // Stay in place
-   next(state)
-}
