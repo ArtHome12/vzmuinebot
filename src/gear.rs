@@ -162,8 +162,10 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
       }
 
       Command::Delete => {
+         let len = state.stack.len();
+
          // Root/start node cannot to delete
-         if state.stack.len() <= 1 {
+         if len <= 1 {
             cx.answer("Нельзя удалить начальный узел").await?;
 
             // Stay in place
@@ -171,7 +173,8 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          }
 
          // Peek current node from stack
-         let node = state.stack.last().unwrap();
+         let stack = &mut state.stack; 
+         let node = stack.last().unwrap();
 
          // Delete record if it has no children
          let children_num = node.children.len();
@@ -181,11 +184,20 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
             // Stay in place
             next(state)
          } else {
-            db::delete_node(node.id)
+            // Delete from database
+            let node_id = node.id;
+            db::delete_node(node_id)
             .await
             .map_err(|s| map_req_err(s))?;
 
             cx.answer(format!("Запись '{}' удалена, переходим на уровень выше", node.title)).await?;
+
+            // Delete from stack
+            if len > 1 {
+               let parent = stack.get_mut(len - 2).unwrap();
+               parent.children.retain(|child| child.id != node_id);
+            }
+   
             do_return(state, cx).await
          }
       }
@@ -203,7 +215,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
             EditCmd::Ban => UpdateKind::Flag(node.banned),
             EditCmd::Owner1 => UpdateKind::Int(node.owners[0]),
             EditCmd::Owner2 => UpdateKind::Int(node.owners[1]),
-            EditCmd::Owner3 => UpdateKind::Int(node.owners[3]),
+            EditCmd::Owner3 => UpdateKind::Int(node.owners[2]),
             EditCmd::Time => UpdateKind::Time(node.time.0, node.time.1),
             EditCmd::Price => UpdateKind::Money(node.price),
          };
