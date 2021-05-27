@@ -275,12 +275,17 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    .fold(String::default(), |acc, n| acc + "/" + &n.title);
 
    // Add descr if set
-   let node = state.stack.last();
-   if let Some(node) = node {
-      if node.descr.len() >= 3 {
-         title = title + "\nОписание: " + node.descr.as_str();
-      }
+   let node = state.stack.last().unwrap();
+   if node.descr.len() > 1 {
+      title = title + "\nОписание: " + node.descr.as_str();
    }
+
+   // Add other info
+   title = format!("{}\n{}: {}, {}: {}\n{}: {}-{}", title, 
+      EditCmd::Enable.as_ref(), from_flag(node.enabled),
+      EditCmd::Ban.as_ref(), from_flag(node.banned),
+      EditCmd::Time.as_ref(), node.time.0.format("%H:%M"), node.time.1.format("%H:%M")
+   );
 
    let info = state.stack
    .last().unwrap()
