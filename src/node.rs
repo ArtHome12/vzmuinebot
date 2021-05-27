@@ -23,7 +23,7 @@ pub struct Node {
    pub children: Vec<Node>,
    pub title: String,
    pub descr: String,
-   pub picture: String,
+   pub picture: Option<String>,
    pub enabled: bool,
    pub banned: bool,
    pub owners: Owners,
@@ -53,7 +53,7 @@ impl From<&Row> for Node {
 #[derive(Debug, Clone)]
 pub enum UpdateKind {
    Text(String),
-   Picture(String),
+   Picture(Option<String>),
    Flag(bool),
    Int(i64),
    Time(NaiveTime, NaiveTime),
@@ -77,7 +77,7 @@ impl Node {
          children: Default::default(),
          title: String::from("Новая запись"),
          descr: String::from("-"),
-         picture: Default::default(),
+         picture: None,
          enabled: false,
          banned: false,
          owners: Default::default(),
@@ -89,7 +89,14 @@ impl Node {
    pub fn update(&mut self, info: &UpdateNode) -> Result<(), String> {
       fn check_str(kind: &UpdateKind) -> Result<String, String> {
          match kind {
-            UpdateKind::Text(res) | UpdateKind::Picture(res) => Ok(res.clone()),
+            UpdateKind::Text(res) => Ok(res.clone()),
+            _ => Err(String::from("node::update type string mismatch")),
+         }      
+      }
+
+      fn check_picture(kind: &UpdateKind) -> Result<Option<String>, String> {
+         match kind {
+            UpdateKind::Picture(res) => Ok(res.clone()),
             _ => Err(String::from("node::update type string mismatch")),
          }      
       }
@@ -117,7 +124,7 @@ impl Node {
       match info.field.as_str() {
          "title" => self.title = check_str(&info.kind)?,
          "descr" => self.descr = check_str(&info.kind)?,
-         "picture" => self.picture = check_str(&info.kind)?,
+         "picture" => self.picture = check_picture(&info.kind)?,
          "enabled" => self.enabled = check_bool(&info.kind)?,
          "banned" => self.banned = check_bool(&info.kind)?,
          "owner1" => self.owners[0] = check_int(&info.kind)?,

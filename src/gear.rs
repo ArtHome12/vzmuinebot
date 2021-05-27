@@ -213,7 +213,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
                cx.answer("Подсказка - если в описании всего один символ, оно не отображается").await?;
                UpdateKind::Text(node.descr.clone())
             }
-            EditCmd::Picture => UpdateKind::Picture("".into()),
+            EditCmd::Picture => UpdateKind::Picture(None),
             EditCmd::Enable => UpdateKind::Flag(node.enabled),
             EditCmd::Ban => UpdateKind::Flag(node.banned),
             EditCmd::Owner1 => UpdateKind::Int(node.owners[0]),
@@ -355,7 +355,7 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
             UpdateKind::Text(_) => UpdateKind::Text(ans),
             UpdateKind::Picture(_) => {
                // Delete previous if new id too short
-               let id = if ans.len() >= 3 { ans } else { String::default() };
+               let id = if ans.len() >= 3 { Some(ans) } else { None };
                UpdateKind::Picture(id)
             }
             UpdateKind::Flag(_) => {
