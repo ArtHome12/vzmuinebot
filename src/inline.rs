@@ -10,8 +10,8 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use arraylib::iter::IteratorExt;
 use teloxide::{
    prelude::*, 
-   types::{InputFile, KeyboardButton, InlineKeyboardMarkup, 
-      InlineKeyboardButton, ReplyMarkup, ButtonRequest, 
+   types::{InputFile, InlineKeyboardButton, InlineKeyboardMarkup, 
+      //ReplyMarkup, ButtonRequest, KeyboardButton, 
    },
 };
 
@@ -25,6 +25,10 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
    // Load root node
    let node =  db::node(db::LoadNode::Id(0))
    .await
+   .map_err(|s| map_req_err(s))?;
+
+   // Load children
+   let node = db::node(db::LoadNode::Children(node)).await
    .map_err(|s| map_req_err(s))?;
 
    // Picture
@@ -49,31 +53,44 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
 }
 
 fn markup(node: &Node) -> InlineKeyboardMarkup {
-   // Создадим кнопки под рестораны
+   // Create buttons for each child
    let buttons: Vec<InlineKeyboardButton> = node.children
    .iter()
    .map(|child| (InlineKeyboardButton::callback(child.title.clone(), format!("grc{}", 0))))  // third argument unused
    .collect();
 
+   // Separate into long and short
    let (long, mut short) : (Vec<_>, Vec<_>) = buttons
    .into_iter()
    .partition(|n| n.text.chars().count() > 21);
 
-   // Последняя непарная кнопка, если есть
-   let last = if short.len() % 2 == 1 { short.pop() } else { None };
+   // Put in vec last unpaired button, if any
+   let mut last_row = vec![];
+   if short.len() % 2 == 1 {
+      let unpaired = short.pop();
+      if unpaired.is_some() {
+         last_row.push(unpaired.unwrap());
+      }
+   }
 
-   // Сначала длинные кнопки по одной
+   // Long buttons by one in row
    let markup = long.into_iter() 
    .fold(InlineKeyboardMarkup::default(), |acc, item| acc.append_row(vec![item]));
 
-   // Короткие по две в ряд
+   // Short by two
    let markup = short.into_iter().array_chunks::<[_; 2]>()
    .fold(markup, |acc, [left, right]| acc.append_row(vec![left, right]));
-   
-   // Возвращаем результат
-   if let Some(last_button) = last {
-      markup.append_row(vec![last_button])
-   } else {
+
+   // Back button
+   if node.id > 0 {
+      let button_back = InlineKeyboardButton::callback(String::from("⏪Назад"), format!("rca{}", 0));
+      last_row.push(button_back);
+   }
+
+   // Add the last unpaired button and the back button
+   if last_row.is_empty() {
       markup
+   } else {
+      markup.append_row(last_row)
    }
 }
