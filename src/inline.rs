@@ -7,17 +7,70 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use arraylib::iter::IteratorExt;
 use teloxide::{
    prelude::*, 
    types::{InputFile, InlineKeyboardButton, InlineKeyboardMarkup, 
+      CallbackQuery, 
       //ReplyMarkup, ButtonRequest, KeyboardButton, 
    },
 };
 
+
+use strum::{AsRefStr, EnumString, };
+use arraylib::iter::IteratorExt;
+
 use crate::states::*;
 use crate::database as db;
 use crate::node::*;
+
+#[derive(AsRefStr, EnumString)]
+enum Command {
+   #[strum(to_string = "pas")]
+   Pass(i32), // make the specified node active
+   Unknown,
+}
+
+impl Command {
+   fn parse(s: &str) -> Self {
+      // Looking for the commands with arguments
+      if s.get(..4).unwrap_or_default() == Self::Pass(0).as_ref() {
+         let r_part = s.get(4..).unwrap_or_default();
+         Command::Pass(r_part.parse().unwrap_or_default())
+      } else {
+         Command::Unknown
+      }
+   }
+}
+
+
+pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) {
+   let query = &cx.update;
+   let query_id = &query.id;
+
+
+         // Код едока
+         let user_id = query.from.id;
+
+   // Parse and process commands by receiving a message to send back
+   let cmd = Command::parse(
+      query.data.clone()
+      .unwrap_or(String::default())
+      .as_str()
+   );
+   let msg = match cmd {
+      Command::Pass(id) => {"Success"}
+      Command::Unknown => "Неизвестная команда"
+   };
+
+   // Отправляем ответ, который показывается во всплывающем окошке
+   match cx.requester.answer_callback_query(query_id)
+      .text(msg)
+      .send()
+      .await {
+         Err(_) => log::info!("Error handle_message {}", &msg),
+         _ => (),
+   }
+}
 
 
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
@@ -51,9 +104,13 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
 
 fn markup(node: &Node) -> InlineKeyboardMarkup {
    // Create buttons for each child
+   let pas = String::from(Command::Pass(0).as_ref());
    let buttons: Vec<InlineKeyboardButton> = node.children
    .iter()
-   .map(|child| (InlineKeyboardButton::callback(child.title.clone(), format!("grc{}", 0))))  // third argument unused
+   .map(|child| (InlineKeyboardButton::callback(
+      child.title.clone(), 
+      format!("{}{}", pas, child.id)
+   )))
    .collect();
 
    // Separate into long and short
@@ -80,7 +137,10 @@ fn markup(node: &Node) -> InlineKeyboardMarkup {
 
    // Back button
    if node.id > 0 {
-      let button_back = InlineKeyboardButton::callback(String::from("⏪Назад"), format!("rca{}", 0));
+      let button_back = InlineKeyboardButton::callback(
+         String::from("⏪Назад"), 
+         format!("{}{}", pas, node.id)
+      );
       last_row.push(button_back);
    }
 

@@ -262,7 +262,7 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
       view(state, cx).await
    } else {
       let contact = admin_contact_info();
-      let text = format!("Для доступа в режим редактирования обратитесь к '{}' и сообщите ему свой id={}", contact, state.user_id);
+      let text = format!("Для доступа в режим ввода информации обратитесь к '{}' и сообщите ему свой id={}", contact, state.user_id);
       cx.answer(text).await?;
       exit(cx).await
    }

@@ -46,7 +46,6 @@ mod eat_group;
 mod eat_dish;
 mod eat_rest_now;
 mod eat_group_now;
-mod callback;
 mod basket;
 mod language;
 mod gear;
@@ -54,14 +53,7 @@ mod gear;
 use commands as cmd;
  */
 
-/* async fn handle_callback_query(rx: DispatcherHandlerRx<CallbackQuery>) {
-   rx.for_each_concurrent(None, |cx| async move {
-      callback::handle_message(cx).await
-   })
-  .await;
-}
-
-async fn handle_inline_query(rx: DispatcherHandlerRx<InlineQuery>) {
+/* async fn handle_inline_query(rx: DispatcherHandlerRx<InlineQuery>) {
    rx.for_each_concurrent(None, |cx| async move {
       inline::handle_message(cx).await
    })
@@ -196,7 +188,7 @@ async fn run() {
          res.unwrap()
       }
    }))
-   // .callback_queries_handler(handle_callback_query)
+   .callback_queries_handler(handle_callback_query)
    // .inline_queries_handler(handle_inline_query)
    .dispatch_with_listener(
       webhook(bot).await,
@@ -231,6 +223,14 @@ async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dial
       }
    }
    next(dialogue)
+}
+
+async fn handle_callback_query(rx: DispatcherHandlerRx<AutoSend<Bot>, CallbackQuery>) {
+  UnboundedReceiverStream::new(rx)
+  .for_each_concurrent(None, |cx| async move {
+      inline::update(cx).await
+   })
+  .await;
 }
 
 
