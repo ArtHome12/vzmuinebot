@@ -33,8 +33,8 @@ enum Command {
 impl Command {
    fn parse(s: &str) -> Self {
       // Looking for the commands with arguments
-      if s.get(..4).unwrap_or_default() == Self::Pass(0).as_ref() {
-         let r_part = s.get(4..).unwrap_or_default();
+      if s.get(..3).unwrap_or_default() == Self::Pass(0).as_ref() {
+         let r_part = s.get(3..).unwrap_or_default();
          Command::Pass(r_part.parse().unwrap_or_default())
       } else {
          Command::Unknown
