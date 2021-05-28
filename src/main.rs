@@ -182,7 +182,7 @@ async fn run() {
       let res = handle_message(cx, dialogue.unwrap()).await;
 
       if let Err(e) = res {
-         environment::log(&format!("main:{}", e)).await;
+         environment::log(&format!("main::dialog:{}", e)).await;
          DialogueStage::Exit
       } else {
          res.unwrap()
@@ -228,7 +228,11 @@ async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dial
 async fn handle_callback_query(rx: DispatcherHandlerRx<AutoSend<Bot>, CallbackQuery>) {
   UnboundedReceiverStream::new(rx)
   .for_each_concurrent(None, |cx| async move {
-      inline::update(cx).await
+      let res = inline::update(cx).await;
+      match res {
+         Ok(()) => (),
+         Err(err) => environment::log(&format!("main::callback:{}", err)).await,
+      }
    })
   .await;
 }

@@ -10,7 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use teloxide::{
    prelude::*, 
    types::{InputFile, InlineKeyboardButton, InlineKeyboardMarkup, 
-      CallbackQuery, 
+      CallbackQuery, ChatId, InputMedia, ParseMode, InputMediaPhoto,
       //ReplyMarkup, ButtonRequest, KeyboardButton, 
    },
 };
@@ -43,13 +43,13 @@ impl Command {
 }
 
 
-pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) {
+pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
    let query = &cx.update;
    let query_id = &query.id;
 
 
          // Код едока
-         let user_id = query.from.id;
+         // let user_id = query.from.id;
 
    // Parse and process commands by receiving a message to send back
    let cmd = Command::parse(
@@ -63,13 +63,13 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) {
    };
 
    // Отправляем ответ, который показывается во всплывающем окошке
-   match cx.requester.answer_callback_query(query_id)
-      .text(msg)
-      .send()
-      .await {
-         Err(_) => log::info!("Error handle_message {}", &msg),
-         _ => (),
-   }
+   cx.requester.answer_callback_query(query_id)
+   .text(msg)
+   .send()
+   .await
+   .map_err(|err| format!("inline::update {}", err))?;
+
+   Ok(())
 }
 
 
@@ -100,6 +100,47 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
 
    // Always stay in place
    next(state)
+}
+
+async fn msg(text: &str, cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
+   let message = cx.update.message.as_ref().unwrap();
+   let chat_id = ChatId::Id(message.chat_id());
+   cx.requester.send_message(chat_id, text)
+   .await
+   .map_err(|err| format!("inline::view {}", err))?;
+   Ok(())
+}
+
+async fn view(node_id: i32, cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
+
+   // Load node from database
+   let node =  db::node(db::LoadNode::Id(node_id))
+   .await?;
+   if node.is_none() {
+      msg("Ошибка, запись недействительна, начните заново", cx).await?;
+      return Ok(())
+   }
+   let node = node.unwrap();
+
+   // Достаём chat_id
+   let message = cx.update.message.as_ref().unwrap();
+   let chat_id = ChatId::Id(message.chat_id());
+   let message_id = message.id;
+
+   // Приготовим структуру для редактирования
+   let media = InputMediaPhoto::new(InputFile::file_id(node.picture.unwrap()))
+   .caption(node.title)
+   .parse_mode(ParseMode::Html);
+   let media = InputMedia::Photo(media);
+
+   // Отправляем изменения
+   cx.requester.edit_message_media(chat_id, message_id, media)
+   // .reply_markup(data.markup)
+   // .send()
+   .await
+   .map_err(|err| format!("inline::view {}", err))?;
+
+   Ok(())
 }
 
 fn markup(node: &Node) -> InlineKeyboardMarkup {

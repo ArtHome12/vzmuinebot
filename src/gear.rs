@@ -237,10 +237,6 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
    }
 }
 
-async fn exit(cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
-   crate::states::enter(StartState { restarted: false }, cx, String::default()).await
-}
-
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
    // Define start node
@@ -266,6 +262,10 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
       cx.answer(text).await?;
       exit(cx).await
    }
+}
+
+async fn exit(cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
+   crate::states::enter(StartState { restarted: false }, cx, String::default()).await
 }
 
 pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
