@@ -16,6 +16,7 @@ teloxide = { version = "0.4.0", features = ["auto-send"] }
 teloxide-macros = "0.4.0"
 derive_more = "0.99.9"
 strum = { version = "0.20", features = ["derive"] }
+async-recursion = "0.3.2"
 
 # Used to setup a webhook
 warp = "0.3.0"

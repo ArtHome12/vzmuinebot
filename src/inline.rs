@@ -22,13 +22,10 @@ use crate::node::*;
 
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
-   // Load root node
+   // Load root node with children
    let node =  db::node(db::LoadNode::Id(0))
    .await
-   .map_err(|s| map_req_err(s))?;
-
-   // Load children
-   let node = db::node(db::LoadNode::Children(node)).await
+   .and_then(|op| op.ok_or("Нет информации".into()))
    .map_err(|s| map_req_err(s))?;
 
    // Picture

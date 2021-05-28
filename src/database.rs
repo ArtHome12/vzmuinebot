@@ -11,6 +11,7 @@ use once_cell::sync::{OnceCell};
 use deadpool_postgres::{Pool, Client, };
 use postgres_native_tls::MakeTlsConnector;
 use tokio_postgres::{types::ToSql, };
+use async_recursion::async_recursion;
 
 use crate::environment;
 use crate::node::*;
@@ -31,7 +32,8 @@ pub enum LoadNode {
    Id(i32), // load node with specified id
 }
 
-pub async fn node(mode: LoadNode) -> Result<Node, String> {
+#[async_recursion]
+pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    // DB client from the pool
    let client = db_client().await?;
 
@@ -70,18 +72,20 @@ pub async fn node(mode: LoadNode) -> Result<Node, String> {
             node.children.push(Node::from(&row))
          }
          
-         Ok(node)
+         Ok(Some(node))
       }
       
-      LoadNode::Owner(user_id) => {
+      LoadNode::Owner(_) | LoadNode::Id(_) => {
          // Create new node and initialize it from database
-         if query.is_empty() {Err(format!("db::node::LoadNode::Owner Query empty for user_id={}", user_id))}
-         else {Ok(Node::from(&query[0]))}
-      }
-
-      LoadNode::Id(id) => {
-         if query.is_empty() {Err(format!("db::node::LoadNode::Owner Query empty for id={}", id))}
-         else {Ok(Node::from(&query[0]))}
+         if query.is_empty() {Ok(None)}
+         else {
+            // Create node and recursively load its children
+            let start_node =  Node::from(&query[0]);
+            let with_children = node(LoadNode::Children(start_node))
+            .await?
+            .unwrap();
+            Ok(Some(with_children))
+         }
       }
    }
 }

@@ -17,6 +17,7 @@ use enum_default::EnumDefault;
 use crate::states::*;
 use crate::database as db;
 use crate::node::*;
+use crate::environment::*;
 
 // ============================================================================
 // [Main entry]
@@ -99,7 +100,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
       if !state.stack.is_empty() {
          view(state, cx).await
       } else {
-         crate::states::enter(StartState { restarted: false }, cx, String::default()).await
+         exit(cx).await
       }
    }
    
@@ -124,7 +125,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          view(state, cx).await
       }
 
-      Command::Exit => crate::states::enter(StartState { restarted: false }, cx, String::default()).await,
+      Command::Exit => exit(cx).await,
 
       Command::Return => do_return(state, cx).await,
 
@@ -140,7 +141,8 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
             // Load children
             let node = child.unwrap().clone(); // Clone child node as an independent element
             let node = db::node(db::LoadNode::Children(node)).await
-            .map_err(|s| map_req_err(s))?;
+            .map_err(|s| map_req_err(s))?
+            .unwrap();
 
             // Push new node and show
             state.stack.push(node);
@@ -235,6 +237,10 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
    }
 }
 
+async fn exit(cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
+   crate::states::enter(StartState { restarted: false }, cx, String::default()).await
+}
+
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
    // Define start node
@@ -246,16 +252,20 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
       db::LoadNode::Owner(state.user_id)
    };
 
+   // Load node with children
    let node = db::node(mode).await
       .map_err(|s| map_req_err(s))?;
 
-   // Load children
-   let node = db::node(db::LoadNode::Children(node)).await
-   .map_err(|s| map_req_err(s))?;
-
    // Display
-   let state = GearState { state, stack: vec![node] };
-   view(state, cx).await
+   if node.is_some() {
+      let state = GearState { state, stack: vec![node.unwrap()] };
+      view(state, cx).await
+   } else {
+      let contact = admin_contact_info();
+      let text = format!("Для доступа в режим редактирования обратитесь к '{}' и сообщите ему свой id={}", contact, state.user_id);
+      cx.answer(text).await?;
+      exit(cx).await
+   }
 }
 
 pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {

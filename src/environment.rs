@@ -79,7 +79,7 @@ pub struct Vars {
    chat: Option<ServiceChat>,
 
    // Контактная информация администраторов бота
-   // admin_contact_info: String,
+   admin_contact_info: String,
 
    // Идентификаторы админов, макс 3 штуки
    admin_id1: i64,
@@ -135,7 +135,7 @@ impl Vars {
    
       Vars {
          // Контактная информация администраторов бота
-         /* admin_contact_info: {
+         admin_contact_info: {
             match env::var("CONTACT_INFO") {
                Ok(s) => {
                   log::info!("admin name is {}", s);
@@ -146,7 +146,7 @@ impl Vars {
                   String::default()
                }
             }
-         }, */
+         },
 
          // Идентификаторы админов, макс 3 штуки
          admin_id1: {
@@ -243,9 +243,9 @@ impl Vars {
 }
 
 // Контактная информация администраторов бота
-/* pub fn admin_contact_info() -> String {
+pub fn admin_contact_info() -> String {
    VARS.get().unwrap().admin_contact_info.clone()
-} */
+}
 
 // Возвращает текущее время с учётом часового пояса
 /* pub fn current_date_time() -> NaiveDateTime {
