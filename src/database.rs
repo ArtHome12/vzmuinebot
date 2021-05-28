@@ -64,17 +64,23 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
 
    // Collect results
    match mode {
-      
+
       LoadNode::Children(mut node) => {
          // Clear any old and add new children
          node.children.clear();
          for row in query {
-            node.children.push(Node::from(&row))
+            // Create and inherit the picture if none
+            let mut child = Node::from(&row);
+            if child.picture.is_none() {
+               child.picture = node.picture.clone();
+            }
+
+            node.children.push(child);
          }
-         
+
          Ok(Some(node))
       }
-      
+
       LoadNode::Owner(_) | LoadNode::Id(_) => {
          // Create new node and initialize it from database
          if query.is_empty() {Ok(None)}
@@ -263,7 +269,7 @@ async fn execute_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(
    let query = client.execute(sql_text, params)
    .await
    .map_err(|err| format!("execute_one {} execute: {}", sql_text, err))?;
-   
+
    // Only one records has to be affected
    if query == 1 { Ok(()) }
    else { Err(format!("execute_one {}: affected {} records instead one (params: {:?})", sql_text, query, params)) }
