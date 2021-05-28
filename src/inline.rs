@@ -58,7 +58,10 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
       .as_str()
    );
    let msg = match cmd {
-      Command::Pass(id) => {"Success"}
+      Command::Pass(id) => {
+         view(id, &cx).await?;
+         "Переходим"
+      }
       Command::Unknown => "Неизвестная команда"
    };
 
@@ -102,7 +105,7 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
    next(state)
 }
 
-async fn msg(text: &str, cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
+async fn msg(text: &str, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
    let message = cx.update.message.as_ref().unwrap();
    let chat_id = ChatId::Id(message.chat_id());
    cx.requester.send_message(chat_id, text)
@@ -111,7 +114,7 @@ async fn msg(text: &str, cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Resu
    Ok(())
 }
 
-async fn view(node_id: i32, cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
+async fn view(node_id: i32, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
 
    // Load node from database
    let node =  db::node(db::LoadNode::Id(node_id))
