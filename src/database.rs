@@ -85,8 +85,15 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
          // Create new node and initialize it from database
          if query.is_empty() {Ok(None)}
          else {
-            // Create node and recursively load its children
-            let start_node =  Node::from(&query[0]);
+            // Create node
+            let mut start_node =  Node::from(&query[0]);
+
+            // Try to find picture if not
+            if start_node.picture.is_none() {
+               start_node.picture = lookup_picture(start_node.parent).await?;
+            }
+
+            // Recursively load its children
             let with_children = node(LoadNode::Children(start_node))
             .await?
             .unwrap();
@@ -94,6 +101,33 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
          }
       }
    }
+}
+
+async fn lookup_picture(node_id: i32) -> Result<Option<String>, String> {
+   let query = "WITH RECURSIVE cte AS (
+         SELECT id, parent, picture FROM nodes WHERE id = $1::INTEGER
+         UNION SELECT n.id, n.parent, n.picture FROM nodes n
+         INNER JOIN cte ON cte.parent = n.id
+      ) SELECT picture FROM cte WHERE picture IS NOT NULL LIMIT 1";
+
+   // Prepare query
+   let client = db_client().await?;
+   let statement = client
+   .prepare(&query)
+   .await
+   .map_err(|err| format!("lookup_picture prepare: {}", err))?;
+
+   // Run query
+   let query = client
+   .query(&statement, &[&node_id])
+   .await
+   .map_err(|err| format!("lookup_picture query: {}", err))?;
+
+   // Collect result
+   let res = query.last()
+   .map(|row| row.get(0));
+
+   Ok(res)
 }
 
 pub async fn insert_node(node: &Node) -> Result<(), String> {

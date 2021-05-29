@@ -92,7 +92,7 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
    } else {
       let picture = picture.unwrap();
       let markup = markup(&node);
-      
+
       cx.answer_photo(InputFile::file_id(picture))
       .caption("Hello")
       .reply_markup(markup)
