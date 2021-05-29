@@ -123,7 +123,23 @@ async fn view(node_id: i32, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> 
       msg("Ошибка, запись недействительна, начните заново", cx).await?;
       return Ok(())
    }
+
+   // Collect info
    let node = node.unwrap();
+   let markup = markup(&node);
+
+   // Do not display description from 1 symbol
+   let descr = if node.descr.len() > 1 {
+      format!("\n{}", node.descr)
+   } else {
+      String::default()
+   };
+
+   let text = format!("<b>{}</b>{}\nВремя работы: {}-{}",
+      node.title,
+      descr,
+      node.time.0.format("%H:%M"), node.time.1.format("%H:%M")
+   );
 
    // Достаём chat_id
    let message = cx.update.message.as_ref().unwrap();
@@ -131,15 +147,15 @@ async fn view(node_id: i32, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> 
    let message_id = message.id;
 
    // Приготовим структуру для редактирования
-   let media = InputMediaPhoto::new(InputFile::file_id(node.picture.unwrap()))
-   .caption(node.title)
+   let media = InputFile::file_id(node.picture.unwrap());
+   let media = InputMediaPhoto::new(media)
+   .caption(text)
    .parse_mode(ParseMode::Html);
    let media = InputMedia::Photo(media);
 
    // Отправляем изменения
    cx.requester.edit_message_media(chat_id, message_id, media)
-   // .reply_markup(data.markup)
-   // .send()
+   .reply_markup(markup)
    .await
    .map_err(|err| format!("inline::view {}", err))?;
 
@@ -152,7 +168,7 @@ fn markup(node: &Node) -> InlineKeyboardMarkup {
    let buttons: Vec<InlineKeyboardButton> = node.children
    .iter()
    .map(|child| (InlineKeyboardButton::callback(
-      child.title.clone(), 
+      child.title.clone(),
       format!("{}{}", pas, child.id)
    )))
    .collect();
@@ -172,7 +188,7 @@ fn markup(node: &Node) -> InlineKeyboardMarkup {
    }
 
    // Long buttons by one in row
-   let markup = long.into_iter() 
+   let markup = long.into_iter()
    .fold(InlineKeyboardMarkup::default(), |acc, item| acc.append_row(vec![item]));
 
    // Short by two
@@ -182,7 +198,7 @@ fn markup(node: &Node) -> InlineKeyboardMarkup {
    // Back button
    if node.id > 0 {
       let button_back = InlineKeyboardButton::callback(
-         String::from("⏪Назад"), 
+         String::from("⏪Назад"),
          format!("{}{}", pas, node.id)
       );
       last_row.push(button_back);
