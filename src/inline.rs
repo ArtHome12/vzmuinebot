@@ -47,10 +47,6 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
    let query = &cx.update;
    let query_id = &query.id;
 
-
-         // Код едока
-         // let user_id = query.from.id;
-
    // Parse and process commands by receiving a message to send back
    let cmd = Command::parse(
       query.data.clone()
@@ -148,13 +144,16 @@ async fn view(node_id: i32, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> 
 
    // Приготовим структуру для редактирования
    let media = InputFile::file_id(node.picture.unwrap());
-   let media = InputMediaPhoto::new(media)
+   // let media = InputMediaPhoto::new(media)
+   // .caption(text)
+   // .parse_mode(ParseMode::Html);
+   // let media = InputMedia::Photo(media);
+
+   cx.requester.send_photo(chat_id, media)
    .caption(text)
-   .parse_mode(ParseMode::Html);
-   let media = InputMedia::Photo(media);
 
    // Отправляем изменения
-   cx.requester.edit_message_media(chat_id, message_id, media)
+   // cx.requester.edit_message_media(chat_id, message_id, media)
    .reply_markup(markup)
    .await
    .map_err(|err| format!("inline::view {}", err))?;
