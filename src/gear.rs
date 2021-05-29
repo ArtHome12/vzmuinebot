@@ -7,6 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
+use teloxide::types::ReplyMarkup;
 use teloxide_macros::teloxide;
 use teloxide::{prelude::*, payloads::SendMessageSetters,};
 use std::str::FromStr;
@@ -229,7 +230,9 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
       }
 
       Command::Unknown => {
-         cx.answer(format!("Неизвестная команда '{}', вы находитесь в меню настроек", ans)).await?;
+         cx.answer(format!("Неизвестная команда '{}', вы находитесь в меню настроек", ans))
+         .reply_markup(markup(&state))
+         .await?;
 
          // Stay in place
          next(state)
@@ -295,6 +298,14 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    .enumerate()
    .fold(title, |acc, n| format!("{}\n{}{} {}", acc, Command::Pass(0).as_ref(), n.0 + 1, n.1.title));
 
+   cx.answer(info)
+   .reply_markup(markup(&state))
+   .await?;
+
+   next(state)
+}
+
+fn markup(state: &GearState) -> ReplyMarkup {
    let mut row1 = vec![
       String::from(Command::Add.as_ref()),
       String::from(EditCmd::Title.as_ref()),
@@ -328,15 +339,8 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
       keyboard.insert(2, row_admin);
    }
 
-   let markup = kb_markup(keyboard);
-
-   cx.answer(info)
-   .reply_markup(markup)
-   .await?;
-
-   next(state)
+   kb_markup(keyboard)
 }
-
 
 // ============================================================================
 // [Fields editing mode]

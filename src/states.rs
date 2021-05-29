@@ -119,14 +119,6 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: Str
    let is_admin = set::is_admin_id(user_id);
 
    // Prepare menu
-   let commands = vec![
-      String::from(MainMenu::Basket.as_ref()),
-      String::from(MainMenu::All.as_ref()),
-      String::from(MainMenu::Now.as_ref()),
-      String::from(MainMenu::Gear.as_ref()),
-   ];
-   let markup = kb_markup(vec![commands]);
-
    let info = String::from(if state.restarted { "Извините, бот был перезапущен.\n" } else {""});
    let info = info + if is_admin {
       "Список команд администратора в описании: https://github.com/ArtHome12/vzmuinebot"
@@ -135,10 +127,20 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: Str
    };
 
    cx.answer(info)
-   .reply_markup(markup)
+   .reply_markup(markup())
    .disable_web_page_preview(true)
    .await?;
    next(CommandState { user_id, is_admin })
+}
+
+fn markup() -> ReplyMarkup {
+   let commands = vec![
+      String::from(MainMenu::Basket.as_ref()),
+      String::from(MainMenu::All.as_ref()),
+      String::from(MainMenu::Now.as_ref()),
+      String::from(MainMenu::Gear.as_ref()),
+   ];
+   kb_markup(vec![commands])
 }
 
 pub struct CommandState {
@@ -153,10 +155,12 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
    match cmd {
       MainMenu::Gear => crate::gear::enter(state, cx).await,
       MainMenu::All => crate::inline::enter(state, cx).await,
-      MainMenu::Basket 
-      | MainMenu::Now 
+      MainMenu::Basket
+      | MainMenu::Now
       | MainMenu::Unknown => {
-         cx.answer(format!("Неизвестная команда {}. Пожалуйста, выберите одну из команд внизу (если панель с кнопками скрыта, откройте её)", ans)).await?;
+         cx.answer(format!("Неизвестная команда {}. Пожалуйста, выберите одну из команд внизу (если панель с кнопками скрыта, откройте её)", ans))
+         .reply_markup(markup())
+         .await?;
          next(state)
       }
    }
