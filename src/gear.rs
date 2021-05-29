@@ -103,7 +103,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          exit(cx).await
       }
    }
-   
+
    // Parse and handle commands
    let cmd = Command::parse(ans.as_str());
    match cmd {
@@ -167,7 +167,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          }
 
          // Peek current node from stack
-         let stack = &mut state.stack; 
+         let stack = &mut state.stack;
          let node = stack.last().unwrap();
 
          // Delete record if it has no children
@@ -191,7 +191,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
                let parent = stack.get_mut(len - 2).unwrap();
                parent.children.retain(|child| child.id != node_id);
             }
-   
+
             do_return(state, cx).await
          }
       }
@@ -283,7 +283,7 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    }
 
    // Add other info
-   title = format!("{}\n{}: {}, {}: {}\n{}: {}-{}", title, 
+   title = format!("{}\n{}: {}, {}: {}\n{}: {}-{}", title,
       EditCmd::Enable.as_ref(), from_flag(node.enabled),
       EditCmd::Ban.as_ref(), from_flag(node.banned),
       EditCmd::Time.as_ref(), node.time.0.format("%H:%M"), node.time.1.format("%H:%M")
@@ -393,17 +393,17 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
                }
             }
          };
-   
+
          // Peek current node
          let node = state.state.stack.last_mut().unwrap();
-   
+
          // Update database
          let node_id = node.id;
          db::update_node(node_id, &state.update).await?;
-   
+
          // If change in databse is successful, update the stack
          node.update(&state.update)?;
-         
+
          let len = state.state.stack.len();
          if len > 1 {
             let parent = state.state.stack.get_mut(len - 2).unwrap();
@@ -414,7 +414,7 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
                }
             }
          }
-   
+
          String::from("Новое значение сохранено")
       };
       Ok(res)
