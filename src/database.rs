@@ -29,6 +29,7 @@ pub type Params<'a> = &'a[&'a(dyn ToSql + Sync)];
 pub enum LoadNode {
    Owner(i64), // load first node with this owner
    Children(Node), // load children nodes for this
+   ChildrenNow(Node), // like Children but opened now
    Id(i32), // load node with specified id
    EnabledId(i32), // like Id but without disabled
    EnabledNowId(i32), // like EnabledId but opened now
@@ -44,13 +45,17 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
 
    let where_tuple = match &mode {
       LoadNode::Children(node) => ("parent = $1::BIGINT", node.id as i64),
+      LoadNode::ChildrenNow(node) => (
+         "parent = $1::BIGINT AND
+         ($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open)", node.id as i64
+      ),
       LoadNode::Owner(user_id) =>  ("owner1 = $1::BIGINT OR owner2 = $1::BIGINT OR owner3 = $1::BIGINT", *user_id),
       LoadNode::Id(id) =>  ("id = $1::BIGINT", *id as i64),
       LoadNode::EnabledId(id) =>  ("id = $1::BIGINT AND enabled = TRUE AND banned = FALSE", *id as i64),
-      LoadNode::EnabledNowId(id) =>  {
-         ("id = $1::BIGINT AND enabled = TRUE AND banned = FALSE AND
-         ($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open)", *id as i64)
-      }
+      LoadNode::EnabledNowId(id) => (
+         "id = $1::BIGINT AND enabled = TRUE AND banned = FALSE AND
+         ($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open)", *id as i64
+      )
    };
 
    let order = " ORDER BY id";
@@ -65,7 +70,8 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
 
    // Run query
    let query = match &mode {
-      LoadNode::EnabledNowId(_) => {
+      LoadNode::EnabledNowId(_)
+      | &LoadNode::ChildrenNow(_) => {
          // Current local time
          let time = env::current_date_time().time();
          client.query(&statement, &[&where_tuple.1, &time]).await
