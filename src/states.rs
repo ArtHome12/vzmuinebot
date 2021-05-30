@@ -15,8 +15,8 @@ use teloxide::{prelude::*, ApiError, RequestError,
 use reqwest::StatusCode;
 use std::str::FromStr;
 use strum::{AsRefStr, EnumString,};
+use async_recursion::async_recursion;
 
-// use crate::database as db;
 use crate::environment as env;
 use crate::gear::*;
 
@@ -106,7 +106,8 @@ async fn start(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: String,
    enter(state, cx, _ans).await
 }
 
-pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: String,) -> TransitionOut<Dialogue> {
+#[async_recursion]
+pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
    // Extract user id
    let user = cx.update.from();
    if user.is_none() {
@@ -117,20 +118,32 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: Str
    // For admin and regular users there is different interface
    let user_id = user.unwrap().id;
    let is_admin = env::is_admin_id(user_id);
+   let new_state = CommandState { user_id, is_admin };
 
-   // Prepare menu
-   let info = String::from(if state.restarted { "Извините, бот был перезапущен.\n" } else {""});
-   let info = info + if is_admin {
-      "Список команд администратора в описании: https://github.com/ArtHome12/vzmuinebot"
-   } else {
-      "Добро пожаловать. Пожалуйста, нажмите на 'Все' для отображения полного списка, 'Открыто' для работающих сейчас, либо отправьте текст для поиска."
-   };
+   // Try to execute command and if it impossible notify about restart
+   let cmd = MainMenu::from_str(ans.as_str()).unwrap_or(MainMenu::Unknown);
+   match cmd {
+      MainMenu::Unknown => {
 
-   cx.answer(info)
-   .reply_markup(markup())
-   .disable_web_page_preview(true)
-   .await?;
-   next(CommandState { user_id, is_admin })
+         // Prepare information
+         let info = String::from(if state.restarted { "Извините, бот был перезапущен.\n" } else {""});
+         let info = info + if is_admin {
+            "Список команд администратора в описании: https://github.com/ArtHome12/vzmuinebot"
+         } else {
+            "Добро пожаловать. Пожалуйста, нажмите на 'Все' для отображения полного списка, 'Открыто' для работающих сейчас, либо отправьте текст для поиска."
+         };
+
+         cx.answer(info)
+         .reply_markup(markup())
+         .disable_web_page_preview(true)
+         .await?;
+
+         next(new_state)
+      }
+      _ => {
+         select_command(new_state, cx, ans).await
+      }
+   }
 }
 
 fn markup() -> ReplyMarkup {
@@ -149,6 +162,10 @@ pub struct CommandState {
 }
 
 #[teloxide(subtransition)]
+async fn trans_select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
+   select_command(state, cx, ans).await
+}
+
 async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
    // Parse and handle commands
    let cmd = MainMenu::from_str(ans.as_str()).unwrap_or(MainMenu::Unknown);
