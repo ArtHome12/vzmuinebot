@@ -10,7 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use once_cell::sync::{OnceCell};
 use deadpool_postgres::{Pool, Client, };
 use postgres_native_tls::MakeTlsConnector;
-use tokio_postgres::{types::ToSql, };
+use tokio_postgres::{types::ToSql, Row, };
 use async_recursion::async_recursion;
 
 use crate::environment as env;
@@ -28,15 +28,39 @@ pub type Params<'a> = &'a[&'a(dyn ToSql + Sync)];
 
 pub enum LoadNode {
    Owner(i64), // load first node with this owner
-   Children(Node), // load children nodes for this
-   ChildrenNow(Node), // like Children but opened now
    Id(i32), // load node with specified id
    EnabledId(i32), // like Id but without disabled
    EnabledNowId(i32), // like EnabledId but opened now
+   Children(Node), // load children nodes for this
+   EnabledChildren(Node), // like Children but without disabled
+   EnabledChildrenNow(Node), // like EnabledChildren but opened now
 }
 
 #[async_recursion]
 pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
+   async fn do_load_node(rows: Vec<Row>) -> Result<Option<Node>, String> {
+      if rows.is_empty() {Ok(None)}
+      else {
+         // Create node
+         let mut start_node =  Node::from(&rows[0]);
+
+         // Try to find picture if not
+         if start_node.picture.is_none() {
+            start_node.picture = lookup_picture(start_node.parent).await?;
+         }
+
+         Ok(Some(start_node))
+      }
+   }
+
+   async fn do_load_children(mode: LoadNode) -> Result<Option<Node>, String> {
+      // Recursively load its children
+      let with_children = node(mode)
+      .await?
+      .unwrap();
+      Ok(Some(with_children))
+   }
+
    // DB client from the pool
    let client = db_client().await?;
 
@@ -44,18 +68,19 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    let select = String::from("SELECT id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price FROM nodes WHERE ");
 
    let where_tuple = match &mode {
-      LoadNode::Children(node) => ("parent = $1::BIGINT", node.id as i64),
-      LoadNode::ChildrenNow(node) => (
-         "parent = $1::BIGINT AND
-         ($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open)", node.id as i64
-      ),
       LoadNode::Owner(user_id) =>  ("owner1 = $1::BIGINT OR owner2 = $1::BIGINT OR owner3 = $1::BIGINT", *user_id),
       LoadNode::Id(id) =>  ("id = $1::BIGINT", *id as i64),
       LoadNode::EnabledId(id) =>  ("id = $1::BIGINT AND enabled = TRUE AND banned = FALSE", *id as i64),
       LoadNode::EnabledNowId(id) => (
          "id = $1::BIGINT AND enabled = TRUE AND banned = FALSE AND
          ($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open)", *id as i64
-      )
+      ),
+      LoadNode::Children(node) => ("parent = $1::BIGINT", node.id as i64),
+      LoadNode::EnabledChildren(node) => ("parent = $1::BIGINT AND enabled = TRUE AND banned = FALSE", node.id as i64),
+      LoadNode::EnabledChildrenNow(node) => (
+         "parent = $1::BIGINT AND enabled = TRUE AND banned = FALSE AND
+         ($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open)", node.id as i64
+      ),
    };
 
    let order = " ORDER BY id";
@@ -71,7 +96,7 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    // Run query
    let query = match &mode {
       LoadNode::EnabledNowId(_)
-      | &LoadNode::ChildrenNow(_) => {
+      | &LoadNode::EnabledChildrenNow(_) => {
          // Current local time
          let time = env::current_date_time().time();
          client.query(&statement, &[&where_tuple.1, &time]).await
@@ -84,7 +109,8 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    match mode {
 
       LoadNode::Children(mut node)
-      | LoadNode::ChildrenNow(mut node) => {
+      | LoadNode::EnabledChildren(mut node)
+      | LoadNode::EnabledChildrenNow(mut node) => {
          // Clear any old and add new children
          node.children.clear();
          for row in query {
@@ -101,31 +127,29 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
       }
 
       LoadNode::Owner(_)
-      | LoadNode::Id(_)
-      | LoadNode::EnabledId(_)
-      | LoadNode::EnabledNowId(_) => {
-            // Create new node and initialize it from database
-         if query.is_empty() {Ok(None)}
-         else {
-            // Create node
-            let mut start_node =  Node::from(&query[0]);
-
-            // Try to find picture if not
-            if start_node.picture.is_none() {
-               start_node.picture = lookup_picture(start_node.parent).await?;
-            }
-
-            // Recursively load its children
-            let mode = match mode {
-               LoadNode::EnabledNowId(_) => LoadNode::ChildrenNow(start_node),
-               _ => LoadNode::Children(start_node),
-            };
-
-            let with_children = node(mode)
-            .await?
-            .unwrap();
-            Ok(Some(with_children))
+      | LoadNode::Id(_) => {
+         // Create new node and initialize it from database
+         let mut res = do_load_node(query).await?;
+         if res.is_some() {
+            res = do_load_children(LoadNode::Children(res.unwrap())).await?;
          }
+         Ok(res)
+      }
+      LoadNode::EnabledId(_) => {
+         // Create new node and initialize it from database
+         let mut res = do_load_node(query).await?;
+         if res.is_some() {
+            res = do_load_children(LoadNode::EnabledChildren(res.unwrap())).await?;
+         }
+         Ok(res)
+      }
+      LoadNode::EnabledNowId(_) => {
+         // Create new node and initialize it from database
+         let mut res = do_load_node(query).await?;
+         if res.is_some() {
+            res = do_load_children(LoadNode::EnabledChildrenNow(res.unwrap())).await?;
+         }
+         Ok(res)
       }
    }
 }
