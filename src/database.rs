@@ -83,7 +83,8 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    // Collect results
    match mode {
 
-      LoadNode::Children(mut node) => {
+      LoadNode::Children(mut node)
+      | LoadNode::ChildrenNow(mut node) => {
          // Clear any old and add new children
          node.children.clear();
          for row in query {
@@ -115,7 +116,12 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
             }
 
             // Recursively load its children
-            let with_children = node(LoadNode::Children(start_node))
+            let mode = match mode {
+               LoadNode::EnabledNowId(_) => LoadNode::ChildrenNow(start_node),
+               _ => LoadNode::Children(start_node),
+            };
+
+            let with_children = node(mode)
             .await?
             .unwrap();
             Ok(Some(with_children))
