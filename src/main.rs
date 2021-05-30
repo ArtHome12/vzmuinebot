@@ -27,32 +27,6 @@ mod gear;
 mod inline;
 use crate::states::Dialogue;
 
-/* #[macro_use]
-extern crate smart_default;
-
-use teloxide::{
-   dispatching::update_listeners,
-   prelude::*,
-   types::{CallbackQuery, InlineQuery, ChatId, },
-};
-
-mod commands;
-mod eater;
-mod caterer;
-mod cat_group;
-mod dish;
-mod eat_rest;
-mod eat_group;
-mod eat_dish;
-mod eat_rest_now;
-mod eat_group_now;
-mod basket;
-mod language;
-mod gear;
-
-use commands as cmd;
- */
-
 /* async fn handle_inline_query(rx: DispatcherHandlerRx<InlineQuery>) {
    rx.for_each_concurrent(None, |cx| async move {
       inline::handle_message(cx).await

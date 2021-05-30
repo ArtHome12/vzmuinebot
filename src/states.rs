@@ -71,6 +71,10 @@ pub fn map_req_err(s: String) -> RequestError {
    }
 }
 
+pub enum WorkTime {
+   All,  // show all nodes
+   Now,  // considering work time
+}
 
 // Frequently used menu
 pub fn cancel_markup() -> ReplyMarkup {
@@ -171,10 +175,15 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
    let cmd = MainMenu::from_str(ans.as_str()).unwrap_or(MainMenu::Unknown);
    match cmd {
       MainMenu::Gear => crate::gear::enter(state, cx).await,
-      MainMenu::All => crate::inline::enter(state, cx).await,
-      MainMenu::Basket
-      | MainMenu::Now
-      | MainMenu::Unknown => {
+      MainMenu::All => crate::inline::enter(state, WorkTime::All, cx).await,
+      MainMenu::Now => crate::inline::enter(state, WorkTime::Now, cx).await,
+      MainMenu::Basket => {
+         cx.answer(format!("Команда {} находится в разработке", ans))
+         .reply_markup(markup())
+         .await?;
+         next(state)
+      }
+      MainMenu::Unknown => {
          cx.answer(format!("Неизвестная команда {}. Пожалуйста, выберите одну из команд внизу (если панель с кнопками скрыта, откройте её)", ans))
          .reply_markup(markup())
          .await?;

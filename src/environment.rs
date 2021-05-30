@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-// use chrono::{FixedOffset, NaiveDateTime, Utc,};
+use chrono::{FixedOffset, NaiveDateTime, Utc,};
 use once_cell::sync::{OnceCell};
 use std::{env, };
 use teloxide::{
@@ -90,7 +90,7 @@ pub struct Vars {
    price_unit: String,
 
    // Часовой пояс
-   // time_zone: FixedOffset,
+   time_zone: FixedOffset,
 
    // Картинка по-умолчанию
    // def_image_id: String,
@@ -207,7 +207,7 @@ impl Vars {
          },
 
          // Часовой пояс
-         /* time_zone: {
+         time_zone: {
             match env::var("TIME_ZONE") {
                Ok(s) => match s.parse::<i32>() {
                      Ok(n) => FixedOffset::east(n * 3600),
@@ -221,7 +221,7 @@ impl Vars {
                   FixedOffset::east(0)
                }
             }
-         }, */
+         },
 
          // Картинка по-умолчанию
          /* def_image_id: {
@@ -248,13 +248,13 @@ pub fn admin_contact_info() -> String {
 }
 
 // Возвращает текущее время с учётом часового пояса
-/* pub fn current_date_time() -> NaiveDateTime {
+pub fn current_date_time() -> NaiveDateTime {
    // Часовой пояс
    let our_timezone = VARS.get().unwrap().time_zone;
 
    // Текущее время
    Utc::now().with_timezone(&our_timezone).naive_local()
-} */
+}
 
 // Возвращает истину, если user_id принадлежит администратору
 /* pub fn is_admin(user_id: Option<&teloxide::types::User>) -> bool {

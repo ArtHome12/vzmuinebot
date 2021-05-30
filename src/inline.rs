@@ -26,6 +26,8 @@ use crate::node::*;
 enum Command {
    #[strum(to_string = "pas")]
    Pass(i32), // make the specified node active
+   #[strum(to_string = "pan")]
+   PassNow(i32), // like Pass but only among opened
    #[strum(to_string = "add")]
    Add(i32), // add node to basket
    // Remove, // remove node from basket
@@ -51,7 +53,6 @@ impl Command {
    }
 }
 
-
 pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
    let query = &cx.update;
    let query_id = &query.id;
@@ -64,8 +65,12 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
    );
    let msg = match cmd {
       Command::Pass(id) => {
-         view(id, &cx).await?;
-         "Успешно"
+         view(id, WorkTime::All, &cx).await?;
+         "Все заведения"
+      }
+      Command::PassNow(id) => {
+         view(id, WorkTime::Now, &cx).await?;
+         "Открытые сейчас"
       }
       Command::Add(_) => "В разработке",
       Command::Unknown => "Неизвестная команда",
@@ -81,8 +86,7 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
    Ok(())
 }
 
-
-pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
+pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
    // Load root node with children
    let node =  db::node(db::LoadNode::EnabledId(0))
@@ -105,7 +109,7 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
 
          // All is ok, collect and display info
          let picture = picture.unwrap();
-         let markup = markup(&node);
+         let markup = markup(&node, mode);
          let text = node_text(&node);
 
          cx.answer_photo(InputFile::file_id(picture))
@@ -127,14 +131,18 @@ async fn msg(text: &str, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Res
    let chat_id = ChatId::Id(message.chat_id());
    cx.requester.send_message(chat_id, text)
    .await
-   .map_err(|err| format!("inline::view {}", err))?;
+   .map_err(|err| format!("inline::msg {}", err))?;
    Ok(())
 }
 
-async fn view(node_id: i32, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
+async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
 
    // Load node from database
-   let node =  db::node(db::LoadNode::EnabledId(node_id))
+   let load_mode = match mode {
+      WorkTime::All => db::LoadNode::EnabledId(node_id),
+      WorkTime::Now => db::LoadNode::EnabledNowId(node_id),
+   };
+   let node =  db::node(load_mode)
    .await?;
    if node.is_none() {
       msg("Ошибка, запись недействительна, начните заново", cx).await?;
@@ -143,7 +151,7 @@ async fn view(node_id: i32, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> 
 
    // Collect info
    let node = node.unwrap();
-   let markup = markup(&node);
+   let markup = markup(&node, mode);
    let text = node_text(&node);
 
    // Достаём chat_id
@@ -194,10 +202,16 @@ fn node_text(node: &Node) -> String {
    res
 }
 
-fn markup(node: &Node) -> InlineKeyboardMarkup {
+fn markup(node: &Node, mode: WorkTime) -> InlineKeyboardMarkup {
+
+   // Prepare command
+   let pas = match mode {
+      WorkTime::All => Command::Pass(0),
+      WorkTime::Now => Command::PassNow(0),
+   };
+   let pas = String::from(pas.as_ref());
 
    // Create buttons for each child
-   let pas = String::from(Command::Pass(0).as_ref());
    let buttons: Vec<InlineKeyboardButton> = node.children
    .iter()
    .map(|child| (InlineKeyboardButton::callback(

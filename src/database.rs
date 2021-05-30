@@ -13,7 +13,7 @@ use postgres_native_tls::MakeTlsConnector;
 use tokio_postgres::{types::ToSql, };
 use async_recursion::async_recursion;
 
-use crate::environment;
+use crate::environment as env;
 use crate::node::*;
 
 // Пул клиентов БД
@@ -31,6 +31,7 @@ pub enum LoadNode {
    Children(Node), // load children nodes for this
    Id(i32), // load node with specified id
    EnabledId(i32), // like Id but without disabled
+   EnabledNowId(i32), // like EnabledId but opened now
 }
 
 #[async_recursion]
@@ -46,6 +47,10 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
       LoadNode::Owner(user_id) =>  ("owner1 = $1::BIGINT OR owner2 = $1::BIGINT OR owner3 = $1::BIGINT", *user_id),
       LoadNode::Id(id) =>  ("id = $1::BIGINT", *id as i64),
       LoadNode::EnabledId(id) =>  ("id = $1::BIGINT AND enabled = TRUE AND banned = FALSE", *id as i64),
+      LoadNode::EnabledNowId(id) =>  {
+         ("id = $1::BIGINT AND enabled = TRUE AND banned = FALSE
+         ($2::TIME BETWEEN open AND close) OR (open > close AND $2::TIME > open)", *id as i64)
+      }
    };
 
    let order = " ORDER BY id";
@@ -59,9 +64,14 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    .map_err(|err| format!("node prepare: {}", err))?;
 
    // Run query
-   let query = client
-   .query(&statement, &[&where_tuple.1])
-   .await
+   let query = match &mode {
+      LoadNode::EnabledNowId(_) => {
+         // Current local time
+         let time = env::current_date_time().time();
+         client.query(&statement, &[&where_tuple.1, &time]).await
+      }
+      _ => client.query(&statement, &[&where_tuple.1]).await
+   }
    .map_err(|err| format!("node query: {}", err))?;
 
    // Collect results
@@ -85,7 +95,8 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
 
       LoadNode::Owner(_)
       | LoadNode::Id(_)
-      | LoadNode::EnabledId(_) => {
+      | LoadNode::EnabledId(_)
+      | LoadNode::EnabledNowId(_) => {
             // Create new node and initialize it from database
          if query.is_empty() {Ok(None)}
          else {
@@ -272,7 +283,7 @@ pub async fn create_tables() -> bool {
    match query {
       Ok(_) => true,
       Err(e) => {
-         environment::log(&format!("Error create_tables: {}", e)).await;
+         env::log(&format!("Error create_tables: {}", e)).await;
          false
        }
    }
@@ -293,7 +304,7 @@ async fn db_client() -> Result<Client::<MakeTlsConnector>, String> {
       Ok(client) => Ok(client),
       Err(e) => {
          let error = format!("No db client: {}", e);
-         environment::log(&error).await;
+         env::log(&error).await;
          Err(error)
       }
    }
