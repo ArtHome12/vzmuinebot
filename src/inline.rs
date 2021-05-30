@@ -8,17 +8,16 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide::{
-   prelude::*, 
-   types::{InputFile, InlineKeyboardButton, InlineKeyboardMarkup, 
+   prelude::*,
+   types::{InputFile, InlineKeyboardButton, InlineKeyboardMarkup,
       CallbackQuery, ChatId, InputMedia, ParseMode, InputMediaPhoto,
-      //ReplyMarkup, ButtonRequest, KeyboardButton, 
+      //ReplyMarkup, ButtonRequest, KeyboardButton,
    },
 };
-
-
 use strum::{AsRefStr, EnumString, };
 use arraylib::iter::IteratorExt;
 
+use crate::environment as env;
 use crate::states::*;
 use crate::database as db;
 use crate::node::*;
@@ -174,6 +173,13 @@ fn node_text(node: &Node) -> String {
          node.time.0.format("%H:%M"), node.time.1.format("%H:%M")
       )
    };
+
+   if node.price != 0 {
+      res = format!("{}\nЦена: {}",
+         res,
+         env::price_with_unit(node.price)
+      )
+   }
 
    res
 }

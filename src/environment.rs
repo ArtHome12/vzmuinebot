@@ -87,7 +87,7 @@ pub struct Vars {
    admin_id3: i64,
 
    // Единица измерения цены
-   // price_unit: String,
+   price_unit: String,
 
    // Часовой пояс
    // time_zone: FixedOffset,
@@ -196,7 +196,7 @@ impl Vars {
          },
 
          // Единица измерения цены
-         /* price_unit: {
+         price_unit: {
             match env::var("PRICE_UNIT") {
                Ok(s) => s,
                Err(e) => {
@@ -207,7 +207,7 @@ impl Vars {
          },
 
          // Часовой пояс
-         time_zone: {
+         /* time_zone: {
             match env::var("TIME_ZONE") {
                Ok(s) => match s.parse::<i32>() {
                      Ok(n) => FixedOffset::east(n * 3600),
@@ -271,9 +271,9 @@ pub fn is_admin_id(user_id: i64) -> bool {
 }
 
 // Форматирование цены с единицей измерения
-/* pub fn price_with_unit(price: i32) -> String {
+pub fn price_with_unit(price: i32) -> String {
    format!("{}{}", price,  VARS.get().unwrap().price_unit)
-} */
+}
 
 // Картинка по-умолчанию для использования в качестве заглушки в режиме с инлайн-кнопками
 /* pub fn def_image() -> String {

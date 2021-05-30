@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use derive_more::From;
 use teloxide_macros::{Transition, teloxide, };
-use teloxide::{prelude::*, ApiError, RequestError, 
+use teloxide::{prelude::*, ApiError, RequestError,
    types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, }
 };
 use reqwest::StatusCode;
@@ -17,7 +17,7 @@ use std::str::FromStr;
 use strum::{AsRefStr, EnumString,};
 
 // use crate::database as db;
-use crate::environment as set;
+use crate::environment as env;
 use crate::gear::*;
 
 
@@ -116,7 +116,7 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: Str
 
    // For admin and regular users there is different interface
    let user_id = user.unwrap().id;
-   let is_admin = set::is_admin_id(user_id);
+   let is_admin = env::is_admin_id(user_id);
 
    // Prepare menu
    let info = String::from(if state.restarted { "Извините, бот был перезапущен.\n" } else {""});
