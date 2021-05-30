@@ -47,8 +47,14 @@ impl Command {
       if cmd == Self::Pass(0).as_ref() {
          let arg = arg;
          Command::Pass(arg(s))
+      } else if cmd == Self::PassNow(0).as_ref() {
+         let arg = arg;
+         Command::PassNow(arg(s))
+      } else if cmd == Self::Add(0).as_ref() {
+         let arg = arg;
+         Command::Add(arg(s))
       } else {
-         Command::Unknown
+            Command::Unknown
       }
    }
 }
