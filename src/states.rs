@@ -66,7 +66,7 @@ pub fn from_flag(flag: bool) -> String {
 
 pub fn map_req_err(s: String) -> RequestError {
    RequestError::ApiError{
-      kind: ApiError::Unknown(s), 
+      kind: ApiError::Unknown(s),
       status_code: StatusCode::OK,
    }
 }

@@ -27,15 +27,25 @@ use crate::node::*;
 enum Command {
    #[strum(to_string = "pas")]
    Pass(i32), // make the specified node active
+   #[strum(to_string = "add")]
+   Add(i32), // add node to basket
+   // Remove, // remove node from basket
    Unknown,
 }
 
 impl Command {
    fn parse(s: &str) -> Self {
       // Looking for the commands with arguments
-      if s.get(..3).unwrap_or_default() == Self::Pass(0).as_ref() {
-         let r_part = s.get(3..).unwrap_or_default();
-         Command::Pass(r_part.parse().unwrap_or_default())
+      let cmd = s.get(..3).unwrap_or_default();
+      let arg = |s: &str| {
+         s.get(3..)
+         .unwrap_or_default()
+         .parse().unwrap_or_default()
+      };
+
+      if cmd == Self::Pass(0).as_ref() {
+         let arg = arg;
+         Command::Pass(arg(s))
       } else {
          Command::Unknown
       }
@@ -58,7 +68,8 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
          view(id, &cx).await?;
          "Переходим"
       }
-      Command::Unknown => "Неизвестная команда"
+      Command::Add(_) => "В разработке",
+      Command::Unknown => "Неизвестная команда",
    };
 
    // Отправляем ответ, который показывается во всплывающем окошке
@@ -88,9 +99,10 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
    } else {
       let picture = picture.unwrap();
       let markup = markup(&node);
+      let text = node_text(&node);
 
       cx.answer_photo(InputFile::file_id(picture))
-      .caption("Hello")
+      .caption(text)
       .reply_markup(markup)
       .disable_notification(true)
       .send()
@@ -123,19 +135,7 @@ async fn view(node_id: i32, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> 
    // Collect info
    let node = node.unwrap();
    let markup = markup(&node);
-
-   // Do not display description from 1 symbol
-   let descr = if node.descr.len() > 1 {
-      format!("\n{}", node.descr)
-   } else {
-      String::default()
-   };
-
-   let text = format!("<b>{}</b>{}\nВремя работы: {}-{}",
-      node.title,
-      descr,
-      node.time.0.format("%H:%M"), node.time.1.format("%H:%M")
-   );
+   let text = node_text(&node);
 
    // Достаём chat_id
    let message = cx.update.message.as_ref().unwrap();
@@ -149,9 +149,6 @@ async fn view(node_id: i32, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> 
    .parse_mode(ParseMode::Html);
    let media = InputMedia::Photo(media);
 
-   // cx.requester.send_photo(chat_id, media)
-   // .caption(text)
-
    // Отправляем изменения
    cx.requester.edit_message_media(chat_id, message_id, media)
    .reply_markup(markup)
@@ -161,7 +158,28 @@ async fn view(node_id: i32, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> 
    Ok(())
 }
 
+fn node_text(node: &Node) -> String {
+
+   let mut res = format!("<b>{}</b>", node.title);
+
+   // Do not display description from 1 symbol
+   if node.descr.len() > 1 {
+      res = res + "\n" + node.descr.as_str();
+   };
+
+   // Display time only if it sets
+   if node.is_time_set() {
+      res = format!("{}\nВремя работы: {}-{}",
+         res,
+         node.time.0.format("%H:%M"), node.time.1.format("%H:%M")
+      )
+   };
+
+   res
+}
+
 fn markup(node: &Node) -> InlineKeyboardMarkup {
+
    // Create buttons for each child
    let pas = String::from(Command::Pass(0).as_ref());
    let buttons: Vec<InlineKeyboardButton> = node.children
@@ -191,7 +209,7 @@ fn markup(node: &Node) -> InlineKeyboardMarkup {
    .fold(InlineKeyboardMarkup::default(), |acc, item| acc.append_row(vec![item]));
 
    // Short by two
-   let markup = short.into_iter().array_chunks::<[_; 2]>()
+   let mut markup = short.into_iter().array_chunks::<[_; 2]>()
    .fold(markup, |acc, [left, right]| acc.append_row(vec![left, right]));
 
    // Back button
@@ -204,9 +222,19 @@ fn markup(node: &Node) -> InlineKeyboardMarkup {
    }
 
    // Add the last unpaired button and the back button
-   if last_row.is_empty() {
-      markup
-   } else {
-      markup.append_row(last_row)
+   if !last_row.is_empty() {
+      markup = markup.append_row(last_row);
    }
+
+   // If price not null add buttons for basket
+   if node.price != 0 {
+      let add = String::from(Command::Pass(0).as_ref());
+      let button_add = InlineKeyboardButton::callback(
+         String::from("+🛒"),
+         format!("{}{}", add, node.id)
+      );
+      markup = markup.append_row(vec![button_add]);
+   }
+
+   markup
 }

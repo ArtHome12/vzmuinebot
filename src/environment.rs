@@ -132,14 +132,14 @@ impl Vars {
          log::info!("There is no environment variable LOG_GROUP_ID, no service chat");
          None
       };
-   
+
       Vars {
          // Контактная информация администраторов бота
          admin_contact_info: {
             match env::var("CONTACT_INFO") {
                Ok(s) => {
                   log::info!("admin name is {}", s);
-                  s   
+                  s
                }
                Err(e) => {
                   int_log(chat.clone(), &format!("Something wrong with CONTACT_INFO: {}", e)).await;
@@ -198,7 +198,7 @@ impl Vars {
          // Единица измерения цены
          /* price_unit: {
             match env::var("PRICE_UNIT") {
-               Ok(s) => s,  
+               Ok(s) => s,
                Err(e) => {
                   int_log(chat.clone(), &format!("Something wrong with PRICE_UNIT: {}", e)).await;
                   String::default()

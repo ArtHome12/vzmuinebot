@@ -88,14 +88,14 @@ impl Node {
          match kind {
             UpdateKind::Text(res) => Ok(res.clone()),
             _ => Err(String::from("node::update type string mismatch")),
-         }      
+         }
       }
 
       fn check_picture(kind: &UpdateKind) -> Result<Option<String>, String> {
          match kind {
             UpdateKind::Picture(res) => Ok(res.clone()),
             _ => Err(String::from("node::update type string mismatch")),
-         }      
+         }
       }
 
       fn check_bool(kind: &UpdateKind) -> Result<bool, String> {
@@ -132,6 +132,11 @@ impl Node {
          _ => return Err(format!("node::update unknown field {}", info.field)),
       }
       Ok(())
+   }
+
+   pub fn is_time_set(&self) -> bool {
+      let zero = NaiveTime::from_hms(0, 0, 0);
+      self.time.0 != zero || self.time.1 != zero
    }
 }
 
