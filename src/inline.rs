@@ -65,7 +65,7 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
    let msg = match cmd {
       Command::Pass(id) => {
          view(id, &cx).await?;
-         "Переходим"
+         "Успешно"
       }
       Command::Add(_) => "В разработке",
       Command::Unknown => "Неизвестная команда",
@@ -111,6 +111,7 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
          cx.answer_photo(InputFile::file_id(picture))
          .caption(text)
          .reply_markup(markup)
+         .parse_mode(ParseMode::Html)
          .disable_notification(true)
          .send()
          .await?;
