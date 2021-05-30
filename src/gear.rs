@@ -59,7 +59,7 @@ enum EditCmd {
    Owner2,
    #[strum(to_string = "ID 3", message = "owner3")]
    Owner3,
-   #[strum(to_string = "Время", message = "open, close")]
+   #[strum(to_string = "Время", message = "time")] // really in db there open and close fields
    Time,
    #[strum(to_string = "Цена", message = "price")]
    Price,

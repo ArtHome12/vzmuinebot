@@ -85,27 +85,36 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
 pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
    // Load root node with children
-   let node =  db::node(db::LoadNode::Id(0))
+   let node =  db::node(db::LoadNode::EnabledId(0))
    .await
-   .and_then(|op| op.ok_or("Нет информации".into()))
    .map_err(|s| map_req_err(s))?;
 
-   // Picture
-   let picture = node.picture.clone();
-   if picture.is_none() {
-      cx.answer("Ошибка, без картинки невозможно продолжить - обратитесь к администратору")
+   if node.is_none() {
+      cx.answer("Ошибка, нет записей - обратитесь к администратору")
       .await?;
    } else {
-      let picture = picture.unwrap();
-      let markup = markup(&node);
-      let text = node_text(&node);
 
-      cx.answer_photo(InputFile::file_id(picture))
-      .caption(text)
-      .reply_markup(markup)
-      .disable_notification(true)
-      .send()
-      .await?;
+      let node = node.unwrap();
+
+      // Next check - picture
+      let picture = node.picture.clone();
+      if picture.is_none() {
+         cx.answer("Ошибка, без картинки невозможно продолжить - обратитесь к администратору")
+         .await?;
+      } else {
+
+         // All is ok, collect and display info
+         let picture = picture.unwrap();
+         let markup = markup(&node);
+         let text = node_text(&node);
+
+         cx.answer_photo(InputFile::file_id(picture))
+         .caption(text)
+         .reply_markup(markup)
+         .disable_notification(true)
+         .send()
+         .await?;
+      }
    }
 
    // Always stay in place
@@ -124,7 +133,7 @@ async fn msg(text: &str, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Res
 async fn view(node_id: i32, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
 
    // Load node from database
-   let node =  db::node(db::LoadNode::Id(node_id))
+   let node =  db::node(db::LoadNode::EnabledId(node_id))
    .await?;
    if node.is_none() {
       msg("Ошибка, запись недействительна, начните заново", cx).await?;
@@ -201,6 +210,16 @@ fn markup(node: &Node) -> InlineKeyboardMarkup {
    .into_iter()
    .partition(|n| n.text.chars().count() > 21);
 
+   // If price not null add button for basket
+   if node.price != 0 {
+      let add = String::from(Command::Add(0).as_ref());
+      let button_add = InlineKeyboardButton::callback(
+         String::from("+🛒"),
+         format!("{}{}", add, node.id)
+      );
+      short.push(button_add);
+   }
+
    // Put in vec last unpaired button, if any
    let mut last_row = vec![];
    if short.len() % 2 == 1 {
@@ -230,16 +249,6 @@ fn markup(node: &Node) -> InlineKeyboardMarkup {
    // Add the last unpaired button and the back button
    if !last_row.is_empty() {
       markup = markup.append_row(last_row);
-   }
-
-   // If price not null add buttons for basket
-   if node.price != 0 {
-      let add = String::from(Command::Pass(0).as_ref());
-      let button_add = InlineKeyboardButton::callback(
-         String::from("+🛒"),
-         format!("{}{}", add, node.id)
-      );
-      markup = markup.append_row(vec![button_add]);
    }
 
    markup

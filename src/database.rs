@@ -30,6 +30,7 @@ pub enum LoadNode {
    Owner(i64), // load first node with this owner
    Children(Node), // load children nodes for this
    Id(i32), // load node with specified id
+   EnabledId(i32), // like Id but without disabled
 }
 
 #[async_recursion]
@@ -44,6 +45,7 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
       LoadNode::Children(node) => ("parent = $1::BIGINT", node.id as i64),
       LoadNode::Owner(user_id) =>  ("owner1 = $1::BIGINT OR owner2 = $1::BIGINT OR owner3 = $1::BIGINT", *user_id),
       LoadNode::Id(id) =>  ("id = $1::BIGINT", *id as i64),
+      LoadNode::EnabledId(id) =>  ("id = $1::BIGINT AND enabled = TRUE AND banned = FALSE", *id as i64),
    };
 
    let order = " ORDER BY id";
@@ -81,8 +83,10 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
          Ok(Some(node))
       }
 
-      LoadNode::Owner(_) | LoadNode::Id(_) => {
-         // Create new node and initialize it from database
+      LoadNode::Owner(_)
+      | LoadNode::Id(_)
+      | LoadNode::EnabledId(_) => {
+            // Create new node and initialize it from database
          if query.is_empty() {Ok(None)}
          else {
             // Create node
