@@ -73,13 +73,13 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
       LoadNode::EnabledId(id) =>  ("id = $1::BIGINT AND enabled = TRUE AND banned = FALSE", *id as i64),
       LoadNode::EnabledNowId(id) => (
          "id = $1::BIGINT AND enabled = TRUE AND banned = FALSE AND
-         ($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open)", *id as i64
+         (($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open))", *id as i64
       ),
       LoadNode::Children(node) => ("parent = $1::BIGINT", node.id as i64),
       LoadNode::EnabledChildren(node) => ("parent = $1::BIGINT AND enabled = TRUE AND banned = FALSE", node.id as i64),
       LoadNode::EnabledChildrenNow(node) => (
          "parent = $1::BIGINT AND enabled = TRUE AND banned = FALSE AND
-         ($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open)", node.id as i64
+         (($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open))", node.id as i64
       ),
    };
 
