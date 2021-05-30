@@ -95,7 +95,11 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
 pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
    // Load root node with children
-   let node =  db::node(db::LoadNode::EnabledId(0))
+   let load_mode = match mode {
+      WorkTime::All => db::LoadNode::EnabledId(0),
+      WorkTime::Now => db::LoadNode::EnabledNowId(0),
+   };
+   let node =  db::node(load_mode)
    .await
    .map_err(|s| map_req_err(s))?;
 

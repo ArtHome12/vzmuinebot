@@ -48,8 +48,8 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
       LoadNode::Id(id) =>  ("id = $1::BIGINT", *id as i64),
       LoadNode::EnabledId(id) =>  ("id = $1::BIGINT AND enabled = TRUE AND banned = FALSE", *id as i64),
       LoadNode::EnabledNowId(id) =>  {
-         ("id = $1::BIGINT AND enabled = TRUE AND banned = FALSE
-         ($2::TIME BETWEEN open AND close) OR (open > close AND $2::TIME > open)", *id as i64)
+         ("id = $1::BIGINT AND enabled = TRUE AND banned = FALSE AND
+         ($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open)", *id as i64)
       }
    };
 
