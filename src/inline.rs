@@ -117,6 +117,10 @@ pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSen
          .await?;
       } else {
 
+         // User needs to sync with basket
+         let user = &cx.update.from;
+         update_last_seen(user);
+
          // Notify about time
          if matches!(mode, WorkTime::Now) {
             let now = env::current_date_time();
@@ -152,9 +156,7 @@ async fn msg(text: &str, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Res
    Ok(())
 }
 
-async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
-   // User needs to sync with basket
-   let user = &cx.update.from;
+async fn update_last_seen(user: &User) {
    let user_id = user.id;
    let successful = db::user_update_last_seen(user_id).await?;
 
@@ -171,6 +173,12 @@ async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, Cal
 
       db::user_insert(user_id, name, contact).await?;
    }
+}
+
+async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
+   // User needs to sync with basket
+   let user = &cx.update.from;
+   update_last_seen(user);
 
    // Load node from database
    let load_mode = match mode {
