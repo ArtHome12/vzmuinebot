@@ -106,12 +106,12 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
 
    // Run query
    let query = match &mode {
-      /* LoadNode::EnabledNowId(_)
-      | &LoadNode::EnabledChildrenNow(_) => {
+      LoadNode::EnabledNowId(_)
+      /*| &LoadNode::EnabledChildrenNow(_)*/ => {
          // Current local time
          let time = env::current_date_time().time();
          client.query(&statement, &[&where_tuple.1, &time]).await
-      } */
+      }
       _ => client.query(&statement, &[&where_tuple.1]).await
    }
    .map_err(|err| format!("node query: {}", err))?;
