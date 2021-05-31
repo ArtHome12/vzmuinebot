@@ -11,6 +11,7 @@ use teloxide::{
    prelude::*,
    types::{InputFile, InlineKeyboardButton, InlineKeyboardMarkup,
       CallbackQuery, ChatId, InputMedia, ParseMode, InputMediaPhoto,
+      User,
       //ReplyMarkup, ButtonRequest, KeyboardButton,
    },
 };
@@ -118,9 +119,15 @@ pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSen
       } else {
 
          // User needs to sync with basket
-         let user = &cx.update.from;
-         update_last_seen(user);
-
+         let user = &cx.update.from();
+         if user.is_none() {
+            cx.answer("Ошибка, нет пользователя - обратитесь к администратору")
+            .await?;
+         }
+         update_last_seen(user.unwrap())
+         .await
+         .map_err(|s| map_req_err(s))?;
+      
          // Notify about time
          if matches!(mode, WorkTime::Now) {
             let now = env::current_date_time();
@@ -156,7 +163,7 @@ async fn msg(text: &str, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Res
    Ok(())
 }
 
-async fn update_last_seen(user: &User) {
+async fn update_last_seen(user: &User) -> Result<(), String> {
    let user_id = user.id;
    let successful = db::user_update_last_seen(user_id).await?;
 
@@ -173,12 +180,13 @@ async fn update_last_seen(user: &User) {
 
       db::user_insert(user_id, name, contact).await?;
    }
+   Ok(())
 }
 
 async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
    // User needs to sync with basket
    let user = &cx.update.from;
-   update_last_seen(user);
+   update_last_seen(user).await?;
 
    // Load node from database
    let load_mode = match mode {
