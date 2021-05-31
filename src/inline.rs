@@ -75,12 +75,20 @@ impl Command {
 }
 
 pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
-   async fn do_add(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<&'static str, String> {
+   async fn do_inc(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<&'static str, String> {
       // Increment amount in database and reload node
       let user_id = cx.update.from.id;
-      db::amount_add(user_id, node_id).await?;
+      db::amount_inc(user_id, node_id).await?;
       view(node_id, mode, &cx).await?;
       Ok("Добавлено")
+   }
+
+   async fn do_dec(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<&'static str, String> {
+      // Decrement amount in database and reload node
+      let user_id = cx.update.from.id;
+      db::amount_dec(user_id, node_id).await?;
+      view(node_id, mode, &cx).await?;
+      Ok("Удалено")
    }
 
    let query = &cx.update;
@@ -101,10 +109,10 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
          view(node_id, WorkTime::Now, &cx).await?;
          "Открытые сейчас"
       }
-      Command::IncAmount(node_id) => do_add(node_id, WorkTime::All, &cx).await?,
-      Command::IncAmountNow(node_id) => do_add(node_id, WorkTime::Now, &cx).await?,
-      Command::DecAmount(_) => "В разработке",
-      Command::DecAmountNow(_) => "В разработке",
+      Command::IncAmount(node_id) => do_inc(node_id, WorkTime::All, &cx).await?,
+      Command::IncAmountNow(node_id) => do_inc(node_id, WorkTime::Now, &cx).await?,
+      Command::DecAmount(node_id) => do_dec(node_id, WorkTime::All, &cx).await?,
+      Command::DecAmountNow(node_id) => do_dec(node_id, WorkTime::All, &cx).await?,
       Command::Unknown => "Неизвестная команда",
    };
 
