@@ -95,7 +95,7 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    let order = " ORDER BY id";
 
    let statement_text = select + where_tuple.0 + order;
-   env::log(statement_text.as_str()).await;
+   env::log(&format!("{} id={}", statement_text, where_tuple.1)).await;
 
    // Prepare query
    let statement = client
@@ -130,6 +130,7 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
                child.picture = node.picture.clone();
             }
 
+            env::log(&format!("added {} id={}", child.title, child.id)).await;
             node.children.push(child);
          }
 
