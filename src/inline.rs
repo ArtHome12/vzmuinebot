@@ -29,9 +29,14 @@ enum Command {
    Pass(i32), // make the specified node active
    #[strum(to_string = "pan")]
    PassNow(i32), // like Pass but only among opened
-   #[strum(to_string = "add")]
-   Add(i32), // add node to basket
-   // Remove, // remove node from basket
+   #[strum(to_string = "inc")]
+   IncAmount(i32), // add 1pcs of node to basket and return to Pass mode
+   #[strum(to_string = "inn")]
+   IncAmountNow(i32), // add 1pcs of node to basket and return to PassNow mode
+   #[strum(to_string = "dec")]
+   DecAmount(i32), // remove 1pcs of node from basket and return to Pass mode
+   #[strum(to_string = "den")]
+   DecAmountNow(i32), // remove 1pcs of node from basket and return to PassNow mode
    Unknown,
 }
 
@@ -51,16 +56,33 @@ impl Command {
       } else if cmd == Self::PassNow(0).as_ref() {
          let arg = arg;
          Command::PassNow(arg(s))
-      } else if cmd == Self::Add(0).as_ref() {
+      } else if cmd == Self::IncAmount(0).as_ref() {
          let arg = arg;
-         Command::Add(arg(s))
+         Command::IncAmount(arg(s))
+      } else if cmd == Self::IncAmountNow(0).as_ref() {
+         let arg = arg;
+         Command::IncAmountNow(arg(s))
+      } else if cmd == Self::DecAmount(0).as_ref() {
+         let arg = arg;
+         Command::DecAmount(arg(s))
+      } else if cmd == Self::DecAmountNow(0).as_ref() {
+         let arg = arg;
+         Command::DecAmountNow(arg(s))
       } else {
-            Command::Unknown
+         Command::Unknown
       }
    }
 }
 
 pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
+   async fn do_add(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<&'static str, String> {
+      // Increment amount in database and reload node
+      let user_id = cx.update.from.id;
+      db::amount_add(user_id, node_id).await?;
+      view(node_id, mode, &cx).await?;
+      Ok("Добавлено")
+   }
+
    let query = &cx.update;
    let query_id = &query.id;
 
@@ -71,15 +93,18 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
       .as_str()
    );
    let msg = match cmd {
-      Command::Pass(id) => {
-         view(id, WorkTime::All, &cx).await?;
+      Command::Pass(node_id) => {
+         view(node_id, WorkTime::All, &cx).await?;
          "Все заведения"
       }
-      Command::PassNow(id) => {
-         view(id, WorkTime::Now, &cx).await?;
+      Command::PassNow(node_id) => {
+         view(node_id, WorkTime::Now, &cx).await?;
          "Открытые сейчас"
       }
-      Command::Add(_) => "В разработке",
+      Command::IncAmount(node_id) => do_add(node_id, WorkTime::All, &cx).await?,
+      Command::IncAmountNow(node_id) => do_add(node_id, WorkTime::Now, &cx).await?,
+      Command::DecAmount(_) => "В разработке",
+      Command::DecAmountNow(_) => "В разработке",
       Command::Unknown => "Неизвестная команда",
    };
 
@@ -124,7 +149,8 @@ pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSen
             cx.answer("Ошибка, нет пользователя - обратитесь к администратору")
             .await?;
          }
-         update_last_seen(user.unwrap())
+         let user = user.unwrap();
+         update_last_seen(user)
          .await
          .map_err(|s| map_req_err(s))?;
       
@@ -137,7 +163,9 @@ pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSen
 
          // All is ok, collect and display info
          let picture = picture.unwrap();
-         let markup = markup(&node, mode);
+         let markup = markup(&node, mode, user.id)
+         .await
+         .map_err(|s| map_req_err(s))?;
          let text = node_text(&node);
 
          cx.answer_photo(InputFile::file_id(picture))
@@ -202,7 +230,9 @@ async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, Cal
 
    // Collect info
    let node = node.unwrap();
-   let markup = markup(&node, mode);
+   let markup = markup(&node, mode, user.id)
+   .await?;
+
    let text = node_text(&node);
 
    // Достаём chat_id
@@ -255,7 +285,7 @@ fn node_text(node: &Node) -> String {
    res
 }
 
-fn markup(node: &Node, mode: WorkTime) -> InlineKeyboardMarkup {
+async fn markup(node: &Node, mode: WorkTime, user_id: i64) -> Result<InlineKeyboardMarkup, String> {
 
    // Prepare command
    let pas = match mode {
@@ -278,14 +308,36 @@ fn markup(node: &Node, mode: WorkTime) -> InlineKeyboardMarkup {
    .into_iter()
    .partition(|n| n.text.chars().count() > 21);
 
-   // If price not null add button for basket
+   // If price not null add button for basket with amount
    if node.price != 0 {
-      let add = String::from(Command::Add(0).as_ref());
-      let button_add = InlineKeyboardButton::callback(
-         String::from("+🛒"),
-         format!("{}{}", add, node.id)
+      // Display only title or title with amount
+      let amount = db::amount(user_id, node.id).await?;
+      let caption = if amount > 0 { format!("+🛒 ({})", amount) } else { String::from("+🛒") };
+
+      let cmd = match mode {
+         WorkTime::All => Command::IncAmount(0),
+         WorkTime::Now => Command::IncAmountNow(0),
+      };
+      let cmd = String::from(cmd.as_ref());
+      let button_inc = InlineKeyboardButton::callback(
+         caption,
+         format!("{}{}", cmd, node.id)
       );
-      short.push(button_add);
+      short.push(button_inc);
+
+      // Add decrease button
+      if amount > 0 {
+         let cmd = match mode {
+            WorkTime::All => Command::DecAmount(0),
+            WorkTime::Now => Command::DecAmountNow(0),
+         };
+         let cmd = String::from(cmd.as_ref());
+         let button_dec = InlineKeyboardButton::callback(
+            String::from("-🛒"),
+            format!("{}{}", cmd, node.id)
+         );
+         short.push(button_dec);
+      }
    }
 
    // Put in vec last unpaired button, if any
@@ -319,5 +371,5 @@ fn markup(node: &Node, mode: WorkTime) -> InlineKeyboardMarkup {
       markup = markup.append_row(last_row);
    }
 
-   markup
+   Ok(markup)
 }

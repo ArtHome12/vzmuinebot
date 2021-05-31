@@ -288,14 +288,66 @@ pub async fn user_update_last_seen(user_id: i64) -> Result<bool, String> {
    Ok(query == 1)
 }
 
-
+// Store new user
 pub async fn user_insert(id: i64, name: String, contact: String) -> Result<(), String> {
-   let sql_text = "INSERT INTO users (user_id, user_name, contact, address, last_seen, compact, pickup) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, '-', NOW(), FALSE, FALSE)";
+   let sql_text = "INSERT INTO users (user_id, user_name, contact, address, last_seen, pickup) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, '-', NOW(), FALSE)";
    execute_one(sql_text, &[&id, &name, &contact]).await?;
 
    // Notify about a new user
    env::log(&format!("Новый пользователь id={}, {}, {}", id, name, contact)).await;
    Ok(())
+}
+
+// ============================================================================
+// [Orders]
+// ============================================================================
+pub async fn amount(user_id: i64, node_id: i32) -> Result<usize, String> {
+   let query = "SELECT amount FROM orders WHERE user_id=$1::BIGINT AND node_id=$2:INTEGER";
+
+   // Prepare query
+   let client = db_client().await?;
+   let statement = client
+   .prepare(&query)
+   .await
+   .map_err(|err| format!("amount prepare: {}", err))?;
+
+   // Run query
+   let query = client
+   .query(&statement, &[&user_id, &node_id])
+   .await
+   .map_err(|err| format!("amount query: {}", err))?;
+
+   // Return result
+   let res = if query.is_empty() { 0usize } 
+   else {
+      let res: i32 = query[0].get(0);
+      res as usize
+   };
+   Ok(res)
+}
+
+pub async fn amount_add(user_id: i64, node_id: i32) -> Result<(), String> {
+   let query = "INSERT INTO orders as o (user_id, node_id, amount) VALUES ($1::BIGINT, $2:INTEGER, 1)
+      ON CONFLICT ON CONSTRAINT orders_pkey DO
+      UPDATE SET amount = o.amount + 1 WHERE o.user_id = $1::BIGINT AND o.node_id = $2:INTEGER";
+
+   // Prepare query
+   let client = db_client().await?;
+   let statement = client
+   .prepare(&query)
+   .await
+   .map_err(|err| format!("amount_add prepare: {}", err))?;
+
+   // Run query
+   let query = client
+   .execute(&statement, &[&user_id, &node_id])
+   .await
+   .map_err(|err| format!("amount_add execute: {}", err))?;
+
+   // Return result
+   if query != 1 {
+      Err(format!("amount_add execute user_id={}, node_id={} return {} recs instead one", user_id, node_id, query))
+   } else { Ok(()) }
 }
 
 // ============================================================================
@@ -353,7 +405,7 @@ pub async fn create_tables() -> bool {
    
          CREATE TABLE orders (
             PRIMARY KEY (user_id, node_id),
-            user_id        INTEGER        NOT NULL,
+            user_id        BIGINT         NOT NULL,
             node_id        INTEGER        NOT NULL,
             amount         INTEGER        NOT NULL);
    ")
