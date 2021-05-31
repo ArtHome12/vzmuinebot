@@ -302,7 +302,7 @@ pub async fn user_insert(id: i64, name: String, contact: String) -> Result<(), S
 // [Orders]
 // ============================================================================
 pub async fn amount(user_id: i64, node_id: i32) -> Result<usize, String> {
-   let query = "SELECT amount FROM orders WHERE user_id=$1::BIGINT AND node_id=$2:INTEGER";
+   let query = "SELECT amount FROM orders WHERE user_id=$1::BIGINT AND node_id=$2::INTEGER";
 
    // Prepare query
    let client = db_client().await?;
