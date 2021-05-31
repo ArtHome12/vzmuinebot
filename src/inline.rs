@@ -153,6 +153,24 @@ async fn msg(text: &str, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Res
 }
 
 async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
+   // User needs to sync with basket
+   let user = &cx.update.from;
+   let user_id = user.id;
+   let successful = db::user_update_last_seen(user_id).await?;
+
+   // If unsuccessful, then there is no such user
+   if !successful {
+      // Collect info about the new user and store in database
+      let name = if let Some(last_name) = &user.last_name {
+         format!("{} {}", user.first_name, last_name)
+      } else {user.first_name.clone()};
+   
+      let contact = if let Some(username) = &user.username {
+         format!(" @{}", username)
+      } else {String::from("-")};
+
+      db::user_insert(user_id, name, contact).await?;
+   }
 
    // Load node from database
    let load_mode = match mode {

@@ -265,33 +265,63 @@ pub async fn update_node(id: i32, update: &UpdateNode) -> Result<(), String> {
 }
 
 // ============================================================================
+// [Users]
+// ============================================================================
+// Update last seen field or return false if user don't exist
+pub async fn user_update_last_seen(user_id: i64) -> Result<bool, String> {
+   let query = "UPDATE users SET last_seen = NOW() WHERE user_id=$1::BIGINT";
+
+   // Prepare query
+   let client = db_client().await?;
+   let statement = client
+   .prepare(&query)
+   .await
+   .map_err(|err| format!("user_update_last_seen prepare: {}", err))?;
+
+   // Run query
+   let query = client
+   .execute(&statement, &[&user_id])
+   .await
+   .map_err(|err| format!("user_update_last_seen execute: {}", err))?;
+
+   // Return result
+   Ok(query == 1)
+}
+
+
+pub async fn user_insert(id: i64, name: String, contact: String) -> Result<(), String> {
+   let sql_text = "INSERT INTO users (user_id, user_name, contact, address, last_seen, compact, pickup) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, '-', NOW(), FALSE, FALSE)";
+   execute_one(sql_text, &[&id, &name, &contact]).await?;
+
+   // Notify about a new user
+   env::log(&format!("Новый пользователь id={}, {}, {}", id, name, contact)).await;
+   Ok(())
+}
+
+// ============================================================================
 // [Misc]
 // ============================================================================
 
-// Проверяет существование таблиц
 pub async fn is_tables_exist() -> bool {
-   // Получаем клиента БД
+   // DB client from the pool
    let client = db_client().await;
    if client.is_err() {return false;}
 
-   // Выполняем запрос
+   // Check that one of tables exists
    let rows = client.unwrap()
    .query("SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='nodes'", &[]).await;
 
-   // Проверяем результат
+   // Return result
    match rows {
       Ok(data) => !data.is_empty(),
       _ => false,
    }
 }
 
-// Создаёт новые таблицы
 pub async fn create_tables() -> bool {
-   // Получаем клиента БД
    let client = db_client().await;
    if client.is_err() {return false;}
 
-   // Таблица с данными о ресторанах
    let query = client.unwrap()
    .batch_execute("CREATE TABLE nodes (
          PRIMARY KEY (id),
@@ -311,6 +341,21 @@ pub async fn create_tables() -> bool {
 
          INSERT INTO nodes (id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price)
          VALUES (0, -1, 'Добро пожаловать', '-', '', true, false, 0, 0, 0, '00:00', '00:00', 0);
+
+         CREATE TABLE users (
+            PRIMARY KEY (user_id),
+            user_id        INTEGER        NOT NULL,
+            user_name      VARCHAR(100)   NOT NULL,
+            contact        VARCHAR(100)   NOT NULL,
+            address        VARCHAR(100)   NOT NULL,
+            last_seen      TIMESTAMP      NOT NULL,
+            pickup         BOOLEAN        NOT NULL);
+   
+         CREATE TABLE orders (
+            PRIMARY KEY (user_id, node_id),
+            user_id        INTEGER        NOT NULL,
+            node_id        INTEGER        NOT NULL,
+            amount         INTEGER        NOT NULL);
    ")
    .await;
 
