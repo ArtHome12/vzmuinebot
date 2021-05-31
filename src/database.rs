@@ -61,6 +61,15 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
       Ok(Some(with_children))
    }
 
+   fn convert_kind(kind: LoadNode, arg: Node) -> LoadNode {
+      match kind {
+         LoadNode::Id(_) | LoadNode::Owner(_) => LoadNode::Children(arg),
+         LoadNode::EnabledId(_) => LoadNode::EnabledChildren(arg),
+         LoadNode::EnabledNowId(_) => LoadNode::EnabledChildrenNow(arg),
+         _ => panic!("convert_kind"),
+      }
+   }
+
    // DB client from the pool
    let client = db_client().await?;
 
@@ -69,8 +78,8 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
 
    let where_tuple = match &mode {
       LoadNode::Owner(user_id) =>  ("owner1 = $1::BIGINT OR owner2 = $1::BIGINT OR owner3 = $1::BIGINT", *user_id),
-      LoadNode::Id(id) =>  ("id = $1::BIGINT", *id as i64),
-      LoadNode::EnabledId(id) =>  ("id = $1::BIGINT AND enabled = TRUE AND banned = FALSE", *id as i64),
+      LoadNode::Id(id) => ("id = $1::BIGINT", *id as i64),
+      LoadNode::EnabledId(id) => ("id = $1::BIGINT AND enabled = TRUE AND banned = FALSE", *id as i64),
       LoadNode::EnabledNowId(id) => (
          "id = $1::BIGINT AND enabled = TRUE AND banned = FALSE AND
          (($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open))", *id as i64
@@ -126,28 +135,16 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
          Ok(Some(node))
       }
 
-      LoadNode::Owner(_)
-      | LoadNode::Id(_) => {
+      LoadNode::Id(_) 
+      | LoadNode::Owner(_)
+      | LoadNode::EnabledId(_)
+      | LoadNode::EnabledNowId(_) => {
+
          // Create new node and initialize it from database
          let mut res = do_load_node(query).await?;
          if res.is_some() {
-            res = do_load_children(LoadNode::Children(res.unwrap())).await?;
-         }
-         Ok(res)
-      }
-      LoadNode::EnabledId(_) => {
-         // Create new node and initialize it from database
-         let mut res = do_load_node(query).await?;
-         if res.is_some() {
-            res = do_load_children(LoadNode::EnabledChildren(res.unwrap())).await?;
-         }
-         Ok(res)
-      }
-      LoadNode::EnabledNowId(_) => {
-         // Create new node and initialize it from database
-         let mut res = do_load_node(query).await?;
-         if res.is_some() {
-            res = do_load_children(LoadNode::EnabledChildrenNow(res.unwrap())).await?;
+            let child_mode = convert_kind(mode, res.unwrap());
+            res = do_load_children(child_mode).await?;
          }
          Ok(res)
       }
