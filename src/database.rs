@@ -136,7 +136,7 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
          Ok(Some(node))
       }
 
-      LoadNode::Id(_) 
+      LoadNode::Id(_)
       | LoadNode::Owner(_)
       | LoadNode::EnabledId(_)
       | LoadNode::EnabledNowId(_) => {
@@ -318,7 +318,7 @@ pub async fn amount(user_id: i64, node_id: i32) -> Result<usize, String> {
    .map_err(|err| format!("amount query: {}", err))?;
 
    // Return result
-   let res = if query.is_empty() { 0usize } 
+   let res = if query.is_empty() { 0usize }
    else {
       let res: i32 = query[0].get(0);
       res as usize
@@ -329,7 +329,7 @@ pub async fn amount(user_id: i64, node_id: i32) -> Result<usize, String> {
 pub async fn amount_add(user_id: i64, node_id: i32) -> Result<(), String> {
    let query = "INSERT INTO orders as o (user_id, node_id, amount) VALUES ($1::BIGINT, $2::INTEGER, 1)
       ON CONFLICT ON CONSTRAINT orders_pkey DO
-      UPDATE SET amount = o.amount + 1 WHERE o.user_id = $1::BIGINT AND o.node_id = $2:INTEGER";
+      UPDATE SET amount = o.amount + 1 WHERE o.user_id = $1::BIGINT AND o.node_id = $2::INTEGER";
 
    // Prepare query
    let client = db_client().await?;
@@ -402,7 +402,7 @@ pub async fn create_tables() -> bool {
             address        VARCHAR(100)   NOT NULL,
             last_seen      TIMESTAMP      NOT NULL,
             pickup         BOOLEAN        NOT NULL);
-   
+
          CREATE TABLE orders (
             PRIMARY KEY (user_id, node_id),
             user_id        BIGINT         NOT NULL,

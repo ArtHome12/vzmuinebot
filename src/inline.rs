@@ -153,7 +153,7 @@ pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSen
          update_last_seen(user)
          .await
          .map_err(|s| map_req_err(s))?;
-      
+
          // Notify about time
          if matches!(mode, WorkTime::Now) {
             let now = env::current_date_time();
@@ -201,7 +201,7 @@ async fn update_last_seen(user: &User) -> Result<(), String> {
       let name = if let Some(last_name) = &user.last_name {
          format!("{} {}", user.first_name, last_name)
       } else {user.first_name.clone()};
-   
+
       let contact = if let Some(username) = &user.username {
          format!(" @{}", username)
       } else {String::from("-")};
