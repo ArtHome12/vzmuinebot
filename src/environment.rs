@@ -92,9 +92,6 @@ pub struct Vars {
    // Часовой пояс
    time_zone: FixedOffset,
 
-   // Картинка по-умолчанию
-   // def_image_id: String,
-
    // Ссылка для рекламы
    // link: String,
 }
@@ -223,17 +220,6 @@ impl Vars {
             }
          },
 
-         // Картинка по-умолчанию
-         /* def_image_id: {
-            match env::var("DEFAULT_IMAGE_ID") {
-               Ok(s) => s,
-               Err(e) => {
-                  int_log(chat.clone(), &format!("Something wrong with DEFAULT_IMAGE_ID: {}", e)).await;
-                  String::default()
-               }
-            }
-         }, */
-
          // link,
 
          // Служебный чат
@@ -254,6 +240,16 @@ pub fn current_date_time() -> NaiveDateTime {
 
    // Текущее время
    Utc::now().with_timezone(&our_timezone).naive_local()
+}
+
+pub fn time_zode_info() -> String {
+   // Часовой пояс
+   let our_timezone = VARS.get().unwrap().time_zone.local_minus_utc() / 3600;
+   if our_timezone > 0 {
+      format!("UTC+{}", our_timezone)
+   } else {
+      format!("UTC{}", our_timezone)
+   }
 }
 
 // Возвращает истину, если user_id принадлежит администратору

@@ -73,28 +73,27 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    // DB client from the pool
    let client = db_client().await?;
 
-   // Construct statement from 3 parts: select, where and order
-   let select = String::from("SELECT id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price FROM nodes WHERE ");
+   // Construct statement from parts
+   let part_select = "SELECT id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price FROM nodes WHERE";
+   let part_owner = "owner1 = $1::BIGINT OR owner2 = $1::BIGINT OR owner3 = $1::BIGINT";
+   let part_id = "id = $1::BIGINT";
+   let part_enabled = "AND enabled = TRUE AND banned = FALSE";
+   let part_now = "AND (($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open))";
+   let part_children = "parent = $1::BIGINT";
 
    let where_tuple = match &mode {
-      LoadNode::Owner(user_id) =>  ("owner1 = $1::BIGINT OR owner2 = $1::BIGINT OR owner3 = $1::BIGINT", *user_id),
-      LoadNode::Id(id) => ("id = $1::BIGINT", *id as i64),
-      LoadNode::EnabledId(id) => ("id = $1::BIGINT AND enabled = TRUE AND banned = FALSE", *id as i64),
-      LoadNode::EnabledNowId(id) => (
-         "id = $1::BIGINT AND enabled = TRUE AND banned = FALSE AND
-         (($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open))", *id as i64
+      LoadNode::Owner(user_id) =>  (part_owner.to_string(), *user_id),
+      LoadNode::Id(id) => (part_id.to_string(), *id as i64),
+      LoadNode::EnabledId(id) => (format!("{} {}", part_id, part_enabled), *id as i64),
+      LoadNode::EnabledNowId(id) => (format!("{} {} {}", part_id, part_enabled, part_now), *id as i64
       ),
-      LoadNode::Children(node) => ("parent = $1::BIGINT", node.id as i64),
-      LoadNode::EnabledChildren(node) => ("parent = $1::BIGINT AND enabled = TRUE AND banned = FALSE", node.id as i64),
-      LoadNode::EnabledChildrenNow(node) => (
-         "parent = $1::BIGINT AND enabled = TRUE AND banned = FALSE AND
-         (($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open))", node.id as i64
+      LoadNode::Children(node) => (part_children.to_string(), node.id as i64),
+      LoadNode::EnabledChildren(node) => (format!("{} {}", part_children, part_enabled), node.id as i64),
+      LoadNode::EnabledChildrenNow(node) => (format!("{} {} {}", part_children, part_enabled, part_now), node.id as i64
       ),
    };
 
-   let order = " ORDER BY id";
-
-   let statement_text = select + where_tuple.0 + order;
+   let statement_text = format!("{} {}  ORDER BY id", part_select, where_tuple.0);
    // env::log(&format!("{} id={}", statement_text, where_tuple.1)).await;
 
    // Prepare query
