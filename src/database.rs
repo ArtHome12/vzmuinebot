@@ -87,16 +87,15 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
       LoadNode::Children(node) => ("parent = $1::BIGINT", node.id as i64),
       LoadNode::EnabledChildren(node) => ("parent = $1::BIGINT AND enabled = TRUE AND banned = FALSE", node.id as i64),
       LoadNode::EnabledChildrenNow(node) => (
-         // "parent = $1::BIGINT AND enabled = TRUE AND banned = FALSE AND
-         // (($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open))", node.id as i64
-         "parent = $1::BIGINT AND enabled = TRUE AND banned = FALSE", node.id as i64
+         "parent = $1::BIGINT AND enabled = TRUE AND banned = FALSE AND
+         (($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open))", node.id as i64
       ),
    };
 
    let order = " ORDER BY id";
 
    let statement_text = select + where_tuple.0 + order;
-   env::log(&format!("{} id={}", statement_text, where_tuple.1)).await;
+   // env::log(&format!("{} id={}", statement_text, where_tuple.1)).await;
 
    // Prepare query
    let statement = client
@@ -107,7 +106,7 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    // Run query
    let query = match &mode {
       LoadNode::EnabledNowId(_)
-      /*| &LoadNode::EnabledChildrenNow(_)*/ => {
+      | &LoadNode::EnabledChildrenNow(_) => {
          // Current local time
          let time = env::current_date_time().time();
          client.query(&statement, &[&where_tuple.1, &time]).await
@@ -131,7 +130,7 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
                child.picture = node.picture.clone();
             }
 
-            env::log(&format!("added {} id={}", child.title, child.id)).await;
+            // env::log(&format!("added {} id={}", child.title, child.id)).await;
             node.children.push(child);
          }
 

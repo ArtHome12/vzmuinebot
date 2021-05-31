@@ -117,6 +117,11 @@ pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSen
          .await?;
       } else {
 
+         // Notify about time
+         let now = env::current_date_time();
+         cx.answer(&format!("Заведения, открытые сейчас с учётом часового пояса ({}):", now.format("%H:%M")))
+         .await?;
+
          // All is ok, collect and display info
          let picture = picture.unwrap();
          let markup = markup(&node, mode);
