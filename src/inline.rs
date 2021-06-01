@@ -11,7 +11,6 @@ use teloxide::{
    prelude::*,
    types::{InputFile, InlineKeyboardButton, InlineKeyboardMarkup,
       CallbackQuery, ChatId, InputMedia, ParseMode, InputMediaPhoto,
-      User,
       //ReplyMarkup, ButtonRequest, KeyboardButton,
    },
 };
@@ -157,10 +156,7 @@ pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSen
             cx.answer("Ошибка, нет пользователя - обратитесь к администратору")
             .await?;
          }
-         let user = user.unwrap();
-         update_last_seen(user)
-         .await
-         .map_err(|s| map_req_err(s))?;
+         let user_id = user.unwrap().id;
 
          // Notify about time
          if matches!(mode, WorkTime::Now) {
@@ -171,7 +167,7 @@ pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSen
 
          // All is ok, collect and display info
          let picture = picture.unwrap();
-         let markup = markup(&node, mode, user.id)
+         let markup = markup(&node, mode, user_id)
          .await
          .map_err(|s| map_req_err(s))?;
          let text = node_text(&node);
@@ -199,31 +195,7 @@ async fn msg(text: &str, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Res
    Ok(())
 }
 
-async fn update_last_seen(user: &User) -> Result<(), String> {
-   let user_id = user.id;
-   let successful = db::user_update_last_seen(user_id).await?;
-
-   // If unsuccessful, then there is no such user
-   if !successful {
-      // Collect info about the new user and store in database
-      let name = if let Some(last_name) = &user.last_name {
-         format!("{} {}", user.first_name, last_name)
-      } else {user.first_name.clone()};
-
-      let contact = if let Some(username) = &user.username {
-         format!(" @{}", username)
-      } else {String::from("-")};
-
-      db::user_insert(user_id, name, contact).await?;
-   }
-   Ok(())
-}
-
 async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
-   // User needs to sync with basket
-   let user = &cx.update.from;
-   update_last_seen(user).await?;
-
    // Load node from database
    let load_mode = match mode {
       WorkTime::All => db::LoadNode::EnabledId(node_id),
@@ -237,6 +209,7 @@ async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, Cal
    }
 
    // Collect info
+   let user = &cx.update.from;
    let node = node.unwrap();
    let markup = markup(&node, mode, user.id)
    .await?;

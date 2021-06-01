@@ -346,7 +346,7 @@ fn markup(state: &GearState) -> ReplyMarkup {
 // [Fields editing mode]
 // ============================================================================
 pub struct GearStateEditing {
-   pub state: GearState,
+   state: GearState,
    update: UpdateNode,
 }
 

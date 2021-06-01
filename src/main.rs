@@ -10,7 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 #![allow(clippy::trivial_regex)]
 
 use std::{convert::Infallible, env, net::SocketAddr};
-use teloxide::{prelude::*, dispatching::update_listeners,};
+use teloxide::{prelude::*, dispatching::update_listeners, types::User,};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use native_tls::{TlsConnector};
@@ -25,15 +25,10 @@ mod node;
 mod states;
 mod gear;
 mod inline;
-use crate::states::Dialogue;
-
-/* async fn handle_inline_query(rx: DispatcherHandlerRx<InlineQuery>) {
-   rx.for_each_concurrent(None, |cx| async move {
-      inline::handle_message(cx).await
-   })
-  .await;
-} */
-
+mod basket;
+mod customer;
+use crate::states::*;
+use crate::database as db;
 
 // ============================================================================
 // [Run!]
@@ -153,6 +148,7 @@ async fn run() {
 
    Dispatcher::new(bot.clone())
    .messages_handler(DialogueDispatcher::new(|DialogueWithCx { cx, dialogue }| async move {
+      
       let res = handle_message(cx, dialogue.unwrap()).await;
 
       if let Err(e) = res {
@@ -171,14 +167,21 @@ async fn run() {
    .await;
 }
 
-// async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>) -> ResponseResult<Message> {
 async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dialogue) -> TransitionOut<Dialogue> {
 
    // Negative for chats, positive personal
    let chat_id = cx.update.chat_id();
 
    if chat_id > 0 {
-      // Collect info about update
+      // Insert new user or update his last seen time
+      let user = &cx.update.from();
+      if user.is_some() {
+         update_last_seen(user.unwrap())
+         .await
+         .map_err(|s| map_req_err(s))?;
+      }
+
+      // Collect info about update, if no text there may be image id
       let text = String::from(cx.update
       .text()
       .unwrap_or_else(|| {
@@ -188,11 +191,9 @@ async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dial
       }));
 
       if text == "" {
-         if let Err(e) = cx.answer("Текстовое сообщение, пожалуйста!").await {
-            log::info!("Error main handle_message(): {}", e);
-         }
+         cx.answer("Текстовое сообщение, пожалуйста!").await?;
       } else {
-         // Private messages with FSM
+         // Handle message with FSM
          return dialogue.react(cx, text).await;
       }
    }
@@ -202,16 +203,47 @@ async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dial
 async fn handle_callback_query(rx: DispatcherHandlerRx<AutoSend<Bot>, CallbackQuery>) {
   UnboundedReceiverStream::new(rx)
   .for_each_concurrent(None, |cx| async move {
-      let res = inline::update(cx).await;
-      match res {
-         Ok(()) => (),
-         Err(err) => environment::log(&format!("main::callback:{}", err)).await,
+
+      // Update user last seen time and process query
+      let user = &cx.update.from;
+      let res = update_last_seen(user).await
+      .and(inline::update(cx).await);
+
+      if let Err(err) = res {
+         environment::log(&format!("main::handle_callback_query:{}", err)).await;
       }
    })
   .await;
 }
 
+async fn update_last_seen(user: &User) -> Result<(), String> {
+   let user_id = user.id;
+   let successful = db::user_update_last_seen(user_id).await?;
 
+   // If unsuccessful, then there is no such user
+   if !successful {
+      // Collect info about the new user and store in database
+      let name = if let Some(last_name) = &user.last_name {
+         format!("{} {}", user.first_name, last_name)
+      } else {user.first_name.clone()};
+
+      let contact = if let Some(username) = &user.username {
+         format!(" @{}", username)
+      } else {String::from("-")};
+
+      db::user_insert(user_id, name, contact).await?;
+   }
+   Ok(())
+}
+
+
+
+/* async fn handle_inline_query(rx: DispatcherHandlerRx<InlineQuery>) {
+   rx.for_each_concurrent(None, |cx| async move {
+      inline::handle_message(cx).await
+   })
+  .await;
+} */
 
 // Отправить сообщение
 /* pub async fn send_message(bot: &Arc<Bot>, chat_id: ChatId, s: &str) -> bool {

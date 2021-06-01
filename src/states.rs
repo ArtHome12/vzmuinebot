@@ -19,7 +19,7 @@ use async_recursion::async_recursion;
 
 use crate::environment as env;
 use crate::gear::*;
-
+use crate::basket::*;
 
 // FSM states
 #[derive(Transition, From)]
@@ -28,6 +28,8 @@ pub enum Dialogue {
    Command(CommandState), // await for select menu item from bottom
    Settings(GearState), // in settings menu
    SettingsSubmode(GearStateEditing), // in settings menu edit field
+   Basket(BasketState), // in basket menu
+   BasketSubmode(BasketStateEditing),
 }
 
 impl Default for Dialogue {
@@ -177,12 +179,7 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
       MainMenu::Gear => crate::gear::enter(state, cx).await,
       MainMenu::All => crate::inline::enter(state, WorkTime::All, cx).await,
       MainMenu::Now => crate::inline::enter(state, WorkTime::Now, cx).await,
-      MainMenu::Basket => {
-         cx.answer(format!("Команда {} находится в разработке", ans))
-         .reply_markup(markup())
-         .await?;
-         next(state)
-      }
+      MainMenu::Basket => crate::basket::enter(state, cx).await,
       MainMenu::Unknown => {
          cx.answer(format!("Неизвестная команда {}. Пожалуйста, выберите одну из команд внизу (если панель с кнопками скрыта, откройте её)", ans))
          .reply_markup(markup())

@@ -15,6 +15,7 @@ use async_recursion::async_recursion;
 
 use crate::environment as env;
 use crate::node::*;
+use crate::customer::*;
 
 // Пул клиентов БД
 pub type PoolAlias = Pool<MakeTlsConnector>;
@@ -298,6 +299,16 @@ pub async fn user_insert(id: i64, name: String, contact: String) -> Result<(), S
    Ok(())
 }
 
+pub async fn user(_user_id: i64) -> Result<Customer, String> {
+   let res = Customer {
+      name: "Name".to_string(),
+      contact: "contact".to_string(),
+      address: None,
+      delivery: Delivery::Courier,
+   };
+   Ok(res)
+}
+
 // ============================================================================
 // [Orders]
 // ============================================================================
@@ -351,26 +362,24 @@ pub async fn amount_inc(user_id: i64, node_id: i32) -> Result<(), String> {
 }
 
 pub async fn amount_dec(user_id: i64, node_id: i32) -> Result<(), String> {
-   let query = "INSERT INTO orders as o (user_id, node_id, amount) VALUES ($1::BIGINT, $2::INTEGER, 1)
-      ON CONFLICT ON CONSTRAINT orders_pkey DO
-      UPDATE SET amount = o.amount + 1 WHERE o.user_id = $1::BIGINT AND o.node_id = $2::INTEGER";
+   let query = "UPDATE orders SET amount = amount - 1 WHERE user_id = $1::BIGINT AND node_id = $2::INTEGER";
 
    // Prepare query
    let client = db_client().await?;
    let statement = client
    .prepare(&query)
    .await
-   .map_err(|err| format!("amount_add prepare: {}", err))?;
+   .map_err(|err| format!("amount_dec prepare: {}", err))?;
 
    // Run query
    let query = client
    .execute(&statement, &[&user_id, &node_id])
    .await
-   .map_err(|err| format!("amount_add execute: {}", err))?;
+   .map_err(|err| format!("amount_dec execute: {}", err))?;
 
    // Return result
    if query != 1 {
-      Err(format!("amount_add execute user_id={}, node_id={} return {} recs instead one", user_id, node_id, query))
+      Err(format!("amount_dec execute user_id={}, node_id={} return {} recs instead one", user_id, node_id, query))
    } else { Ok(()) }
 }
 
