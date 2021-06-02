@@ -300,7 +300,7 @@ pub async fn user_insert(id: i64, name: String, contact: String) -> Result<(), S
 }
 
 pub async fn user(user_id: i64) -> Result<Customer, String> {
-   let sql_text = "SELECT user_name, contact, address, pickup)  WHERE user_id=$1::BIGINT";
+   let sql_text = "SELECT user_name, contact, address, pickup WHERE user_id=$1::BIGINT";
 
    // Prepare query
    let client = db_client().await?;
