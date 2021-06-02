@@ -299,14 +299,40 @@ pub async fn user_insert(id: i64, name: String, contact: String) -> Result<(), S
    Ok(())
 }
 
-pub async fn user(_user_id: i64) -> Result<Customer, String> {
-   let res = Customer {
-      name: String::from("Name"),
-      contact: String::from("contact"),
-      address: String::default(),
-      delivery: Delivery::Courier,
-   };
-   Ok(res)
+pub async fn user(user_id: i64) -> Result<Customer, String> {
+   let sql_text = "SELECT user_name, contact, address, pickup)  WHERE user_id=$1::BIGINT";
+
+   // Prepare query
+   let client = db_client().await?;
+   let statement = client
+   .prepare(&sql_text)
+   .await
+   .map_err(|err| format!("user prepare: {}", err))?;
+
+   // Run query
+   let query = client
+   .query(&statement, &[&user_id])
+   .await
+   .map_err(|err| format!("user query: {}", err))?;
+
+   // Return result
+   let len = query.len();
+   if len == 1 {
+      let row = &query[0];
+
+      let delivery = if row.get(3) { Delivery::Pickup } else { Delivery::Courier };
+
+      let res = Customer {
+         name: row.get(0),
+         contact: row.get(1),
+         address:  row.get(2),
+         delivery,
+      };
+
+      Ok(res)
+   } else {
+      Err(format!("user query return: {} recs instead one", len))
+   }
 }
 
 async fn update_user_str(id: i64, new_val: &String, field: &str) -> Result<(), String> {
@@ -315,7 +341,7 @@ async fn update_user_str(id: i64, new_val: &String, field: &str) -> Result<(), S
 }
 
 pub async fn update_user_name(id: i64, name: &String) -> Result<(), String> {
-   update_user_str(id, name, "name").await
+   update_user_str(id, name, "user_name").await
 }
 
 pub async fn update_user_contact(id: i64, contact: &String) -> Result<(), String> {
