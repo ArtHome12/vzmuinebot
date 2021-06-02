@@ -10,6 +10,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 #![allow(clippy::trivial_regex)]
 
 use std::{convert::Infallible, env, net::SocketAddr};
+use customer::Customer;
 use teloxide::{prelude::*, dispatching::update_listeners, types::User,};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -181,14 +182,19 @@ async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dial
          .map_err(|s| map_req_err(s))?;
       }
 
-      // Collect info about update, if no text there may be image id
-      let text = String::from(cx.update
-      .text()
-      .unwrap_or_else(|| {
-         let picture = cx.update.photo();
-         if let Some(sizes) = picture { sizes[0].file_id.as_str() }
-         else { "" }
-      }));
+      // Collect info about update, if no text there may be image id or location
+      let text = match cx.update.text() {
+         Some(text) => String::from(text),
+         None => {
+            let picture = cx.update.photo();
+            if let Some(sizes) = picture {
+               sizes[0].file_id.clone()
+            } else if let Some(_) = cx.update.location() {
+               Customer::make_location(cx.update.id)
+            } else {String::default()}
+   
+         }
+      };
 
       if text == "" {
          cx.answer("Текстовое сообщение, пожалуйста!").await?;

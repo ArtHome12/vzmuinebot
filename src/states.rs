@@ -89,7 +89,7 @@ pub fn flag_markup() -> ReplyMarkup {
 
 // Construct keyboard from strings
 pub fn kb_markup(keyboard: Vec<Vec<String>>) -> ReplyMarkup {
-   let kb:  Vec<Vec<KeyboardButton>> = keyboard.iter()
+   let kb: Vec<Vec<KeyboardButton>> = keyboard.iter()
    .map(|row| {
       row.iter()
       .map(|label| KeyboardButton::new(label))

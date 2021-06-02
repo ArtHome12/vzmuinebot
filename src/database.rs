@@ -301,12 +301,35 @@ pub async fn user_insert(id: i64, name: String, contact: String) -> Result<(), S
 
 pub async fn user(_user_id: i64) -> Result<Customer, String> {
    let res = Customer {
-      name: "Name".to_string(),
-      contact: "contact".to_string(),
-      address: None,
+      name: String::from("Name"),
+      contact: String::from("contact"),
+      address: String::default(),
       delivery: Delivery::Courier,
    };
    Ok(res)
+}
+
+async fn update_user_str(id: i64, new_val: &String, field: &str) -> Result<(), String> {
+   let text = format!("UPDATE users SET {} = $1::VARCHAR WHERE user_id=$2::BIGINT", field);
+   execute_one(text.as_str(), &[new_val, &id]).await
+}
+
+pub async fn update_user_name(id: i64, name: &String) -> Result<(), String> {
+   update_user_str(id, name, "name").await
+}
+
+pub async fn update_user_contact(id: i64, contact: &String) -> Result<(), String> {
+   update_user_str(id, contact, "contact").await
+}
+
+pub async fn update_user_address(id: i64, address: &String) -> Result<(), String> {
+   update_user_str(id, address, "address").await
+}
+
+pub async fn update_user_delivery(id: i64, delivery: &Delivery) -> Result<(), String> {
+   let text = "UPDATE users SET pickup = $1::BOOLEAN WHERE user_id=$2::BIGINT";
+   let new_val = matches!(delivery, Delivery::Pickup);
+   execute_one(text, &[&new_val, &id]).await
 }
 
 // ============================================================================

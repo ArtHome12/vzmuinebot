@@ -7,9 +7,10 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use teloxide::types::ReplyMarkup;
 use teloxide_macros::teloxide;
-use teloxide::{prelude::*, payloads::SendMessageSetters,};
+use teloxide::{prelude::*, payloads::SendMessageSetters,
+   types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, ButtonRequest}
+};
 use std::str::FromStr;
 use strum::{AsRefStr, EnumString, EnumMessage, };
 use enum_default::EnumDefault;
@@ -150,76 +151,39 @@ pub struct BasketStateEditing {
 #[teloxide(subtransition)]
 async fn update_edit(mut state: BasketStateEditing, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
    async fn do_update(state: &mut BasketStateEditing, ans: String) -> Result<String, String> {
-      let res = if ans == String::from("/") {
-         String::from("Отмена, значение не изменено")
-      } else {
-         // Store new value
+      if ans == String::from("/") {
+         return Ok(String::from("Отмена, значение не изменено"));
+      }
 
-         String::from("Новое значение сохранено")
-
-         /* state.update.kind = match state.update.kind {
-            UpdateKind::Text(_) => UpdateKind::Text(ans),
-            UpdateKind::Picture(_) => {
-               // Delete previous if new id too short
-               let id = if ans.len() >= 3 { Some(ans) } else { None };
-               UpdateKind::Picture(id)
+      // Store new value
+      let user_id = state.state.state.user_id;
+      match state.cmd {
+         EditCmd::Name => {
+            db::update_user_name(user_id, &ans).await?;
+            state.state.customer.name = ans;
+         }
+         EditCmd::Contact => {
+            db::update_user_contact(user_id, &ans).await?;
+            state.state.customer.contact = ans;
+         }
+         EditCmd::Address => {
+            db::update_user_address(user_id, &ans).await?;
+            state.state.customer.address = ans;
+         }
+         EditCmd::Delivery => {
+            // Parse answer
+            let delivery = Delivery::from_str(ans.as_str());
+            if delivery.is_err() {
+               return Ok(String::from("Ошибка, способ доставки не изменён"));
             }
-            UpdateKind::Flag(_) => {
-               let flag = to_flag(ans)?;
-               UpdateKind::Flag(flag)
-            }
-            UpdateKind::Int(_) => {
-               let res = ans.parse::<i64>();
-               if let Ok(int) = res {
-                  UpdateKind::Int(int)
-               } else {
-                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать в число, значение не изменено", ans))
-               }
-            }
-            UpdateKind::Time(_, _) => {
-               let part1 = ans.get(..5).unwrap_or_default();
-               let part2 = ans.get(6..).unwrap_or_default();
-               let part1 = NaiveTime::parse_from_str(part1, "%H:%M");
-               let part2 = NaiveTime::parse_from_str(part2, "%H:%M");
 
-               if part1.is_ok() && part2.is_ok() {
-                  UpdateKind::Time(part1.unwrap(), part2.unwrap())
-               } else {
-                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать во время работы типа '07:00-21:00', значение не изменено", ans))
-               }
-            }
-            UpdateKind::Money(_) => {
-               let res = ans.parse::<i32>();
-               if let Ok(int) = res {
-                  UpdateKind::Money(int)
-               } else {
-                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать в число, значение не изменено", ans))
-               }
-            }
-         };
+            let delivery = delivery.unwrap();
+            db::update_user_delivery(user_id, &delivery).await?;
+            state.state.customer.delivery = delivery;
+         }
+      }
 
-         // Peek current node
-         let node = state.state.stack.last_mut().unwrap();
-
-         // Update database
-         let node_id = node.id;
-         db::update_node(node_id, &state.update).await?;
-
-         // If change in databse is successful, update the stack
-         node.update(&state.update)?;
-
-         let len = state.state.stack.len();
-         if len > 1 {
-            let parent = state.state.stack.get_mut(len - 2).unwrap();
-            for child in &mut parent.children {
-               if child.id == node_id {
-                  child.update(&state.update)?;
-                  break;
-               }
-            }
-         } */
-      };
-      Ok(res)
+      Ok(String::from("Новое значение сохранено"))
    }
 
    // Report result
@@ -237,8 +201,8 @@ async fn update_edit(mut state: BasketStateEditing, cx: TransitionIn<AutoSend<Bo
 async fn enter_edit(state: BasketStateEditing, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
    let (info, markup) = match state.cmd {
       EditCmd::Name => (format!("Пожалуйста, {}, укажите как курьер может к Вам обращаться или нажмите / для отмены", state.state.customer.name), cancel_markup()),
-      EditCmd::Contact => (format!("Пожалуйста, укажите как курьер может c Вами связаться (текущее значение '{}') или нажмите / для отмены", state.state.customer.contact), cancel_markup()),
-      EditCmd::Address => (format!("Текущее значение '{}', введите новый адрес, отправьте геопозицию или нажмите / для отмены", state.state.customer.name), cancel_markup()),
+      EditCmd::Contact => (format!("Если хотите дать возможность ресторатору связаться с вами напрямую, укажите контакты (текущее значение '{}') или нажмите / для отмены", state.state.customer.contact), cancel_markup()),
+      EditCmd::Address => (format!("Введите адрес для доставки или укажите точку на карте (/ для отмены), текущее значение '{}'. Также вы можете отправить произвольную точку или даже транслировать её изменение, для этого нажмите скрепку 📎 и выберите геопозицию.", state.state.customer.name), address_markup()),
       EditCmd::Delivery => (format!("Текущее значение '{}', укажите как курьер может к Вам обращаться или нажмите / для отмены", state.state.customer.name), delivery_markup()),
    };
 
@@ -249,9 +213,21 @@ async fn enter_edit(state: BasketStateEditing, cx: TransitionIn<AutoSend<Bot>>) 
    next(state)
 }
 
-pub fn delivery_markup() -> ReplyMarkup {
+fn delivery_markup() -> ReplyMarkup {
    kb_markup(vec![vec![
       String::from(Delivery::Courier.as_ref()),
       String::from(Delivery::Pickup.as_ref())
    ]])
+}
+
+fn address_markup() -> ReplyMarkup {
+   let kb = vec![
+      KeyboardButton::new("Геопозиция").request(ButtonRequest::Location),
+      KeyboardButton::new("/"),
+   ];
+
+   let markup = KeyboardMarkup::new(vec![kb])
+   .resize_keyboard(true);
+
+   ReplyMarkup::Keyboard(markup)
 }
