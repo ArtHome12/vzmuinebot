@@ -202,8 +202,35 @@ async fn enter_edit(state: BasketStateEditing, cx: TransitionIn<AutoSend<Bot>>) 
    let (info, markup) = match state.cmd {
       EditCmd::Name => (format!("Пожалуйста, {}, укажите как курьер может к Вам обращаться или нажмите / для отмены", state.state.customer.name), cancel_markup()),
       EditCmd::Contact => (format!("Если хотите дать возможность ресторатору связаться с вами напрямую, укажите контакты (текущее значение '{}') или нажмите / для отмены", state.state.customer.contact), cancel_markup()),
-      EditCmd::Address => (format!("Введите адрес для доставки или укажите точку на карте (/ для отмены), текущее значение '{}'. Также вы можете отправить произвольную точку или даже транслировать её изменение, для этого нажмите скрепку 📎 и выберите геопозицию.", state.state.customer.name), address_markup()),
-      EditCmd::Delivery => (format!("Текущее значение '{}', укажите как курьер может к Вам обращаться или нажмите / для отмены", state.state.customer.name), delivery_markup()),
+      EditCmd::Address => {
+         let customer = &state.state.customer;
+
+         // Form a description of the address with a possible display of the geolocation
+         let addr_desc = match customer.location_id() {
+            Ok(message_id) => {
+               // Try to forward geolocation message from history
+               let from = cx.update.chat_id(); // from bot
+               let to = state.state.state.user_id; // to user
+               let res = cx.requester.forward_message(from, to, message_id).await;
+               match res {
+                  Ok(_) => String::from("прежняя геопозиция в сообщении выше"),
+                  Err(_) => String::from("сохранённая геопозиция больше недоступна"),
+               }
+            }
+            Err(()) => {
+               if customer.is_location() {
+                  String::from("сохранённая геопозиция больше недоступна")
+               } else {
+                  format!("текущий адрес '{}'", customer.address)
+               }
+            }
+         };
+
+         (format!("Введите адрес для доставки или укажите точку на карте (/ для отмены), {}. Также вы можете отправить произвольную точку или даже транслировать её изменение, для этого нажмите скрепку 📎 и выберите геопозицию.", 
+         addr_desc),
+         address_markup())
+      }
+      EditCmd::Delivery => (format!("Текущее значение '{}', выберите способ доставки", state.state.customer.delivery_desc()), delivery_markup()),
    };
 
    cx.answer(info)

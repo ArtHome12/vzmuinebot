@@ -47,4 +47,14 @@ impl Customer {
    pub fn is_location(&self) -> bool {
       self.address.starts_with("Location")
    }
+
+   pub fn location_id(&self) -> Result<i32, ()> {
+      if self.is_location() {
+         self.address.get(8..)
+         .and_then(|s| s.parse::<i32>().ok())
+         .ok_or(())
+      } else {
+         Err(())
+      }
+   }
 }
