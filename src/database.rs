@@ -432,6 +432,12 @@ pub async fn amount_dec(user_id: i64, node_id: i32) -> Result<(), String> {
    } else { Ok(()) }
 }
 
+pub async fn orders(user_id: i64) -> Result<Vec<Node>, String> {
+   let res = vec![];
+   Ok(res)
+}
+
+
 // ============================================================================
 // [Misc]
 // ============================================================================

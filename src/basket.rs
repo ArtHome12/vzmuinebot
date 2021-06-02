@@ -107,7 +107,6 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
 }
 
 pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
-
    // Start with info about user
    let info = format!("Ваши данные, {}:\nКонтакт для связи: {}\nСпособ доставки: {}",
       state.customer.name,
@@ -116,8 +115,17 @@ pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> Trans
    );
 
    // Add info about orders
+   let user_id = state.state.user_id;
+   let orders = db::orders(user_id)
+   .await
+   .map_err(|s| map_req_err(s))?;
+   let orders_desc = if orders.len() == 0 {
+      format!("\n\nКорзина пуста")
+   } else {
+      format!("\n\nВ корзине {} поз. на общую сумму 0", orders.len())
+   };
 
-   cx.answer(info)
+   cx.answer(format!("{}\n\n{}", info, orders_desc))
    .reply_markup(markup())
    .await?;
 
