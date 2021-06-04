@@ -43,7 +43,7 @@ impl Orders {
       if self.data.is_empty() {
          String::from("Корзина пуста")
       } else {
-         format!("В корзине {} поз. на общую сумму 0", 0);
+         format!("В корзине {} поз. на общую сумму 0", 0)
       }
    }
 
