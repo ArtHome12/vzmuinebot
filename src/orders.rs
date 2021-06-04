@@ -44,7 +44,6 @@ impl Orders {
          String::from("Корзина пуста")
       } else {
          format!("В корзине {} поз. на общую сумму 0", 0);
-         todo!()
       }
    }
 
