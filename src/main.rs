@@ -28,6 +28,7 @@ mod gear;
 mod inline;
 mod basket;
 mod customer;
+mod orders;
 use crate::states::*;
 use crate::database as db;
 

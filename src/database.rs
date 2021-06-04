@@ -16,6 +16,7 @@ use async_recursion::async_recursion;
 use crate::environment as env;
 use crate::node::*;
 use crate::customer::*;
+use crate::orders::*;
 
 // Пул клиентов БД
 pub type PoolAlias = Pool<MakeTlsConnector>;
@@ -31,6 +32,7 @@ pub enum LoadNode {
    Owner(i64), // load first node with this owner
    Id(i32), // load node with specified id
    EnabledId(i32), // like Id but without disabled
+   EnabledIdNoChildren(i32), // like EnabledId but without children
    EnabledNowId(i32), // like EnabledId but opened now
    Children(Node), // load children nodes for this
    EnabledChildren(Node), // like Children but without disabled
@@ -85,13 +87,12 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    let where_tuple = match &mode {
       LoadNode::Owner(user_id) =>  (part_owner.to_string(), *user_id),
       LoadNode::Id(id) => (part_id.to_string(), *id as i64),
-      LoadNode::EnabledId(id) => (format!("{} {}", part_id, part_enabled), *id as i64),
-      LoadNode::EnabledNowId(id) => (format!("{} {} {}", part_id, part_enabled, part_now), *id as i64
-      ),
+      LoadNode::EnabledId(id)
+      | LoadNode::EnabledIdNoChildren(id) => (format!("{} {}", part_id, part_enabled), *id as i64),
+      LoadNode::EnabledNowId(id) => (format!("{} {} {}", part_id, part_enabled, part_now), *id as i64),
       LoadNode::Children(node) => (part_children.to_string(), node.id as i64),
       LoadNode::EnabledChildren(node) => (format!("{} {}", part_children, part_enabled), node.id as i64),
-      LoadNode::EnabledChildrenNow(node) => (format!("{} {} {}", part_children, part_enabled, part_now), node.id as i64
-      ),
+      LoadNode::EnabledChildrenNow(node) => (format!("{} {} {}", part_children, part_enabled, part_now), node.id as i64),
    };
 
    let statement_text = format!("{} {}  ORDER BY id", part_select, where_tuple.0);
@@ -148,6 +149,11 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
             let child_mode = convert_kind(mode, res.unwrap());
             res = do_load_children(child_mode).await?;
          }
+         Ok(res)
+      }
+
+      LoadNode::EnabledIdNoChildren(_) => {
+         let res = do_load_node(query).await?;
          Ok(res)
       }
    }
@@ -432,9 +438,88 @@ pub async fn amount_dec(user_id: i64, node_id: i32) -> Result<(), String> {
    } else { Ok(()) }
 }
 
-pub async fn orders(user_id: i64) -> Result<Vec<Node>, String> {
-   let res = vec![];
-   Ok(res)
+pub async fn orders(user_id: i64) -> Result<Orders, String> {
+   struct Order {
+      node_id: i32,
+      amount: i32,
+   }
+   async fn do_load_orders(user_id: i64) -> Result<Vec<Order>, String> {
+      let query = "SELECT node_id, amount FROM orders WHERE user_id = $1::BIGINT AND amount > 0";
+
+      // Prepare query
+      let client = db_client().await?;
+      let statement = client
+      .prepare(&query)
+      .await
+      .map_err(|err| format!("orders prepare: {}", err))?;
+
+      // Run query
+      let query = client
+      .query(&statement, &[&user_id])
+      .await
+      .map_err(|err| format!("orders query: {}", err))?;
+
+      // Return result
+      let res = query.iter()
+      .map(|row| Order {
+         node_id: row.get(0),
+         amount: row.get(1),
+      }).collect();
+      Ok(res)
+   }
+
+   async fn do_lookup_owner(start_id: i32) -> Result<i64, String> {
+      let query = "WITH RECURSIVE cte AS (
+         SELECT id, parent, owner1 FROM nodes WHERE id = $1::INTEGER
+         UNION SELECT n.id, n.parent, n.owner1 FROM nodes n
+         INNER JOIN cte ON cte.parent = n.id
+      ) SELECT owner1 FROM cte WHERE owner1 > 0 LIMIT 1";
+
+      // Prepare query
+      let client = db_client().await?;
+      let statement = client
+      .prepare(&query)
+      .await
+      .map_err(|err| format!("do_lookup_owner prepare: {}", err))?;
+
+      // Run query
+      let query = client
+      .query(&statement, &[&start_id])
+      .await
+      .map_err(|err| format!("do_lookup_owner query: {}", err))?;
+
+      // Collect result
+      let res = query.last()
+      .map(|row| row.get(0))
+      .unwrap_or_default();
+
+      Ok(res)
+   }
+
+   // Load node ids and amounts
+   let orders = do_load_orders(user_id).await?;
+
+   // Load nodes
+   let mut tickets = Orders::new();
+   for order in orders {
+      let node = node(LoadNode::EnabledIdNoChildren(order.node_id)).await?;
+
+      if let Some(mut node) = node {
+
+         // Lookup for owner (for grouping later)
+         if node.owners[0] == 0 {
+            node.owners[0] = do_lookup_owner(node.parent).await?;
+         }
+
+         let node = NodeWithAmount{
+            amount: order.amount,
+            node,
+         };
+         tickets.add(node);
+      }
+   }
+
+   Ok(tickets)
 }
 
 

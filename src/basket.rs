@@ -119,15 +119,18 @@ pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> Trans
    let orders = db::orders(user_id)
    .await
    .map_err(|s| map_req_err(s))?;
-   let orders_desc = if orders.len() == 0 {
-      format!("\n\nКорзина пуста")
-   } else {
-      format!("\n\nВ корзине {} поз. на общую сумму 0", orders.len())
-   };
 
-   cx.answer(format!("{}\n\n{}", info, orders_desc))
+   // Announce
+   cx.answer(format!("{}\n\n{}", info, orders.announce()))
    .reply_markup(markup())
    .await?;
+
+   // Messages by owners
+   for owner in orders.owners() {
+      cx.answer(orders.descr(owner))
+      .reply_markup(markup())
+      .await?;
+   }
 
    next(state)
 }
