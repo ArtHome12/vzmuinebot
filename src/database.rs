@@ -7,11 +7,13 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
+use std::collections::HashMap;
 use once_cell::sync::{OnceCell};
 use deadpool_postgres::{Pool, Client, };
 use postgres_native_tls::MakeTlsConnector;
 use tokio_postgres::{types::ToSql, Row, };
 use async_recursion::async_recursion;
+
 
 use crate::environment as env;
 use crate::node::*;
@@ -236,6 +238,10 @@ pub async fn delete_node(id: i32) -> Result<(), String> {
    if children_num > 0 {
       return Err(format!("delete_node has {} children", children_num));
    }
+
+   // Delete orders of node
+   let text = "DELETE FROM orders WHERE node_id = $1::INTEGER";
+   execute_one(text, &[&id]).await?;
 
    // Delete node
    let text = "DELETE FROM nodes WHERE id = $1::INTEGER";
@@ -468,12 +474,12 @@ pub async fn orders(user_id: i64) -> Result<Orders, String> {
       Ok(res)
    }
 
-   async fn do_lookup_owner(start_id: i32) -> Result<i64, String> {
+   async fn do_lookup_owner(start_id: i32) -> Result<i32, String> {
       let query = "WITH RECURSIVE cte AS (
          SELECT id, parent, owner1 FROM nodes WHERE id = $1::INTEGER
          UNION SELECT n.id, n.parent, n.owner1 FROM nodes n
          INNER JOIN cte ON cte.parent = n.id
-      ) SELECT owner1 FROM cte WHERE owner1 > 0 LIMIT 1";
+      ) SELECT id FROM cte WHERE owner1 > 0 LIMIT 1";
 
       // Prepare query
       let client = db_client().await?;
@@ -497,29 +503,43 @@ pub async fn orders(user_id: i64) -> Result<Orders, String> {
    }
 
    // Load node ids and amounts
-   let orders = do_load_orders(user_id).await?;
+   let id_amount_pair = do_load_orders(user_id).await?;
 
-   // Load nodes
-   let mut tickets = Orders::new();
-   for order in orders {
-      let node = node(LoadNode::EnabledIdNoChildren(order.node_id)).await?;
+   // Load nodes and group its by owner
+   let mut orders: HashMap<i32, Vec<NodeWithAmount>> = HashMap::new();
+   for item in id_amount_pair {
+      let node = node(LoadNode::EnabledIdNoChildren(item.node_id)).await?;
 
-      if let Some(mut node) = node {
+      if let Some(node) = node {
 
          // Lookup for owner (for grouping later)
-         if node.owners[0] == 0 {
-            node.owners[0] = do_lookup_owner(node.parent).await?;
-         }
+         let node_with_owner = if node.owners[0] > 0 { node.id }
+         else { do_lookup_owner(node.parent).await? };
 
          let node = NodeWithAmount{
-            amount: order.amount,
+            amount: item.amount,
             node,
          };
-         tickets.add(node);
+
+         // Add to existing owner or to the new
+         let owner = orders.get_mut(&node_with_owner);
+         match owner {
+            Some(owner) => owner.push(node),
+            None => { orders.insert(node_with_owner, vec![node]); },
+         }
       }
    }
 
-   Ok(tickets)
+   // Load owners node for contact info
+   let mut res = Orders::new();
+   for order in orders {
+      let owner = node(LoadNode::EnabledIdNoChildren(order.0)).await?;
+      if let Some(owner) = owner {
+         res.data.insert(owner, order.1);
+      }
+   }
+
+   Ok(res)
 }
 
 

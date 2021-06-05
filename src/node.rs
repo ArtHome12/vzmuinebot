@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use chrono::{NaiveTime};
 use tokio_postgres::{Row, };
-
+use std::hash::{Hash, Hasher};
 
 pub type Owners = [i64; 3];
 
@@ -63,6 +63,17 @@ pub struct UpdateNode {
    pub field: String,
 }
 
+// we will compare `Node`s by their `a` value only.
+impl PartialEq for Node {
+   fn eq(&self, other: &Self) -> bool { self.id == other.id }
+}
+
+impl Eq for Node {}
+
+// we will hash `Node`s by their `a` value only.
+impl Hash for Node {
+   fn hash<H: Hasher>(&self, h: &mut H) { self.id.hash(h); }
+}
 
 impl Node {
    pub fn new(parent: i32) -> Self {

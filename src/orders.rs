@@ -18,8 +18,9 @@ pub struct NodeWithAmount {
 
 pub type Order = Vec<NodeWithAmount>;
 
+
 pub struct Orders {
-   pub data: HashMap<i64, Order>,
+   pub data: HashMap<Node, Order>,
 }
 
 impl Orders {
@@ -29,13 +30,12 @@ impl Orders {
       }
    }
 
-   pub fn add(&mut self, node: NodeWithAmount) {
+   /*pub fn add(&mut self, owner: Node, order: NodeWithAmount) {
       // Group nodes by owner
-      let owner = node.node.owners[0];
-      let order = self.data.get_mut(&owner);
-      match order {
-         Some(order) => order.push(node),
-         None => { self.data.insert(owner, vec![node]); },
+      let owner_orders = self.data.get_mut(&owner);
+      match owner_orders {
+         Some(owner_order) => owner_order.push(order),
+         None => { self.data.insert(owner, vec![order]); },
       }
    }
 
@@ -48,7 +48,7 @@ impl Orders {
    }
 
    pub fn descr(&self, owner: i64) -> String {
-      format!("owner={} with {} items", owner, self.data.get(&owner).unwrap().len())
+      format!("owner={} with {} items", owner, 0)
    }
 
    pub fn owners(&self) -> Vec<i64> {
@@ -56,5 +56,5 @@ impl Orders {
       .keys()
       .map(|v| *v)
       .collect()
-   }
+   } */
 }

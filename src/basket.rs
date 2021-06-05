@@ -114,20 +114,27 @@ pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> Trans
       state.customer.delivery_desc()
    );
 
-   // Add info about orders
+   // Load info about orders
    let user_id = state.state.user_id;
    let orders = db::orders(user_id)
    .await
    .map_err(|s| map_req_err(s))?;
 
    // Announce
-   cx.answer(format!("{}\n\n{}", info, orders.announce()))
+   let announce = if orders.data.is_empty() {
+      String::from("Корзина пуста")
+   } else {
+      format!("В корзине {} поз. на общую сумму 0", 0)
+   };
+   cx.answer(format!("{}\n\n{}", info, announce))
    .reply_markup(markup())
    .await?;
 
    // Messages by owners
-   for owner in orders.owners() {
-      cx.answer(orders.descr(owner))
+   for owner in orders.data {
+      let owner_descr = owner.0.title;
+
+      cx.answer(owner_descr)
       .reply_markup(markup())
       .await?;
    }
