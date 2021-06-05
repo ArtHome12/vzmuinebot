@@ -41,30 +41,24 @@ impl Command {
    pub fn parse(s: &str) -> Self {
       // Looking for the commands with arguments
       let cmd = s.get(..3).unwrap_or_default();
-      let arg = |s: &str| {
-         s.get(3..)
-         .unwrap_or_default()
-         .parse().unwrap_or_default()
-      };
+      let arg = s.get(3..)
+      .unwrap_or_default()
+      .parse().unwrap_or_default();
 
       if cmd == Self::Pass(0).as_ref() {
-         let arg = arg;
-         Command::Pass(arg(s))
+         Command::Pass(arg)
       } else if cmd == Self::PassNow(0).as_ref() {
-         let arg = arg;
-         Command::PassNow(arg(s))
+         Command::PassNow(arg)
       } else if cmd == Self::IncAmount(0).as_ref() {
-         let arg = arg;
-         Command::IncAmount(arg(s))
+         Command::IncAmount(arg)
       } else if cmd == Self::IncAmountNow(0).as_ref() {
-         let arg = arg;
-         Command::IncAmountNow(arg(s))
+         Command::IncAmountNow(arg)
       } else if cmd == Self::DecAmount(0).as_ref() {
-         let arg = arg;
-         Command::DecAmount(arg(s))
+         Command::DecAmount(arg)
       } else if cmd == Self::DecAmountNow(0).as_ref() {
-         let arg = arg;
-         Command::DecAmountNow(arg(s))
+         Command::DecAmountNow(arg)
+      } else if cmd == Self::MakeTicket(0).as_ref() {
+         Command::MakeTicket(arg)
       } else {
          Command::Unknown
       }
@@ -91,8 +85,6 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
    let query = &cx.update;
    let query_id = &query.id;
 
-   let debug = query.data.clone().unwrap_or(String::default());
-
    // Parse and process commands by receiving a message to send back
    let cmd = Command::parse(
       query.data.clone()
@@ -117,8 +109,7 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
          "В разработке"
       }
 
-      // Command::Unknown => "Неизвестная команда",
-      Command::Unknown => debug.as_str(),
+      Command::Unknown => "Неизвестная команда",
    };
 
    // Отправляем ответ, который показывается во всплывающем окошке
