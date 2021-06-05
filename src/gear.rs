@@ -18,7 +18,7 @@ use enum_default::EnumDefault;
 use crate::states::*;
 use crate::database as db;
 use crate::node::*;
-use crate::environment::*;
+use crate::environment as env;
 
 // ============================================================================
 // [Main entry]
@@ -112,9 +112,9 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          // Extract current node from stack
          let mut node = state.stack.pop().unwrap();
 
-         // Store a new child node in database
-         let child = Node::new(node.id);
-         db::insert_node(&child)
+         // Store a new child node in database with updating id
+         let mut child = Node::new(node.id);
+         db::insert_node(&mut child)
          .await
          .map_err(|s| map_req_err(s))?;
 
@@ -260,7 +260,7 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
       let state = GearState { state, stack: vec![node.unwrap()] };
       view(state, cx).await
    } else {
-      let contact = admin_contact_info();
+      let contact = env::admin_contact_info();
       let text = format!("Для доступа в режим ввода информации обратитесь к '{}' и сообщите ему свой id={}", contact, state.user_id);
       cx.answer(text).await?;
       exit(cx).await
@@ -283,6 +283,12 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    let node = state.stack.last().unwrap();
    if node.descr.len() > 1 {
       title = title + "\nОписание: " + node.descr.as_str();
+   }
+
+   // Add price
+   let price = node.price;
+   if price > 0 {
+      title = format!("{}\nЦена: {}", title, env::price_with_unit(price));
    }
 
    // Add other info

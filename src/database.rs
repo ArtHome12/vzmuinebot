@@ -161,24 +161,14 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
 }
 
 async fn lookup_picture(node_id: i32) -> Result<Option<String>, String> {
-   let query = "WITH RECURSIVE cte AS (
+   let sql_text = "WITH RECURSIVE cte AS (
          SELECT id, parent, picture FROM nodes WHERE id = $1::INTEGER
          UNION SELECT n.id, n.parent, n.picture FROM nodes n
          INNER JOIN cte ON cte.parent = n.id
       ) SELECT picture FROM cte WHERE picture IS NOT NULL LIMIT 1";
 
-   // Prepare query
-   let client = db_client().await?;
-   let statement = client
-   .prepare(&query)
-   .await
-   .map_err(|err| format!("lookup_picture prepare: {}", err))?;
-
    // Run query
-   let query = client
-   .query(&statement, &[&node_id])
-   .await
-   .map_err(|err| format!("lookup_picture query: {}", err))?;
+   let query = query_prepared(sql_text, &[&node_id]).await?;
 
    // Collect result
    let res = query.last()
@@ -187,10 +177,11 @@ async fn lookup_picture(node_id: i32) -> Result<Option<String>, String> {
    Ok(res)
 }
 
-pub async fn insert_node(node: &Node) -> Result<(), String> {
+pub async fn insert_node(node: &mut Node) -> Result<(), String> {
    // Information for query
    let sql_text = "INSERT INTO nodes (parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price) \
-      VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::BOOLEAN, $7::BIGINT, $8::BIGINT, $9::BIGINT, $10::TIME, $11::TIME, $12::INTEGER)";
+      VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::BOOLEAN, $7::BIGINT, $8::BIGINT, $9::BIGINT, $10::TIME, $11::TIME, $12::INTEGER)
+      RETURNING id";
 
    let i32_price = node.price as i32;
    let params: Params = &[&node.parent,
@@ -206,8 +197,15 @@ pub async fn insert_node(node: &Node) -> Result<(), String> {
       &node.time.1,
       &i32_price];
 
-   // Run query
-   execute_prepared_one(sql_text, params).await
+   // Run query and get id of the newly added record
+   let query = query_prepared(sql_text, params).await?;
+   let len = query.len();
+   if len == 1 {
+      node.id = query[0].get(0);
+      Ok(())
+   } else {
+      Err(format!("insert_node get {} rec insted zero", len))
+   }
 }
 
 pub async fn delete_node(id: i32) -> Result<(), String> {
@@ -663,10 +661,26 @@ async fn execute_prepared(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Res
    Ok(query)
 }
 
-async fn execute_prepared_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(), String> {
+/* async fn execute_prepared_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(), String> {
    // Only one record has to be updated
    let updated = execute_prepared(sql_text, params).await?;
    if updated == 1 { Ok(()) }
    else { Err(format!("execute_prepare_one {} updated {} records", sql_text, updated)) }
-}
+} */
 
+async fn query_prepared(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<Vec<Row>, String> {
+   // Prepare query
+   let client = db_client().await?;
+   let statement = client
+   .prepare(&sql_text)
+   .await
+   .map_err(|err| format!("select_prepared {} prepare: {}", sql_text, err))?;
+
+   // Run query
+   let query = client
+   .query(&statement, params)
+   .await
+   .map_err(|err| format!("select_prepared {} query: {}", sql_text, err))?;
+
+   Ok(query)
+}
