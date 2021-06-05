@@ -31,6 +31,8 @@ enum Command {
    #[strum(to_string = "Выход")]
    Exit, // return to start menu
    Edit(EditCmd),
+   #[strum(to_string = "/del")]
+   Delete(i32),
    Unknown,
 }
 
@@ -55,7 +57,15 @@ impl Command {
       } else {
          // Try as main command
          Self::from_str(s)
-         .unwrap_or(Command::Unknown)
+         .unwrap_or_else(|_| {
+            // Looking for the commands with arguments
+            if s.get(..4).unwrap_or_default() == Self::Delete(0).as_ref() {
+               let r_part = s.get(4..).unwrap_or_default();
+               Command::Delete(r_part.parse().unwrap_or_default())
+            } else {
+               Command::Unknown
+            }
+         })
       }
    }
 }
@@ -73,20 +83,29 @@ async fn update(state: BasketState, cx: TransitionIn<AutoSend<Bot>>, ans: String
    let cmd = Command::parse(ans.as_str());
    match cmd {
       Command::Clear => {
-         cx.answer(format!("В разработке"))
-         .reply_markup(markup())
-         .await?;
+         db::delete_orders(state.state.user_id)
+         .await
+         .map_err(|s| map_req_err(s))?;
 
-         // Stay in place
-         next(state)
+         // Reload basket
+         enter(state.state, cx).await
       }
 
       Command::Exit => crate::states::enter(StartState { restarted: false }, cx, String::default()).await,
 
       Command::Edit(cmd) => enter_edit(BasketStateEditing { state, cmd }, cx).await,
 
+      Command::Delete(node_id) => {
+         db::delete_order(state.state.user_id, node_id)
+         .await
+         .map_err(|s| map_req_err(s))?;
+
+         // Reload basket
+         enter(state.state, cx).await
+      }
+
       Command::Unknown => {
-         cx.answer(format!("Неизвестная команда '{}', вы находитесь в корзине", ans))
+         cx.answer(format!("Неизвестная команда '{}', вы находитесь в заказах", ans))
          .reply_markup(markup())
          .await?;
 

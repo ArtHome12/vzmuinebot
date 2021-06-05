@@ -98,7 +98,6 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    };
 
    let statement_text = format!("{} {}  ORDER BY id", part_select, where_tuple.0);
-   // env::log(&format!("{} id={}", statement_text, where_tuple.1)).await;
 
    // Prepare query
    let statement = client
@@ -189,11 +188,8 @@ async fn lookup_picture(node_id: i32) -> Result<Option<String>, String> {
 }
 
 pub async fn insert_node(node: &Node) -> Result<(), String> {
-   // DB client from the pool
-   let client = db_client().await?;
-
    // Information for query
-   let statement_text = "INSERT INTO nodes (parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price) \
+   let sql_text = "INSERT INTO nodes (parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price) \
       VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::BOOLEAN, $7::BIGINT, $8::BIGINT, $9::BIGINT, $10::TIME, $11::TIME, $12::INTEGER)";
 
    let i32_price = node.price as i32;
@@ -210,20 +206,8 @@ pub async fn insert_node(node: &Node) -> Result<(), String> {
       &node.time.1,
       &i32_price];
 
-   // Prepare query
-   let statement = client
-   .prepare(&statement_text)
-   .await
-   .map_err(|err| format!("insert_node prepare: {}", err))?;
-
    // Run query
-   let query = client.execute(&statement, params)
-   .await
-   .map_err(|err| format!("insert_node execute: {}", err))?;
-
-   // Only one record has to be updated
-   if query == 1 { Ok(()) }
-   else { Err(format!("insert_node updated {} records", query)) }
+   execute_prepared_one(sql_text, params).await
 }
 
 pub async fn delete_node(id: i32) -> Result<(), String> {
@@ -544,6 +528,16 @@ pub async fn orders(user_id: i64) -> Result<Orders, String> {
    Ok(res)
 }
 
+pub async fn delete_order(user_id: i64, node_id: i32) -> Result<(), String> {
+   let text = "DELETE FROM orders WHERE user_id = $1::BIGINT AND node_id = $2::INTEGER";
+   execute_one(text, &[&user_id, &node_id]).await
+}
+
+pub async fn delete_orders(user_id: i64) -> Result<(), String> {
+   let text = "DELETE FROM orders WHERE user_id = $1::BIGINT OR amount < 1";
+   execute_prepared_one(text, &[&user_id]).await
+}
+
 
 // ============================================================================
 // [Misc]
@@ -648,5 +642,25 @@ async fn execute_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(
    // Only one records has to be affected
    if query == 1 { Ok(()) }
    else { Err(format!("execute_one {}: affected {} records instead one (params: {:?})", sql_text, query, params)) }
+}
+
+async fn execute_prepared_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(), String> {
+   // DB client from the pool
+   let client = db_client().await?;
+
+   // Prepare query
+   let statement = client
+   .prepare(&sql_text)
+   .await
+   .map_err(|err| format!("execute_prepare_one {} prepare: {}", sql_text, err))?;
+
+   // Run query
+   let query = client.execute(&statement, params)
+   .await
+   .map_err(|err| format!("execute_prepare_one {} prepare: {}", sql_text, err))?;
+
+   // Only one record has to be updated
+   if query == 1 { Ok(()) }
+   else { Err(format!("execute_prepare_one {} updated {} records", sql_text, query)) }
 }
 
