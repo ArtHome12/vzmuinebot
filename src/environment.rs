@@ -242,7 +242,7 @@ pub fn current_date_time() -> NaiveDateTime {
    Utc::now().with_timezone(&our_timezone).naive_local()
 }
 
-pub fn time_zode_info() -> String {
+pub fn time_zone_info() -> String {
    // Часовой пояс
    let our_timezone = VARS.get().unwrap().time_zone.local_minus_utc() / 3600;
    if our_timezone > 0 {

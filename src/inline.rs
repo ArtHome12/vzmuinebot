@@ -161,7 +161,7 @@ pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSen
          // Notify about time
          if matches!(mode, WorkTime::Now) {
             let now = env::current_date_time();
-            cx.answer(&format!("Заведения, открытые сейчас с учётом часового пояса {} ({}):", env::time_zode_info(), now.format("%H:%M")))
+            cx.answer(&format!("Заведения, открытые сейчас с учётом часового пояса {} ({}):", env::time_zone_info(), now.format("%H:%M")))
             .await?;
          }
 

@@ -9,9 +9,9 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide_macros::teloxide;
 use teloxide::{prelude::*, payloads::SendMessageSetters,
-   types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, ButtonRequest}
-};
-use std::str::FromStr;
+   types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, 
+   ParseMode, ButtonRequest}
+};use std::str::FromStr;
 use strum::{AsRefStr, EnumString, EnumMessage, };
 use enum_default::EnumDefault;
 
@@ -138,10 +138,20 @@ pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> Trans
 
    // Messages by owners
    for owner in orders.data {
-      let owner_descr = owner.0.title;
+      
+      // Prepare info about owner
+      let node = owner.0;
+      let descr = if node.descr.len() <= 1 { String::default() } 
+      else { format!("\n{}", node.descr) };
 
-      cx.answer(owner_descr)
+      let time = if node.time.0 == node.time.1 { String::from("\nКруглосуточно") }
+      else { format!("\nВремя {}-{}", node.time.0.format("%H:%M"), node.time.1.format("%H:%M")) };
+
+      let text = node.title + descr.as_str() + time.as_str();
+
+      cx.answer(text)
       .reply_markup(markup())
+      .parse_mode(ParseMode::Html)
       .await?;
    }
 
