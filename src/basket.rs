@@ -10,7 +10,8 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use teloxide_macros::teloxide;
 use teloxide::{prelude::*, payloads::SendMessageSetters,
    types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, 
-   ParseMode, ButtonRequest}
+      ParseMode, ButtonRequest, InlineKeyboardButton, InlineKeyboardMarkup,
+   }
 };use std::str::FromStr;
 use strum::{AsRefStr, EnumString, EnumMessage, };
 use enum_default::EnumDefault;
@@ -19,6 +20,7 @@ use crate::states::*;
 use crate::database as db;
 use crate::customer::*;
 use crate::environment as env;
+use crate::callback as cb;
 
 // ============================================================================
 // [Main entry]
@@ -183,7 +185,7 @@ pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> Trans
       let text = node.title + descr.as_str() + time.as_str() + items.as_str();
 
       cx.answer(text)
-      .reply_markup(markup())
+      .reply_markup(order_markup(node.id))
       .parse_mode(ParseMode::Html)
       .await?;
    }
@@ -207,6 +209,14 @@ fn markup() -> ReplyMarkup {
    kb_markup(keyboard)
 }
 
+fn order_markup(node_id: i32) -> InlineKeyboardMarkup {
+   let button = InlineKeyboardButton::callback(
+      String::from("Оформить через бота"), 
+      format!("{}{}", cb::Command::MakeTicket(0).as_ref(), node_id)
+   );
+   InlineKeyboardMarkup::default()
+   .append_row(vec![button])
+}
 // ============================================================================
 // [Fields editing mode]
 // ============================================================================
