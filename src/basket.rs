@@ -144,10 +144,24 @@ pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> Trans
       let descr = if node.descr.len() <= 1 { String::default() } 
       else { format!("\n{}", node.descr) };
 
-      let time = if node.time.0 == node.time.1 { String::from("\nКруглосуточно") }
-      else { format!("\nВремя {}-{}", node.time.0.format("%H:%M"), node.time.1.format("%H:%M")) };
+      let time = if node.time.0 == node.time.1 { String::from("\nВремя: круглосуточно") }
+      else { format!("\nВремя: {}-{}", node.time.0.format("%H:%M"), node.time.1.format("%H:%M")) };
 
-      let text = node.title + descr.as_str() + time.as_str();
+      // Info about items
+      let items = owner.1.iter()
+      .fold(String::from("\n"), |acc, item| {
+         let price = item.node.price;
+         let amount = item.amount;
+         format!("{}\n{}: {} x {} шт. = {} /del{}", acc,
+            item.node.title,
+            price,
+            amount,
+            env::price_with_unit(price * amount),
+            item.node.id
+         )
+      });
+
+      let text = node.title + descr.as_str() + time.as_str() + items.as_str();
 
       cx.answer(text)
       .reply_markup(markup())
