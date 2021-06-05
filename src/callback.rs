@@ -114,10 +114,11 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
       Command::DecAmountNow(node_id) => do_dec(node_id, WorkTime::All, &cx).await?,
 
       Command::MakeTicket(node_id) => {
-         debug.as_str()
+         "В разработке"
       }
 
-      Command::Unknown => "Неизвестная команда",
+      // Command::Unknown => "Неизвестная команда",
+      Command::Unknown => debug.as_str(),
    };
 
    // Отправляем ответ, который показывается во всплывающем окошке

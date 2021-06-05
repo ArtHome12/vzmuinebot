@@ -175,8 +175,11 @@ async fn markup(node: &Node, mode: WorkTime, user_id: i64) -> Result<InlineKeybo
    let buttons: Vec<InlineKeyboardButton> = node.children
    .iter()
    .map(|child| {
+      let price = if child.price > 0 { String::from(" ") + &env::price_with_unit(child.price) }
+      else { String::default() };
+   
       InlineKeyboardButton::callback(
-      format!("{} {}", child.title, env::non_zero_price(child.price)),
+      format!("{} {}", child.title, price),
       format!("{}{}", pas, child.id)
    )})
    .collect();
