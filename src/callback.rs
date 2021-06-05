@@ -91,6 +91,8 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
    let query = &cx.update;
    let query_id = &query.id;
 
+   let debug = query.data.clone().unwrap_or(String::default());
+
    // Parse and process commands by receiving a message to send back
    let cmd = Command::parse(
       query.data.clone()
@@ -112,7 +114,7 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
       Command::DecAmountNow(node_id) => do_dec(node_id, WorkTime::All, &cx).await?,
 
       Command::MakeTicket(node_id) => {
-         "В разработке"
+         debug.as_str()
       }
 
       Command::Unknown => "Неизвестная команда",

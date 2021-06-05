@@ -174,10 +174,11 @@ async fn markup(node: &Node, mode: WorkTime, user_id: i64) -> Result<InlineKeybo
    // Create buttons for each child
    let buttons: Vec<InlineKeyboardButton> = node.children
    .iter()
-   .map(|child| (InlineKeyboardButton::callback(
-      child.title.clone(),
+   .map(|child| {
+      InlineKeyboardButton::callback(
+      format!("{} {}", child.title, env::non_zero_price(child.price)),
       format!("{}{}", pas, child.id)
-   )))
+   )})
    .collect();
 
    // Separate into long and short

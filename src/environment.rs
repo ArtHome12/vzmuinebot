@@ -271,6 +271,11 @@ pub fn price_with_unit(price: usize) -> String {
    format!("{}{}", price,  VARS.get().unwrap().price_unit)
 }
 
+pub fn non_zero_price(price: usize) -> String {
+   if price > 0 { price_with_unit(price) }
+   else { String::default() }
+}
+
 // Картинка по-умолчанию для использования в качестве заглушки в режиме с инлайн-кнопками
 /* pub fn def_image() -> String {
    VARS.get().unwrap().def_image_id.clone()

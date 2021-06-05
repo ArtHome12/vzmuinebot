@@ -224,7 +224,7 @@ pub async fn delete_node(id: i32) -> Result<(), String> {
 
    // Delete orders of node
    let text = "DELETE FROM orders WHERE node_id = $1::INTEGER";
-   execute_one(text, &[&id]).await?;
+   execute(text, &[&id]).await?;
 
    // Delete node
    let text = "DELETE FROM nodes WHERE id = $1::INTEGER";
@@ -629,14 +629,20 @@ async fn db_client() -> Result<Client::<MakeTlsConnector>, String> {
    }
 }
 
-async fn execute_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(), String> {
+async fn execute(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, String> {
    // DB client from the pool
    let client = db_client().await?;
 
    // Run query
    let query = client.execute(sql_text, params)
    .await
-   .map_err(|err| format!("execute_one {} execute: {}", sql_text, err))?;
+   .map_err(|err| format!("execute {} execute: {}", sql_text, err))?;
+   Ok(query)
+}
+
+async fn execute_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(), String> {
+   // Run query
+   let query = execute(sql_text, params).await?;
 
    // Only one records has to be affected
    if query == 1 { Ok(()) }
