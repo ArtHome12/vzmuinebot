@@ -389,7 +389,7 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
                }
             }
             UpdateKind::Money(_) => {
-               let res = ans.parse::<i32>();
+               let res = ans.parse::<usize>();
                if let Ok(int) = res {
                   UpdateKind::Money(int)
                } else {

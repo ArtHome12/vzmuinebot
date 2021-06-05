@@ -25,7 +25,7 @@ pub struct Node {
    pub banned: bool,
    pub owners: Owners,
    pub time: (NaiveTime, NaiveTime),
-   pub price: i32,
+   pub price: usize,
 }
 
 impl From<&Row> for Node {
@@ -41,7 +41,7 @@ impl From<&Row> for Node {
          banned: row.get(6),
          owners: [row.get(7), row.get(8), row.get(9)],
          time: (row.get(10), row.get(11)),
-         price: row.get(12),
+         price: row.get::<usize, i32>(12) as usize,
       }
    }
 }
@@ -54,7 +54,7 @@ pub enum UpdateKind {
    Flag(bool),
    Int(i64),
    Time(NaiveTime, NaiveTime),
-   Money(i32),
+   Money(usize),
 }
 
 #[derive(Debug, Clone)]
@@ -124,7 +124,7 @@ impl Node {
          else { Err(String::from("node::update type time mismatch")) }
       }
 
-      fn check_money(kind: &UpdateKind) -> Result<i32, String> {
+      fn check_money(kind: &UpdateKind) -> Result<usize, String> {
          if let UpdateKind::Money(res) = kind { Ok(*res) }
          else { Err(String::from("node::update type int mismatch")) }
       }

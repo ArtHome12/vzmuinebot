@@ -196,6 +196,7 @@ pub async fn insert_node(node: &Node) -> Result<(), String> {
    let statement_text = "INSERT INTO nodes (parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price) \
       VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::BOOLEAN, $7::BIGINT, $8::BIGINT, $9::BIGINT, $10::TIME, $11::TIME, $12::INTEGER)";
 
+   let i32_price = node.price as i32;
    let params: Params = &[&node.parent,
       &node.title,
       &node.descr,
@@ -207,7 +208,7 @@ pub async fn insert_node(node: &Node) -> Result<(), String> {
       &node.owners[2],
       &node.time.0,
       &node.time.1,
-      &node.price];
+      &i32_price];
 
    // Prepare query
    let statement = client
@@ -272,7 +273,8 @@ pub async fn update_node(id: i32, update: &UpdateNode) -> Result<(), String> {
       }
       UpdateKind::Money(new_val) => {
          let text = format!("UPDATE nodes SET {} = $1::INTEGER WHERE id=$2::INTEGER", update.field);
-         execute_one(text.as_str(), &[new_val, &id]).await
+         let i32_new_val = *new_val as i32;
+         execute_one(text.as_str(), &[&i32_new_val, &id]).await
       }
    }
 }
@@ -517,7 +519,7 @@ pub async fn orders(user_id: i64) -> Result<Orders, String> {
          else { do_lookup_owner(node.parent).await? };
 
          let node = NodeWithAmount{
-            amount: item.amount,
+            amount: item.amount as usize,
             node,
          };
 

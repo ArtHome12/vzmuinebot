@@ -18,6 +18,7 @@ use enum_default::EnumDefault;
 use crate::states::*;
 use crate::database as db;
 use crate::customer::*;
+use crate::environment as env;
 
 // ============================================================================
 // [Main entry]
@@ -121,10 +122,15 @@ pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> Trans
    .map_err(|s| map_req_err(s))?;
 
    // Announce
-   let announce = if orders.data.is_empty() {
+   let basket_info = orders.basket_info();
+   let announce = if basket_info.orders_num == 0 {
       String::from("Корзина пуста")
    } else {
-      format!("В корзине {} поз. на общую сумму 0", 0)
+      format!("В корзине {} поз., {} шт. на общую сумму {}",
+         basket_info.orders_num,
+         basket_info.items_num,
+         env::price_with_unit(basket_info.total_cost)
+      )
    };
    cx.answer(format!("{}\n\n{}", info, announce))
    .reply_markup(markup())

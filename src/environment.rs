@@ -267,7 +267,7 @@ pub fn is_admin_id(user_id: i64) -> bool {
 }
 
 // Форматирование цены с единицей измерения
-pub fn price_with_unit(price: i32) -> String {
+pub fn price_with_unit(price: usize) -> String {
    format!("{}{}", price,  VARS.get().unwrap().price_unit)
 }
 

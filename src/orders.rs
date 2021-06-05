@@ -12,12 +12,23 @@ use std::collections::HashMap;
 use crate::node::*;
 
 pub struct NodeWithAmount {
-   pub amount: i32,
+   pub amount: usize,
    pub node: Node,
+}
+
+impl NodeWithAmount {
+    pub fn cost(&self) -> usize {
+       self.amount * self.node.price
+    }
 }
 
 pub type Order = Vec<NodeWithAmount>;
 
+pub struct BasketInfo {
+   pub orders_num: usize,
+   pub items_num: usize,
+   pub total_cost: usize,
+}
 
 pub struct Orders {
    pub data: HashMap<Node, Order>,
@@ -30,31 +41,24 @@ impl Orders {
       }
    }
 
-   /*pub fn add(&mut self, owner: Node, order: NodeWithAmount) {
-      // Group nodes by owner
-      let owner_orders = self.data.get_mut(&owner);
-      match owner_orders {
-         Some(owner_order) => owner_order.push(order),
-         None => { self.data.insert(owner, vec![order]); },
-      }
-   }
+   pub fn basket_info(&self) -> BasketInfo {
+      let mut res = BasketInfo {
+         orders_num: 0,
+         items_num: 0,
+         total_cost: 0
+      };
 
-   pub fn announce(&self) -> String {
-      if self.data.is_empty() {
-         String::from("Корзина пуста")
-      } else {
-         format!("В корзине {} поз. на общую сумму 0", 0)
-      }
-   }
+      for owner in &self.data {
+         let (o, i, t) = owner.1.iter()
+         .fold((0, 0, 0), |acc, v| {
+            (acc.0 + 1, acc.1 + v.amount, acc.2 + v.cost())
+         });
 
-   pub fn descr(&self, owner: i64) -> String {
-      format!("owner={} with {} items", owner, 0)
-   }
+         res.orders_num += o;
+         res.items_num += i;
+         res.total_cost += t;
+      };
 
-   pub fn owners(&self) -> Vec<i64> {
-      self.data
-      .keys()
-      .map(|v| *v)
-      .collect()
-   } */
+      res
+   }
 }
