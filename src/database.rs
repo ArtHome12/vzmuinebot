@@ -535,7 +535,8 @@ pub async fn delete_order(user_id: i64, node_id: i32) -> Result<(), String> {
 
 pub async fn delete_orders(user_id: i64) -> Result<(), String> {
    let text = "DELETE FROM orders WHERE user_id = $1::BIGINT OR amount < 1";
-   execute_prepared_one(text, &[&user_id]).await
+   execute_prepared(text, &[&user_id]).await?;
+   Ok(())
 }
 
 
@@ -644,7 +645,7 @@ async fn execute_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(
    else { Err(format!("execute_one {}: affected {} records instead one (params: {:?})", sql_text, query, params)) }
 }
 
-async fn execute_prepared_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(), String> {
+async fn execute_prepared(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, String> {
    // DB client from the pool
    let client = db_client().await?;
 
@@ -652,15 +653,20 @@ async fn execute_prepared_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) ->
    let statement = client
    .prepare(&sql_text)
    .await
-   .map_err(|err| format!("execute_prepare_one {} prepare: {}", sql_text, err))?;
+   .map_err(|err| format!("execute_prepared {} prepare: {}", sql_text, err))?;
 
    // Run query
    let query = client.execute(&statement, params)
    .await
-   .map_err(|err| format!("execute_prepare_one {} prepare: {}", sql_text, err))?;
+   .map_err(|err| format!("execute_prepared {} prepare: {}", sql_text, err))?;
 
+   Ok(query)
+}
+
+async fn execute_prepared_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(), String> {
    // Only one record has to be updated
-   if query == 1 { Ok(()) }
-   else { Err(format!("execute_prepare_one {} updated {} records", sql_text, query)) }
+   let updated = execute_prepared(sql_text, params).await?;
+   if updated == 1 { Ok(()) }
+   else { Err(format!("execute_prepare_one {} updated {} records", sql_text, updated)) }
 }
 
