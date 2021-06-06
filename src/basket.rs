@@ -21,6 +21,8 @@ use crate::database as db;
 use crate::customer::*;
 use crate::environment as env;
 use crate::callback as cb;
+use crate::node;
+use crate::orders;
 
 // ============================================================================
 // [Main entry]
@@ -159,38 +161,43 @@ pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> Trans
 
    // Messages by owners
    for owner in orders.data {
-      
-      // Prepare info about owner
-      let node = owner.0;
-      let descr = if node.descr.len() <= 1 { String::default() } 
-      else { format!("\n{}", node.descr) };
-
-      let time = if node.time.0 == node.time.1 { String::from("\nВремя: круглосуточно") }
-      else { format!("\nВремя: {}-{}", node.time.0.format("%H:%M"), node.time.1.format("%H:%M")) };
-
-      // Info about items
-      let items = owner.1.iter()
-      .fold(String::from("\n"), |acc, item| {
-         let price = item.node.price;
-         let amount = item.amount;
-         format!("{}\n{}: {} x {} шт. = {} /del{}", acc,
-            item.node.title,
-            price,
-            amount,
-            env::price_with_unit(price * amount),
-            item.node.id
-         )
-      });
-
-      let text = node.title + descr.as_str() + time.as_str() + items.as_str();
+      let owner_id = owner.0.id;
+      let text = make_owner_text(&owner.0, &owner.1, true);
 
       cx.answer(text)
-      .reply_markup(order_markup(node.id))
+      .reply_markup(order_markup(owner_id))
       .parse_mode(ParseMode::Html)
       .await?;
    }
 
    next(state)
+}
+
+pub fn make_owner_text(node: &node::Node, order: &orders::Order, with_command: bool) -> String {
+   // Prepare info about owner
+   let descr = if node.descr.len() <= 1 { String::default() } 
+   else { format!("\n{}", node.descr) };
+
+   let time = if node.time.0 == node.time.1 { String::from("\nВремя: круглосуточно") }
+   else { format!("\nВремя: {}-{}", node.time.0.format("%H:%M"), node.time.1.format("%H:%M")) };
+
+   // Info about items
+   let items = order.iter()
+   .fold(String::from("\n"), |acc, item| {
+      let price = item.node.price;
+      let amount = item.amount;
+      let cmd = if with_command { format!(" /del{}", item.node.id) } else { String::default() };
+
+      format!("{}\n{}: {} x {} шт. = {}{}", acc,
+         item.node.title,
+         price,
+         amount,
+         env::price_with_unit(price * amount),
+         cmd
+      )
+   });
+
+   node.title.clone() + descr.as_str() + time.as_str() + items.as_str()
 }
 
 fn markup() -> ReplyMarkup {
