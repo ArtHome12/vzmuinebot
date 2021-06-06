@@ -106,7 +106,7 @@ pub async fn make_ticket(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, node_i
    lazy_static! {
       static ref HASHTAG_REGEX : Regex = Regex::new(r" \/del\d+").unwrap();
    }
-   let text = HASHTAG_REGEX.replace_all(&old_text, "$m/$d/$y");
+   let text = HASHTAG_REGEX.replace_all(&old_text, "");
 
    // Edit the original message
    cx.requester.edit_message_text(user_id, old_message_id, text)
