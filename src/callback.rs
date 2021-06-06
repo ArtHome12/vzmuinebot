@@ -16,6 +16,7 @@ use teloxide::{
 use crate::states::*;
 use crate::database as db;
 use crate::inline;
+use crate::ticket;
 
 #[derive(AsRefStr, EnumString)]
 pub enum Command {
@@ -104,11 +105,7 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
       Command::IncAmountNow(node_id) => do_inc(node_id, WorkTime::Now, &cx).await?,
       Command::DecAmount(node_id) => do_dec(node_id, WorkTime::All, &cx).await?,
       Command::DecAmountNow(node_id) => do_dec(node_id, WorkTime::All, &cx).await?,
-
-      Command::MakeTicket(node_id) => {
-         "В разработке"
-      }
-
+      Command::MakeTicket(node_id) => ticket::make_ticket(&cx, node_id).await?,
       Command::Unknown => "Неизвестная команда",
    };
 
@@ -121,4 +118,3 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
 
    Ok(())
 }
-

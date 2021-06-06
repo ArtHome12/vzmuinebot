@@ -30,6 +30,7 @@ mod basket;
 mod customer;
 mod orders;
 mod callback;
+mod ticket;
 use crate::states::*;
 use crate::database as db;
 
