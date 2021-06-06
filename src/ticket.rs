@@ -104,7 +104,7 @@ pub async fn make_ticket(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, node_i
 
    // Remove commands from order message
    lazy_static! {
-      static ref HASHTAG_REGEX : Regex = Regex::new(r" \/del\d+").unwrap();
+      static ref HASHTAG_REGEX : Regex = Regex::new(r" /del\d+").unwrap();
    }
    let text = HASHTAG_REGEX.replace_all(&old_text, "");
 
