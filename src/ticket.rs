@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{
    prelude::*,
-   types::{CallbackQuery, },
+   types::{CallbackQuery, ParseMode, },
 };
 
 use crate::database as db;
@@ -17,7 +17,9 @@ use crate::customer::*;
 
 async fn msg(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, text: &str) -> Result<(), String> {
    let user_id = cx.update.from.id;
-   let mut ans = cx.requester.send_message(user_id, text);
+   let mut ans = cx.requester
+   .send_message(user_id, text)
+   .parse_mode(ParseMode::Html);
 
    if let Some(reply_to_id) = &cx.update.message {
       ans = ans.reply_to_message_id(reply_to_id.id);
@@ -27,6 +29,21 @@ async fn msg(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, text: &str) -> Res
    .map_err(|err| format!("ticket::msg {}", err))?;
    Ok(())
 }
+
+async fn forward_msg(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, message_id: i32) -> Result<(), String> {
+   let user_id = cx.update.from.id;
+
+   let from = &cx.update.message;
+   if from.is_none() {
+      Err(format!("forward_msg none cx.update.message for user_id={}", user_id))
+   } else {
+      let from = from.clone().unwrap().chat_id();
+      cx.requester.forward_message(user_id, from, message_id).await
+      .map_err(|err| format!("forward_msg {}", err))?;
+      Ok(())
+   }
+}
+
 
 pub async fn make_ticket(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, node_id: i32) -> Result<&'static str, String> {
 
@@ -51,13 +68,13 @@ pub async fn make_ticket(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, node_i
       match customer.is_location() {
          true => {
             // Send the customer a message with the geographic location to make sure it's still available
-            /* let message_id = customer.location_id().unwrap_or_default();
-            let from = cx.update.message.unwrap().chat_id(); // from bot
-            let res = cx.requester.forward_message(user_id, from, message_id).await;
-            match res {
-               Ok(_) => String::from("прежняя геопозиция в сообщении выше"),
-               Err(_) => String::from("сохранённая геопозиция больше недоступна"),
-            } */
+            let message_id = customer.location_id().unwrap_or_default();
+            let res = forward_msg(cx, message_id).await;
+            if let Err(err) = res {
+               let text = format!("Недоступно сообщение с геопозицией, пожалуйста обновите адрес\n<i>{}</i>", err);
+               msg(cx, &text).await?;
+               return Ok("Неудачно");
+            }
          }
 
          false => {
@@ -76,53 +93,6 @@ pub async fn make_ticket(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, node_i
    let from = ChatId::Id(i64::from(user_id));
    let to = ChatId::Id(i64::from(rest_id));
 
-   // Сообщение с геолокацией, если есть
-   let location_message = basket_info.address_message_id();
-
-      // Если не самовывоз, то проверим контактную информацию
-   if !basket_info.pickup {
-      // Если адрес слишком короткий, выходим с сообщением
-      if basket_info.address.len() < 3 {
-         let msg = String::from("Пожалуйста, введите адрес, нажав /edit_address или переключитесь на самовывоз, нажав /toggle\nЭта информация будет сохранена для последующих заказов, при необходимости вы всегда сможете её изменить");
-         let res = cx.bot.send_message(from.clone(), msg).send().await;
-         if let Err(e) = res {
-            let msg = format!("basket::send_basket 3(): {}", e);
-            settings::log(&msg).await;
-         }
-         return false;
-      } 
-
-      // Если задано местоположение на карте, надо проверить, что сообщение с геолокацией ещё доступно
-      if basket_info.is_geolocation() {
-         // Заготовим текст сообщения с ошибкой заранее
-         let err_message = String::from("Недоступно сообщение с геопозицией, пожалуйста укажите адрес ещё раз, нажав /edit_address");
-
-         // Код сообщения
-         if let Some(msg_id) = location_message {
-            // Отправим сообщение самому едоку для контроля и проверки, что нет ошибки
-            let res = cx.bot.forward_message(to.clone(), from.clone(), msg_id).send().await;
-            if let Err(e) = res {
-               let err_message = format!("{}\n<i>{}</i>", err_message, e);
-               let res = cx.bot.send_message(from.clone(), err_message)
-               .parse_mode(ParseMode::HTML)
-               .send().await;
-               if let Err(e) = res {
-                  let msg = format!("basket::send_basket 4(): {}", e);
-                  settings::log(&msg).await;
-               }
-               return false;
-            }
-         } else {
-            // Этот код никогда не должен выполниться
-            let res = cx.bot.send_message(from.clone(), err_message).send().await;
-            if let Err(e) = res {
-               let msg = format!("basket::send_basket 5(): {}", e);
-               settings::log(&msg).await;
-            }
-            return false;
-         }
-      }
-   }
 
    // Начнём с запроса информации о ресторане-получателе
    match db::restaurant(db::RestBy::Id(rest_id)).await {
