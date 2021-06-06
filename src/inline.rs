@@ -83,9 +83,10 @@ pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSen
 }
 
 async fn msg(text: &str, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
-   let message = cx.update.message.as_ref().unwrap();
-   let chat_id = ChatId::Id(message.chat_id());
-   cx.requester.send_message(chat_id, text)
+   // let message = cx.update.message.as_ref().unwrap();
+   // let chat_id = ChatId::Id(message.chat_id());
+   let user_id = cx.update.from.id;
+   cx.requester.send_message(user_id, text)
    .await
    .map_err(|err| format!("inline::msg {}", err))?;
    Ok(())
@@ -103,6 +104,7 @@ pub async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>,
       msg("Ошибка, запись недействительна, начните заново", cx).await?;
       return Ok(())
    }
+   msg("Hello", cx).await?;
 
    // Collect info
    let user = &cx.update.from;
