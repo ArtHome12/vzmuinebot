@@ -13,6 +13,7 @@ use teloxide::{
 };
 
 use crate::database as db;
+use crate::customer::*;
 
 async fn msg(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, text: &str) -> Result<(), String> {
    let user_id = cx.update.from.id;
@@ -35,9 +36,38 @@ pub async fn make_ticket(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, node_i
 
    // Check valid owner
    if owner < 9999 {
-      // let msg = String::from("Заведение пока не подключено к боту, пожалуйста скопируйте ваш заказ отправьте по указанным контактным данным напрямую, после чего можно очистить корзину");
       let text = "Заведение пока не подключено к боту, пожалуйста скопируйте ваш заказ отправьте по указанным контактным данным напрямую, после чего можно очистить корзину";
       msg(cx, text).await?;
+      return Ok("Неудачно");
+   }
+
+   // Load customer info
+   let user_id = cx.update.from.id;
+   let customer = db::user(user_id).await?;
+
+   // Check delivery address if not pickup
+   if matches!(customer.delivery, Delivery::Courier) {
+
+      match customer.is_location() {
+         true => {
+            // Send the customer a message with the geographic location to make sure it's still available
+            /* let message_id = customer.location_id().unwrap_or_default();
+            let from = cx.update.message.unwrap().chat_id(); // from bot
+            let res = cx.requester.forward_message(user_id, from, message_id).await;
+            match res {
+               Ok(_) => String::from("прежняя геопозиция в сообщении выше"),
+               Err(_) => String::from("сохранённая геопозиция больше недоступна"),
+            } */
+         }
+
+         false => {
+            if customer.address.len() < 1 {
+               let text = "Пожалуйста, введите адрес или переключитесь на самовывоз при помощи кнопок внизу.\nЭта информация будет сохранена для последующих заказов, при необходимости вы всегда сможете её изменить";
+               msg(cx, text).await?;
+               return Ok("Неудачно");
+            }
+         }
+      }
    }
 
    Ok("В разработке!")
@@ -45,36 +75,6 @@ pub async fn make_ticket(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, node_i
 /*    // Откуда и куда
    let from = ChatId::Id(i64::from(user_id));
    let to = ChatId::Id(i64::from(rest_id));
-
-   // Если у ресторана недействительный айди, предложим пользователю отправить заказ самостоятельно
-   if rest_id < 9999 {
-      let msg = String::from("Заведение пока не подключено к боту, пожалуйста скопируйте ваш заказ отправьте по указанным контактным данным напрямую, после чего можно очистить корзину");
-      let res = cx.bot.send_message(from.clone(), msg)
-      .reply_to_message_id(message_id)
-      .send().await;
-      if let Err(e) = res {
-         let msg = format!("basket::send_basket 1(): {}", e);
-         settings::log(&msg).await;
-      }
-      return false;
-   }
-
-   // Проверим корректность контактных данных
-   let basket_info = db::user_basket_info(user_id).await;
-   if basket_info.is_none() {
-      // Этот код никогда не должен выполниться
-      let msg = String::from("send_basket: Информации о пользователе нет, нажмите кнопку 'В начало', выберите блюдо заново");
-      settings::log(&msg).await;
-      let res = cx.bot.send_message(from.clone(), msg).send().await;
-      if let Err(e) = res {
-         let msg = format!("basket::send_basket 2(): {}", e);
-         settings::log(&msg).await;
-      }
-      return false;
-   }
-
-   // Проверка выше гарантирует отсутствие паники на unwrap()
-   let basket_info = basket_info.unwrap();
 
    // Сообщение с геолокацией, если есть
    let location_message = basket_info.address_message_id();

@@ -288,7 +288,7 @@ async fn enter_edit(state: BasketStateEditing, cx: TransitionIn<AutoSend<Bot>>) 
                // Try to forward geolocation message from history
                let from = cx.update.chat_id(); // from bot
                let to = state.state.state.user_id; // to user
-               let res = cx.requester.forward_message(from, to, message_id).await;
+               let res = cx.requester.forward_message(to, from, message_id).await;
                match res {
                   Ok(_) => String::from("прежняя геопозиция в сообщении выше"),
                   Err(_) => String::from("сохранённая геопозиция больше недоступна"),
