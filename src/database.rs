@@ -528,7 +528,8 @@ pub async fn orders(user_id: i64) -> Result<Orders, String> {
 
 pub async fn delete_order(user_id: i64, node_id: i32) -> Result<(), String> {
    let text = "DELETE FROM orders WHERE user_id = $1::BIGINT AND node_id = $2::INTEGER";
-   execute_one(text, &[&user_id, &node_id]).await
+   execute(text, &[&user_id, &node_id]).await?;
+   Ok(())
 }
 
 pub async fn delete_orders(user_id: i64) -> Result<(), String> {

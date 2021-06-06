@@ -162,7 +162,7 @@ pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> Trans
    // Messages by owners
    for owner in orders.data {
       let owner_id = owner.0.id;
-      let text = make_owner_text(&owner.0, &owner.1, true);
+      let text = make_owner_text(&owner.0, &owner.1);
 
       cx.answer(text)
       .reply_markup(order_markup(owner_id))
@@ -173,7 +173,7 @@ pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> Trans
    next(state)
 }
 
-pub fn make_owner_text(node: &node::Node, order: &orders::Order, with_command: bool) -> String {
+pub fn make_owner_text(node: &node::Node, order: &orders::Order) -> String {
    // Prepare info about owner
    let descr = if node.descr.len() <= 1 { String::default() } 
    else { format!("\n{}", node.descr) };
@@ -186,14 +186,13 @@ pub fn make_owner_text(node: &node::Node, order: &orders::Order, with_command: b
    .fold(String::from("\n"), |acc, item| {
       let price = item.node.price;
       let amount = item.amount;
-      let cmd = if with_command { format!(" /del{}", item.node.id) } else { String::default() };
 
-      format!("{}\n{}: {} x {} шт. = {}{}", acc,
+      format!("{}\n{}: {} x {} шт. = {} /del{}", acc,
          item.node.title,
          price,
          amount,
          env::price_with_unit(price * amount),
-         cmd
+         item.node.id
       )
    });
 

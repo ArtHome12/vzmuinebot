@@ -11,6 +11,8 @@ use teloxide::{
    prelude::*,
    types::{CallbackQuery, ParseMode, },
 };
+use regex::Regex;
+use lazy_static::lazy_static;
 
 use crate::database as db;
 use crate::customer::*;
@@ -58,6 +60,19 @@ pub async fn make_ticket(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, node_i
       return Ok("Неудачно");
    }
 
+   // Get source message text and id
+   let old_text = cx.update.message.clone()
+   .and_then(|f| f.text()
+      .and_then(|f| Some(f.to_string()))
+   );
+   if old_text.is_none() {
+      let text = "Не удаётся получить текст заказа, возможно слишком старое сообщение";
+      msg(cx, text).await?;
+      return Ok("Неудачно");
+   }
+   let old_text = old_text.unwrap();
+   let old_message_id = cx.update.message.clone().unwrap().id; // unwrap checked above
+
    // Load customer info
    let user_id = cx.update.from.id;
    let customer = db::user(user_id).await?;
@@ -86,6 +101,17 @@ pub async fn make_ticket(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, node_i
          }
       }
    }
+
+   // Remove commands from order message
+   lazy_static! {
+      static ref HASHTAG_REGEX : Regex = Regex::new(r" \/del\d+").unwrap();
+   }
+   let text = HASHTAG_REGEX.replace_all(&old_text, "$m/$d/$y");
+
+   // Edit the original message
+   cx.requester.edit_message_text(user_id, old_message_id, text)
+   .await
+   .map_err(|err| format!("make_ticket edit_message user_id={} {}", user_id, err))?;
 
    Ok("В разработке!")
 
