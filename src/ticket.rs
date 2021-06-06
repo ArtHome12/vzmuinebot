@@ -14,32 +14,31 @@ use teloxide::{
 
 use crate::database as db;
 
+async fn msg(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, text: &str) -> Result<(), String> {
+   let user_id = cx.update.from.id;
+   let mut ans = cx.requester.send_message(user_id, text);
+
+   if let Some(reply_to_id) = &cx.update.message {
+      ans = ans.reply_to_message_id(reply_to_id.id);
+   }
+
+   ans.await
+   .map_err(|err| format!("ticket::msg {}", err))?;
+   Ok(())
+}
+
 pub async fn make_ticket(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, node_id: i32) -> Result<&'static str, String> {
 
-   /* let user_id = cx.update.from.id;
-   let message = cx.update.message.as_ref().unwrap();
-   let chat_id = ChatId::Id(message.chat_id());
-   cx.requester.send_message(chat_id, text)
-   .await
-   .map_err(|err| format!("inline::msg {}", err))?;
-
    // Load owner node
-   let node = db::node(LoadNode::EnabledIdNoChildren(node_id)).await?;
+   let node = db::node(db::LoadNode::EnabledIdNoChildren(node_id)).await?;
    let owner = if let Some(node) = node { node.owners[0] } else { 0 };
 
    // Check valid owner
    if owner < 9999 {
       // let msg = String::from("Заведение пока не подключено к боту, пожалуйста скопируйте ваш заказ отправьте по указанным контактным данным напрямую, после чего можно очистить корзину");
-      let msg = "Заведение пока не подключено к боту, пожалуйста скопируйте ваш заказ отправьте по указанным контактным данным напрямую, после чего можно очистить корзину";
-      cx.bot.send_message(from.clone(), msg)
-      .reply_to_message_id(message_id)
-      .send().await;
-      if let Err(e) = res {
-         let msg = format!("basket::send_basket 1(): {}", e);
-         settings::log(&msg).await;
-      }
-      return false;
-   } */
+      let text = "Заведение пока не подключено к боту, пожалуйста скопируйте ваш заказ отправьте по указанным контактным данным напрямую, после чего можно очистить корзину";
+      msg(cx, text).await?;
+   }
 
    Ok("В разработке!")
 
