@@ -16,11 +16,13 @@ use lazy_static::lazy_static;
 
 use crate::database as db;
 use crate::customer::*;
+use crate::node;
 
-async fn msg(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, text: &str) -> Result<(), String> {
-   let user_id = cx.update.from.id;
+type Update = UpdateWithCx<AutoSend<Bot>, CallbackQuery>;
+
+async fn send_msg(receiver: i64, cx: &Update, text: &str) -> Result<(), String> {
    let mut ans = cx.requester
-   .send_message(user_id, text)
+   .send_message(receiver, text)
    .parse_mode(ParseMode::Html);
 
    if let Some(reply_to_id) = &cx.update.message {
@@ -28,35 +30,57 @@ async fn msg(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, text: &str) -> Res
    }
 
    ans.await
-   .map_err(|err| format!("ticket::msg {}", err))?;
+   .map_err(|err| format!("ticket::send_msg for receiver={} {}", receiver, err))?;
    Ok(())
 }
 
-async fn forward_msg(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, message_id: i32) -> Result<(), String> {
-   let user_id = cx.update.from.id;
-
+async fn forward_msg(receiver: i64, cx: &Update, message_id: i32) -> Result<(), String> {
    let from = &cx.update.message;
    if from.is_none() {
-      Err(format!("forward_msg none cx.update.message for user_id={}", user_id))
+      Err(format!("forward_msg none cx.update.message for receiver={}", receiver))
    } else {
       let from = from.clone().unwrap().chat_id();
-      cx.requester.forward_message(user_id, from, message_id).await
+      cx.requester.forward_message(receiver, from, message_id).await
       .map_err(|err| format!("forward_msg {}", err))?;
       Ok(())
    }
 }
 
+async fn send_msg_to_owners(owners: &node::Owners, cx: &Update, text: &str) -> Result<(), String> {
+   // Try to send to all owners
+   let owner1 = send_msg(owners[0], cx, text).await;
+   let owner2 = send_msg(owners[1], cx, text).await;
+   let owner3 = send_msg(owners[2], cx, text).await;
 
-pub async fn make_ticket(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, node_id: i32) -> Result<&'static str, String> {
+   // Report an error from owner1 if there are no successful attempts
+   owner3.or(owner2).or(owner1)
+}
 
-   // Load owner node
+async fn forward_msg_to_owners(owners: &node::Owners, cx: &Update, message_id: i32) -> Result<(), String> {
+   // Try to send to all owners
+   let owner1 = forward_msg(owners[0], cx, message_id).await;
+   let owner2 = forward_msg(owners[1], cx, message_id).await;
+   let owner3 = forward_msg(owners[2], cx, message_id).await;
+
+   // Report an error from owner1 if there are no successful attempts
+   owner3.or(owner2).or(owner1)
+}
+
+
+pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, String> {
+
+   // Load customer info
+   let user_id = cx.update.from.id;
+   let customer = db::user(user_id).await?;
+
+   // Load owners node
    let node = db::node(db::LoadNode::EnabledIdNoChildren(node_id)).await?;
-   let owner = if let Some(node) = node { node.owners[0] } else { 0 };
+   let owners = if let Some(node) = node { node.owners } else { node::Owners::default() };
 
    // Check valid owner
-   if owner < 9999 {
+   if owners[0] < 9999 && owners[1] < 9999 && owners[2] < 9999 {
       let text = "Заведение пока не подключено к боту, пожалуйста скопируйте ваш заказ отправьте по указанным контактным данным напрямую, после чего можно очистить корзину";
-      msg(cx, text).await?;
+      send_msg(user_id, cx, text).await?;
       return Ok("Неудачно");
    }
 
@@ -67,27 +91,23 @@ pub async fn make_ticket(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, node_i
    );
    if old_text.is_none() {
       let text = "Не удаётся получить текст заказа, возможно слишком старое сообщение";
-      msg(cx, text).await?;
+      send_msg(user_id, cx, text).await?;
       return Ok("Неудачно");
    }
    let old_text = old_text.unwrap();
-   let old_message_id = cx.update.message.clone().unwrap().id; // unwrap checked above
-
-   // Load customer info
-   let user_id = cx.update.from.id;
-   let customer = db::user(user_id).await?;
+   let orig_msg_id = cx.update.message.clone().unwrap().id; // unwrap checked above
 
    // Check delivery address if not pickup
    if matches!(customer.delivery, Delivery::Courier) {
 
       match customer.is_location() {
          true => {
-            // Send the customer a message with the geographic location to make sure it's still available
+            // Send to owner a message with the geographic location to make sure it's still available
             let message_id = customer.location_id().unwrap_or_default();
-            let res = forward_msg(cx, message_id).await;
+            let res = forward_msg_to_owners(&owners, cx, message_id).await;
             if let Err(err) = res {
                let text = format!("Недоступно сообщение с геопозицией, пожалуйста обновите адрес\n<i>{}</i>", err);
-               msg(cx, &text).await?;
+               send_msg(user_id, cx, &text).await?;
                return Ok("Неудачно");
             }
          }
@@ -95,63 +115,42 @@ pub async fn make_ticket(cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>, node_i
          false => {
             if customer.address.len() < 1 {
                let text = "Пожалуйста, введите адрес или переключитесь на самовывоз при помощи кнопок внизу.\nЭта информация будет сохранена для последующих заказов, при необходимости вы всегда сможете её изменить";
-               msg(cx, text).await?;
+               send_msg(user_id, cx, text).await?;
                return Ok("Неудачно");
             }
          }
       }
    }
 
-   // Remove commands from order message
+   // Edit the original message - remove commands from text
    lazy_static! {
       static ref HASHTAG_REGEX : Regex = Regex::new(r" /del\d+").unwrap();
    }
    let text = HASHTAG_REGEX.replace_all(&old_text, "");
 
-   // Edit the original message
-   cx.requester.edit_message_text(user_id, old_message_id, text)
+   cx.requester.edit_message_text(user_id, orig_msg_id, text)
    .await
    .map_err(|err| format!("make_ticket edit_message user_id={} {}", user_id, err))?;
 
+   // Send to owner info about customer
+   let text = format!("Заказ от {}:\nКонтакт для связи: {}\nСпособ доставки: {}",
+      customer.name,
+      customer.contact,
+      customer.delivery_desc()
+   );
+   send_msg_to_owners(&owners, cx, &text).await?;
+
+   // Forward edited message with order
+   forward_msg_to_owners(&owners, cx, orig_msg_id).await?;
+
+   // В БД переносим заказ из корзины в обработку
+   // Отправляем сообщение едоку со статусом заказа
+   // То же самое ресторатору
+   // сохраним ссылки на сообщения со статусом для возможности их редактирования
+
    Ok("В разработке!")
 
-/*    // Откуда и куда
-   let from = ChatId::Id(i64::from(user_id));
-   let to = ChatId::Id(i64::from(rest_id));
-
-
-   // Начнём с запроса информации о ресторане-получателе
-   match db::restaurant(db::RestBy::Id(rest_id)).await {
-      Some(rest) => {
-
-         // Заново сгенерируем текст исходного сообщения уже без команд /del в тексте, чтобы пересылать его
-         let basket_with_no_commands = db::basket_content(user_id, rest.num, rest_id, &rest.title, &rest.info, true).await;
-
-         // Ссылка на исправляемое сообщение
-         let original_message = ChatOrInlineMessage::Chat {
-            chat_id: from.clone(),
-            message_id,
-         };
-
-         // Исправим исходное сообщение на новый текст, чтобы исчезли команды и кнопка "оформить"
-         if let Err(e) = cx.bot.edit_message_text(original_message, make_basket_message_text(&basket_with_no_commands)).send().await {
-            let s = format!("Error send_basket edit_message_text(): {}", e);
-            settings::log(&s).await;
-         }
-         
-         // Информация о едоке
-         let method = if basket_info.pickup {String::from("Cамовывоз")} else {format!("Курьером по адресу {}", basket_info.address_label())};
-         let eater_info = format!("Заказ от {}\nКонтакт: {}\n{}", basket_info.name, basket_info.contact, method);
-
-         // Отправим сообщение с контактными данными (геолокация уже отправлена выше)
-         settings::log_and_notify(&eater_info).await;
-         match cx.bot.send_message(to.clone(), eater_info).send().await {
-            Ok(_) => {
-               // Пересылаем сообщение с заказом
-               settings::log_forward(from.clone(), message_id).await;
-               match cx.bot.forward_message(to.clone(), from.clone(), message_id).send().await {
-                  Ok(new_message) => {
-
+/*
                      // Переместим заказ из корзины в обработку
                      if db::order_to_ticket(user_id, rest_id, message_id, new_message.id).await {
 

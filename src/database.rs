@@ -597,6 +597,21 @@ pub async fn create_tables() -> bool {
             user_id        BIGINT         NOT NULL,
             node_id        INTEGER        NOT NULL,
             amount         INTEGER        NOT NULL);
+
+         CREATE TABLE tickets (
+            PRIMARY KEY (ticket_id),
+            ticket_id      SERIAL         NOT NULL,
+            node_id        INTEGER        NOT NULL,
+            customer       BIGINT         NOT NULL,
+            cust_msg_id    INTEGER        NOT NULL,
+            owner1_msg_id  INTEGER        NOT NULL,
+            owner2_msg_id  INTEGER        NOT NULL,
+            owner3_msg_id  INTEGER        NOT NULL,
+            stage          INTEGER        NOT NULL,
+            cust_status_msg_id     INTEGER,
+            owner1_status_msg_id   INTEGER,
+            owner2_status_msg_id   INTEGER,
+            owner3_status_msg_id   INTEGER);
    ")
    .await;
 
