@@ -20,7 +20,7 @@ use crate::node;
 
 type Update = UpdateWithCx<AutoSend<Bot>, CallbackQuery>;
 
-async fn send_msg(receiver: i64, cx: &Update, text: &str) -> Result<(), String> {
+async fn reply_msg(receiver: i64, cx: &Update, text: &str) -> Result<(), String> {
    let mut ans = cx.requester
    .send_message(receiver, text)
    .parse_mode(ParseMode::Html);
@@ -30,6 +30,15 @@ async fn send_msg(receiver: i64, cx: &Update, text: &str) -> Result<(), String> 
    }
 
    ans.await
+   .map_err(|err| format!("ticket::send_msg for receiver={} {}", receiver, err))?;
+   Ok(())
+}
+
+async fn send_msg(receiver: i64, cx: &Update, text: &str) -> Result<(), String> {
+   cx.requester
+   .send_message(receiver, text)
+   .parse_mode(ParseMode::Html)
+   .await
    .map_err(|err| format!("ticket::send_msg for receiver={} {}", receiver, err))?;
    Ok(())
 }
@@ -80,7 +89,7 @@ pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, Stri
    // Check valid owner
    if owners[0] < 9999 && owners[1] < 9999 && owners[2] < 9999 {
       let text = "Заведение пока не подключено к боту, пожалуйста скопируйте ваш заказ отправьте по указанным контактным данным напрямую, после чего можно очистить корзину";
-      send_msg(user_id, cx, text).await?;
+      reply_msg(user_id, cx, text).await?;
       return Ok("Неудачно");
    }
 
@@ -91,7 +100,7 @@ pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, Stri
    );
    if old_text.is_none() {
       let text = "Не удаётся получить текст заказа, возможно слишком старое сообщение";
-      send_msg(user_id, cx, text).await?;
+      reply_msg(user_id, cx, text).await?;
       return Ok("Неудачно");
    }
    let old_text = old_text.unwrap();
@@ -107,7 +116,7 @@ pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, Stri
             let res = forward_msg_to_owners(&owners, cx, message_id).await;
             if let Err(err) = res {
                let text = format!("Недоступно сообщение с геопозицией, пожалуйста обновите адрес\n<i>{}</i>", err);
-               send_msg(user_id, cx, &text).await?;
+               reply_msg(user_id, cx, &text).await?;
                return Ok("Неудачно");
             }
          }
@@ -115,7 +124,7 @@ pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, Stri
          false => {
             if customer.address.len() < 1 {
                let text = "Пожалуйста, введите адрес или переключитесь на самовывоз при помощи кнопок внизу.\nЭта информация будет сохранена для последующих заказов, при необходимости вы всегда сможете её изменить";
-               send_msg(user_id, cx, text).await?;
+               reply_msg(user_id, cx, text).await?;
                return Ok("Неудачно");
             }
          }
