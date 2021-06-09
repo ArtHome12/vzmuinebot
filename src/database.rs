@@ -542,7 +542,7 @@ pub async fn delete_orders(user_id: i64) -> Result<(), String> {
 // ============================================================================
 // [Tickets]
 // ============================================================================
-pub async fn order_to_ticket(node_id: i32, user_id: i64, owners_msg_id: ticket::ThreeMsgId, cust_msg_id: i32) -> Result<ticket::Ticket, String> {
+pub async fn order_to_ticket(node_id: i32, user_id: i64, owners_msg_id: ticket::ThreeMsgId, cust_msg_id: i32, service_msg_id: Option<i32>) -> Result<ticket::Ticket, String> {
 
    // Prepare query
 
@@ -566,8 +566,8 @@ pub async fn order_to_ticket(node_id: i32, user_id: i64, owners_msg_id: ticket::
    .map_err(|err| format!("order_to_ticket delete execute customer_id={}, node_id={}: {}", user_id, node_id, err))?;
 
    // Create ticket
-   let query = "INSERT INTO tickets (node_id, customer, cust_msg_id, owner1_msg_id, owner2_msg_id, owner3_msg_id, stage, cust_status_msg_id, owner1_status_msg_id, owner2_status_msg_id, owner3_status_msg_id)
-      VALUES ($1::INTEGER, $2::BIGINT, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, 'A', NULL, NULL, NULL, NULL)
+   let query = "INSERT INTO tickets (node_id, customer, cust_msg_id, owner1_msg_id, owner2_msg_id, owner3_msg_id, stage, cust_status_msg_id, owner1_status_msg_id, owner2_status_msg_id, owner3_status_msg_id, service_msg_id)
+      VALUES ($1::INTEGER, $2::BIGINT, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, 'A', NULL, NULL, NULL, NULL, $7::INTEGER)
       RETURNING ticket_id";
 
    let statement = trans
@@ -576,7 +576,7 @@ pub async fn order_to_ticket(node_id: i32, user_id: i64, owners_msg_id: ticket::
    .map_err(|err| format!("order_to_ticket insert prepare customer_id={}, node_id={}: {}", user_id, node_id, err))?;
 
    let query = trans
-   .query(&statement, &[&node_id, &user_id, &cust_msg_id, &owners_msg_id.0, &owners_msg_id.1, &owners_msg_id.2])
+   .query(&statement, &[&node_id, &user_id, &cust_msg_id, &owners_msg_id.0, &owners_msg_id.1, &owners_msg_id.2, &service_msg_id])
    .await
    .map_err(|err| format!("order_to_ticket insert query customer_id={}, node_id={}: {}", user_id, node_id, err))?;
 
@@ -602,6 +602,7 @@ pub async fn order_to_ticket(node_id: i32, user_id: i64, owners_msg_id: ticket::
       stage: ticket::Stage::OwnersConfirmation,
       cust_status_msg_id: None,
       owners_status_msg_id: (None, None, None),
+      service_msg_id,
    };
    Ok(res)
 }
@@ -624,7 +625,7 @@ pub async fn ticket_update_stage(id: i32, stage: ticket::Stage) -> Result<(), St
 pub async fn ticket_with_owners(ticket_id: i32) -> Result<ticket::TicketWithOwners, String>
 {
    // Load ticket
-   let text = "SELECT t.node_id, t.customer, t.cust_msg_id, t.owner1_msg_id, t.owner2_msg_id, t.owner3_msg_id, t.stage, t.cust_status_msg_id, t.owner1_status_msg_id, t.owner2_status_msg_id, t.owner3_status_msg_id,
+   let text = "SELECT t.node_id, t.customer, t.cust_msg_id, t.owner1_msg_id, t.owner2_msg_id, t.owner3_msg_id, t.stage, t.cust_status_msg_id, t.owner1_status_msg_id, t.owner2_status_msg_id, t.owner3_status_msg_id, service_msg_id,
       n.owner1, n.owner2, n.owner3 FROM tickets t INNER JOIN nodes n ON n.id = t.node_id
       WHERE t.ticket_id = $1::INTEGER";
    let rows = query_prepared_one(text, &[&ticket_id]).await?;
@@ -639,9 +640,10 @@ pub async fn ticket_with_owners(ticket_id: i32) -> Result<ticket::TicketWithOwne
       stage: ticket::Stage::from_str(row.get(6)).unwrap(),
       cust_status_msg_id: row.get(7),
       owners_status_msg_id: (row.get(8), row.get(9), row.get(10)),
+      service_msg_id: row.get(11),
    };
 
-   let owners: Owners = (row.get(11), row.get(12), row.get(13));
+   let owners: Owners = (row.get(12), row.get(13), row.get(14));
 
    Ok(ticket::TicketWithOwners { ticket, owners })
 }
@@ -715,10 +717,11 @@ pub async fn create_tables() -> bool {
             owner2_msg_id  INTEGER,
             owner3_msg_id  INTEGER,
             stage          CHAR           NOT NULL,
-            cust_status_msg_id     INTEGER,
-            owner1_status_msg_id   INTEGER,
-            owner2_status_msg_id   INTEGER,
-            owner3_status_msg_id   INTEGER);
+            cust_status_msg_id      INTEGER,
+            owner1_status_msg_id    INTEGER,
+            owner2_status_msg_id    INTEGER,
+            owner3_status_msg_id    INTEGER
+            service_msg_id          INTEGER);
    ")
    .await;
  

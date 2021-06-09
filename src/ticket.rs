@@ -62,6 +62,7 @@ pub struct Ticket {
    pub stage: Stage, // execution stage
    pub cust_status_msg_id: Option<i32>, // Id of message with execution status at customer side
    pub owners_status_msg_id: ThreeMsgId, // The same for owners but any two can be None
+   pub service_msg_id: Option<i32,> // Id of message in service chat
 }
 
 pub struct TicketWithOwners {

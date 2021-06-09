@@ -172,8 +172,11 @@ pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, Stri
    // Forward edited message with order and save msg id
    let owners_msg_id = forward_msg_to_owners(&owners, cx, orig_msg_id).await?;
 
+   // Send the order also to the service chat
+   let service_msg_id = env::log(&format!("{}\n---\n{}", customer_info, order_info)).await;
+
    // Delete data from orders and create ticket with owners
-   let ticket = db::order_to_ticket(node_id, user_id, owners_msg_id, cust_msg_id).await?;
+   let ticket = db::order_to_ticket(node_id, user_id, owners_msg_id, cust_msg_id, service_msg_id).await?;
 
    let t = TicketWithOwners {
       ticket,
@@ -182,9 +185,6 @@ pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, Stri
 
    // Send messages with status to customer and owners
    update_statuses(&cx, t).await?;
-
-   // Send the order also to the service chat
-   env::log(&format!("{}\n---\n{}", customer_info, order_info)).await;
 
    Ok("Успешно")
 }
@@ -268,14 +268,13 @@ pub async fn cancel_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str, 
    };
    db::ticket_update_stage(t.ticket.id, t.ticket.stage).await?;
 
-   let cust_msg_id = t.ticket.cust_msg_id;
-   let customer_id = t.ticket.customer_id;
+   let service_msg_id = t.ticket.service_msg_id;
    let stage = t.ticket.stage;
    update_statuses(cx, t).await?;
 
-   // Send the order also to the service chat
-   let status = stage.get_message();
-   env::log_forward(customer_id, cust_msg_id, status).await;
+   // Send the status also to the service chat
+   let status = stage.get_message().unwrap();
+   env::log_reply(status, service_msg_id).await;
 
    Ok("Успешно")
 }
@@ -300,12 +299,12 @@ pub async fn confirm_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str,
    t.ticket.stage = ticket::Stage::Finished;
    db::ticket_update_stage(t.ticket.id, t.ticket.stage).await?;
 
-   let cust_msg_id = t.ticket.cust_msg_id;
-   let customer_id = t.ticket.customer_id;
+   let service_msg_id = t.ticket.service_msg_id;
    update_statuses(cx, t).await?;
 
    // Send the order also to the service chat
-   env::log_forward(customer_id, cust_msg_id, Some("Заказ успешно завершён")).await;
+   let status = "Заказ успешно завершён";
+   env::log_reply(status, service_msg_id).await;
 
    Ok("Успешно")
 }
