@@ -123,23 +123,25 @@ pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, Stri
 async fn update_statuses(cx: &Update, mut t: TicketWithOwners) -> Result<(), String> {
 
    // The status change for customer is mandatory
-   let msg = update_status(&cx.requester, &mut t, Addr::Customer).await?;
-   t.ticket.cust_status_msg_id = Some(msg.id);
+   t.ticket.cust_status_msg_id = update_status(&cx.requester, &mut t, Role::Customer).await?;
 
-   // Update status for owner 0
-   t.ticket.owners_status_msg_id.0 = (t.owners.0 > VALID_USER_ID).then(||0)
-   .and(update_status(&cx.requester, &mut t, Addr::Owner1).await.ok())
-   .and_then(|f| Some(f.id));
+   // Update status for owners, ignore fail
+   t.ticket.owners_status_msg_id.0 = update_status(&cx.requester, &mut t, Role::Owner1)
+   .await
+   .ok()
+   .flatten();
 
-   // Update status for owner 1
-   t.ticket.owners_status_msg_id.1 = (t.owners.1 > VALID_USER_ID).then(||0)
-   .and(update_status(&cx.requester, &mut t, Addr::Owner2).await.ok())
-   .and_then(|f| Some(f.id));
+   // The same for owner 2
+   t.ticket.owners_status_msg_id.1 = update_status(&cx.requester, &mut t, Role::Owner2)
+   .await
+   .ok()
+   .flatten();
 
-   // Update status for owner 1
-   t.ticket.owners_status_msg_id.2 = (t.owners.2 > VALID_USER_ID).then(||0)
-   .and(update_status(&cx.requester, &mut t, Addr::Owner3).await.ok())
-   .and_then(|f| Some(f.id));
+   // The same for owner 3
+   t.ticket.owners_status_msg_id.2 = update_status(&cx.requester, &mut t, Role::Owner3)
+   .await
+   .ok()
+   .flatten();
 
    // The status change for the owner must be for at least one
    let res = t.ticket.owners_status_msg_id.0.or(t.ticket.owners_status_msg_id.1).or(t.ticket.owners_status_msg_id.2);
@@ -153,24 +155,28 @@ async fn update_statuses(cx: &Update, mut t: TicketWithOwners) -> Result<(), Str
    Ok(())
 }
 
-enum Addr {
+enum Role {
    Customer,
    Owner1,
    Owner2,
    Owner3,
 }
 
-async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, update: Addr) -> Result<Message, String> {
+async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role) -> Result<Option<i32>, String> {
    // Prepare data
-   let (receiver, order_msg_id, status_msg_id) = match update {
-      Addr::Customer => (t.ticket.customer_id, Some(t.ticket.cust_msg_id), t.ticket.cust_status_msg_id),
-      Addr::Owner1 => (t.owners.0, t.ticket.owners_msg_id.0, t.ticket.owners_status_msg_id.0),
-      Addr::Owner2 => (t.owners.1, t.ticket.owners_msg_id.1, t.ticket.owners_status_msg_id.1),
-      Addr::Owner3 => (t.owners.2, t.ticket.owners_msg_id.2, t.ticket.owners_status_msg_id.2),
+   let (receiver, order_msg_id, status_msg_id) = match role {
+      Role::Customer => (t.ticket.customer_id, Some(t.ticket.cust_msg_id), t.ticket.cust_status_msg_id),
+      Role::Owner1 => (t.owners.0, t.ticket.owners_msg_id.0, t.ticket.owners_status_msg_id.0),
+      Role::Owner2 => (t.owners.1, t.ticket.owners_msg_id.1, t.ticket.owners_status_msg_id.1),
+      Role::Owner3 => (t.owners.2, t.ticket.owners_msg_id.2, t.ticket.owners_status_msg_id.2),
    };
 
-   let (text, info_for) = match update {
-      Addr::Customer => (t.ticket.stage.get_message().unwrap(), InfoFor::Customer),
+   if receiver < VALID_USER_ID {
+      return Ok(None);
+   }
+
+   let (text, info_for) = match role {
+      Role::Customer => (t.ticket.stage.get_message().unwrap(), InfoFor::Customer),
       _ => (t.ticket.stage.get_detailed_message().unwrap(), InfoFor::Owner),
    };
    let markup = t.ticket.make_markup(info_for);
@@ -201,8 +207,10 @@ async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, update: Ad
 
    if let Some(markup) = markup { res = res.reply_markup(markup) }
 
-   res.await
-   .map_err(|err| format!("registration::update_status user_id={}: {}", receiver, err))
+   let res = res.await
+   .map_err(|err| format!("registration::update_status user_id={}: {}", receiver, err))?;
+
+   Ok(Some(res.id))
 }
 
 pub async fn cancel_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str, String> {
@@ -267,7 +275,7 @@ async fn reply_msg(receiver: i64, cx: &Update, text: &str) -> Result<(), String>
    }
 
    ans.await
-   .map_err(|err| format!("ticket::send_msg for receiver={} {}", receiver, err))?;
+   .map_err(|err| format!("registration::::send_msg for receiver={} {}", receiver, err))?;
    Ok(())
 }
 
@@ -276,14 +284,14 @@ async fn send_msg(receiver: i64, cx: &Update, text: &str) -> ResultMessage {
    .send_message(receiver, text)
    .parse_mode(ParseMode::Html)
    .await
-   .map_err(|err| format!("ticket::send_msg for receiver={} {}", receiver, err))?;
+   .map_err(|err| format!("registration::::send_msg for receiver={} {}", receiver, err))?;
    Ok(res)
 }
 
 async fn forward_msg(receiver: i64, cx: &Update, message_id: i32) -> ResultMessage {
    let from = &cx.update.message;
    if from.is_none() {
-      Err(format!("forward_msg none cx.update.message for receiver={}", receiver))
+      Err(format!("registration::forward_msg none cx.update.message for receiver={}", receiver))
    } else {
       let from = from.clone().unwrap().chat_id();
       let res = cx.requester.forward_message(receiver, from, message_id).await
@@ -330,8 +338,54 @@ pub async fn show_tickets(user_id: i64, cx: TransitionIn<AutoSend<Bot>>,) -> Res
    .await
    .map_err(|s| states::map_req_err(s))?;
 
-   for ticket in tickets {
+   for mut t in tickets {
+      
+      // Detect own role - the owner or client
+      let role = if user_id == t.ticket.customer_id { Role::Customer }
+      else if user_id == t.owners.0 { Role::Owner1 }
+      else if user_id == t.owners.1 { Role::Owner2 }
+      else if user_id == t.owners.2 { Role::Owner3 }
+      else {
+         let e = format!("registration::show_tickets user_id={}: unknown role", user_id);
+         return Err(states::map_req_err(e));
+      };
 
+      // Update status - code like update_statuses()
+      match role {
+         Role::Customer => {
+            t.ticket.cust_status_msg_id =
+            update_status(&cx.requester, &mut t, Role::Customer)
+            .await
+            // The status change for customer is mandatory
+            .map_err(|err| states::map_req_err(format!("registration::show_tickets {}", err)))?
+         }
+         Role::Owner1 => {
+            t.ticket.owners_status_msg_id.0 =
+            update_status(&cx.requester, &mut t, Role::Owner1)
+            .await
+            .ok()
+            .flatten()
+         }
+         Role::Owner2 => {
+            t.ticket.owners_status_msg_id.1 =
+            update_status(&cx.requester, &mut t, Role::Owner2)
+            .await
+            .ok()
+            .flatten()
+         }
+         Role::Owner3 => {
+            t.ticket.owners_status_msg_id.2 =
+            update_status(&cx.requester, &mut t, Role::Owner3)
+            .await
+            .ok()
+            .flatten()
+         }
+      }
+
+      // Update status id on database
+      db::ticket_update_status_messages(&t.ticket)
+      .await
+      .map_err(|err| states::map_req_err(format!("registration::show_tickets {}", err)))?
    }
 
    Ok(())
