@@ -553,7 +553,7 @@ pub async fn order_to_ticket(node_id: i32, user_id: i64, owners_msg_id: ticket::
    .map_err(|err| format!("order_to_ticket transaction customer_id={}, node_id={}: {}", user_id, node_id, err))?;
 
    // Delete orders, like fn delete_orders()
-   let query = "DELETE FROM orders WHERE user_id = $1::BIGINT OR amount < 1";
+   let query = "DELETE FROM orders WHERE (user_id = $1::BIGINT AND node_id = $2:INTEGER) OR amount < 1";
 
    let statement = trans
    .prepare(&query)
