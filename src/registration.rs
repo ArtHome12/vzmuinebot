@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use teloxide::{RequestError, payloads::SendMessageSetters, prelude::*, types::{CallbackQuery, ParseMode, InlineKeyboardMarkup, }};
+use teloxide::{RequestError, payloads::SendMessageSetters, prelude::*, types::{CallbackQuery, ParseMode, }};
 use regex::Regex;
 use lazy_static::lazy_static;
 use strum::EnumMessage;
@@ -123,26 +123,22 @@ pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, Stri
 async fn update_statuses(cx: &Update, mut t: TicketWithOwners) -> Result<(), String> {
 
    // The status change for customer is mandatory
-   let status = t.ticket.stage.get_message().unwrap();
-   let markup = t.ticket.make_markup(InfoFor::Customer);
-   let msg = update_status(&cx.requester, t.ticket.customer_id, status, markup, Some(t.ticket.cust_msg_id), t.ticket.cust_status_msg_id).await?;
+   let msg = update_status(&cx.requester, &mut t, Addr::Customer).await?;
    t.ticket.cust_status_msg_id = Some(msg.id);
 
    // Update status for owner 0
-   let status = t.ticket.stage.get_detailed_message().unwrap();
-   let markup = t.ticket.make_markup(InfoFor::Owner);
    t.ticket.owners_status_msg_id.0 = (t.owners.0 > VALID_USER_ID).then(||0)
-   .and(update_status(&cx.requester, t.owners.0, status, markup.clone(), t.ticket.owners_msg_id.0, t.ticket.owners_status_msg_id.0).await.ok())
+   .and(update_status(&cx.requester, &mut t, Addr::Owner1).await.ok())
    .and_then(|f| Some(f.id));
 
    // Update status for owner 1
    t.ticket.owners_status_msg_id.1 = (t.owners.1 > VALID_USER_ID).then(||0)
-   .and(update_status(&cx.requester, t.owners.1, status, markup.clone(), t.ticket.owners_msg_id.1, t.ticket.owners_status_msg_id.1).await.ok())
+   .and(update_status(&cx.requester, &mut t, Addr::Owner2).await.ok())
    .and_then(|f| Some(f.id));
 
    // Update status for owner 1
    t.ticket.owners_status_msg_id.2 = (t.owners.2 > VALID_USER_ID).then(||0)
-   .and(update_status(&cx.requester, t.owners.2, status, markup, t.ticket.owners_msg_id.2, t.ticket.owners_status_msg_id.2).await.ok())
+   .and(update_status(&cx.requester, &mut t, Addr::Owner3).await.ok())
    .and_then(|f| Some(f.id));
 
    // The status change for the owner must be for at least one
@@ -157,10 +153,31 @@ async fn update_statuses(cx: &Update, mut t: TicketWithOwners) -> Result<(), Str
    Ok(())
 }
 
-async fn update_status(bot: &AutoSend<Bot>, receiver: i64, text: &str, markup: Option<InlineKeyboardMarkup>, order_msg_id: Option<i32>, status_msg_id: Option<i32>) -> Result<Message, String> {
+enum Addr {
+   Customer,
+   Owner1,
+   Owner2,
+   Owner3,
+}
+
+async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, update: Addr) -> Result<Message, String> {
+   // Prepare data
+   let (receiver, order_msg_id, status_msg_id) = match update {
+      Addr::Customer => (t.ticket.customer_id, Some(t.ticket.cust_msg_id), t.ticket.cust_status_msg_id),
+      Addr::Owner1 => (t.owners.0, t.ticket.owners_msg_id.0, t.ticket.owners_status_msg_id.0),
+      Addr::Owner2 => (t.owners.1, t.ticket.owners_msg_id.1, t.ticket.owners_status_msg_id.1),
+      Addr::Owner3 => (t.owners.2, t.ticket.owners_msg_id.2, t.ticket.owners_status_msg_id.2),
+   };
+
+   let (text, info_for) = match update {
+      Addr::Customer => (t.ticket.stage.get_message().unwrap(), InfoFor::Customer),
+      _ => (t.ticket.stage.get_detailed_message().unwrap(), InfoFor::Owner),
+   };
+   let markup = t.ticket.make_markup(info_for);
+
    // Not all owners can exist and, accordingly, there are no message codes
    if order_msg_id.is_none() {
-      let err = format!("registration::send_message_for order_msg_id is none for owner_id={}", receiver);
+      let err = format!("registration::update_status order_msg_id is none for owner_id={}", receiver);
       return Err(err);
    }
 
@@ -174,7 +191,7 @@ async fn update_status(bot: &AutoSend<Bot>, receiver: i64, text: &str, markup: O
          let text = "Невозможно удалить предыдущее сообщение со статусом заказа, возможно оно уже было удалено";
          bot.send_message(receiver, text)
          .await
-         .map_err(|err| format!("registration::send_message_for::delete old status user_id={}: {}", receiver, err))?;
+         .map_err(|err| format!("registration::update_status::delete old status user_id={}: {}", receiver, err))?;
       }
    }
 
@@ -185,7 +202,7 @@ async fn update_status(bot: &AutoSend<Bot>, receiver: i64, text: &str, markup: O
    if let Some(markup) = markup { res = res.reply_markup(markup) }
 
    res.await
-   .map_err(|err| format!("registration::send_message_for user_id={}: {}", receiver, err))
+   .map_err(|err| format!("registration::update_status user_id={}: {}", receiver, err))
 }
 
 pub async fn cancel_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str, String> {
@@ -316,6 +333,6 @@ pub async fn show_tickets(user_id: i64, cx: TransitionIn<AutoSend<Bot>>,) -> Res
    for ticket in tickets {
 
    }
-   
+
    Ok(())
 }
