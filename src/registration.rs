@@ -172,38 +172,58 @@ pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, Stri
    // Forward edited message with order and save msg id
    let owners_msg_id = forward_msg_to_owners(&owners, cx, orig_msg_id).await?;
 
-   // Delete data from orders and create ticket
-   let mut ticket = db::order_to_ticket(node_id, user_id, owners_msg_id, cust_msg_id).await?;
+   // Delete data from orders and create ticket with owners
+   let ticket = db::order_to_ticket(node_id, user_id, owners_msg_id, cust_msg_id).await?;
 
-   // Send customer status and save status message id
-   let stage = ticket.stage.get_message().unwrap();
-   let markup = ticket.make_markup(ticket::InfoFor::Customer);
-   let res = update_status(&cx.requester, user_id, stage, markup, Some(cust_msg_id), None).await?;
-   ticket.cust_status_msg_id = Some(res.id);
+   let t = TicketWithOwners {
+      ticket,
+      owners,
+   };
 
-   // The same goes for owners
-   let markup = ticket.make_markup(ticket::InfoFor::Owner);
-   let res0 = update_status(&cx.requester, user_id, stage, markup.clone(), owners_msg_id.0, None).await;
-   let o0 = res0.clone().ok().map(|f| f.id);
-   let o1 = update_status(&cx.requester, user_id, stage, markup.clone(), owners_msg_id.1, None).await.ok().map(|f| f.id);
-   let o2 = update_status(&cx.requester, user_id, stage, markup, owners_msg_id.2, None).await.ok().map(|f| f.id);
-
-   // Must be successful at least once
-   if o0.or(o1).or(o2).is_none() {
-      let err = format!("make_ticket send status user_id={} to owners fail: {}", user_id, res0.unwrap_err());
-      return Err(err);
-   }
-
-   // Save status message id for edit in future
-   ticket.owners_status_msg_id = (o0, o1, o2);
-   
-   // Update customer and owner status messages id in database
-   db::ticket_update_status_messages(&ticket).await?;
+   // Send messages with status to customer and owners
+   update_statuses(&cx, t).await?;
 
    // Send the order also to the service chat
    env::log(&format!("{}\n---\n{}", order_info, customer_info)).await;
 
    Ok("Успешно")
+}
+
+async fn update_statuses(cx: &Update, mut t: TicketWithOwners) -> Result<(), String> {
+
+   let status = t.ticket.stage.get_message().unwrap();
+
+   // The status change for customer is mandatory
+   let markup = t.ticket.make_markup(ticket::InfoFor::Customer);
+   let msg = update_status(&cx.requester, t.ticket.customer_id, status, markup, Some(t.ticket.cust_msg_id), t.ticket.cust_status_msg_id).await?;
+   t.ticket.cust_status_msg_id = Some(msg.id);
+
+   // Update status for owner 0
+   let markup = t.ticket.make_markup(ticket::InfoFor::Owner);
+   t.ticket.owners_status_msg_id.0 = (t.owners.0 > VALID_USER_ID).then(||0)
+   .and(update_status(&cx.requester, t.owners.0, status, markup.clone(), t.ticket.owners_msg_id.0, t.ticket.owners_status_msg_id.0).await.ok())
+   .and_then(|f| Some(f.id));
+
+   // Update status for owner 1
+   t.ticket.owners_status_msg_id.1 = (t.owners.1 > VALID_USER_ID).then(||0)
+   .and(update_status(&cx.requester, t.owners.1, status, markup.clone(), t.ticket.owners_msg_id.1, t.ticket.owners_status_msg_id.1).await.ok())
+   .and_then(|f| Some(f.id));
+
+   // Update status for owner 1
+   t.ticket.owners_status_msg_id.2 = (t.owners.2 > VALID_USER_ID).then(||0)
+   .and(update_status(&cx.requester, t.owners.2, status, markup, t.ticket.owners_msg_id.2, t.ticket.owners_status_msg_id.2).await.ok())
+   .and_then(|f| Some(f.id));
+
+   // The status change for the owner must be for at least one
+   let res = t.ticket.owners_status_msg_id.0.or(t.ticket.owners_status_msg_id.1).or(t.ticket.owners_status_msg_id.2);
+   if res.is_none() {
+      let err = format!("registration::next_ticket user_id={}: all owners notification fail", t.ticket.customer_id);
+      return Err(err);
+   }
+
+   // Update status id on database
+   db::ticket_update_status_messages(&t.ticket).await?;
+   Ok(())
 }
 
 async fn update_status(bot: &AutoSend<Bot>, receiver: i64, text: &str, markup: Option<InlineKeyboardMarkup>, order_msg_id: Option<i32>, status_msg_id: Option<i32>) -> Result<Message, String> {
@@ -275,7 +295,7 @@ pub async fn next_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str, St
       db::ticket_update_stage(t.ticket.id, t.ticket.stage).await?;
    }
 
-   update_status_id(cx, t).await?;
+   update_statuses(cx, t).await?;
    Ok("Успешно")
 }
 
@@ -288,43 +308,10 @@ pub async fn confirm_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str,
 
    let cust_msg_id = t.ticket.cust_msg_id;
    let customer_id = t.ticket.customer_id;
-   update_status_id(cx, t).await?;
+   update_statuses(cx, t).await?;
 
    // Send the order also to the service chat
    env::log_forward(customer_id, cust_msg_id, Some("Заказ успешно завершён")).await;
 
    Ok("Успешно")
-}
-
-async fn update_status_id(cx: &Update, mut t: TicketWithOwners) -> Result<(), String> {
-
-   let status = t.ticket.stage.get_message().unwrap();
-   let markup = t.ticket.make_markup(ticket::InfoFor::Customer);
-
-   // The status change for customer is mandatory
-   let msg = update_status(&cx.requester, t.ticket.customer_id, status, markup.clone(), Some(t.ticket.cust_msg_id), t.ticket.cust_status_msg_id).await?;
-   t.ticket.cust_status_msg_id = Some(msg.id);
-
-   // The status change for the owner must be for at least one
-   t.ticket.owners_status_msg_id.0 = (t.owners.0 > VALID_USER_ID).then(||0)
-   .and(update_status(&cx.requester, t.owners.0, status, markup.clone(), t.ticket.owners_msg_id.0, t.ticket.owners_status_msg_id.0).await.ok())
-   .and_then(|f| Some(f.id));
-
-   t.ticket.owners_status_msg_id.1 = (t.owners.1 > VALID_USER_ID).then(||0)
-   .and(update_status(&cx.requester, t.owners.1, status, markup.clone(), t.ticket.owners_msg_id.1, t.ticket.owners_status_msg_id.1).await.ok())
-   .and_then(|f| Some(f.id));
-
-   t.ticket.owners_status_msg_id.2 = (t.owners.2 > VALID_USER_ID).then(||0)
-   .and(update_status(&cx.requester, t.owners.2, status, markup, t.ticket.owners_msg_id.2, t.ticket.owners_status_msg_id.2).await.ok())
-   .and_then(|f| Some(f.id));
-
-   let res = t.ticket.owners_status_msg_id.0.or(t.ticket.owners_status_msg_id.1).or(t.ticket.owners_status_msg_id.2);
-   if res.is_none() {
-      let err = format!("registration::next_ticket user_id={}: all owners notification fail", t.ticket.customer_id);
-      return Err(err);
-   }
-
-   // Update status id on database
-   db::ticket_update_status_messages(&t.ticket).await?;
-   Ok(())
 }
