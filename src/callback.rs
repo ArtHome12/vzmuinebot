@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use strum::{AsRefStr, EnumString, };
+use strum::{AsRefStr, EnumString, EnumMessage, };
 
 use teloxide::{
    prelude::*,
@@ -16,9 +16,9 @@ use teloxide::{
 use crate::states::*;
 use crate::database as db;
 use crate::inline;
-use crate::ticket;
+use crate::registration;
 
-#[derive(AsRefStr, EnumString)]
+#[derive(AsRefStr, EnumString, EnumMessage, )]
 pub enum Command {
    #[strum(to_string = "pas")]
    Pass(i32), // make the specified node active
@@ -33,7 +33,13 @@ pub enum Command {
    #[strum(to_string = "den")]
    DecAmountNow(i32), // remove 1pcs of node from basket and return to PassNow mode
    #[strum(to_string = "tic")]
-   MakeTicket(i32), // start ordering through the bot
+   TicketMake(i32), // start ordering through the bot
+   #[strum(to_string = "tca", message = "Отмена заказа")]
+   TicketCancel(i32), // cancel ticket
+   #[strum(to_string = "tne", message = "Далее")]
+   TicketNext(i32), // next stage for ticket
+   #[strum(to_string = "tco", message = "Подтвердить")]
+   TicketConfirm(i32), // finish ticket
 
    Unknown,
 }
@@ -58,8 +64,14 @@ impl Command {
          Command::DecAmount(arg)
       } else if cmd == Self::DecAmountNow(0).as_ref() {
          Command::DecAmountNow(arg)
-      } else if cmd == Self::MakeTicket(0).as_ref() {
-         Command::MakeTicket(arg)
+      } else if cmd == Self::TicketMake(0).as_ref() {
+         Command::TicketMake(arg)
+      } else if cmd == Self::TicketCancel(0).as_ref() {
+         Command::TicketCancel(arg)
+      } else if cmd == Self::TicketNext(0).as_ref() {
+         Command::TicketNext(arg)
+      } else if cmd == Self::TicketConfirm(0).as_ref() {
+         Command::TicketConfirm(arg)
       } else {
          Command::Unknown
       }
@@ -105,7 +117,10 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
       Command::IncAmountNow(node_id) => do_inc(node_id, WorkTime::Now, &cx).await?,
       Command::DecAmount(node_id) => do_dec(node_id, WorkTime::All, &cx).await?,
       Command::DecAmountNow(node_id) => do_dec(node_id, WorkTime::All, &cx).await?,
-      Command::MakeTicket(node_id) => ticket::make_ticket(&cx, node_id).await?,
+      Command::TicketMake(node_id) => registration::make_ticket(&cx, node_id).await?,
+      Command::TicketCancel(node_id) => registration::cancel_ticket(&cx, node_id).await?,
+      Command::TicketNext(node_id) => registration::next_ticket(&cx, node_id).await?,
+      Command::TicketConfirm(node_id) => registration::confirm_ticket(&cx, node_id).await?,
       Command::Unknown => "Неизвестная команда",
    };
 

@@ -211,9 +211,9 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
             EditCmd::Picture => UpdateKind::Picture(None),
             EditCmd::Enable => UpdateKind::Flag(node.enabled),
             EditCmd::Ban => UpdateKind::Flag(node.banned),
-            EditCmd::Owner1 => UpdateKind::Int(node.owners[0]),
-            EditCmd::Owner2 => UpdateKind::Int(node.owners[1]),
-            EditCmd::Owner3 => UpdateKind::Int(node.owners[2]),
+            EditCmd::Owner1 => UpdateKind::Int(node.owners.0),
+            EditCmd::Owner2 => UpdateKind::Int(node.owners.1),
+            EditCmd::Owner3 => UpdateKind::Int(node.owners.2),
             EditCmd::Time => UpdateKind::Time(node.time.0, node.time.1),
             EditCmd::Price => UpdateKind::Money(node.price),
          };

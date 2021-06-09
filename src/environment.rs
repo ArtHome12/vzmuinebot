@@ -28,38 +28,48 @@ pub struct ServiceChat {
 // Отправляет сообщение в телеграм группу для лога
 impl ServiceChat {
    // Непосредственно отправляет сообщение
-   async fn send(&self, text: &str, silence: bool) {
-      send_to_chat(&self, text, silence).await
+   async fn send(&self, text: &str, silence: bool, reply_to: Option<i32>) {
+      send_to_chat(&self, text, silence, reply_to).await
    }
 }
 
 // Отправляет в служебный чат сообщение в молчаливом режиме
 pub async fn log(text: &str) {
    if let Some(chat) = &VARS.get().unwrap().chat {
-      chat.send(text, true).await;
+      chat.send(text, true, None).await;
    }
 }
 
 // Отправляет в служебный чат сообщение с уведомлением
 pub async fn log_and_notify(text: &str) {
    if let Some(chat) = &VARS.get().unwrap().chat {
-      chat.send(text, false).await;
+      chat.send(text, false, None).await;
    }
 }
 
 // Пересылает в служебный чат сообщение, возвращая идентификатор этого сообщения в служебном чате
-/* pub async fn log_forward(from_chat: ChatId, message_id: i32) {
+pub async fn log_forward(from: i64, message_id: i32, text: Option<&str>) {
    if let Some(chat) = &VARS.get().unwrap().chat {
-      if let Err(e) = chat.bot.forward_message(chat.id, from_chat, message_id).send().await {
-         log::info!("Error log_forward(): {}", e);
+      let res = chat.bot.forward_message(chat.id, from, message_id).await;
+      match res {
+         Ok(msg) => {
+            if let Some(text) = text {
+               chat.send(text, true, Some(msg.id)).await;
+            }
+         }
+         Err(e) => log::info!("Error log_forward(from={}): {}", from, e),
       }
    }
-} */
+}
 
 // Отправляет сообщение без использования self
-async fn send_to_chat(chat: &ServiceChat, text: &str, silence: bool) {
+async fn send_to_chat(chat: &ServiceChat, text: &str, silence: bool, reply_to: Option<i32>) {
    // Формируем сообщение для откравки
-   let res = chat.bot.send_message(chat.id, text).disable_notification(silence);
+   let mut res = chat.bot.send_message(chat.id, text).disable_notification(silence);
+
+   if let Some(reply_to) = reply_to {
+      res = res.reply_to_message_id(reply_to);
+   }
 
    // Отправляем, при ошибке запись в консольный лог
    if let Err(err) = res.send().await {
@@ -69,7 +79,7 @@ async fn send_to_chat(chat: &ServiceChat, text: &str, silence: bool) {
 
 // Для удобства обёртка - отправляет сообщение в чат, если он есть, и не делает ничего, если его нет
 async fn int_log(chat: Option<ServiceChat>, text: &str) {
-   if let Some(c) = chat {send_to_chat(&c, text, true).await;}
+   if let Some(c) = chat {send_to_chat(&c, text, true, None).await;}
 }
 
 

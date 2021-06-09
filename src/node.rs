@@ -11,7 +11,7 @@ use chrono::{NaiveTime};
 use tokio_postgres::{Row, };
 use std::hash::{Hash, Hasher};
 
-pub type Owners = [i64; 3];
+pub type Owners = (i64, i64, i64);
 
 #[derive(Clone)]
 pub struct Node {
@@ -39,7 +39,7 @@ impl From<&Row> for Node {
          picture: row.get(4),
          enabled: row.get(5),
          banned: row.get(6),
-         owners: [row.get(7), row.get(8), row.get(9)],
+         owners: (row.get(7), row.get(8), row.get(9)),
          time: (row.get(10), row.get(11)),
          price: row.get::<usize, i32>(12) as usize,
       }
@@ -135,9 +135,9 @@ impl Node {
          "picture" => self.picture = check_picture(&info.kind)?,
          "enabled" => self.enabled = check_bool(&info.kind)?,
          "banned" => self.banned = check_bool(&info.kind)?,
-         "owner1" => self.owners[0] = check_int(&info.kind)?,
-         "owner2" => self.owners[1] = check_int(&info.kind)?,
-         "owner3" => self.owners[2] = check_int(&info.kind)?,
+         "owner1" => self.owners.0 = check_int(&info.kind)?,
+         "owner2" => self.owners.1 = check_int(&info.kind)?,
+         "owner3" => self.owners.2 = check_int(&info.kind)?,
          "time" => self.time = check_time(&info.kind)?,
          "price" => self.price = check_money(&info.kind)?,
          _ => return Err(format!("node::update unknown field {}", info.field)),

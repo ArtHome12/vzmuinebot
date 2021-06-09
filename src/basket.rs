@@ -218,7 +218,7 @@ fn markup() -> ReplyMarkup {
 fn order_markup(node_id: i32) -> InlineKeyboardMarkup {
    let button = InlineKeyboardButton::callback(
       String::from("Оформить через бота"), 
-      format!("{}{}", cb::Command::MakeTicket(0).as_ref(), node_id)
+      format!("{}{}", cb::Command::TicketMake(0).as_ref(), node_id)
    );
    InlineKeyboardMarkup::default()
    .append_row(vec![button])

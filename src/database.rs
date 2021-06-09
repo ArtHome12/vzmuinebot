@@ -13,12 +13,13 @@ use deadpool_postgres::{Pool, Client, };
 use postgres_native_tls::MakeTlsConnector;
 use tokio_postgres::{types::ToSql, Row, };
 use async_recursion::async_recursion;
-
+use std::str::FromStr;
 
 use crate::environment as env;
 use crate::node::*;
 use crate::customer::*;
 use crate::orders::*;
+use crate::ticket;
 
 // Пул клиентов БД
 pub type PoolAlias = Pool<MakeTlsConnector>;
@@ -190,9 +191,9 @@ pub async fn insert_node(node: &mut Node) -> Result<(), String> {
       &node.picture,
       &node.enabled,
       &node.banned,
-      &node.owners[0],
-      &node.owners[1],
-      &node.owners[2],
+      &node.owners.0,
+      &node.owners.1,
+      &node.owners.2,
       &node.time.0,
       &node.time.1,
       &i32_price];
@@ -497,7 +498,7 @@ pub async fn orders(user_id: i64) -> Result<Orders, String> {
       if let Some(node) = node {
 
          // Lookup for owner (for grouping later)
-         let node_with_owner = if node.owners[0] > 0 { node.id }
+         let node_with_owner = if node.owners.0 > 0 { node.id }
          else { do_lookup_owner(node.parent).await? };
 
          let node = NodeWithAmount{
@@ -538,6 +539,112 @@ pub async fn delete_orders(user_id: i64) -> Result<(), String> {
    Ok(())
 }
 
+// ============================================================================
+// [Tickets]
+// ============================================================================
+pub async fn order_to_ticket(node_id: i32, user_id: i64, owners_msg_id: ticket::ThreeMsgId, cust_msg_id: i32) -> Result<ticket::Ticket, String> {
+
+   // Prepare query
+
+   // Start transaction
+   let mut client = db_client().await?;
+   let trans = client.transaction()
+   .await
+   .map_err(|err| format!("order_to_ticket transaction customer_id={}, node_id={}: {}", user_id, node_id, err))?;
+
+   // Delete orders, like fn delete_orders()
+   let query = "DELETE FROM orders WHERE user_id = $1::BIGINT OR amount < 1";
+
+   let statement = trans
+   .prepare(&query)
+   .await
+   .map_err(|err| format!("order_to_ticket delete prepare customer_id={}, node_id={}: {}", user_id, node_id, err))?;
+
+   trans
+   .execute(&statement, &[&user_id, &node_id])
+   .await
+   .map_err(|err| format!("order_to_ticket delete execute customer_id={}, node_id={}: {}", user_id, node_id, err))?;
+
+   // Create ticket
+   let query = "INSERT INTO tickets (node_id, customer, cust_msg_id, owner1_msg_id, owner2_msg_id, owner3_msg_id, stage, cust_status_msg_id, owner1_status_msg_id, owner2_status_msg_id, owner3_status_msg_id)
+      VALUES ($1::INTEGER, $2::BIGINT, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, 'A', NULL, NULL, NULL, NULL)
+      RETURNING ticket_id";
+
+   let statement = trans
+   .prepare(&query)
+   .await
+   .map_err(|err| format!("order_to_ticket insert prepare customer_id={}, node_id={}: {}", user_id, node_id, err))?;
+
+   let query = trans
+   .query(&statement, &[&node_id, &user_id, &cust_msg_id, &owners_msg_id.0, &owners_msg_id.1, &owners_msg_id.2])
+   .await
+   .map_err(|err| format!("order_to_ticket insert query customer_id={}, node_id={}: {}", user_id, node_id, err))?;
+
+   // Commit transaction
+   trans.commit()
+   .await
+   .map_err(|err| format!("order_to_ticket transaction commit customer_id={}, node_id={}: {}", user_id, node_id, err))?;
+
+   // Check returning
+   let len = query.len();
+   if len != 1 {
+      return Err(format!("order_to_ticket customer_id={}, node_id={}: query returns {} records instead one", user_id, node_id, len));
+   }
+   let ticket_id = query[0].get(0);
+
+   // Create and return ticket
+   let res = ticket::Ticket {
+      id: ticket_id,
+      node_id,
+      customer_id: user_id,
+      owners_msg_id,
+      cust_msg_id,
+      stage: ticket::Stage::OwnersConfirmation,
+      cust_status_msg_id: None,
+      owners_status_msg_id: (None, None, None),
+   };
+   Ok(res)
+}
+
+pub async fn ticket_update_status_messages(ticket: &ticket::Ticket) -> Result<(), String>
+{
+   let text = "UPDATE tickets SET cust_status_msg_id = $1::INTEGER, owner1_status_msg_id = $2::INTEGER, owner2_status_msg_id = $3::INTEGER, owner3_status_msg_id = $4::INTEGER
+   WHERE ticket_id = $5::INTEGER";
+   execute_prepared_one(text, &[&ticket.cust_status_msg_id, &ticket.owners_status_msg_id.0, &ticket.owners_status_msg_id.1, &ticket.owners_status_msg_id.2, &ticket.id]).await?;
+   Ok(())
+}
+
+pub async fn ticket_update_stage(id: i32, stage: ticket::Stage) -> Result<(), String>
+{
+   let text = "UPDATE tickets SET stage = $1::CHAR WHERE ticket_id = $2::INTEGER";
+   execute_prepared_one(text, &[&stage.as_ref(), &id]).await?;
+   Ok(())
+}
+
+pub async fn ticket_with_owners(ticket_id: i32) -> Result<ticket::TicketWithOwners, String>
+{
+   // Load ticket
+   let text = "SELECT t.node_id, t.customer, t.cust_msg_id, t.owner1_msg_id, t.owner2_msg_id, t.owner3_msg_id, t.stage, t.cust_status_msg_id, t.owner1_status_msg_id, t.owner2_status_msg_id, t.owner3_status_msg_id,
+      n.owner1, n.owner2, n.owner3 FROM tickets t INNER JOIN nodes n ON n.id = t.node_id
+      WHERE t.ticket_id = $1::INTEGER";
+   let rows = query_prepared_one(text, &[&ticket_id]).await?;
+
+   let row = &rows[0];
+   let ticket = ticket::Ticket {
+      id: ticket_id,
+      node_id: row.get(0),
+      customer_id: row.get(1),
+      cust_msg_id: row.get(2),
+      owners_msg_id: (row.get(3), row.get(4), row.get(5)),
+      stage: ticket::Stage::from_str(row.get(6)).unwrap(),
+      cust_status_msg_id: row.get(7),
+      owners_status_msg_id: (row.get(8), row.get(9), row.get(10)),
+   };
+
+   let owners: Owners = (row.get(11), row.get(12), row.get(13));
+
+   Ok(ticket::TicketWithOwners { ticket, owners })
+}
 
 // ============================================================================
 // [Misc]
@@ -607,14 +714,14 @@ pub async fn create_tables() -> bool {
             owner1_msg_id  INTEGER        NOT NULL,
             owner2_msg_id  INTEGER        NOT NULL,
             owner3_msg_id  INTEGER        NOT NULL,
-            stage          INTEGER        NOT NULL,
+            stage          CHAR           NOT NULL,
             cust_status_msg_id     INTEGER,
             owner1_status_msg_id   INTEGER,
             owner2_status_msg_id   INTEGER,
             owner3_status_msg_id   INTEGER);
    ")
    .await;
-
+ 
    match query {
       Ok(_) => true,
       Err(e) => {
@@ -683,12 +790,12 @@ async fn execute_prepared(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Res
    Ok(query)
 }
 
-/* async fn execute_prepared_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(), String> {
+async fn execute_prepared_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<(), String> {
    // Only one record has to be updated
    let updated = execute_prepared(sql_text, params).await?;
    if updated == 1 { Ok(()) }
-   else { Err(format!("execute_prepare_one {} updated {} records", sql_text, updated)) }
-} */
+   else { Err(format!("execute_prepare_one {} updated {} records instead one", sql_text, updated)) }
+}
 
 async fn query_prepared(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<Vec<Row>, String> {
    // Prepare query
@@ -705,4 +812,15 @@ async fn query_prepared(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Resul
    .map_err(|err| format!("select_prepared {} query: {}", sql_text, err))?;
 
    Ok(query)
+}
+
+async fn query_prepared_one(sql_text: &str, params: &[&(dyn ToSql + Sync)]) -> Result<Vec<Row>, String> {
+   // Only one record has to be returned
+   let res = query_prepared(sql_text, params).await?;
+   let len = res.len();
+   if len == 1 {
+      Ok(res)
+   } else {
+      Err(format!("query_prepared_one {} returned {} records instead one", sql_text, len))
+   }
 }
