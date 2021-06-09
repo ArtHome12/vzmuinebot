@@ -648,6 +648,38 @@ pub async fn ticket_with_owners(ticket_id: i32) -> Result<ticket::TicketWithOwne
    Ok(ticket::TicketWithOwners { ticket, owners })
 }
 
+pub async fn tickets(user_id: i64) -> Result<Vec<ticket::TicketWithOwners>, String> {
+   // Load all unfinished tickets, where the user is a client or owner
+   let text = "SELECT t.ticket_id, t.node_id, t.customer, t.cust_msg_id, t.owner1_msg_id, t.owner2_msg_id, t.owner3_msg_id, t.stage, t.cust_status_msg_id, t.owner1_status_msg_id, t.owner2_status_msg_id, t.owner3_status_msg_id, service_msg_id,
+      n.owner1, n.owner2, n.owner3 FROM tickets t INNER JOIN nodes n ON n.id = t.node_id
+      WHERE t.customer = $1::BIGINT OR n.owner1 = $1::BIGINT OR n.owner2 = $1::BIGINT OR n.owner3 = $1::BIGINT";
+
+   let rows = query_prepared(text, &[&user_id]).await?;
+
+   let res = rows.iter()
+   .map(|row|{
+
+      // Create ticket-part
+      let ticket = ticket::Ticket {
+         id: row.get(0),
+         node_id: row.get(1),
+         customer_id: row.get(2),
+         cust_msg_id: row.get(3),
+         owners_msg_id: (row.get(4), row.get(5), row.get(6)),
+         stage: ticket::Stage::from_str(row.get(7)).unwrap(),
+         cust_status_msg_id: row.get(8),
+         owners_status_msg_id: (row.get(9), row.get(10), row.get(11)),
+         service_msg_id: row.get(12),
+      };
+   
+      // Create owners part and return item
+      let owners: Owners = (row.get(13), row.get(14), row.get(15));
+      ticket::TicketWithOwners { ticket, owners }
+   }).collect();
+
+   Ok(res)
+}
+
 // ============================================================================
 // [Misc]
 // ============================================================================

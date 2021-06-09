@@ -8,7 +8,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide_macros::teloxide;
-use teloxide::{prelude::*, payloads::SendMessageSetters,
+use teloxide::{prelude::*,
    types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, 
       ParseMode, ButtonRequest, InlineKeyboardButton, InlineKeyboardMarkup,
    }
@@ -23,6 +23,7 @@ use crate::environment as env;
 use crate::callback as cb;
 use crate::node;
 use crate::orders;
+use crate::registration;
 
 // ============================================================================
 // [Main entry]
@@ -37,6 +38,8 @@ enum Command {
    Edit(EditCmd),
    #[strum(to_string = "/del")]
    Delete(i32),
+   #[strum(to_string = "⭮")]
+   Reload,
    Unknown,
 }
 
@@ -108,6 +111,8 @@ async fn update(state: BasketState, cx: TransitionIn<AutoSend<Bot>>, ans: String
          enter(state.state, cx).await
       }
 
+      Command::Reload => enter(state.state, cx).await,
+
       Command::Unknown => {
          cx.answer(format!("Неизвестная команда '{}', вы находитесь в заказах", ans))
          .reply_markup(markup())
@@ -170,6 +175,9 @@ pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> Trans
       .await?;
    }
 
+   // Show tickets (orders in process)
+   registration::show_tickets(state.state.user_id, cx).await?;
+
    next(state)
 }
 
@@ -207,6 +215,7 @@ fn markup() -> ReplyMarkup {
       String::from(EditCmd::Delivery.as_ref()),
    ];
    let row2 = vec![
+      String::from(Command::Reload.as_ref()),
       String::from(Command::Clear.as_ref()),
       String::from(Command::Exit.as_ref()),
    ];
