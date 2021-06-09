@@ -559,7 +559,7 @@ pub async fn order_to_ticket(node_id: i32, user_id: i64, owners_msg_id: ticket::
    .prepare(&query)
    .await
    .map_err(|err| format!("order_to_ticket delete prepare customer_id={}, node_id={}: {}", user_id, node_id, err))?;
-
+env::log(&format!("DELETE FROM orders WHERE (user_id = {} AND node_id = {}) OR amount < 1", user_id, node_id)).await;
    trans
    .execute(&statement, &[&user_id, &node_id])
    .await
@@ -652,7 +652,7 @@ pub async fn tickets(user_id: i64) -> Result<Vec<ticket::TicketWithOwners>, Stri
    // Load all unfinished tickets, where the user is a client or owner
    let text = "SELECT t.ticket_id, t.node_id, t.customer, t.cust_msg_id, t.owner1_msg_id, t.owner2_msg_id, t.owner3_msg_id, t.stage, t.cust_status_msg_id, t.owner1_status_msg_id, t.owner2_status_msg_id, t.owner3_status_msg_id, service_msg_id,
       n.owner1, n.owner2, n.owner3 FROM tickets t INNER JOIN nodes n ON n.id = t.node_id
-      WHERE t.customer = $1::BIGINT OR n.owner1 = $1::BIGINT OR n.owner2 = $1::BIGINT OR n.owner3 = $1::BIGINT";
+      WHERE t.stage < 'X' AND t.customer = $1::BIGINT OR n.owner1 = $1::BIGINT OR n.owner2 = $1::BIGINT OR n.owner3 = $1::BIGINT";
 
    let rows = query_prepared(text, &[&user_id]).await?;
 

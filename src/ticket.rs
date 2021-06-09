@@ -34,14 +34,14 @@ pub enum Stage {
    detailed_message="Заказ доставлен, ожидание подтверждения со стороны клиента")]
    CustomerConfirmation,
 
-   #[strum(to_string = "E", message = "Завершено", detailed_message="Завершено")]
+   #[strum(to_string = "X", message = "Завершено", detailed_message="Завершено")]
    Finished,
 
-   #[strum(to_string = "F", message = "Отменено по инициативе клиента",
+   #[strum(to_string = "Y", message = "Отменено по инициативе клиента",
    detailed_message="Отменено по инициативе клиента")]
    CanceledByCustomer,
 
-   #[strum(to_string = "G", message = "Отменено по инициативе заведения",
+   #[strum(to_string = "Z", message = "Отменено по инициативе заведения",
    detailed_message="Отменено по инициативе заведения")]
    CanceledByOwner,
 }
