@@ -17,18 +17,33 @@ pub type ThreeMsgId = (Option<i32>, Option<i32>, Option<i32>);
 #[derive(Copy, Clone)]
 #[derive(AsRefStr, EnumString, EnumMessage)]
 pub enum Stage {
-   #[strum(to_string = "A", message = "Ожидание подтверждения")] // Button caption and db field name
+   // DB value, info for customer, info for owner
+   #[strum(to_string = "A", message = "Ожидание подтверждения приёма заказа в работу",
+   detailed_message="Подтвердите начало обработки заказа")]
    OwnersConfirmation,
-   #[strum(to_string = "B", message = "В процессе приготовления")] // Button caption and db field name
+
+   #[strum(to_string = "B", message = "В процессе приготовления",
+   detailed_message="В процессе приготовления. Подтвердите готовность заказа к выдаче")]
    Cooking,
-   #[strum(to_string = "C", message = "Готово, идёт доставка")] // Button caption and db field name
+
+   #[strum(to_string = "C", message = "Готово, идёт доставка",
+   detailed_message="В процессе доставки. Подтвердите вручение заказа клиенту")]
    Delivery,
-   #[strum(to_string = "D", message = "Подтвердить получение и закрыть заказ")] // Button caption and db field name
+
+   #[strum(to_string = "D", message = "Подтвердить получение и закрыть заказ",
+   detailed_message="Заказ доставлен, ожидание подтверждения со стороны клиента")]
    CustomerConfirmation,
-   #[strum(to_string = "E", message = "Завершено")] // Button caption and db field name
+
+   #[strum(to_string = "E", message = "Завершено", detailed_message="Завершено")]
    Finished,
-   #[strum(to_string = "F", message = "Отменено")] // Button caption and db field name
-   Canceled,
+
+   #[strum(to_string = "F", message = "Отменено по инициативе клиента",
+   detailed_message="Отменено по инициативе клиента")]
+   CanceledByCustomer,
+
+   #[strum(to_string = "G", message = "Отменено по инициативе заведения",
+   detailed_message="Отменено по инициативе заведения")]
+   CanceledByOwner,
 }
 
 // The message to the customer and owner is different in markup

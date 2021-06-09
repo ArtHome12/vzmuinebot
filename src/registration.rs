@@ -184,21 +184,21 @@ pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, Stri
    update_statuses(&cx, t).await?;
 
    // Send the order also to the service chat
-   env::log(&format!("{}\n---\n{}", order_info, customer_info)).await;
+   env::log(&format!("{}\n---\n{}", customer_info, order_info)).await;
 
    Ok("Успешно")
 }
 
 async fn update_statuses(cx: &Update, mut t: TicketWithOwners) -> Result<(), String> {
 
-   let status = t.ticket.stage.get_message().unwrap();
-
    // The status change for customer is mandatory
+   let status = t.ticket.stage.get_message().unwrap();
    let markup = t.ticket.make_markup(ticket::InfoFor::Customer);
    let msg = update_status(&cx.requester, t.ticket.customer_id, status, markup, Some(t.ticket.cust_msg_id), t.ticket.cust_status_msg_id).await?;
    t.ticket.cust_status_msg_id = Some(msg.id);
 
    // Update status for owner 0
+   let status = t.ticket.stage.get_detailed_message().unwrap();
    let markup = t.ticket.make_markup(ticket::InfoFor::Owner);
    t.ticket.owners_status_msg_id.0 = (t.owners.0 > VALID_USER_ID).then(||0)
    .and(update_status(&cx.requester, t.owners.0, status, markup.clone(), t.ticket.owners_msg_id.0, t.ticket.owners_status_msg_id.0).await.ok())
@@ -260,28 +260,22 @@ async fn update_status(bot: &AutoSend<Bot>, receiver: i64, text: &str, markup: O
 pub async fn cancel_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str, String> {
 
    // Load ticket and update status
-   let t = db::ticket_with_owners(ticket_id).await?;
+   let mut t = db::ticket_with_owners(ticket_id).await?;
+   t.ticket.stage = if cx.update.from.id == t.ticket.customer_id {
+      ticket::Stage::CanceledByCustomer
+   } else {
+      ticket::Stage::CanceledByOwner
+   };
+   db::ticket_update_stage(t.ticket.id, t.ticket.stage).await?;
 
-   // Update status in database
-   db::ticket_update_stage(ticket_id, ticket::Stage::Canceled).await?;
-
-   // Update status in messages
-   let s = if cx.update.from.id == t.ticket.customer_id {"клиента"} else {"заведения"};
-   let status = format!("Заказ отменён по инициативе {}", s);
-   let msg = update_status(&cx.requester, t.ticket.customer_id, &status, None, Some(t.ticket.cust_msg_id), t.ticket.cust_status_msg_id).await?;
-
-   if t.owners.0 > VALID_USER_ID {
-      update_status(&cx.requester, t.owners.0, &status, None, t.ticket.owners_msg_id.0, t.ticket.owners_status_msg_id.0).await?;
-   }
-   if t.owners.1 > VALID_USER_ID {
-      update_status(&cx.requester, t.owners.1, &status, None, t.ticket.owners_msg_id.1, t.ticket.owners_status_msg_id.1).await?;
-   }
-   if t.owners.2 > VALID_USER_ID {
-      update_status(&cx.requester, t.owners.2, &status, None, t.ticket.owners_msg_id.2, t.ticket.owners_status_msg_id.2).await?;
-   }
+   let cust_msg_id = t.ticket.cust_msg_id;
+   let customer_id = t.ticket.customer_id;
+   let stage = t.ticket.stage;
+   update_statuses(cx, t).await?;
 
    // Send the order also to the service chat
-   env::log_forward(t.ticket.customer_id, msg.id, Some(&status)).await;
+   let status = stage.get_message();
+   env::log_forward(customer_id, cust_msg_id, status).await;
 
    Ok("Успешно")
 }
