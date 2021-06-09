@@ -7,94 +7,25 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use teloxide::{payloads::SendMessageSetters, prelude::*,
-   types::{CallbackQuery, ParseMode, InlineKeyboardMarkup, }
-};
+use teloxide::{RequestError, payloads::SendMessageSetters, prelude::*, types::{CallbackQuery, ParseMode, InlineKeyboardMarkup, }};
 use regex::Regex;
 use lazy_static::lazy_static;
 use strum::EnumMessage;
 
 
-use crate::{database as db, ticket::TicketWithOwners};
+use crate::database as db;
 use crate::customer::*;
 use crate::node;
-use crate::ticket;
+use crate::ticket::*;
 use crate::environment as env;
+use crate::states;
 
 
 type Update = UpdateWithCx<AutoSend<Bot>, CallbackQuery>;
 type ResultMessage = Result<Message, String>;
-type Result3Id = Result<ticket::ThreeMsgId, String>;
+type Result3Id = Result<ThreeMsgId, String>;
 
 const VALID_USER_ID: i64 = 10_000;
-
-async fn reply_msg(receiver: i64, cx: &Update, text: &str) -> Result<(), String> {
-   let mut ans = cx.requester
-   .send_message(receiver, text)
-   .parse_mode(ParseMode::Html);
-
-   if let Some(reply_to_id) = &cx.update.message {
-      ans = ans.reply_to_message_id(reply_to_id.id);
-   }
-
-   ans.await
-   .map_err(|err| format!("ticket::send_msg for receiver={} {}", receiver, err))?;
-   Ok(())
-}
-
-async fn send_msg(receiver: i64, cx: &Update, text: &str) -> ResultMessage {
-   let res = cx.requester
-   .send_message(receiver, text)
-   .parse_mode(ParseMode::Html)
-   .await
-   .map_err(|err| format!("ticket::send_msg for receiver={} {}", receiver, err))?;
-   Ok(res)
-}
-
-async fn forward_msg(receiver: i64, cx: &Update, message_id: i32) -> ResultMessage {
-   let from = &cx.update.message;
-   if from.is_none() {
-      Err(format!("forward_msg none cx.update.message for receiver={}", receiver))
-   } else {
-      let from = from.clone().unwrap().chat_id();
-      let res = cx.requester.forward_message(receiver, from, message_id).await
-      .map_err(|err| format!("forward_msg {}", err))?;
-      Ok(res)
-   }
-}
-
-async fn send_msg_to_owners(owners: &node::Owners, cx: &Update, text: &str) -> Result3Id {
-   // Try to send to all owners
-   let owner1 = send_msg(owners.0, cx, text).await;
-   let owner2 = send_msg(owners.1, cx, text).await;
-   let owner3 = send_msg(owners.2, cx, text).await;
-
-   // Report an error from owner1 if there are no successful attempts
-   unwrap_msg_id(owner1, owner2, owner3)
-}
-
-async fn forward_msg_to_owners(owners: &node::Owners, cx: &Update, message_id: i32) -> Result3Id {
-   // Try to send to all owners
-   let owner1 = forward_msg(owners.0, cx, message_id).await;
-   let owner2 = forward_msg(owners.1, cx, message_id).await;
-   let owner3 = forward_msg(owners.2, cx, message_id).await;
-   
-   unwrap_msg_id(owner1, owner2, owner3)
-}
-
-fn unwrap_msg_id(msg1: ResultMessage, msg2: ResultMessage, msg3: ResultMessage) -> Result3Id {
-   // Report an error from msg1 if there are no successful attempts
-   if msg1.is_err() && msg2.is_err() && msg3.is_err() {
-      return Err(msg1.unwrap_err());
-   }
-
-   let res: ticket::ThreeMsgId = (
-      msg1.and_then(|op| Ok(op.id)).ok(),
-      msg2.and_then(|op| Ok(op.id)).ok(),
-      msg3.and_then(|op| Ok(op.id)).ok()
-   );
-   Ok(res)
-}
 
 pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, String> {
 
@@ -193,13 +124,13 @@ async fn update_statuses(cx: &Update, mut t: TicketWithOwners) -> Result<(), Str
 
    // The status change for customer is mandatory
    let status = t.ticket.stage.get_message().unwrap();
-   let markup = t.ticket.make_markup(ticket::InfoFor::Customer);
+   let markup = t.ticket.make_markup(InfoFor::Customer);
    let msg = update_status(&cx.requester, t.ticket.customer_id, status, markup, Some(t.ticket.cust_msg_id), t.ticket.cust_status_msg_id).await?;
    t.ticket.cust_status_msg_id = Some(msg.id);
 
    // Update status for owner 0
    let status = t.ticket.stage.get_detailed_message().unwrap();
-   let markup = t.ticket.make_markup(ticket::InfoFor::Owner);
+   let markup = t.ticket.make_markup(InfoFor::Owner);
    t.ticket.owners_status_msg_id.0 = (t.owners.0 > VALID_USER_ID).then(||0)
    .and(update_status(&cx.requester, t.owners.0, status, markup.clone(), t.ticket.owners_msg_id.0, t.ticket.owners_status_msg_id.0).await.ok())
    .and_then(|f| Some(f.id));
@@ -262,9 +193,9 @@ pub async fn cancel_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str, 
    // Load ticket and update status
    let mut t = db::ticket_with_owners(ticket_id).await?;
    t.ticket.stage = if cx.update.from.id == t.ticket.customer_id {
-      ticket::Stage::CanceledByCustomer
+      Stage::CanceledByCustomer
    } else {
-      ticket::Stage::CanceledByOwner
+      Stage::CanceledByOwner
    };
    db::ticket_update_stage(t.ticket.id, t.ticket.stage).await?;
 
@@ -296,7 +227,7 @@ pub async fn confirm_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str,
 
    // Load ticket and update status
    let mut t = db::ticket_with_owners(ticket_id).await?;
-   t.ticket.stage = ticket::Stage::Finished;
+   t.ticket.stage = Stage::Finished;
    db::ticket_update_stage(t.ticket.id, t.ticket.stage).await?;
 
    let service_msg_id = t.ticket.service_msg_id;
@@ -307,4 +238,84 @@ pub async fn confirm_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str,
    env::log_reply(status, service_msg_id).await;
 
    Ok("Успешно")
+}
+
+async fn reply_msg(receiver: i64, cx: &Update, text: &str) -> Result<(), String> {
+   let mut ans = cx.requester
+   .send_message(receiver, text)
+   .parse_mode(ParseMode::Html);
+
+   if let Some(reply_to_id) = &cx.update.message {
+      ans = ans.reply_to_message_id(reply_to_id.id);
+   }
+
+   ans.await
+   .map_err(|err| format!("ticket::send_msg for receiver={} {}", receiver, err))?;
+   Ok(())
+}
+
+async fn send_msg(receiver: i64, cx: &Update, text: &str) -> ResultMessage {
+   let res = cx.requester
+   .send_message(receiver, text)
+   .parse_mode(ParseMode::Html)
+   .await
+   .map_err(|err| format!("ticket::send_msg for receiver={} {}", receiver, err))?;
+   Ok(res)
+}
+
+async fn forward_msg(receiver: i64, cx: &Update, message_id: i32) -> ResultMessage {
+   let from = &cx.update.message;
+   if from.is_none() {
+      Err(format!("forward_msg none cx.update.message for receiver={}", receiver))
+   } else {
+      let from = from.clone().unwrap().chat_id();
+      let res = cx.requester.forward_message(receiver, from, message_id).await
+      .map_err(|err| format!("forward_msg {}", err))?;
+      Ok(res)
+   }
+}
+
+async fn send_msg_to_owners(owners: &node::Owners, cx: &Update, text: &str) -> Result3Id {
+   // Try to send to all owners
+   let owner1 = send_msg(owners.0, cx, text).await;
+   let owner2 = send_msg(owners.1, cx, text).await;
+   let owner3 = send_msg(owners.2, cx, text).await;
+
+   // Report an error from owner1 if there are no successful attempts
+   unwrap_msg_id(owner1, owner2, owner3)
+}
+
+async fn forward_msg_to_owners(owners: &node::Owners, cx: &Update, message_id: i32) -> Result3Id {
+   // Try to send to all owners
+   let owner1 = forward_msg(owners.0, cx, message_id).await;
+   let owner2 = forward_msg(owners.1, cx, message_id).await;
+   let owner3 = forward_msg(owners.2, cx, message_id).await;
+   
+   unwrap_msg_id(owner1, owner2, owner3)
+}
+
+fn unwrap_msg_id(msg1: ResultMessage, msg2: ResultMessage, msg3: ResultMessage) -> Result3Id {
+   // Report an error from msg1 if there are no successful attempts
+   if msg1.is_err() && msg2.is_err() && msg3.is_err() {
+      return Err(msg1.unwrap_err());
+   }
+
+   let res: ThreeMsgId = (
+      msg1.and_then(|op| Ok(op.id)).ok(),
+      msg2.and_then(|op| Ok(op.id)).ok(),
+      msg3.and_then(|op| Ok(op.id)).ok()
+   );
+   Ok(res)
+}
+
+pub async fn show_tickets(user_id: i64, cx: TransitionIn<AutoSend<Bot>>,) -> Result<(), RequestError> {
+   let tickets = db::tickets(user_id)
+   .await
+   .map_err(|s| states::map_req_err(s))?;
+
+   for ticket in tickets {
+
+   }
+   
+   Ok(())
 }
