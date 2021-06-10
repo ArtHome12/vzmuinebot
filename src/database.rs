@@ -591,7 +591,7 @@ pub async fn ticket_update_stage(id: i32, stage: ticket::Stage) -> Result<(), St
 pub async fn ticket_with_owners(ticket_id: i32) -> Result<ticket::TicketWithOwners, String>
 {
    // Load ticket
-   let text = "SELECT t.node_id, t.customer, t.cust_msg_id, t.owner1_msg_id, t.owner2_msg_id, t.owner3_msg_id, t.stage, t.cust_status_msg_id, t.owner1_status_msg_id, t.owner2_status_msg_id, t.owner3_status_msg_id, service_msg_id,
+   let text = "SELECT t.ticket_id, t.node_id, t.customer, t.cust_msg_id, t.owner1_msg_id, t.owner2_msg_id, t.owner3_msg_id, t.stage, t.cust_status_msg_id, t.owner1_status_msg_id, t.owner2_status_msg_id, t.owner3_status_msg_id, service_msg_id,
       n.owner1, n.owner2, n.owner3 FROM tickets t INNER JOIN nodes n ON n.id = t.node_id
       WHERE t.ticket_id = $1::INTEGER";
    let rows = query_prepared_one(text, &[&ticket_id]).await?;
