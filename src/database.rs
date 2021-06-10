@@ -438,95 +438,55 @@ pub async fn amount_dec(user_id: i64, node_id: i32) -> Result<(), String> {
 pub async fn orders(user_id: i64) -> Result<Orders, String> {
    struct Order {
       node_id: i32,
+      owner_id: i32,
       amount: i32,
    }
    async fn do_load_orders(user_id: i64) -> Result<Vec<Order>, String> {
-      let query = "SELECT node_id, amount FROM orders WHERE user_id = $1::BIGINT AND amount > 0";
-
-      // Prepare query
-      let client = db_client().await?;
-      let statement = client
-      .prepare(&query)
-      .await
-      .map_err(|err| format!("orders prepare: {}", err))?;
-
       // Run query
-      let query = client
-      .query(&statement, &[&user_id])
-      .await
-      .map_err(|err| format!("orders query: {}", err))?;
+      let sql_text = "SELECT node_id, owner_node_id, amount FROM orders WHERE user_id = $1::BIGINT AND amount > 0";
+      let query = query_prepared(sql_text, &[&user_id]).await?;
 
       // Return result
       let res = query.iter()
       .map(|row| Order {
          node_id: row.get(0),
-         amount: row.get(1),
+         owner_id: row.get(1),
+         amount: row.get(2),
       }).collect();
       Ok(res)
    }
 
-   async fn do_lookup_owner(start_id: i32) -> Result<i32, String> {
-      let query = "WITH RECURSIVE cte AS (
-         SELECT id, parent, owner1 FROM nodes WHERE id = $1::INTEGER
-         UNION SELECT n.id, n.parent, n.owner1 FROM nodes n
-         INNER JOIN cte ON cte.parent = n.id
-      ) SELECT id FROM cte WHERE owner1 > 0 LIMIT 1";
-
-      // Prepare query
-      let client = db_client().await?;
-      let statement = client
-      .prepare(&query)
-      .await
-      .map_err(|err| format!("do_lookup_owner prepare: {}", err))?;
-
-      // Run query
-      let query = client
-      .query(&statement, &[&start_id])
-      .await
-      .map_err(|err| format!("do_lookup_owner query: {}", err))?;
-
-      // Collect result
-      let res = query.last()
-      .map(|row| row.get(0))
-      .unwrap_or_default();
-
-      Ok(res)
-   }
-
    // Load node ids and amounts
-   let id_amount_pair = do_load_orders(user_id).await?;
+   let orders = do_load_orders(user_id).await?;
 
-   // Load nodes and group its by owner
-   let mut orders: HashMap<i32, Vec<NodeWithAmount>> = HashMap::new();
-   for item in id_amount_pair {
-      let node = node(LoadNode::EnabledIdNoChildren(item.node_id)).await?;
+   // Load nodes and group its by owner in hash map
+   let mut hash: HashMap<i32, Vec<NodeWithAmount>> = HashMap::new();
+   for order in orders {
+      let node = node(LoadNode::EnabledIdNoChildren(order.node_id)).await?;
 
       if let Some(node) = node {
 
-         // Lookup for owner (for grouping later)
-         let node_with_owner = if node.owners.0 > 0 { node.id }
-         else { do_lookup_owner(node.parent).await? };
-
          let node = NodeWithAmount{
-            amount: item.amount as usize,
+            amount: order.amount as usize,
             node,
          };
 
          // Add to existing owner or to the new
-         let owner = orders.get_mut(&node_with_owner);
-         match owner {
-            Some(owner) => owner.push(node),
-            None => { orders.insert(node_with_owner, vec![node]); },
+         let key = order.owner_id;
+         let by_owner_key = hash.get_mut(&key);
+         match by_owner_key {
+            Some(owner_value) => owner_value.push(node),
+            None => { hash.insert(key, vec![node]); },
          }
       }
    }
 
    // Load owners node for contact info
    let mut res = Orders::new();
-   for order in orders {
-      let owner = node(LoadNode::EnabledIdNoChildren(order.0)).await?;
+   for hash_item in hash {
+      let owner = node(LoadNode::EnabledIdNoChildren(hash_item.0)).await?;
       if let Some(owner) = owner {
-         res.data.insert(owner, order.1);
+         res.data.insert(owner, hash_item.1);
       }
    }
 
