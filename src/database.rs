@@ -384,7 +384,13 @@ pub async fn amount(user_id: i64, node_id: i32) -> Result<usize, String> {
 }
 
 pub async fn amount_inc(user_id: i64, node_id: i32) -> Result<(), String> {
-   let query = "INSERT INTO orders as o (user_id, node_id, amount) VALUES ($1::BIGINT, $2::INTEGER, 1)
+   let query = "INSERT INTO orders as o (user_id, node_id, owner_node_id, amount) VALUES ($1::BIGINT, $2::INTEGER,
+      (WITH RECURSIVE cte AS (
+            SELECT id, parent, owner1 FROM nodes WHERE id = $2::INTEGER
+            UNION SELECT n.id, n.parent, n.owner1 FROM nodes n
+            INNER JOIN cte ON cte.parent = n.id
+         ) SELECT id FROM cte WHERE owner1 > 0 LIMIT 1
+      ), 1)
       ON CONFLICT ON CONSTRAINT orders_pkey DO
       UPDATE SET amount = o.amount + 1 WHERE o.user_id = $1::BIGINT AND o.node_id = $2::INTEGER";
 
@@ -556,10 +562,10 @@ pub async fn order_to_ticket(node_id: i32, user_id: i64, owners_msg_id: ticket::
    let query = "DELETE FROM orders WHERE (user_id = $1::BIGINT AND node_id = $2::INTEGER) OR amount < 1";
 
    let statement = trans
-   .prepare(&query)
+   .prepare_cached(&query)
    .await
    .map_err(|err| format!("order_to_ticket delete prepare customer_id={}, node_id={}: {}", user_id, node_id, err))?;
-env::log(&format!("DELETE FROM orders WHERE (user_id = {} AND node_id = {}) OR amount < 1", user_id, node_id)).await;
+
    trans
    .execute(&statement, &[&user_id, &node_id])
    .await
@@ -571,7 +577,7 @@ env::log(&format!("DELETE FROM orders WHERE (user_id = {} AND node_id = {}) OR a
       RETURNING ticket_id";
 
    let statement = trans
-   .prepare(&query)
+   .prepare_cached(&query)
    .await
    .map_err(|err| format!("order_to_ticket insert prepare customer_id={}, node_id={}: {}", user_id, node_id, err))?;
 
@@ -630,22 +636,7 @@ pub async fn ticket_with_owners(ticket_id: i32) -> Result<ticket::TicketWithOwne
       WHERE t.ticket_id = $1::INTEGER";
    let rows = query_prepared_one(text, &[&ticket_id]).await?;
 
-   let row = &rows[0];
-   let ticket = ticket::Ticket {
-      id: ticket_id,
-      node_id: row.get(0),
-      customer_id: row.get(1),
-      cust_msg_id: row.get(2),
-      owners_msg_id: (row.get(3), row.get(4), row.get(5)),
-      stage: ticket::Stage::from_str(row.get(6)).unwrap(),
-      cust_status_msg_id: row.get(7),
-      owners_status_msg_id: (row.get(8), row.get(9), row.get(10)),
-      service_msg_id: row.get(11),
-   };
-
-   let owners: Owners = (row.get(12), row.get(13), row.get(14));
-
-   Ok(ticket::TicketWithOwners { ticket, owners })
+   Ok(ticket_from_db(&rows[0]))
 }
 
 pub async fn tickets(user_id: i64) -> Result<Vec<ticket::TicketWithOwners>, String> {
@@ -657,27 +648,29 @@ pub async fn tickets(user_id: i64) -> Result<Vec<ticket::TicketWithOwners>, Stri
    let rows = query_prepared(text, &[&user_id]).await?;
 
    let res = rows.iter()
-   .map(|row|{
-
-      // Create ticket-part
-      let ticket = ticket::Ticket {
-         id: row.get(0),
-         node_id: row.get(1),
-         customer_id: row.get(2),
-         cust_msg_id: row.get(3),
-         owners_msg_id: (row.get(4), row.get(5), row.get(6)),
-         stage: ticket::Stage::from_str(row.get(7)).unwrap(),
-         cust_status_msg_id: row.get(8),
-         owners_status_msg_id: (row.get(9), row.get(10), row.get(11)),
-         service_msg_id: row.get(12),
-      };
-   
-      // Create owners part and return item
-      let owners: Owners = (row.get(13), row.get(14), row.get(15));
-      ticket::TicketWithOwners { ticket, owners }
-   }).collect();
+   .map(|row| ticket_from_db(row))
+   .collect();
 
    Ok(res)
+}
+
+pub fn ticket_from_db(row: &Row) -> ticket::TicketWithOwners {
+   // Create ticket-part
+   let ticket = ticket::Ticket {
+      id: row.get(0),
+      node_id: row.get(1),
+      customer_id: row.get(2),
+      cust_msg_id: row.get(3),
+      owners_msg_id: (row.get(4), row.get(5), row.get(6)),
+      stage: ticket::Stage::from_str(row.get(7)).unwrap(),
+      cust_status_msg_id: row.get(8),
+      owners_status_msg_id: (row.get(9), row.get(10), row.get(11)),
+      service_msg_id: row.get(12),
+   };
+
+   // Create owners part and return item
+   let owners: Owners = (row.get(13), row.get(14), row.get(15));
+   ticket::TicketWithOwners { ticket, owners }
 }
 
 // ============================================================================
@@ -737,6 +730,7 @@ pub async fn create_tables() -> bool {
             PRIMARY KEY (user_id, node_id),
             user_id        BIGINT         NOT NULL,
             node_id        INTEGER        NOT NULL,
+            owner_node_id  INTEGER        NOT NULL,
             amount         INTEGER        NOT NULL);
 
          CREATE TABLE tickets (
@@ -752,7 +746,7 @@ pub async fn create_tables() -> bool {
             cust_status_msg_id      INTEGER,
             owner1_status_msg_id    INTEGER,
             owner2_status_msg_id    INTEGER,
-            owner3_status_msg_id    INTEGER
+            owner3_status_msg_id    INTEGER,
             service_msg_id          INTEGER);
    ")
    .await;
