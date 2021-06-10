@@ -4,21 +4,22 @@ Telegram bot for food menu navigate
 
 Disclaimer. The picture below is taken from the movie "Бриллиантовая рука" for illustration only https://ru.wikipedia.org/wiki/%D0%91%D1%80%D0%B8%D0%BB%D0%BB%D0%B8%D0%B0%D0%BD%D1%82%D0%BE%D0%B2%D0%B0%D1%8F_%D1%80%D1%83%D0%BA%D0%B0
 
-Start screen
+### Start screen
 ![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme1s.jpg)
 
-After pressing the "Все" (means "All") button in the bottom menu
+### After pressing the "Все" (means "All") button in the bottom menu
 ![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme2s.jpg)
 
- After pressing the inline button "Пример ресторана" (means "Restaurant example")
+ ### After pressing the inline button "Пример ресторана" (means "Restaurant example")
 ![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme3s.jpg)
 
-In the basket
+### In the basket
 ![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme4s.jpg)
 
-Manager menu
+### Manager menu
 ![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme5s.jpg)
 
+### Description
 The person who deployed the bot is its administrator. Further:
 * He advertises his bot as a platform for placing the menu
 * restaurateurs turn to him
