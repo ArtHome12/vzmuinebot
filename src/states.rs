@@ -49,6 +49,7 @@ enum MainMenu {
    All,  // show all items
    #[strum(to_string = "Открыто")]
    Now,  // show opened items
+   #[strum(to_string = "/start")]
    Start,
    Unknown,
 }
