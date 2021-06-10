@@ -124,8 +124,6 @@ pub async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>,
    let media = InputMedia::Photo(media);
 
    // Отправляем изменения
-   // cx.requester.send_photo(chat_id, media)
-   // .caption(text)
    cx.requester.edit_message_media(chat_id, message_id, media)
    .reply_markup(markup)
    .await

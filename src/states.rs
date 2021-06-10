@@ -49,6 +49,7 @@ enum MainMenu {
    All,  // show all items
    #[strum(to_string = "Открыто")]
    Now,  // show opened items
+   Start,
    Unknown,
 }
 
@@ -173,6 +174,13 @@ async fn trans_select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot
 }
 
 async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
+   async fn do_answer(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, text: &str) -> TransitionOut<Dialogue> {
+      cx.answer(text)
+      .reply_markup(markup())
+      .await?;
+      next(state)
+   }
+
    // Parse and handle commands
    let cmd = MainMenu::from_str(ans.as_str()).unwrap_or(MainMenu::Unknown);
    match cmd {
@@ -180,11 +188,13 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
       MainMenu::All => crate::inline::enter(state, WorkTime::All, cx).await,
       MainMenu::Now => crate::inline::enter(state, WorkTime::Now, cx).await,
       MainMenu::Basket => crate::basket::enter(state, cx).await,
+      MainMenu::Start => {
+         let text = "Добро пожаловать! Пожалуйста, выберите одну из команд внизу (если панель с кнопками скрыта, откройте её)";
+         do_answer(state, cx, text).await
+      }
       MainMenu::Unknown => {
-         cx.answer(format!("Неизвестная команда {}. Пожалуйста, выберите одну из команд внизу (если панель с кнопками скрыта, откройте её)", ans))
-         .reply_markup(markup())
-         .await?;
-         next(state)
+         let text = format!("Неизвестная команда {}. Пожалуйста, выберите одну из команд внизу (если панель с кнопками скрыта, откройте её)", ans);
+         do_answer(state, cx, &text).await
       }
    }
 }
