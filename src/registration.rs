@@ -175,10 +175,12 @@ async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role
       return Ok(None);
    }
 
-   let (text, info_for) = match role {
-      Role::Customer => (t.ticket.stage.get_message().unwrap(), InfoFor::Customer),
-      _ => (t.ticket.stage.get_detailed_message().unwrap(), InfoFor::Owner),
+   // Text and markup for status message
+   let info_for = match role {
+      Role::Customer => InfoFor::Customer,
+      _ => InfoFor::Owner,
    };
+   let text = t.stage_message(info_for);
    let markup = t.ticket.make_markup(info_for);
 
    // Not all owners can exist and, accordingly, there are no message codes
