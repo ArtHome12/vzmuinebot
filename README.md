@@ -4,12 +4,27 @@ Telegram bot for food menu navigate
 
 Disclaimer. The picture below is taken from the movie "Бриллиантовая рука" for illustration only https://ru.wikipedia.org/wiki/%D0%91%D1%80%D0%B8%D0%BB%D0%BB%D0%B8%D0%B0%D0%BD%D1%82%D0%BE%D0%B2%D0%B0%D1%8F_%D1%80%D1%83%D0%BA%D0%B0
 
-![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme.png)
+Start screen
+![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme1.png)
+
+After pressing the "Все" (means "All") button in the bottom menu
+![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme2.png)
+
+ After pressing the inline button "Пример ресторана" (means "Restaurant example")
+![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme3.png)
+
+In the basket
+![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme4.png)
+
+Manager menu
+![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme5.png)
 
 The person who deployed the bot is its administrator. Further:
 * He advertises his bot as a platform for placing the menu
 * restaurateurs turn to him
 * he registers them in the system and restaurateurs manage their own menu
+
+
 
 # Installation
 
@@ -44,24 +59,8 @@ To specify unit of price
 To indicate the time zone
 `TIME_ZONE=+7`
 
-Default image for inline interface mode. It can find out if send a picture to the bot in the main menu
-`DEFAULT_IMAGE_ID=AgACAg...`
-
 Optional. To specify service chat id - you can see it after add bot to group and send command /chat (/chat@yourbotname)
 `LOG_GROUP_ID=-100123...`
 
-# Commands
-
-This commands should be entered only in the main (first) menu.
-* To register (or enable) a new restaurant, enter the command `/regi12345...`, where 12345 is user id of new caterer.
-* To disable restaurant `/hold12345...`
-* To enter as owner some restaurant `/sudo12`, where 12 is the serial number (not user_id!) of the restaurant.
-* To see the list of restaurants `/list`
-* To see id of current chat `/chat`. Bot shows your Id if you in private chat with bot or group id (negative number)
-
-This commands should be entered only in the caterer (where editing restaraunt title, info etc.) menu.
-* Transfer ownership of the restaurant to another user `/move12345...`, where 12345 is user id of new caterer.
-
-Note. This is my first experience in learning the Rust programming language and in bots, so the code is not very beautiful, and not a good example for Rust-way.
 The code is written using https://github.com/teloxide/teloxide and deployed with https://github.com/emk/heroku-buildpack-rust
 Good luck!
