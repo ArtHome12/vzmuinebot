@@ -399,17 +399,17 @@ pub async fn amount_inc(user_id: i64, node_id: i32) -> Result<(), String> {
    let statement = client
    .prepare(&query)
    .await
-   .map_err(|err| format!("amount_add prepare: {}", err))?;
+   .map_err(|err| format!("amount_inc prepare: {}", err))?;
 
    // Run query
    let query = client
    .execute(&statement, &[&user_id, &node_id])
    .await
-   .map_err(|err| format!("amount_add execute: {}", err))?;
+   .map_err(|err| format!("amount_inc execute: {}", err))?;
 
    // Return result
    if query != 1 {
-      Err(format!("amount_add execute user_id={}, node_id={} return {} recs instead one", user_id, node_id, query))
+      Err(format!("amount_inc execute user_id={}, node_id={} return {} recs instead one", user_id, node_id, query))
    } else { Ok(()) }
 }
 
@@ -519,12 +519,12 @@ pub async fn order_to_ticket(node_id: i32, user_id: i64, owners_msg_id: ticket::
    .map_err(|err| format!("order_to_ticket transaction customer_id={}, node_id={}: {}", user_id, node_id, err))?;
 
    // Delete orders, like fn delete_orders()
-   let query = "DELETE FROM orders WHERE (user_id = $1::BIGINT AND node_id = $2::INTEGER) OR amount < 1";
+   let query = "DELETE FROM orders WHERE (user_id = $1::BIGINT AND owner_node_id = $2::INTEGER) OR amount < 1";
 
    let statement = trans
    .prepare_cached(&query)
    .await
-   .map_err(|err| format!("order_to_ticket delete prepare customer_id={}, node_id={}: {}", user_id, node_id, err))?;
+   .map_err(|err| format!("order_to_ticket delete prepare customer_id={}, owner_node_id={}: {}", user_id, node_id, err))?;
 
    trans
    .execute(&statement, &[&user_id, &node_id])
