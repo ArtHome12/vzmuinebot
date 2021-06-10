@@ -144,6 +144,6 @@ impl TicketWithOwners {
          InfoFor::Customer => (self.ticket.stage.get_message().unwrap(), self.ticket.customer_id),
          InfoFor::Owner => (self.ticket.stage.get_detailed_message().unwrap(), self.owners.0),
       };
-      format!("{}\nСообщение /snd{}", s, id)
+      format!("{}\nСообщение через бота /snd{}", s, id)
    }
 }

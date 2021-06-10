@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::types::ReplyMarkup;
 use teloxide_macros::teloxide;
-use teloxide::{prelude::*, payloads::SendMessageSetters,};
+use teloxide::{prelude::*, };
 use std::str::FromStr;
 use strum::{AsRefStr, EnumString, EnumMessage, };
 use chrono::{NaiveTime};
@@ -19,6 +19,8 @@ use crate::states::*;
 use crate::database as db;
 use crate::node::*;
 use crate::environment as env;
+use crate::general;
+
 
 // ============================================================================
 // [Main entry]
@@ -230,12 +232,11 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
       }
 
       Command::Unknown => {
-         cx.answer(format!("Неизвестная команда '{}', вы находитесь в меню настроек", ans))
-         .reply_markup(markup(&state))
+         cx.answer("Вы покидаете меню настроек")
          .await?;
 
-         // Stay in place
-         next(state)
+         // General commands handler - messaging, searching...
+         general::update(state.state, cx, ans).await
       }
    }
 }

@@ -20,6 +20,7 @@ use async_recursion::async_recursion;
 use crate::environment as env;
 use crate::gear::*;
 use crate::basket::*;
+use crate::general;
 
 // FSM states
 #[derive(Transition, From)]
@@ -40,7 +41,7 @@ impl Default for Dialogue {
 
 // Main menu
 #[derive(AsRefStr, EnumString)]
-enum MainMenu {
+enum Command {
    #[strum(to_string = "⚙")]
    Gear,  // settings menu
    #[strum(to_string = "🛒")]
@@ -49,8 +50,6 @@ enum MainMenu {
    All,  // show all items
    #[strum(to_string = "Открыто")]
    Now,  // show opened items
-   #[strum(to_string = "/start")]
-   Start,
    Unknown,
 }
 
@@ -129,20 +128,20 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
    let new_state = CommandState { user_id, is_admin };
 
    // Try to execute command and if it impossible notify about restart
-   let cmd = MainMenu::from_str(ans.as_str()).unwrap_or(MainMenu::Unknown);
+   let cmd = Command::from_str(ans.as_str()).unwrap_or(Command::Unknown);
    match cmd {
-      MainMenu::Unknown => {
+      Command::Unknown => {
 
          // Prepare information
          let info = String::from(if state.restarted { "Извините, бот был перезапущен.\n" } else {""});
          let info = info + if is_admin {
             "Список команд администратора в описании: https://github.com/ArtHome12/vzmuinebot"
          } else {
-            "Добро пожаловать. Пожалуйста, нажмите на 'Все' для отображения полного списка, 'Открыто' для работающих сейчас, либо отправьте текст для поиска."
+            "Добро пожаловать. Пожалуйста, нажмите на 'Все' для отображения полного списка, 'Открыто' для работающих сейчас (если панель с кнопками скрыта, раскройте её), либо отправьте текст для поиска."
          };
 
          cx.answer(info)
-         .reply_markup(markup())
+         .reply_markup(main_menu_markup())
          .disable_web_page_preview(true)
          .await?;
 
@@ -154,12 +153,12 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
    }
 }
 
-fn markup() -> ReplyMarkup {
+pub fn main_menu_markup() -> ReplyMarkup {
    let commands = vec![
-      String::from(MainMenu::Basket.as_ref()),
-      String::from(MainMenu::All.as_ref()),
-      String::from(MainMenu::Now.as_ref()),
-      String::from(MainMenu::Gear.as_ref()),
+      String::from(Command::Basket.as_ref()),
+      String::from(Command::All.as_ref()),
+      String::from(Command::Now.as_ref()),
+      String::from(Command::Gear.as_ref()),
    ];
    kb_markup(vec![commands])
 }
@@ -175,27 +174,13 @@ async fn trans_select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot
 }
 
 async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
-   async fn do_answer(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, text: &str) -> TransitionOut<Dialogue> {
-      cx.answer(text)
-      .reply_markup(markup())
-      .await?;
-      next(state)
-   }
-
    // Parse and handle commands
-   let cmd = MainMenu::from_str(ans.as_str()).unwrap_or(MainMenu::Unknown);
+   let cmd = Command::from_str(ans.as_str()).unwrap_or(Command::Unknown);
    match cmd {
-      MainMenu::Gear => crate::gear::enter(state, cx).await,
-      MainMenu::All => crate::inline::enter(state, WorkTime::All, cx).await,
-      MainMenu::Now => crate::inline::enter(state, WorkTime::Now, cx).await,
-      MainMenu::Basket => crate::basket::enter(state, cx).await,
-      MainMenu::Start => {
-         let text = "Добро пожаловать! Пожалуйста, выберите одну из команд внизу (если панель с кнопками скрыта, откройте её)";
-         do_answer(state, cx, text).await
-      }
-      MainMenu::Unknown => {
-         let text = format!("Неизвестная команда {}. Пожалуйста, выберите одну из команд внизу (если панель с кнопками скрыта, откройте её)", ans);
-         do_answer(state, cx, &text).await
-      }
+      Command::Gear => crate::gear::enter(state, cx).await,
+      Command::All => crate::inline::enter(state, WorkTime::All, cx).await,
+      Command::Now => crate::inline::enter(state, WorkTime::Now, cx).await,
+      Command::Basket => crate::basket::enter(state, cx).await,
+      Command::Unknown => general::update(state, cx, ans).await,
    }
 }

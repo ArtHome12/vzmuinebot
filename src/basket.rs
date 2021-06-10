@@ -24,6 +24,8 @@ use crate::callback as cb;
 use crate::node;
 use crate::orders;
 use crate::registration;
+use crate::general;
+
 
 // ============================================================================
 // [Main entry]
@@ -114,12 +116,11 @@ async fn update(state: BasketState, cx: TransitionIn<AutoSend<Bot>>, ans: String
       Command::Reload => enter(state.state, cx).await,
 
       Command::Unknown => {
-         cx.answer(format!("Неизвестная команда '{}', вы находитесь в заказах", ans))
-         .reply_markup(markup())
+         cx.answer("Вы покидаете меню заказов")
          .await?;
 
-         // Stay in place
-         next(state)
+         // General commands handler - messaging, searching...
+         general::update(state.state, cx, ans).await
       }
    }
 }
