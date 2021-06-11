@@ -63,5 +63,18 @@ To indicate the time zone
 Optional. To specify service chat id - you can see it after add bot to group and send command /chat (/chat@yourbotname)
 `LOG_GROUP_ID=-100123...`
 
+# Service chat
+The bot has the ability to send messages about some actions to a special service chat:
+* new user login
+* ordering through a bot
+* completion or cancellation of the order by the customer or manager
+
+To enable this feature, you need to add the chat ID to the `LOG_GROUP_ID=ID` variable, as shown above. To find out the chat `ID`:
+* add a bot to chat
+* give it the ability to read group messages through the Bot Father (after this feature can be removed)
+* in chat send command /chat and bot will report the identifier.
+
+
+
 The code is written using https://github.com/teloxide/teloxide and deployed with https://github.com/emk/heroku-buildpack-rust
 Good luck!

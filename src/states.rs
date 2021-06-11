@@ -135,7 +135,7 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
 
          // Report about a possible restart and loss of context
          if state.restarted {
-            let text = "Извините, бот был перезапущен, вы в главном меню.";
+            let text = "Извините, бот был перезапущен";
             cx.answer(text)
             .reply_markup(main_menu_markup())
             .await?;

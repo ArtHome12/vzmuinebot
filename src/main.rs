@@ -207,7 +207,19 @@ async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dial
          // Handle message with FSM
          return dialogue.react(cx, text).await;
       }
+   } else {
+      // For chat messages react only command for printout group id (need for identify service chat)
+      if let Some(input) = cx.update.text() {
+         match input.get(..5).unwrap_or_default() {
+            "/chat" => {
+               let text = format!("Chat id={}", chat_id);
+               cx.reply_to(&text).await?;
+            }
+            _ => (),
+         }
+      }
    }
+   
    next(dialogue)
 }
 
