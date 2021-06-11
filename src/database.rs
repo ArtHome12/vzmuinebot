@@ -285,7 +285,7 @@ pub async fn node_search(pattern: &String) -> Result<Vec<search::Chain>, String>
 
    // Make query
    let pattern = pattern.to_uppercase();
-   let sql_text = "SELECT id, title FROM nodes WHERE UPPER(title) LIKE $1::VARCHAR OR UPPER(descr) LIKE $1::VARCHAR LIMIT 31";
+   let sql_text = "SELECT id, title FROM nodes WHERE id > 0 AND (UPPER(title) LIKE $1::VARCHAR OR UPPER(descr) LIKE $1::VARCHAR) LIMIT 31";
    let query = query_prepared(sql_text, &[&pattern]).await?;
 
    // Make chains from the found pairs to the root

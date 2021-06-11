@@ -77,7 +77,7 @@ pub async fn update(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: S
          // Add hint if results too short
          let hint = if search_result.len() < 30 { " <i>Подсказка - используйте подстановочные символы, например '%блок%' позволит найти 'запечённые яблоки'</i>" } else { "" };
 
-         let text = format!("Результаты поиска по {}.{}\n{}", ans, hint, search_result);
+         let text = format!("Результаты поиска по {}.{}\n{} Длина search_result={}", ans, hint, search_result, search_result.len());
          cx.reply_to(text)
          .reply_markup(main_menu_markup())
          .parse_mode(ParseMode::Html)

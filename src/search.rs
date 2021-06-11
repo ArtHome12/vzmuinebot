@@ -30,8 +30,8 @@ impl Separator {
    fn cut_common_root(&mut self) -> bool {
       // Check on the coincidence
       let mut it = self.chains.iter();
-      if let Some(first) = it.next() {
-         let id = if !first.is_empty() { first.last().unwrap().id }
+      let equal = if let Some(init) = it.next() {
+         let id = if !init.is_empty() { init.last().unwrap().id }
          else { return false; };
          
          it.all(|f|
@@ -40,13 +40,17 @@ impl Separator {
       } else { return false };
       
       // Throw out the coinciding part
-      self.chains.iter_mut()
-      .for_each(|f| {
-         f.pop();
-      });
-
-      // Next iteration
-      self.cut_common_root()
+      if equal {
+         self.chains.iter_mut()
+         .for_each(|f| {
+            f.pop();
+         });
+   
+         // Next iteration
+         self.cut_common_root()
+      } else {
+         false
+      }
    }
 }
 
@@ -73,7 +77,7 @@ pub async fn search(pattern: &String) -> Result<String, String> {
       String::from("Ничего не найдено")
    } else {
       // Cut the coincident root
-      // sep.cut_common_root();
+      sep.cut_common_root();
 
       sep.chains.iter()
       .fold(String::default(), |acc, v| {
