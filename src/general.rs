@@ -8,7 +8,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide_macros::teloxide;
-use teloxide::{prelude::*, types::ParseMode, };
+use teloxide::{prelude::*, };
 use strum::{AsRefStr, EnumString,};
 use std::str::FromStr;
 
@@ -79,24 +79,19 @@ async fn enter_input(state: MessageState, cx: TransitionIn<AutoSend<Bot>>) -> Tr
 #[teloxide(subtransition)]
 async fn update_input(state: MessageState, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
    let info = if ans == String::from("/") {
-      String::from("Отмена, сообщение не отправлено")
+      "Отмена, сообщение не отправлено"
    } else {
-      // Collect info about sender and prepare message text
-      let user = cx.update.from();
-      let sender_name = if let Some(user) = user {
-         user.full_name()
-      } else {
-         String::from("'нет имени'")
-      };
+      // Forward message to receiver
+      let msg_id = cx.update.id;
+      let msg = cx.requester.forward_message(state.receiver, cx.update.chat.id, msg_id).await?;
 
-      let text = format!("Сообщение от {}, ответить {}{}\n\n", sender_name, Command::Message(0).as_ref(), state.state.user_id);
-
-      // Send message to receiver
+      // Add info with qoute
+      let text = format!("Ответить {}{}", Command::Message(0).as_ref(), state.state.user_id);
       cx.requester.send_message(state.receiver, &text)
-      .parse_mode(ParseMode::Html)
+      .reply_to_message_id(msg.id)
       .await?;
 
-      text
+      "Cообщение отправлено"
    };
 
    // Report result and return to main menu
