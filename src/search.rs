@@ -67,7 +67,7 @@ pub async fn search(pattern: &String) -> Result<String, String> {
       String::from("Ничего не найдено")
    } else {
       // Cut the coincident root
-      sep.cut_common_root();
+      // sep.cut_common_root();
 
       sep.chains.iter()
       .fold(String::default(), |acc, v| {
