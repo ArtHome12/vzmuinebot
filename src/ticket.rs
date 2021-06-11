@@ -9,8 +9,10 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use strum::{AsRefStr, EnumString, EnumMessage};
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup,};
+
 use crate::callback;
 use crate::node;
+use crate::general as gen;
 
 pub type ThreeMsgId = (Option<i32>, Option<i32>, Option<i32>);
 
@@ -144,6 +146,6 @@ impl TicketWithOwners {
          InfoFor::Customer => (self.ticket.stage.get_message().unwrap(), self.ticket.customer_id),
          InfoFor::Owner => (self.ticket.stage.get_detailed_message().unwrap(), self.owners.0),
       };
-      format!("{}\nСообщение через бота /snd{}", s, id)
+      format!("{}\nСообщение через бота {}{}", s, gen::Command::Message(0).as_ref(), id)
    }
 }

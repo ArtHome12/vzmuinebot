@@ -20,7 +20,7 @@ use async_recursion::async_recursion;
 use crate::environment as env;
 use crate::gear::*;
 use crate::basket::*;
-use crate::general;
+use crate::general::MessageState;
 
 // FSM states
 #[derive(Transition, From)]
@@ -31,6 +31,7 @@ pub enum Dialogue {
    SettingsSubmode(GearStateEditing), // in settings menu edit field
    Basket(BasketState), // in basket menu
    BasketSubmode(BasketStateEditing),
+   GeneralMessage(MessageState), // general commands, enter text of message to send
 }
 
 impl Default for Dialogue {
@@ -181,6 +182,6 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
       Command::All => crate::inline::enter(state, WorkTime::All, cx).await,
       Command::Now => crate::inline::enter(state, WorkTime::Now, cx).await,
       Command::Basket => crate::basket::enter(state, cx).await,
-      Command::Unknown => general::update(state, cx, ans).await,
+      Command::Unknown => crate::general::update(state, cx, ans).await,
    }
 }
