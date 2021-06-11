@@ -12,7 +12,8 @@ use teloxide::{prelude::*, };
 use strum::{AsRefStr, EnumString,};
 use std::str::FromStr;
 
-use crate::states::{CommandState, Dialogue, main_menu_markup, cancel_markup};
+use crate::states::*;
+use crate::search;
 
 #[derive(AsRefStr, EnumString)]
 pub enum Command {
@@ -58,8 +59,11 @@ pub async fn update(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: S
       }
       Command::Message(receiver) => return enter_input(MessageState {state, receiver }, cx).await,
       Command::Unknown => {
-         let text = "Поиск в разработке";
-         cx.answer(text)
+         let search_result = search::search(&ans).await
+         .map_err(|s| map_req_err(s))?;
+
+         let text = format!("Результаты поиска по {}. Подсказка - используйте подстановочные символы, например '%блок%' позволит найти 'запечённые яблоки\n{}'", ans, search_result);
+         cx.reply_to(text)
          .reply_markup(main_menu_markup())
          .await?;
       },

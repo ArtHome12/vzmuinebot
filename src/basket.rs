@@ -92,7 +92,7 @@ async fn update(state: BasketState, cx: TransitionIn<AutoSend<Bot>>, ans: String
    let cmd = Command::parse(ans.as_str());
    match cmd {
       Command::Clear => {
-         db::delete_orders(state.state.user_id)
+         db::orders_delete(state.state.user_id)
          .await
          .map_err(|s| map_req_err(s))?;
 
@@ -105,7 +105,7 @@ async fn update(state: BasketState, cx: TransitionIn<AutoSend<Bot>>, ans: String
       Command::Edit(cmd) => enter_edit(BasketStateEditing { state, cmd }, cx).await,
 
       Command::Delete(node_id) => {
-         db::delete_order(state.state.user_id, node_id)
+         db::order_delete_node(state.state.user_id, node_id)
          .await
          .map_err(|s| map_req_err(s))?;
 
@@ -252,15 +252,15 @@ async fn update_edit(mut state: BasketStateEditing, cx: TransitionIn<AutoSend<Bo
       let user_id = state.state.state.user_id;
       match state.cmd {
          EditCmd::Name => {
-            db::update_user_name(user_id, &ans).await?;
+            db::user_update_name(user_id, &ans).await?;
             state.state.customer.name = ans;
          }
          EditCmd::Contact => {
-            db::update_user_contact(user_id, &ans).await?;
+            db::user_update_contact(user_id, &ans).await?;
             state.state.customer.contact = ans;
          }
          EditCmd::Address => {
-            db::update_user_address(user_id, &ans).await?;
+            db::user_update_address(user_id, &ans).await?;
             state.state.customer.address = ans;
          }
          EditCmd::Delivery => {
@@ -271,7 +271,7 @@ async fn update_edit(mut state: BasketStateEditing, cx: TransitionIn<AutoSend<Bo
             }
 
             let delivery = delivery.unwrap();
-            db::update_user_delivery(user_id, &delivery).await?;
+            db::user_update_delivery(user_id, &delivery).await?;
             state.state.customer.delivery = delivery;
          }
       }

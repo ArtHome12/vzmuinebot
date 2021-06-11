@@ -20,6 +20,8 @@ use crate::node::*;
 use crate::customer::*;
 use crate::orders::*;
 use crate::ticket;
+use crate::search;
+
 
 // Пул клиентов БД
 pub type PoolAlias = Pool<MakeTlsConnector>;
@@ -52,7 +54,7 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
 
          // Try to find picture if not
          if start_node.picture.is_none() {
-            start_node.picture = lookup_picture(start_node.parent).await?;
+            start_node.picture = node_lookup_picture(start_node.parent).await?;
          }
 
          Ok(Some(start_node))
@@ -161,7 +163,7 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    }
 }
 
-async fn lookup_picture(node_id: i32) -> Result<Option<String>, String> {
+async fn node_lookup_picture(node_id: i32) -> Result<Option<String>, String> {
    let sql_text = "WITH RECURSIVE cte AS (
          SELECT id, parent, picture FROM nodes WHERE id = $1::INTEGER
          UNION SELECT n.id, n.parent, n.picture FROM nodes n
@@ -178,7 +180,7 @@ async fn lookup_picture(node_id: i32) -> Result<Option<String>, String> {
    Ok(res)
 }
 
-pub async fn insert_node(node: &mut Node) -> Result<(), String> {
+pub async fn node_insert(node: &mut Node) -> Result<(), String> {
    // Information for query
    let sql_text = "INSERT INTO nodes (parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price) \
       VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::BOOLEAN, $7::BIGINT, $8::BIGINT, $9::BIGINT, $10::TIME, $11::TIME, $12::INTEGER)
@@ -209,7 +211,7 @@ pub async fn insert_node(node: &mut Node) -> Result<(), String> {
    }
 }
 
-pub async fn delete_node(id: i32) -> Result<(), String> {
+pub async fn node_delete(id: i32) -> Result<(), String> {
    let client = db_client().await?;
 
    // Check no children
@@ -232,7 +234,7 @@ pub async fn delete_node(id: i32) -> Result<(), String> {
    execute_one(text, &[&id]).await
 }
 
-pub async fn update_node(id: i32, update: &UpdateNode) -> Result<(), String> {
+pub async fn node_update(id: i32, update: &UpdateNode) -> Result<(), String> {
    match &update.kind {
       UpdateKind::Text(new_val) => {
          let text = format!("UPDATE nodes SET {} = $1::VARCHAR WHERE id=$2::INTEGER", update.field);
@@ -262,25 +264,45 @@ pub async fn update_node(id: i32, update: &UpdateNode) -> Result<(), String> {
    }
 }
 
+
+pub async fn node_search(pattern: &String) -> Result<search::IdTilePairs, String> {
+   // Make query
+   let pattern = pattern.to_uppercase();
+   let sql_text = "SELECT id, title FROM nodes WHERE user_id=$1::BIGINT
+      WHERE UPPER(title) LIKE $1::VARCHAR OR UPPER(descr) LIKE $1::VARCHAR";
+   let query = query_prepared(sql_text, &[&pattern]).await?;
+
+   // Return result
+   let res = query.iter().map(|row| search::IdTilePair {
+      id: row.get(0),
+      title: row.get(1),
+   }).collect();
+   Ok(res)
+}
+
 // ============================================================================
 // [Users]
 // ============================================================================
-// Update last seen field or return false if user don't exist
+pub async fn user(user_id: i64) -> Result<Customer, String> {
+   // Make query
+   let sql_text = "SELECT user_name, contact, address, pickup FROM users WHERE user_id=$1::BIGINT";
+   let rows = query_prepared_one(sql_text, &[&user_id]).await?;
+   let row = &rows[0];
+
+   let res = Customer {
+      name: row.get(0),
+      contact: row.get(1),
+      address: row.get(2),
+      delivery: if row.get(3) { Delivery::Pickup } else { Delivery::Courier }
+   };
+
+   Ok(res)
+}
+
+// Update last seen field or return false if user doesn't exist
 pub async fn user_update_last_seen(user_id: i64) -> Result<bool, String> {
-   let query = "UPDATE users SET last_seen = NOW() WHERE user_id=$1::BIGINT";
-
-   // Prepare query
-   let client = db_client().await?;
-   let statement = client
-   .prepare(&query)
-   .await
-   .map_err(|err| format!("user_update_last_seen prepare: {}", err))?;
-
-   // Run query
-   let query = client
-   .execute(&statement, &[&user_id])
-   .await
-   .map_err(|err| format!("user_update_last_seen execute: {}", err))?;
+   let sql_text = "UPDATE users SET last_seen = NOW() WHERE user_id=$1::BIGINT";
+   let query = execute_prepared(sql_text, &[&user_id]).await?;
 
    // Return result
    Ok(query == 1)
@@ -296,60 +318,24 @@ pub async fn user_insert(id: i64, name: String, contact: String) -> Result<(), S
    Ok(())
 }
 
-pub async fn user(user_id: i64) -> Result<Customer, String> {
-   let sql_text = "SELECT user_name, contact, address, pickup FROM users WHERE user_id=$1::BIGINT";
-
-   // Prepare query
-   let client = db_client().await?;
-   let statement = client
-   .prepare(&sql_text)
-   .await
-   .map_err(|err| format!("user prepare: {}", err))?;
-
-   // Run query
-   let query = client
-   .query(&statement, &[&user_id])
-   .await
-   .map_err(|err| format!("user query: {}", err))?;
-
-   // Return result
-   let len = query.len();
-   if len == 1 {
-      let row = &query[0];
-
-      let delivery = if row.get(3) { Delivery::Pickup } else { Delivery::Courier };
-
-      let res = Customer {
-         name: row.get(0),
-         contact: row.get(1),
-         address:  row.get(2),
-         delivery,
-      };
-
-      Ok(res)
-   } else {
-      Err(format!("user query return: {} recs instead one", len))
-   }
-}
-
-async fn update_user_str(id: i64, new_val: &String, field: &str) -> Result<(), String> {
+async fn user_update_str(id: i64, new_val: &String, field: &str) -> Result<(), String> {
    let text = format!("UPDATE users SET {} = $1::VARCHAR WHERE user_id=$2::BIGINT", field);
    execute_one(text.as_str(), &[new_val, &id]).await
 }
 
-pub async fn update_user_name(id: i64, name: &String) -> Result<(), String> {
-   update_user_str(id, name, "user_name").await
+pub async fn user_update_name(id: i64, name: &String) -> Result<(), String> {
+   user_update_str(id, name, "user_name").await
 }
 
-pub async fn update_user_contact(id: i64, contact: &String) -> Result<(), String> {
-   update_user_str(id, contact, "contact").await
+pub async fn user_update_contact(id: i64, contact: &String) -> Result<(), String> {
+   user_update_str(id, contact, "contact").await
 }
 
-pub async fn update_user_address(id: i64, address: &String) -> Result<(), String> {
-   update_user_str(id, address, "address").await
+pub async fn user_update_address(id: i64, address: &String) -> Result<(), String> {
+   user_update_str(id, address, "address").await
 }
 
-pub async fn update_user_delivery(id: i64, delivery: &Delivery) -> Result<(), String> {
+pub async fn user_update_delivery(id: i64, delivery: &Delivery) -> Result<(), String> {
    let text = "UPDATE users SET pickup = $1::BOOLEAN WHERE user_id=$2::BIGINT";
    let new_val = matches!(delivery, Delivery::Pickup);
    execute_one(text, &[&new_val, &id]).await
@@ -358,83 +344,6 @@ pub async fn update_user_delivery(id: i64, delivery: &Delivery) -> Result<(), St
 // ============================================================================
 // [Orders]
 // ============================================================================
-pub async fn amount(user_id: i64, node_id: i32) -> Result<usize, String> {
-   let query = "SELECT amount FROM orders WHERE user_id=$1::BIGINT AND node_id=$2::INTEGER";
-
-   // Prepare query
-   let client = db_client().await?;
-   let statement = client
-   .prepare(&query)
-   .await
-   .map_err(|err| format!("amount prepare: {}", err))?;
-
-   // Run query
-   let query = client
-   .query(&statement, &[&user_id, &node_id])
-   .await
-   .map_err(|err| format!("amount query: {}", err))?;
-
-   // Return result
-   let res = if query.is_empty() { 0usize }
-   else {
-      let res: i32 = query[0].get(0);
-      res as usize
-   };
-   Ok(res)
-}
-
-pub async fn amount_inc(user_id: i64, node_id: i32) -> Result<(), String> {
-   let query = "INSERT INTO orders as o (user_id, node_id, owner_node_id, amount) VALUES ($1::BIGINT, $2::INTEGER,
-      (WITH RECURSIVE cte AS (
-            SELECT id, parent, owner1 FROM nodes WHERE id = $2::INTEGER
-            UNION SELECT n.id, n.parent, n.owner1 FROM nodes n
-            INNER JOIN cte ON cte.parent = n.id
-         ) SELECT id FROM cte WHERE owner1 > 0 LIMIT 1
-      ), 1)
-      ON CONFLICT ON CONSTRAINT orders_pkey DO
-      UPDATE SET amount = o.amount + 1 WHERE o.user_id = $1::BIGINT AND o.node_id = $2::INTEGER";
-
-   // Prepare query
-   let client = db_client().await?;
-   let statement = client
-   .prepare(&query)
-   .await
-   .map_err(|err| format!("amount_inc prepare: {}", err))?;
-
-   // Run query
-   let query = client
-   .execute(&statement, &[&user_id, &node_id])
-   .await
-   .map_err(|err| format!("amount_inc execute: {}", err))?;
-
-   // Return result
-   if query != 1 {
-      Err(format!("amount_inc execute user_id={}, node_id={} return {} recs instead one", user_id, node_id, query))
-   } else { Ok(()) }
-}
-
-pub async fn amount_dec(user_id: i64, node_id: i32) -> Result<(), String> {
-   let query = "UPDATE orders SET amount = amount - 1 WHERE user_id = $1::BIGINT AND node_id = $2::INTEGER";
-
-   // Prepare query
-   let client = db_client().await?;
-   let statement = client
-   .prepare(&query)
-   .await
-   .map_err(|err| format!("amount_dec prepare: {}", err))?;
-
-   // Run query
-   let query = client
-   .execute(&statement, &[&user_id, &node_id])
-   .await
-   .map_err(|err| format!("amount_dec execute: {}", err))?;
-
-   // Return result
-   if query != 1 {
-      Err(format!("amount_dec execute user_id={}, node_id={} return {} recs instead one", user_id, node_id, query))
-   } else { Ok(()) }
-}
-
 pub async fn orders(user_id: i64) -> Result<Orders, String> {
    struct Order {
       node_id: i32,
@@ -493,13 +402,90 @@ pub async fn orders(user_id: i64) -> Result<Orders, String> {
    Ok(res)
 }
 
-pub async fn delete_order(user_id: i64, node_id: i32) -> Result<(), String> {
+pub async fn orders_amount(user_id: i64, node_id: i32) -> Result<usize, String> {
+   let query = "SELECT amount FROM orders WHERE user_id=$1::BIGINT AND node_id=$2::INTEGER";
+
+   // Prepare query
+   let client = db_client().await?;
+   let statement = client
+   .prepare(&query)
+   .await
+   .map_err(|err| format!("amount prepare: {}", err))?;
+
+   // Run query
+   let query = client
+   .query(&statement, &[&user_id, &node_id])
+   .await
+   .map_err(|err| format!("amount query: {}", err))?;
+
+   // Return result
+   let res = if query.is_empty() { 0usize }
+   else {
+      let res: i32 = query[0].get(0);
+      res as usize
+   };
+   Ok(res)
+}
+
+pub async fn orders_amount_inc(user_id: i64, node_id: i32) -> Result<(), String> {
+   let query = "INSERT INTO orders as o (user_id, node_id, owner_node_id, amount) VALUES ($1::BIGINT, $2::INTEGER,
+      (WITH RECURSIVE cte AS (
+            SELECT id, parent, owner1 FROM nodes WHERE id = $2::INTEGER
+            UNION SELECT n.id, n.parent, n.owner1 FROM nodes n
+            INNER JOIN cte ON cte.parent = n.id
+         ) SELECT id FROM cte WHERE owner1 > 0 LIMIT 1
+      ), 1)
+      ON CONFLICT ON CONSTRAINT orders_pkey DO
+      UPDATE SET amount = o.amount + 1 WHERE o.user_id = $1::BIGINT AND o.node_id = $2::INTEGER";
+
+   // Prepare query
+   let client = db_client().await?;
+   let statement = client
+   .prepare(&query)
+   .await
+   .map_err(|err| format!("amount_inc prepare: {}", err))?;
+
+   // Run query
+   let query = client
+   .execute(&statement, &[&user_id, &node_id])
+   .await
+   .map_err(|err| format!("amount_inc execute: {}", err))?;
+
+   // Return result
+   if query != 1 {
+      Err(format!("amount_inc execute user_id={}, node_id={} return {} recs instead one", user_id, node_id, query))
+   } else { Ok(()) }
+}
+
+pub async fn orders_amount_dec(user_id: i64, node_id: i32) -> Result<(), String> {
+   let query = "UPDATE orders SET amount = amount - 1 WHERE user_id = $1::BIGINT AND node_id = $2::INTEGER";
+
+   // Prepare query
+   let client = db_client().await?;
+   let statement = client
+   .prepare(&query)
+   .await
+   .map_err(|err| format!("amount_dec prepare: {}", err))?;
+
+   // Run query
+   let query = client
+   .execute(&statement, &[&user_id, &node_id])
+   .await
+   .map_err(|err| format!("amount_dec execute: {}", err))?;
+
+   // Return result
+   if query != 1 {
+      Err(format!("amount_dec execute user_id={}, node_id={} return {} recs instead one", user_id, node_id, query))
+   } else { Ok(()) }
+}
+
+pub async fn order_delete_node(user_id: i64, node_id: i32) -> Result<(), String> {
    let text = "DELETE FROM orders WHERE user_id = $1::BIGINT AND node_id = $2::INTEGER";
    execute(text, &[&user_id, &node_id]).await?;
    Ok(())
 }
 
-pub async fn delete_orders(user_id: i64) -> Result<(), String> {
+pub async fn orders_delete(user_id: i64) -> Result<(), String> {
    let text = "DELETE FROM orders WHERE user_id = $1::BIGINT OR amount < 1";
    execute_prepared(text, &[&user_id]).await?;
    Ok(())
@@ -508,7 +494,22 @@ pub async fn delete_orders(user_id: i64) -> Result<(), String> {
 // ============================================================================
 // [Tickets]
 // ============================================================================
-pub async fn order_to_ticket(node_id: i32, user_id: i64, owners_msg_id: ticket::ThreeMsgId, cust_msg_id: i32, service_msg_id: Option<i32>) -> Result<ticket::Ticket, String> {
+pub async fn tickets(user_id: i64) -> Result<Vec<ticket::TicketWithOwners>, String> {
+   // Load all unfinished tickets, where the user is a client or owner
+   let text = "SELECT t.ticket_id, t.node_id, t.customer, t.cust_msg_id, t.owner1_msg_id, t.owner2_msg_id, t.owner3_msg_id, t.stage, t.cust_status_msg_id, t.owner1_status_msg_id, t.owner2_status_msg_id, t.owner3_status_msg_id, service_msg_id,
+      n.owner1, n.owner2, n.owner3 FROM tickets t INNER JOIN nodes n ON n.id = t.node_id
+      WHERE t.stage < 'X' AND t.customer = $1::BIGINT OR n.owner1 = $1::BIGINT OR n.owner2 = $1::BIGINT OR n.owner3 = $1::BIGINT";
+
+   let rows = query_prepared(text, &[&user_id]).await?;
+
+   let res = rows.iter()
+   .map(|row| ticket_from_db(row))
+   .collect();
+
+   Ok(res)
+}
+
+pub async fn ticket_form_orders(node_id: i32, user_id: i64, owners_msg_id: ticket::ThreeMsgId, cust_msg_id: i32, service_msg_id: Option<i32>) -> Result<ticket::Ticket, String> {
 
    // Prepare query
 
@@ -591,27 +592,12 @@ pub async fn ticket_update_stage(id: i32, stage: ticket::Stage) -> Result<(), St
 pub async fn ticket_with_owners(ticket_id: i32) -> Result<ticket::TicketWithOwners, String>
 {
    // Load ticket
-   let text = "SELECT t.ticket_id, t.node_id, t.customer, t.cust_msg_id, t.owner1_msg_id, t.owner2_msg_id, t.owner3_msg_id, t.stage, t.cust_status_msg_id, t.owner1_status_msg_id, t.owner2_status_msg_id, t.owner3_status_msg_id, service_msg_id,
+   let sql_text = "SELECT t.ticket_id, t.node_id, t.customer, t.cust_msg_id, t.owner1_msg_id, t.owner2_msg_id, t.owner3_msg_id, t.stage, t.cust_status_msg_id, t.owner1_status_msg_id, t.owner2_status_msg_id, t.owner3_status_msg_id, service_msg_id,
       n.owner1, n.owner2, n.owner3 FROM tickets t INNER JOIN nodes n ON n.id = t.node_id
       WHERE t.ticket_id = $1::INTEGER";
-   let rows = query_prepared_one(text, &[&ticket_id]).await?;
+   let rows = query_prepared_one(sql_text, &[&ticket_id]).await?;
 
    Ok(ticket_from_db(&rows[0]))
-}
-
-pub async fn tickets(user_id: i64) -> Result<Vec<ticket::TicketWithOwners>, String> {
-   // Load all unfinished tickets, where the user is a client or owner
-   let text = "SELECT t.ticket_id, t.node_id, t.customer, t.cust_msg_id, t.owner1_msg_id, t.owner2_msg_id, t.owner3_msg_id, t.stage, t.cust_status_msg_id, t.owner1_status_msg_id, t.owner2_status_msg_id, t.owner3_status_msg_id, service_msg_id,
-      n.owner1, n.owner2, n.owner3 FROM tickets t INNER JOIN nodes n ON n.id = t.node_id
-      WHERE t.stage < 'X' AND t.customer = $1::BIGINT OR n.owner1 = $1::BIGINT OR n.owner2 = $1::BIGINT OR n.owner3 = $1::BIGINT";
-
-   let rows = query_prepared(text, &[&user_id]).await?;
-
-   let res = rows.iter()
-   .map(|row| ticket_from_db(row))
-   .collect();
-
-   Ok(res)
 }
 
 pub fn ticket_from_db(row: &Row) -> ticket::TicketWithOwners {

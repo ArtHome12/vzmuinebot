@@ -189,7 +189,7 @@ async fn markup(node: &Node, mode: WorkTime, user_id: i64) -> Result<InlineKeybo
    // If price not null add button for basket with amount
    if node.price != 0 {
       // Display only title or title with amount
-      let amount = db::amount(user_id, node.id).await?;
+      let amount = db::orders_amount(user_id, node.id).await?;
       let caption = if amount > 0 { format!("+🛒 ({})", amount) } else { String::from("+🛒") };
 
       let cmd = match mode {

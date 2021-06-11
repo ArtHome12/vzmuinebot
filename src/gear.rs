@@ -116,7 +116,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
 
          // Store a new child node in database with updating id
          let mut child = Node::new(node.id);
-         db::insert_node(&mut child)
+         db::node_insert(&mut child)
          .await
          .map_err(|s| map_req_err(s))?;
 
@@ -183,7 +183,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          } else {
             // Delete from database
             let node_id = node.id;
-            db::delete_node(node_id)
+            db::node_delete(node_id)
             .await
             .map_err(|s| map_req_err(s))?;
 
@@ -410,7 +410,7 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
 
          // Update database
          let node_id = node.id;
-         db::update_node(node_id, &state.update).await?;
+         db::node_update(node_id, &state.update).await?;
 
          // If change in databse is successful, update the stack
          node.update(&state.update)?;

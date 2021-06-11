@@ -107,7 +107,7 @@ pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, Stri
    let service_msg_id = env::log(&format!("{}\n---\n{}", customer_info, order_info)).await;
 
    // Delete data from orders and create ticket with owners
-   let ticket = db::order_to_ticket(node_id, user_id, owners_msg_id, cust_msg_id, service_msg_id).await?;
+   let ticket = db::ticket_form_orders(node_id, user_id, owners_msg_id, cust_msg_id, service_msg_id).await?;
 
    let t = TicketWithOwners {
       ticket,

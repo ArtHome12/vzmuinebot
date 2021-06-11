@@ -65,13 +65,13 @@ Optional. To specify service chat id - you can see it after add bot to group and
 
 # Service chat
 The bot has the ability to send messages about some actions to a special service chat:
-* new user login
+* new user logon
 * ordering through a bot
 * completion or cancellation of the order by the customer or manager
 
 To enable this feature, you need to add the chat ID to the `LOG_GROUP_ID=ID` variable, as shown above. To find out the chat `ID`:
 * add a bot to chat
-* in chat send command /chat and bot will report the identifier.
+* in chat send command `/chat` and bot will report the identifier.
 
 
 

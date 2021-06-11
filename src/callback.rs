@@ -82,7 +82,7 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
    async fn do_inc(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<&'static str, String> {
       // Increment amount in database and reload node
       let user_id = cx.update.from.id;
-      db::amount_inc(user_id, node_id).await?;
+      db::orders_amount_inc(user_id, node_id).await?;
       inline::view(node_id, mode, &cx).await?;
       Ok("Добавлено")
    }
@@ -90,7 +90,7 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
    async fn do_dec(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<&'static str, String> {
       // Decrement amount in database and reload node
       let user_id = cx.update.from.id;
-      db::amount_dec(user_id, node_id).await?;
+      db::orders_amount_dec(user_id, node_id).await?;
       inline::view(node_id, mode, &cx).await?;
       Ok("Удалено")
    }

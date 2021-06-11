@@ -33,6 +33,7 @@ mod callback;
 mod ticket;
 mod general;
 mod registration;
+mod search;
 use crate::states::*;
 use crate::database as db;
 
