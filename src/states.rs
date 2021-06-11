@@ -133,20 +133,16 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
    match cmd {
       Command::Unknown => {
 
-         // Prepare information
-         let info = String::from(if state.restarted { "Извините, бот был перезапущен.\n" } else {""});
-         let info = info + if is_admin {
-            "Список команд администратора в описании: https://github.com/ArtHome12/vzmuinebot"
-         } else {
-            "Добро пожаловать. Пожалуйста, нажмите на 'Все' для отображения полного списка, 'Открыто' для работающих сейчас (если панель с кнопками скрыта, раскройте её), либо отправьте текст для поиска."
-         };
+         // Report about a possible restart and loss of context
+         if state.restarted {
+            let text = "Извините, бот был перезапущен, вы в главном меню.";
+            cx.answer(text)
+            .reply_markup(main_menu_markup())
+            .await?;
+         }
 
-         cx.answer(info)
-         .reply_markup(main_menu_markup())
-         .disable_web_page_preview(true)
-         .await?;
-
-         next(new_state)
+         // Process general commands
+         crate::general::update(new_state, cx, ans).await
       }
       _ => {
          select_command(new_state, cx, ans).await

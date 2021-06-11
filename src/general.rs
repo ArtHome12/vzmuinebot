@@ -51,7 +51,7 @@ pub async fn update(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: S
    let cmd = Command::parse(ans.as_str());
    match cmd {
       Command::Start => {
-         let text = "Добро пожаловать! Пожалуйста, выберите одну из команд внизу (если панель с кнопками скрыта, откройте её)";
+         let text = "Добро пожаловать. Пожалуйста, нажмите на 'Все' для отображения полного списка, 'Открыто' для работающих сейчас (если панель с кнопками скрыта, раскройте её), либо отправьте текст для поиска.";
          cx.answer(text)
          .reply_markup(main_menu_markup())
          .await?;
