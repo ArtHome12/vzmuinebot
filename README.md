@@ -71,7 +71,6 @@ The bot has the ability to send messages about some actions to a special service
 
 To enable this feature, you need to add the chat ID to the `LOG_GROUP_ID=ID` variable, as shown above. To find out the chat `ID`:
 * add a bot to chat
-* give it the ability to read group messages through the Bot Father (after this feature can be removed)
 * in chat send command /chat and bot will report the identifier.
 
 
