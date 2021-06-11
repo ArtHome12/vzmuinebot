@@ -143,8 +143,8 @@ impl Ticket {
 impl TicketWithOwners {
    pub fn stage_message(&self, info_for: InfoFor) -> String {
       let (s, id) = match info_for {
-         InfoFor::Customer => (self.ticket.stage.get_message().unwrap(), self.ticket.customer_id),
-         InfoFor::Owner => (self.ticket.stage.get_detailed_message().unwrap(), self.owners.0),
+         InfoFor::Customer => (self.ticket.stage.get_message().unwrap(), self.owners.0),
+         InfoFor::Owner => (self.ticket.stage.get_detailed_message().unwrap(), self.ticket.customer_id),
       };
       format!("{}\nСообщение через бота {}{}", s, gen::Command::Message(0).as_ref(), id)
    }
