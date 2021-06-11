@@ -284,8 +284,10 @@ pub async fn node_search(pattern: &String) -> Result<Vec<search::Chain>, String>
    }
 
    // Make query
-   let pattern = pattern.to_uppercase();
-   let sql_text = "SELECT id, title FROM nodes WHERE id > 0 AND (UPPER(title) LIKE $1::VARCHAR OR UPPER(descr) LIKE $1::VARCHAR) LIMIT 31";
+   let sql_text = "SELECT id, title FROM nodes WHERE id > 0 
+      AND to_tsvector('russian', title || ' ' || descr) @@ websearch_to_tsquery('russian', $1::VARCHAR)
+   ORDER BY ts_rank(to_tsvector('russian', title || ' ' || descr), websearch_to_tsquery('russian', $1::VARCHAR)) DESC LIMIT 2";
+   // let sql_text = "SELECT id, title FROM nodes WHERE id > 0 AND (title ILIKE  OR descr ILIKE $1::VARCHAR)";
    let query = query_prepared(sql_text, &[&pattern]).await?;
 
    // Make chains from the found pairs to the root
@@ -682,6 +684,11 @@ pub async fn create_tables() -> bool {
          open           TIME           NOT NULL,
          close          TIME           NOT NULL,
          price          INTEGER        NOT NULL);
+
+         ALTER TABLE nodes ADD COLUMN textsearchable_index_col tsvector
+            GENERATED ALWAYS AS (to_tsvector('russian', title || ' ' || descr)) STORED;
+
+         CREATE INDEX textsearch_idx ON nodes USING GIN (textsearchable_index_col);
 
          INSERT INTO nodes (id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price)
          VALUES (0, -1, 'Добро пожаловать', '-', '', true, false, 0, 0, 0, '00:00', '00:00', 0);
