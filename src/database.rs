@@ -272,7 +272,7 @@ pub async fn node_search(pattern: &String) -> Result<Vec<search::Chain>, String>
          SELECT id, parent, title FROM nodes WHERE id = $1::INTEGER
          UNION SELECT n.id, n.parent, n.title FROM nodes n
          INNER JOIN cte ON cte.parent = n.id
-         ) SELECT id, title FROM cte WHERE parent > 0";
+         ) SELECT id, title FROM cte WHERE id > 0";
       let query = query_prepared(sql_text, &[&found.id]).await?;
 
       let res = query.iter().map(|row| search::IdTilePair {

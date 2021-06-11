@@ -54,7 +54,13 @@ impl Separator {
 pub async fn search(pattern: &String) -> Result<String, String> {
 
    fn chain_to_str(chain: &Chain) -> String {
-      chain.iter().fold(format!(" {}{}", general::Command::Goto(0).as_ref(), 0), |acc, f| format!("{}{}", String::from("/") + &f.title, acc))
+      if chain.is_empty() {
+         String::default()
+      } else {
+         let id = chain.first().unwrap().id;
+         let init = format!(" {}{}", general::Command::Goto(0).as_ref(), id);
+         chain.iter().fold(init, |acc, f| format!("{}{}", String::from("/") + &f.title, acc))
+      }
    }
 
    // Redundant data from the database
