@@ -268,8 +268,7 @@ pub async fn node_update(id: i32, update: &UpdateNode) -> Result<(), String> {
 pub async fn node_search(pattern: &String) -> Result<search::IdTilePairs, String> {
    // Make query
    let pattern = pattern.to_uppercase();
-   let sql_text = "SELECT id, title FROM nodes WHERE user_id=$1::BIGINT
-      WHERE UPPER(title) LIKE $1::VARCHAR OR UPPER(descr) LIKE $1::VARCHAR";
+   let sql_text = "SELECT id, title FROM nodes WHERE UPPER(title) LIKE $1::VARCHAR OR UPPER(descr) LIKE $1::VARCHAR";
    let query = query_prepared(sql_text, &[&pattern]).await?;
 
    // Return result
