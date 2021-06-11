@@ -28,16 +28,20 @@ struct Separator {
 impl Separator {
    // Returns true if there were changes
    fn cut_common_root(&mut self) -> bool {
+      // Do not cut single record
+      if self.chains.len() <= 1 {
+         return false;
+      }
+
       // Check on the coincidence
       let mut it = self.chains.iter();
-      let equal = if let Some(init) = it.next() {
-         let id = if !init.is_empty() { init.last().unwrap().id }
-         else { return false; };
-         
-         it.all(|f|
-            f.last().and_then(|f| (f.id == id).then(|| ())).is_some()
-         )
-      } else { return false };
+
+      // Unwrap checked above and there should be no empty elements
+      let pattern_id = it.next().unwrap().last().unwrap().id;
+
+      let equal = it.all(|f|
+         f.last().and_then(|f| (f.id == pattern_id).then(|| ())).is_some()
+      );
       
       // Throw out the coinciding part
       if equal {
@@ -77,7 +81,7 @@ pub async fn search(pattern: &String) -> Result<String, String> {
       String::from("Ничего не найдено")
    } else {
       // Cut the coincident root
-      // sep.cut_common_root();
+      sep.cut_common_root();
 
       sep.chains.iter()
       .fold(String::default(), |acc, v| {
