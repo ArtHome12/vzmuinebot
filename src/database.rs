@@ -286,7 +286,7 @@ pub async fn node_search(pattern: &String) -> Result<Vec<search::Chain>, String>
    // Make query
    let sql_text = "SELECT id, title FROM nodes WHERE id > 0 
       AND to_tsvector('russian', title || ' ' || descr) @@ websearch_to_tsquery('russian', $1::VARCHAR)
-   ORDER BY ts_rank(to_tsvector('russian', title || ' ' || descr), websearch_to_tsquery('russian', $1::VARCHAR)) DESC LIMIT 2";
+   ORDER BY ts_rank(to_tsvector('russian', title || ' ' || descr), websearch_to_tsquery('russian', $1::VARCHAR)) DESC LIMIT 31";
    // let sql_text = "SELECT id, title FROM nodes WHERE id > 0 AND (title ILIKE  OR descr ILIKE $1::VARCHAR)";
    let query = query_prepared(sql_text, &[&pattern]).await?;
 

@@ -71,13 +71,17 @@ pub async fn update(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: S
          .await?;
       }
       Command::Unknown => {
-         let search_result = search::search(&ans).await
+         let found = search::search(&ans).await
          .map_err(|s| map_req_err(s))?;
 
-         // Add hint if results too short
-         let hint = if search_result.len() < 66 { " <i>Подсказка - используйте подстановочные символы, например '%блок%' позволит найти 'запечённые яблоки, если конечно, такие есть'</i>" } else { "" };
+         // Add hint if too many founds
+         let hint = if found.len() > 30 { " <i>Показаны только первые 30 результатов, попробуйте уточнить запрос</i>" } else { "" };
 
-         let text = format!("Результаты поиска по {}.{}\n{}", ans, hint, search_result);
+         let text = found.iter()
+         .fold(format!("Результаты поиска по '{}'.{}\n", ans, hint), |acc, v| {
+            format!("{}\n{}", acc, v)
+         });
+   
          cx.reply_to(text)
          .reply_markup(main_menu_markup())
          .parse_mode(ParseMode::Html)

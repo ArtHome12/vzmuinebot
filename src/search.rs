@@ -59,7 +59,7 @@ impl Separator {
 }
 
 
-pub async fn search(pattern: &String) -> Result<String, String> {
+pub async fn search(pattern: &String) -> Result<Vec<String>, String> {
 
    fn chain_to_str(chain: &Chain) -> String {
       if chain.is_empty() {
@@ -77,17 +77,13 @@ pub async fn search(pattern: &String) -> Result<String, String> {
       chains: raw,
    };
 
-   let res = if sep.chains.is_empty() {
-      String::from("Ничего не найдено")
-   } else {
-      // Cut the coincident root
-      sep.cut_common_root();
+   // Cut the coincident root
+   sep.cut_common_root();
 
-      sep.chains.iter()
-      .fold(String::default(), |acc, v| {
-         format!("{}\n{}", acc, chain_to_str(v))
-      })
-   };
+   // Map chains into strings
+   let res = sep.chains.iter()
+   .map(|v| chain_to_str(v))
+   .collect();
 
    Ok(res)
 }
