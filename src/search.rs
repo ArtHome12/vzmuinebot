@@ -19,5 +19,5 @@ pub type IdTilePairs = Vec<IdTilePair>;
 pub async fn search(pattern: &String) -> Result<String, String> {
    let raw = db::node_search(pattern).await?;
 
-   Err("не готово".to_string())
+   Ok(String::from("ничего не найдено"))
 }
