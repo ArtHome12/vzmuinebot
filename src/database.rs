@@ -265,17 +265,41 @@ pub async fn node_update(id: i32, update: &UpdateNode) -> Result<(), String> {
 }
 
 
-pub async fn node_search(pattern: &String) -> Result<search::IdTilePairs, String> {
+pub async fn node_search(pattern: &String) -> Result<Vec<search::Chain>, String> {
+   
+   async fn chain(found: search::IdTilePair) -> Result<search::Chain, String> {
+      let sql_text = "WITH RECURSIVE cte AS (
+         SELECT id, parent, title FROM nodes WHERE id = $1::INTEGER
+         UNION SELECT n.id, n.parent, n.title FROM nodes n
+         INNER JOIN cte ON cte.parent = n.id
+         ) SELECT id, title FROM cte WHERE parent > 0";
+      let query = query_prepared(sql_text, &[&found.id]).await?;
+
+      let res = query.iter().map(|row| search::IdTilePair {
+            id: row.get(0),
+            title: row.get(1),
+      }).collect();
+
+      Ok(res)
+   }
+
    // Make query
    let pattern = pattern.to_uppercase();
-   let sql_text = "SELECT id, title FROM nodes WHERE UPPER(title) LIKE $1::VARCHAR OR UPPER(descr) LIKE $1::VARCHAR";
+   let sql_text = "SELECT id, title FROM nodes WHERE UPPER(title) LIKE $1::VARCHAR OR UPPER(descr) LIKE $1::VARCHAR LIMIT 31";
    let query = query_prepared(sql_text, &[&pattern]).await?;
 
-   // Return result
-   let res = query.iter().map(|row| search::IdTilePair {
-      id: row.get(0),
-      title: row.get(1),
-   }).collect();
+   // Make chains from the found pairs to the root
+   let mut res = Vec::with_capacity(query.len());
+   for row in query {
+
+      let found = search::IdTilePair {
+         id: row.get(0),
+         title: row.get(1),
+      };
+
+      res.push(chain(found).await?);
+   }
+
    Ok(res)
 }
 

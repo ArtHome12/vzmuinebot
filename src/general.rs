@@ -8,7 +8,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide_macros::teloxide;
-use teloxide::{prelude::*, };
+use teloxide::{prelude::*, types::ParseMode, };
 use strum::{AsRefStr, EnumString,};
 use std::str::FromStr;
 
@@ -21,6 +21,8 @@ pub enum Command {
    Start,
    #[strum(to_string = "/msg")]
    Message(i64),
+   #[strum(to_string = "/get")]
+   Goto(i32),
    Unknown,
 }
 
@@ -30,9 +32,13 @@ impl Command {
       Self::from_str(s)
       .unwrap_or_else(|_| {
          // Looking for the commands with arguments
-         if s.get(..4).unwrap_or_default() == Self::Message(0).as_ref() {
-            let r_part = s.get(4..).unwrap_or_default();
+         let l_part = s.get(..4).unwrap_or_default();
+         let r_part = s.get(4..).unwrap_or_default();
+
+         if l_part == Self::Message(0).as_ref() {
             Command::Message(r_part.parse().unwrap_or_default())
+         } else if l_part == Self::Goto(0).as_ref() {
+               Command::Goto(r_part.parse().unwrap_or_default())
          } else {
             Command::Unknown
          }
@@ -58,13 +64,23 @@ pub async fn update(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: S
          .await?;
       }
       Command::Message(receiver) => return enter_input(MessageState {state, receiver }, cx).await,
+      Command::Goto(node_id) => {
+         let text = "Переход в разработке";
+         cx.answer(text)
+         .reply_markup(main_menu_markup())
+         .await?;
+      }
       Command::Unknown => {
          let search_result = search::search(&ans).await
          .map_err(|s| map_req_err(s))?;
 
-         let text = format!("Результаты поиска по {}. Подсказка - используйте подстановочные символы, например '%блок%' позволит найти 'запечённые яблоки\n{}'", ans, search_result);
+         // Add hint if results too short
+         let hint = if search_result.len() < 21 { " <i>Подсказка - используйте подстановочные символы, например '%блок%' позволит найти 'запечённые яблоки'</i>" } else { "" };
+
+         let text = format!("Результаты поиска по {}.{}\n{}", ans, hint, search_result);
          cx.reply_to(text)
          .reply_markup(main_menu_markup())
+         .parse_mode(ParseMode::Html)
          .await?;
       },
    }
