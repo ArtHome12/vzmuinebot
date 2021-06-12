@@ -15,7 +15,7 @@ use teloxide::{
 };
 use crate::states::*;
 use crate::database as db;
-use crate::inline;
+use crate::navigation;
 use crate::registration;
 
 #[derive(AsRefStr, EnumString, EnumMessage, )]
@@ -83,7 +83,7 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
       // Increment amount in database and reload node
       let user_id = cx.update.from.id;
       db::orders_amount_inc(user_id, node_id).await?;
-      inline::view(node_id, mode, &cx).await?;
+      navigation::view(node_id, mode, &cx).await?;
       Ok("Добавлено")
    }
 
@@ -91,7 +91,7 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
       // Decrement amount in database and reload node
       let user_id = cx.update.from.id;
       db::orders_amount_dec(user_id, node_id).await?;
-      inline::view(node_id, mode, &cx).await?;
+      navigation::view(node_id, mode, &cx).await?;
       Ok("Удалено")
    }
 
@@ -106,11 +106,11 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
    );
    let msg = match cmd {
       Command::Pass(node_id) => {
-         inline::view(node_id, WorkTime::All, &cx).await?;
+         navigation::view(node_id, WorkTime::All, &cx).await?;
          "Все заведения"
       }
       Command::PassNow(node_id) => {
-         inline::view(node_id, WorkTime::Now, &cx).await?;
+         navigation::view(node_id, WorkTime::Now, &cx).await?;
          "Открытые сейчас"
       }
       Command::IncAmount(node_id) => do_inc(node_id, WorkTime::All, &cx).await?,

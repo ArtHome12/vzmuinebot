@@ -114,14 +114,14 @@ pub struct Vars {
    time_zone: FixedOffset,
 
    // Ссылка для рекламы
-   // link: String,
+   link: String,
 }
 
 impl Vars {
    pub async fn from_env(service_bot: AutoSend<Bot>) -> Self {
 
       // Link to bot for advertise from its name
-      /* let link = service_bot
+      let link = service_bot
       .get_me()
       .send()
       .await
@@ -132,7 +132,7 @@ impl Vars {
             None => Err(()),
          }
       });
-      let link = link.unwrap_or(String::from("Ошибка")); */
+      let link = link.unwrap_or(String::from("Ошибка"));
 
       // Служебный чат, чтобы иметь возможность выводить в него ошибки
       let chat = if let Ok(log_group_id_env) = env::var("LOG_GROUP_ID") {
@@ -241,7 +241,7 @@ impl Vars {
             }
          },
 
-         // link,
+         link,
 
          // Служебный чат
          chat,
@@ -274,14 +274,6 @@ pub fn time_zone_info() -> String {
 }
 
 // Возвращает истину, если user_id принадлежит администратору
-/* pub fn is_admin(user_id: Option<&teloxide::types::User>) -> bool {
-   match user_id {
-      Some(user) => is_admin_id(user.id),
-      None => false,
-   }
-} */
-
-// Возвращает истину, если user_id принадлежит администратору
 pub fn is_admin_id(user_id: i64) -> bool {
    let vars = VARS.get().unwrap();
    user_id == vars.admin_id1 || user_id == vars.admin_id2 || user_id == vars.admin_id3
@@ -292,12 +284,7 @@ pub fn price_with_unit(price: usize) -> String {
    format!("{}{}", price,  VARS.get().unwrap().price_unit)
 }
 
-// Картинка по-умолчанию для использования в качестве заглушки в режиме с инлайн-кнопками
-/* pub fn def_image() -> String {
-   VARS.get().unwrap().def_image_id.clone()
-} */
-
 // Ссылка для рекламы
-/* pub fn link() -> String {
+pub fn link() -> String {
    VARS.get().unwrap().link.clone()
-} */
+}

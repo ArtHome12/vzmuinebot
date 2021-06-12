@@ -51,6 +51,8 @@ enum EditCmd {
    Descr,
    #[strum(to_string = "Картинка", message = "picture")]
    Picture,
+   #[strum(to_string = "Реклама")]
+   Advert,
    #[strum(to_string = "Доступ", message = "enabled")]
    Enable,
    #[strum(to_string = "Бан", message = "banned")]
@@ -211,6 +213,14 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
                UpdateKind::Text(node.descr.clone())
             }
             EditCmd::Picture => UpdateKind::Picture(None),
+            EditCmd::Advert => {
+               cx.answer("Вы можете использовать для пересылки сообщение ниже или взять из него только ссылку, при открытии которой клиенты попадут сразу на эту запись").await?;
+               let text = format!("{}{}", env::link(), 0);
+               cx.answer(text).await?;
+
+               // Stay in place
+               return next(state);
+            }
             EditCmd::Enable => UpdateKind::Flag(node.enabled),
             EditCmd::Ban => UpdateKind::Flag(node.banned),
             EditCmd::Owner1 => UpdateKind::Int(node.owners.0),

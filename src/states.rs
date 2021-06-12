@@ -176,8 +176,8 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
    let cmd = Command::from_str(ans.as_str()).unwrap_or(Command::Unknown);
    match cmd {
       Command::Gear => crate::gear::enter(state, cx).await,
-      Command::All => crate::inline::enter(state, WorkTime::All, cx).await,
-      Command::Now => crate::inline::enter(state, WorkTime::Now, cx).await,
+      Command::All => crate::navigation::enter(state, WorkTime::All, cx).await,
+      Command::Now => crate::navigation::enter(state, WorkTime::Now, cx).await,
       Command::Basket => crate::basket::enter(state, cx).await,
       Command::Unknown => crate::general::update(state, cx, ans).await,
    }

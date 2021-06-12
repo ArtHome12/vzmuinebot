@@ -25,7 +25,7 @@ mod environment;
 mod node;
 mod states;
 mod gear;
-mod inline;
+mod navigation;
 mod basket;
 mod customer;
 mod orders;
@@ -260,11 +260,15 @@ async fn update_last_seen(user: &User) -> Result<(), String> {
    Ok(())
 }
 
-
-
-/* async fn handle_inline_query(rx: DispatcherHandlerRx<InlineQuery>) {
-   rx.for_each_concurrent(None, |cx| async move {
-      inline::handle_message(cx).await
+/* async fn handle_inline_query(rx: DispatcherHandlerRx<AutoSend<Bot>, InlineQuery>) {
+   UnboundedReceiverStream::new(rx)
+   .for_each_concurrent(None, |cx| async move {
+      inline_handle_message(cx).await
    })
   .await;
+}
+
+pub async fn inline_handle_message(cx: UpdateWithCx<AutoSend<Bot>, InlineQuery>) {
+   let id = cx.update.id;
+   todo!();
 } */

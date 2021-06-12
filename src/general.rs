@@ -19,6 +19,8 @@ use crate::search;
 pub enum Command {
    #[strum(to_string = "/start")]
    Start,
+   #[strum(to_string = "/start ")]
+   StartFrom(i32),
    #[strum(to_string = "/msg")]
    Message(i64),
    #[strum(to_string = "/get")]
@@ -40,7 +42,14 @@ impl Command {
          } else if l_part == Self::Goto(0).as_ref() {
                Command::Goto(r_part.parse().unwrap_or_default())
          } else {
-            Command::Unknown
+            // More long command
+            let l_part = s.get(..7).unwrap_or_default();
+            if l_part == Self::StartFrom(0).as_ref() {
+               let r_part = s.get(7..).unwrap_or_default();
+               Command::StartFrom(r_part.parse().unwrap_or_default())
+            } else {
+               Command::Unknown
+            }
          }
       })
    }
@@ -63,8 +72,12 @@ pub async fn update(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: S
          .reply_markup(main_menu_markup())
          .await?;
       }
+      
       Command::Message(receiver) => return enter_input(MessageState {state, receiver }, cx).await,
-      Command::Goto(node_id) => return crate::inline::enter(state, WorkTime::AllFrom(node_id), cx).await,
+      
+      Command::Goto(node_id)
+      | Command::StartFrom(node_id) => return crate::navigation::enter(state, WorkTime::AllFrom(node_id), cx).await,
+      
       Command::Unknown => {
          let found = search::search(&ans).await
          .map_err(|s| map_req_err(s))?;
