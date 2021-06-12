@@ -64,12 +64,7 @@ pub async fn update(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: S
          .await?;
       }
       Command::Message(receiver) => return enter_input(MessageState {state, receiver }, cx).await,
-      Command::Goto(node_id) => {
-         let text = "Переход в разработке";
-         cx.answer(text)
-         .reply_markup(main_menu_markup())
-         .await?;
-      }
+      Command::Goto(node_id) => return crate::inline::enter(state, WorkTime::AllFrom(node_id), cx).await,
       Command::Unknown => {
          let found = search::search(&ans).await
          .map_err(|s| map_req_err(s))?;

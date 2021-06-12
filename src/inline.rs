@@ -27,6 +27,7 @@ pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSen
    let load_mode = match mode {
       WorkTime::All => db::LoadNode::EnabledId(0),
       WorkTime::Now => db::LoadNode::EnabledNowId(0),
+      WorkTime::AllFrom(id) => db::LoadNode::EnabledId(id),
    };
    let node =  db::node(load_mode)
    .await
@@ -93,7 +94,7 @@ async fn msg(text: &str, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Res
 pub async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
    // Load node from database
    let load_mode = match mode {
-      WorkTime::All => db::LoadNode::EnabledId(node_id),
+      WorkTime::All | WorkTime::AllFrom(_) => db::LoadNode::EnabledId(node_id),
       WorkTime::Now => db::LoadNode::EnabledNowId(node_id),
    };
    let node =  db::node(load_mode)
@@ -163,7 +164,7 @@ async fn markup(node: &Node, mode: WorkTime, user_id: i64) -> Result<InlineKeybo
 
    // Prepare command
    let pas = match mode {
-      WorkTime::All => Command::Pass(0),
+      WorkTime::All | WorkTime::AllFrom(_) => Command::Pass(0),
       WorkTime::Now => Command::PassNow(0),
    };
    let pas = String::from(pas.as_ref());
@@ -193,7 +194,7 @@ async fn markup(node: &Node, mode: WorkTime, user_id: i64) -> Result<InlineKeybo
       let caption = if amount > 0 { format!("+🛒 ({})", amount) } else { String::from("+🛒") };
 
       let cmd = match mode {
-         WorkTime::All => Command::IncAmount(0),
+         WorkTime::All | WorkTime::AllFrom(_) => Command::IncAmount(0),
          WorkTime::Now => Command::IncAmountNow(0),
       };
       let cmd = String::from(cmd.as_ref());
@@ -206,7 +207,7 @@ async fn markup(node: &Node, mode: WorkTime, user_id: i64) -> Result<InlineKeybo
       // Add decrease button
       if amount > 0 {
          let cmd = match mode {
-            WorkTime::All => Command::DecAmount(0),
+            WorkTime::All | WorkTime::AllFrom(_) => Command::DecAmount(0),
             WorkTime::Now => Command::DecAmountNow(0),
          };
          let cmd = String::from(cmd.as_ref());

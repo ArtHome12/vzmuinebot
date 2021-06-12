@@ -85,7 +85,7 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    let part_select = "SELECT id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price FROM nodes WHERE";
    let part_owner = "owner1 = $1::BIGINT OR owner2 = $1::BIGINT OR owner3 = $1::BIGINT";
    let part_id = "id = $1::BIGINT";
-   let part_enabled = "AND enabled = TRUE AND banned = FALSE";
+   let part_enabled = "AND enabled AND NOT banned";
    let part_now = "AND (($2::TIME BETWEEN open AND close) OR (open >= close AND $2::TIME > open))";
    let part_children = "parent = $1::BIGINT";
 
@@ -284,7 +284,7 @@ pub async fn node_search(pattern: &String) -> Result<Vec<search::Chain>, String>
    }
 
    // Make query
-   let sql_text = "SELECT id, title FROM nodes WHERE id > 0 
+   let sql_text = "SELECT id, title FROM nodes WHERE id > 0 AND enabled AND NOT banned
       AND to_tsvector('russian', title || ' ' || descr) @@ websearch_to_tsquery('russian', $1::VARCHAR)
    ORDER BY ts_rank(to_tsvector('russian', title || ' ' || descr), websearch_to_tsquery('russian', $1::VARCHAR)) DESC LIMIT 31";
    // let sql_text = "SELECT id, title FROM nodes WHERE id > 0 AND (title ILIKE  OR descr ILIKE $1::VARCHAR)";

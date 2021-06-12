@@ -78,6 +78,7 @@ pub fn map_req_err(s: String) -> RequestError {
 pub enum WorkTime {
    All,  // show all nodes
    Now,  // considering work time
+   AllFrom(i32), // like all but from the specified node id
 }
 
 // Frequently used menu
