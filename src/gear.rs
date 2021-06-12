@@ -9,7 +9,9 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use teloxide::{payloads::SendMessageSetters, types::ReplyMarkup};
 use teloxide_macros::teloxide;
-use teloxide::{prelude::*, types::{InputMedia, InputFile, InputMediaPhoto, ParseMode, }};
+use teloxide::{prelude::*, RequestError,
+   types::{InputMedia, InputFile, InputMediaPhoto, ParseMode, }
+};
 use std::str::FromStr;
 use strum::{AsRefStr, EnumString, EnumMessage, };
 use chrono::{NaiveTime};
@@ -219,7 +221,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
                cx.answer("Подсказка - если в описании всего один символ, оно не отображается").await?;
                UpdateKind::Text(node.descr.clone())
             }
-            EditCmd::Picture => UpdateKind::Picture(None),
+            EditCmd::Picture => UpdateKind::Picture(node.picture.clone()),
             EditCmd::Advert => return send_advert(state, cx).await,
             EditCmd::Enable => UpdateKind::Flag(node.enabled),
             EditCmd::Ban => UpdateKind::Flag(node.banned),
@@ -366,6 +368,16 @@ struct TitleAndPicture {
 }
 
 async fn send_advert(state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
+
+   fn do_create_pair(node: &Node) -> Option<TitleAndPicture> {
+      if let Origin::Own(id) = &node.picture {
+         let title = node.title_with_price();
+         let picture = id.clone();
+         Some(TitleAndPicture{ title, picture })
+      } else { None }
+   }
+
+   // === main body
    cx.answer("Вы можете использовать для пересылки сообщение ниже или взять из него только ссылку, при открытии которой клиенты попадут сразу на эту запись").await?;
 
    // Peek current node
@@ -373,20 +385,13 @@ async fn send_advert(state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> Trans
 
    // Take photo of the current node and from child nodes, up to ten
    let mut pictures = Vec::with_capacity(10);
-   if let Some(picture) = &node.picture {
-      let title = node.title_with_price();
-      let picture = picture.clone();
-      pictures.push(TitleAndPicture { title, picture });
+   if let Some(pair) = do_create_pair(node) {
+      pictures.push(pair);
    }
 
    // Add children picture if exists
    node.children.iter()
-   .filter_map(|node|
-      node.picture.clone()
-      .and_then(|s|
-         Some(TitleAndPicture{ title: node.title_with_price(), picture: s })
-      )
-   )
+   .filter_map(|node| do_create_pair(node) )
    .take(10 - pictures.len())
    .for_each(|f| pictures.push(f));
 
@@ -397,6 +402,7 @@ async fn send_advert(state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> Trans
       0 => {
          cx.answer(text)
          .reply_markup(markup)
+         .parse_mode(ParseMode::Html)
          .disable_web_page_preview(true)
          .await?;
       }
@@ -427,6 +433,7 @@ async fn send_advert(state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> Trans
          // Text message
          cx.answer(text)
          .reply_markup(markup)
+         .parse_mode(ParseMode::Html)
          .disable_web_page_preview(true)
          .await?;
       }
@@ -454,7 +461,7 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
             UpdateKind::Text(_) => UpdateKind::Text(ans),
             UpdateKind::Picture(_) => {
                // Delete previous if new id too short
-               let id = if ans.len() >= 3 { Some(ans) } else { None };
+               let id = if ans.len() >= 3 { Origin::Own(ans) } else { Origin::None };
                UpdateKind::Picture(id)
             }
             UpdateKind::Flag(_) => {
@@ -517,6 +524,8 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
       Ok(res)
    }
 
+   // === main body
+
    // Report result
    let info = do_update(&mut state, ans)
    .await
@@ -530,18 +539,43 @@ async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>
 }
 
 async fn enter_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
-   let (info, markup) = match &state.update.kind {
-      UpdateKind::Text(old_val) => (format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup()),
-      UpdateKind::Picture(_) => (String::from("Отправьте изображение или один любой символ для удаления предыдущего или / для отмены"), cancel_markup()),
-      UpdateKind::Flag(old_val) => (format!("Текущее значение '{}', выберите новое", from_flag(*old_val)), flag_markup()),
-      UpdateKind::Int(old_val) => (format!("Текущее значение user id='{}', введите новое или / для отмены", old_val), cancel_markup()),
-      UpdateKind::Time(open, close) => (format!("Текущее время '{}-{}', введите новое или / для отмены", open.format("%H:%M"), close.format("%H:%M")), cancel_markup()),
-      UpdateKind::Money(old_val) => (format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup()),
-   };
 
-   cx.answer(info)
-   .reply_markup(markup)
-   .await?;
+   async fn do_enter(text: String, markup : ReplyMarkup, cx: TransitionIn<AutoSend<Bot>>) -> Result<(), RequestError> {
+      cx.answer(text)
+      .reply_markup(markup)
+      .await?;
+      Ok(())
+   }
+
+   async fn do_enter_picture(old_val: &Origin, cx: TransitionIn<AutoSend<Bot>>) -> Result<(), RequestError> {
+      let opt: Option<String> = old_val.into();
+      if let Some(old_id) = opt {
+
+         let text = "Отправьте изображение (комментарии игнорируются) или нажмите / для отмены";
+         let photo = InputFile::FileId(old_id);
+
+         cx.answer_photo(photo)
+         .caption(text)
+         .reply_markup(cancel_markup())
+         .await?;
+      } else {
+         let text = "Отправьте изображение (комментарии игнорируются) или нажмите / для отмены";
+         cx.answer(text)
+         .reply_markup(cancel_markup())
+         .await?;
+      }
+      Ok(())
+   }
+
+   // === main body
+   match &state.update.kind {
+      UpdateKind::Text(old_val) => do_enter(format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup(), cx).await?,
+      UpdateKind::Picture(old_val) => do_enter_picture(old_val, cx).await?,
+      UpdateKind::Flag(old_val) => do_enter(format!("Текущее значение '{}', выберите новое", from_flag(*old_val)), flag_markup(), cx).await?,
+      UpdateKind::Int(old_val) => do_enter(format!("Текущее значение user id='{}', введите новое или / для отмены", old_val), cancel_markup(), cx).await?,
+      UpdateKind::Time(open, close) => do_enter(format!("Текущее время '{}-{}', введите новое или / для отмены", open.format("%H:%M"), close.format("%H:%M")), cancel_markup(), cx).await?,
+      UpdateKind::Money(old_val) => do_enter(format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup(), cx).await?,
+   }
 
    next(state)
 }

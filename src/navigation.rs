@@ -41,40 +41,41 @@ pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSen
       let node = node.unwrap();
 
       // Next check - picture
-      let picture = node.picture.clone();
-      if picture.is_none() {
-         cx.answer("Ошибка, без картинки невозможно продолжить - обратитесь к администратору")
-         .await?;
-      } else {
-
-         // User needs to sync with basket
-         let user = &cx.update.from();
-         if user.is_none() {
-            cx.answer("Ошибка, нет пользователя - обратитесь к администратору")
+      match &node.picture {
+         Origin::None => {
+            cx.answer("Ошибка, без картинки невозможно продолжить - обратитесь к администратору")
             .await?;
          }
-         let user_id = user.unwrap().id;
+         Origin::Own(picture) | Origin::Inherited(picture) => {
 
-         // Notify about time
-         if matches!(mode, WorkTime::Now) {
-            let now = env::current_date_time();
-            cx.answer(&format!("Заведения, открытые сейчас с учётом часового пояса {} ({}):", env::time_zone_info(), now.format("%H:%M")))
+            // User needs to sync with basket
+            let user = &cx.update.from();
+            if user.is_none() {
+               cx.answer("Ошибка, нет пользователя - обратитесь к администратору")
+               .await?;
+            }
+            let user_id = user.unwrap().id;
+
+            // Notify about time
+            if matches!(mode, WorkTime::Now) {
+               let now = env::current_date_time();
+               cx.answer(&format!("Заведения, открытые сейчас с учётом часового пояса {} ({}):", env::time_zone_info(), now.format("%H:%M")))
+               .await?;
+            }
+
+            // All is ok, collect and display info
+            let markup = markup(&node, mode, user_id)
+            .await
+            .map_err(|s| map_req_err(s))?;
+            let text = node_text(&node);
+
+            cx.answer_photo(InputFile::file_id(picture))
+            .caption(text)
+            .reply_markup(markup)
+            .parse_mode(ParseMode::Html)
+            .disable_notification(true)
             .await?;
          }
-
-         // All is ok, collect and display info
-         let picture = picture.unwrap();
-         let markup = markup(&node, mode, user_id)
-         .await
-         .map_err(|s| map_req_err(s))?;
-         let text = node_text(&node);
-
-         cx.answer_photo(InputFile::file_id(picture))
-         .caption(text)
-         .reply_markup(markup)
-         .parse_mode(ParseMode::Html)
-         .disable_notification(true)
-         .await?;
       }
    }
 
@@ -116,20 +117,27 @@ pub async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>,
    let chat_id = ChatId::Id(message.chat_id());
    let message_id = message.id;
 
-   // Приготовим структуру для редактирования
-   let media = InputFile::file_id(node.picture.unwrap());
-   let media = InputMediaPhoto::new(media)
-   .caption(text)
-   .parse_mode(ParseMode::Html);
-   let media = InputMedia::Photo(media);
+   // Picture is mandatory
+   match node.picture {
+      Origin::None => Err(String::from("navigation::view picture is none")),
+      Origin::Own(picture_id) | Origin::Inherited(picture_id) => {
 
-   // Отправляем изменения
-   cx.requester.edit_message_media(chat_id, message_id, media)
-   .reply_markup(markup)
-   .await
-   .map_err(|err| format!("inline::view {}", err))?;
+         // Приготовим структуру для редактирования
+         let media = InputFile::file_id(picture_id);
+         let media = InputMediaPhoto::new(media)
+         .caption(text)
+         .parse_mode(ParseMode::Html);
+         let media = InputMedia::Photo(media);
 
-   Ok(())
+         // Отправляем изменения
+         cx.requester.edit_message_media(chat_id, message_id, media)
+         .reply_markup(markup)
+         .await
+         .map_err(|err| format!("inline::view {}", err))?;
+
+         Ok(())
+      }
+   }
 }
 
 fn node_text(node: &Node) -> String {

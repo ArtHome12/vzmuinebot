@@ -8,7 +8,6 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use chrono::{NaiveTime};
-use tokio_postgres::{Row, };
 use std::hash::{Hash, Hasher};
 use crate::environment as env;
 
@@ -22,7 +21,7 @@ pub struct Node {
    pub children: Vec<Node>,
    pub title: String,
    pub descr: String,
-   pub picture: Option<String>,
+   pub picture: Origin,
    pub enabled: bool,
    pub banned: bool,
    pub owners: Owners,
@@ -30,20 +29,28 @@ pub struct Node {
    pub price: usize,
 }
 
-impl From<&Row> for Node {
-   fn from(row: &Row) -> Self {
-      Self {
-         id: row.get(0),
-         parent: row.get(1),
-         children: Vec::new(),
-         title: row.get(2),
-         descr: row.get(3),
-         picture: row.get(4),
-         enabled: row.get(5),
-         banned: row.get(6),
-         owners: (row.get(7), row.get(8), row.get(9)),
-         time: (row.get(10), row.get(11)),
-         price: row.get::<usize, i32>(12) as usize,
+// Picture type
+#[derive(Debug, Clone)]
+pub enum Origin {
+   None,
+   Own(String),
+   Inherited(String),
+}
+
+impl From<&Origin> for Option<String> {
+   fn from(origin: &Origin) -> Option<String> {
+       match origin {
+          Origin::None => None,
+          Origin::Own(id) | Origin::Inherited(id) => Some(id.clone()),
+       }
+   }
+}
+
+impl Origin {
+   pub fn derive(&self) -> Self {
+      match self {
+         Origin::None => Origin::None,
+         Origin::Own(id) | Origin::Inherited(id) => Origin::Inherited(id.clone()),
       }
    }
 }
@@ -52,7 +59,7 @@ impl From<&Row> for Node {
 #[derive(Debug, Clone)]
 pub enum UpdateKind {
    Text(String),
-   Picture(Option<String>),
+   Picture(Origin),
    Flag(bool),
    Int(i64),
    Time(NaiveTime, NaiveTime),
@@ -87,7 +94,7 @@ impl Node {
          children: Default::default(),
          title: String::from("Новая запись"),
          descr: String::from("-"),
-         picture: None,
+         picture: Origin::None,
          enabled: false,
          banned: false,
          owners: Default::default(),
@@ -104,7 +111,7 @@ impl Node {
          }
       }
 
-      fn check_picture(kind: &UpdateKind) -> Result<Option<String>, String> {
+      fn check_picture(kind: &UpdateKind) -> Result<Origin, String> {
          match kind {
             UpdateKind::Picture(res) => Ok(res.clone()),
             _ => Err(String::from("node::update type string mismatch")),

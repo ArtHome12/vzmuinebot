@@ -50,10 +50,10 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
       if rows.is_empty() {Ok(None)}
       else {
          // Create node
-         let mut start_node =  Node::from(&rows[0]);
+         let mut start_node =  node_from_db(&rows[0]);
 
          // Try to find picture if not
-         if start_node.picture.is_none() {
+         if let Origin::None = start_node.picture {
             start_node.picture = node_lookup_picture(start_node.parent).await?;
          }
 
@@ -78,8 +78,26 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
       }
    }
 
-   // DB client from the pool
-   let client = db_client().await?;
+   fn node_from_db(row: &Row) -> Node {
+      let picture = row.get::<usize, Option<String>>(4);
+      let picture = if let Some(id) = picture { Origin::Own(id) }
+      else { Origin::None };
+
+      Node {
+         id: row.get(0),
+         parent: row.get(1),
+         children: Vec::new(),
+         title: row.get(2),
+         descr: row.get(3),
+         picture,
+         enabled: row.get(5),
+         banned: row.get(6),
+         owners: (row.get(7), row.get(8), row.get(9)),
+         time: (row.get(10), row.get(11)),
+         price: row.get::<usize, i32>(12) as usize,
+      }
+   }
+   // === Start fucnion body
 
    // Construct statement from parts
    let part_select = "SELECT id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price FROM nodes WHERE";
@@ -100,25 +118,18 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
       LoadNode::EnabledChildrenNow(node) => (format!("{} {} {}", part_children, part_enabled, part_now), node.id as i64),
    };
 
-   let statement_text = format!("{} {}  ORDER BY id", part_select, where_tuple.0);
-
-   // Prepare query
-   let statement = client
-   .prepare(&statement_text)
-   .await
-   .map_err(|err| format!("node prepare: {}", err))?;
+   let sql_text = format!("{} {}  ORDER BY id", part_select, where_tuple.0);
 
    // Run query
    let query = match &mode {
       LoadNode::EnabledNowId(_)
-      | &LoadNode::EnabledChildrenNow(_) => {
+      | LoadNode::EnabledChildrenNow(_) => {
          // Current local time
          let time = env::current_date_time().time();
-         client.query(&statement, &[&where_tuple.1, &time]).await
+         query_prepared(&sql_text, &[&where_tuple.1, &time]).await?
       }
-      _ => client.query(&statement, &[&where_tuple.1]).await
-   }
-   .map_err(|err| format!("node query: {}", err))?;
+      _ => query_prepared(&sql_text, &[&where_tuple.1]).await?
+   };
 
    // Collect results
    match mode {
@@ -129,13 +140,12 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
          // Clear any old and add new children
          node.children.clear();
          for row in query {
-            // Create and inherit the picture if none
-            let mut child = Node::from(&row);
-            if child.picture.is_none() {
-               child.picture = node.picture.clone();
+            // Create child and inherit the picture if there no own one
+            let mut child = node_from_db(&row);
+            if let Origin::None = child.picture {
+               child.picture = node.picture.derive();
             }
 
-            // env::log(&format!("added {} id={}", child.title, child.id)).await;
             node.children.push(child);
          }
 
@@ -163,7 +173,7 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    }
 }
 
-async fn node_lookup_picture(node_id: i32) -> Result<Option<String>, String> {
+async fn node_lookup_picture(node_id: i32) -> Result<Origin, String> {
    let sql_text = "WITH RECURSIVE cte AS (
          SELECT id, parent, picture FROM nodes WHERE id = $1::INTEGER
          UNION SELECT n.id, n.parent, n.picture FROM nodes n
@@ -174,10 +184,11 @@ async fn node_lookup_picture(node_id: i32) -> Result<Option<String>, String> {
    let query = query_prepared(sql_text, &[&node_id]).await?;
 
    // Collect result
-   let res = query.last()
+   let res: Option<String> = query.last()
    .map(|row| row.get(0));
 
-   Ok(res)
+   if let Some(id) = res { Ok(Origin::Inherited(id)) }
+   else { Ok(Origin::None) }
 }
 
 pub async fn node_insert(node: &mut Node) -> Result<(), String> {
@@ -186,11 +197,12 @@ pub async fn node_insert(node: &mut Node) -> Result<(), String> {
       VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::BOOLEAN, $7::BIGINT, $8::BIGINT, $9::BIGINT, $10::TIME, $11::TIME, $12::INTEGER)
       RETURNING id";
 
+   let picture: Option<String> = (&node.picture).into();
    let i32_price = node.price as i32;
    let params: Params = &[&node.parent,
       &node.title,
       &node.descr,
-      &node.picture,
+      &picture,
       &node.enabled,
       &node.banned,
       &node.owners.0,
@@ -242,7 +254,8 @@ pub async fn node_update(id: i32, update: &UpdateNode) -> Result<(), String> {
       }
       UpdateKind::Picture(new_val) => {
          let text = format!("UPDATE nodes SET {} = $1::VARCHAR WHERE id=$2::INTEGER", update.field);
-         execute_one(text.as_str(), &[new_val, &id]).await
+         let new_val: Option<String> = new_val.into();
+         execute_one(text.as_str(), &[&new_val, &id]).await
       }
       UpdateKind::Flag(new_val) => {
          let text = format!("UPDATE nodes SET {} = $1::BOOLEAN WHERE id=$2::INTEGER", update.field);
