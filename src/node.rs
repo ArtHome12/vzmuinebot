@@ -10,6 +10,8 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 use chrono::{NaiveTime};
 use tokio_postgres::{Row, };
 use std::hash::{Hash, Hasher};
+use crate::environment as env;
+
 
 pub type Owners = (i64, i64, i64);
 
@@ -148,6 +150,13 @@ impl Node {
    pub fn is_time_set(&self) -> bool {
       let zero = NaiveTime::from_hms(0, 0, 0);
       self.time.0 != zero || self.time.1 != zero
+   }
+
+   pub fn title_with_price(&self) -> String {
+      let price = if self.price > 0 { String::from(" ") + &env::price_with_unit(self.price) }
+      else { String::default() };
+   
+      format!("{}{}", self.title, price)
    }
 }
 

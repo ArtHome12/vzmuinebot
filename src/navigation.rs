@@ -74,7 +74,6 @@ pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSen
          .reply_markup(markup)
          .parse_mode(ParseMode::Html)
          .disable_notification(true)
-         .send()
          .await?;
       }
    }
@@ -173,11 +172,8 @@ async fn markup(node: &Node, mode: WorkTime, user_id: i64) -> Result<InlineKeybo
    let buttons: Vec<InlineKeyboardButton> = node.children
    .iter()
    .map(|child| {
-      let price = if child.price > 0 { String::from(" ") + &env::price_with_unit(child.price) }
-      else { String::default() };
-   
       InlineKeyboardButton::callback(
-      format!("{} {}", child.title, price),
+      child.title_with_price(),
       format!("{}{}", pas, child.id)
    )})
    .collect();

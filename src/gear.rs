@@ -7,9 +7,9 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use teloxide::types::ReplyMarkup;
+use teloxide::{payloads::SendMessageSetters, types::ReplyMarkup};
 use teloxide_macros::teloxide;
-use teloxide::{prelude::*, };
+use teloxide::{prelude::*, types::{InputMedia, InputFile, InputMediaPhoto, ParseMode, }};
 use std::str::FromStr;
 use strum::{AsRefStr, EnumString, EnumMessage, };
 use chrono::{NaiveTime};
@@ -153,7 +153,9 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
             state.stack.push(node);
             view(state, cx).await
          } else {
-            cx.answer(format!("Неверно указан номер записи '{}', нельзя перейти", index)).await?;
+            cx.answer(format!("Неверно указан номер записи '{}', нельзя перейти", index))
+            .reply_markup(markup(&state))
+            .await?;
 
             // Stay in place
             next(state)
@@ -165,7 +167,9 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
 
          // Root/start node cannot to delete
          if len <= 1 {
-            cx.answer("Нельзя удалить начальный узел").await?;
+            cx.answer("Нельзя удалить начальный узел")
+            .reply_markup(markup(&state))
+            .await?;
 
             // Stay in place
             return next(state);
@@ -178,7 +182,9 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          // Delete record if it has no children
          let children_num = node.children.len();
          if children_num > 0 {
-            cx.answer(format!("У записи '{}' есть {} дочерних, для защиты от случайного удаления большого объёма информации удалите сначала их", node.title, children_num)).await?;
+            cx.answer(format!("У записи '{}' есть {} дочерних, для защиты от случайного удаления большого объёма информации удалите сначала их", node.title, children_num))
+            .reply_markup(markup(&state))
+            .await?;
 
             // Stay in place
             next(state)
@@ -189,7 +195,8 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
             .await
             .map_err(|s| map_req_err(s))?;
 
-            cx.answer(format!("Запись '{}' удалена, переходим на уровень выше", node.title)).await?;
+            cx.answer(format!("Запись '{}' удалена, переходим на уровень выше", node.title))
+            .await?;
 
             // Delete from stack
             if len > 1 {
@@ -213,14 +220,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
                UpdateKind::Text(node.descr.clone())
             }
             EditCmd::Picture => UpdateKind::Picture(None),
-            EditCmd::Advert => {
-               cx.answer("Вы можете использовать для пересылки сообщение ниже или взять из него только ссылку, при открытии которой клиенты попадут сразу на эту запись").await?;
-               let text = format!("{}{}", env::link(), 0);
-               cx.answer(text).await?;
-
-               // Stay in place
-               return next(state);
-            }
+            EditCmd::Advert => return send_advert(state, cx).await,
             EditCmd::Enable => UpdateKind::Flag(node.enabled),
             EditCmd::Ban => UpdateKind::Flag(node.banned),
             EditCmd::Owner1 => UpdateKind::Int(node.owners.0),
@@ -332,6 +332,7 @@ fn markup(state: &GearState) -> ReplyMarkup {
       String::from(EditCmd::Enable.as_ref()),
       String::from(EditCmd::Time.as_ref()),
       String::from(EditCmd::Picture.as_ref()),
+      String::from(EditCmd::Advert.as_ref()),
    ];
    let mut row3 = vec![
       String::from(Command::Exit.as_ref()),
@@ -359,6 +360,81 @@ fn markup(state: &GearState) -> ReplyMarkup {
    kb_markup(keyboard)
 }
 
+struct TitleAndPicture {
+   title: String,
+   picture: String,
+}
+
+async fn send_advert(state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
+   cx.answer("Вы можете использовать для пересылки сообщение ниже или взять из него только ссылку, при открытии которой клиенты попадут сразу на эту запись").await?;
+
+   // Peek current node
+   let node = state.stack.last().unwrap();
+
+   // Take photo of the current node and from child nodes, up to ten
+   let mut pictures = Vec::with_capacity(10);
+   if let Some(picture) = &node.picture {
+      let title = node.title_with_price();
+      let picture = picture.clone();
+      pictures.push(TitleAndPicture { title, picture });
+   }
+
+   // Add children picture if exists
+   node.children.iter()
+   .filter_map(|node|
+      node.picture.clone()
+      .and_then(|s|
+         Some(TitleAndPicture{ title: node.title_with_price(), picture: s })
+      )
+   )
+   .take(10 - pictures.len())
+   .for_each(|f| pictures.push(f));
+
+   // Three ways to send depending on the number of pictures
+   let text = format!("{}\n{}\n{}{}", node.title_with_price(), node.descr, env::link(), node.id);
+   let markup = markup(&state);
+   match pictures.len() {
+      0 => {
+         cx.answer(text)
+         .reply_markup(markup)
+         .disable_web_page_preview(true)
+         .await?;
+      }
+      1 => {
+         let picture = &pictures[0].picture;
+         cx.answer_photo(InputFile::file_id(picture))
+         .caption(text)
+         .reply_markup(markup)
+         .parse_mode(ParseMode::Html)
+         .await?;
+      }
+      _ => {
+         let media_group = pictures.iter()
+         .map(|f| {
+            let photo = InputMediaPhoto {
+               media : InputFile::file_id(f.picture.clone()), 
+               caption: Some(f.title.clone()),
+               parse_mode: None,
+               caption_entities: None,
+            };
+            InputMedia::Photo(photo)
+         });
+      
+         // Message with pictures
+         cx.answer_media_group(media_group)
+         .await?;
+
+         // Text message
+         cx.answer(text)
+         .reply_markup(markup)
+         .disable_web_page_preview(true)
+         .await?;
+      }
+   }
+
+   // Stay in place
+   return next(state);
+}
 // ============================================================================
 // [Fields editing mode]
 // ============================================================================
