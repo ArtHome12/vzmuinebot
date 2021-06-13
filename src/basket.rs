@@ -120,7 +120,7 @@ async fn update(state: BasketState, cx: TransitionIn<AutoSend<Bot>>, ans: String
          .await?;
 
          // General commands handler - messaging, searching...
-         general::update(state.state, cx, ans).await
+         general::update(state.state, cx, ans, true).await
       }
    }
 }

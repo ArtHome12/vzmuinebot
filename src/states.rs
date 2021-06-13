@@ -142,8 +142,8 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
             .await?;
          }
 
-         // Process general commands
-         crate::general::update(new_state, cx, ans).await
+         // Process general commands without search if restarted
+         crate::general::update(new_state, cx, ans, !state.restarted).await
       }
       _ => {
          select_command(new_state, cx, ans).await
@@ -179,6 +179,6 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
       Command::All => crate::navigation::enter(state, WorkTime::All, cx).await,
       Command::Now => crate::navigation::enter(state, WorkTime::Now, cx).await,
       Command::Basket => crate::basket::enter(state, cx).await,
-      Command::Unknown => crate::general::update(state, cx, ans).await,
+      Command::Unknown => crate::general::update(state, cx, ans, true).await,
    }
 }

@@ -62,7 +62,7 @@ pub struct MessageState {
 
 
 
-pub async fn update(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
+pub async fn update(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String, allow_search: bool) -> TransitionOut<Dialogue> {
    // Parse and handle commands
    let cmd = Command::parse(ans.as_str());
    match cmd {
@@ -78,7 +78,7 @@ pub async fn update(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: S
       Command::Goto(node_id)
       | Command::StartFrom(node_id) => return crate::navigation::enter(state, WorkTime::AllFrom(node_id), cx).await,
       
-      Command::Unknown => {
+      Command::Unknown => if allow_search {
          let found = search::search(&ans).await
          .map_err(|s| map_req_err(s))?;
 

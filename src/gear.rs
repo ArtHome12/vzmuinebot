@@ -107,9 +107,11 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
       if !state.stack.is_empty() {
          view(state, cx).await
       } else {
-         exit(cx).await
+         next(state.state) // exit to main menu
       }
    }
+
+   // === main body
 
    // Parse and handle commands
    let cmd = Command::parse(ans.as_str());
@@ -132,7 +134,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          view(state, cx).await
       }
 
-      Command::Exit => exit(cx).await,
+      Command::Exit => next(state.state), // exit to main menu
 
       Command::Return => do_return(state, cx).await,
 
@@ -248,7 +250,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          .await?;
 
          // General commands handler - messaging, searching...
-         general::update(state.state, cx, ans).await
+         general::update(state.state, cx, ans, true).await
       }
    }
 }
@@ -276,12 +278,9 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
       let contact = env::admin_contact_info();
       let text = format!("Для доступа в режим ввода информации обратитесь к '{}' и сообщите ему свой id={}", contact, state.user_id);
       cx.answer(text).await?;
-      exit(cx).await
+      
+      next(state) // exit to main menu
    }
-}
-
-async fn exit(cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
-   crate::states::enter(StartState { restarted: false }, cx, String::default()).await
 }
 
 pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
