@@ -17,7 +17,7 @@ Disclaimer. The picture below is taken from the movie "Бриллиантова�
 ![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme4s.jpg)
 
 ### Manager menu
-![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme5s.jpg)
+![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme51s.jpg)
 
 ### Description
 The person who deployed the bot is its administrator. Further:
