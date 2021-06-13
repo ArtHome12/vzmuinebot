@@ -46,6 +46,7 @@ pub enum LoadNode {
 
 #[async_recursion]
 pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
+   
    async fn do_load_node(rows: Vec<Row>) -> Result<Option<Node>, String> {
       if rows.is_empty() {Ok(None)}
       else {
@@ -97,7 +98,8 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
          price: row.get::<usize, i32>(12) as usize,
       }
    }
-   // === Start fucnion body
+
+   // === main body
 
    // Construct statement from parts
    let part_select = "SELECT id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price FROM nodes WHERE";

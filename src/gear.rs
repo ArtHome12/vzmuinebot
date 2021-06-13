@@ -312,7 +312,7 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
       EditCmd::Enable.as_ref(), from_flag(node.enabled),
       EditCmd::Ban.as_ref(), from_flag(node.banned),
       EditCmd::Time.as_ref(), node.time.0.format("%H:%M"), node.time.1.format("%H:%M"),
-      EditCmd::Picture.as_ref(), if let Origin::None = node.picture { "отсутствует" } else  { "имеется" }
+      EditCmd::Picture.as_ref(), if let Origin::Own(_) = node.picture { "имеется" } else  { "отсутствует" }
    );
 
    let info = state.stack
