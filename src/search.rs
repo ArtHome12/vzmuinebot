@@ -15,17 +15,21 @@ pub struct IdTilePair {
    pub title: String, // node title
 }
 
-// List of found nodes
-// pub type IdTitlePairs = Vec<IdTilePair>;
-
 // Nodes from found to root
 pub type Chain = Vec<IdTilePair>;
 
-struct Separator {
+pub struct Search {
    chains: Vec<Chain>,
 }
 
-impl Separator {
+impl Search {
+
+   pub fn new(chains: Vec<Chain>) -> Self {
+      Self {
+         chains,
+      }
+   }
+
    // Returns true if there were changes
    fn cut_common_root(&mut self) -> bool {
       // Do not cut single record
@@ -71,11 +75,10 @@ pub async fn search(pattern: &String) -> Result<Vec<String>, String> {
       }
    }
 
+   // main body
+
    // Redundant data from the database
-   let raw = db::node_search(pattern).await?;
-   let mut sep = Separator { 
-      chains: raw,
-   };
+   let mut sep = db::node_search(pattern).await?;
 
    // Cut the coincident root
    sep.cut_common_root();

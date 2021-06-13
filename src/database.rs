@@ -46,7 +46,7 @@ pub enum LoadNode {
 
 #[async_recursion]
 pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
-   
+
    async fn do_load_node(rows: Vec<Row>) -> Result<Option<Node>, String> {
       if rows.is_empty() {Ok(None)}
       else {
@@ -280,7 +280,7 @@ pub async fn node_update(id: i32, update: &UpdateNode) -> Result<(), String> {
 }
 
 
-pub async fn node_search(pattern: &String) -> Result<Vec<search::Chain>, String> {
+pub async fn node_search(pattern: &String) -> Result<search::Search, String> {
    
    async fn chain(found: search::IdTilePair) -> Result<search::Chain, String> {
       let sql_text = "WITH RECURSIVE cte AS (
@@ -298,11 +298,13 @@ pub async fn node_search(pattern: &String) -> Result<Vec<search::Chain>, String>
       Ok(res)
    }
 
+   // === main body
+
    // Make query
    let sql_text = "SELECT id, title FROM nodes WHERE id > 0 AND enabled AND NOT banned
       AND to_tsvector('russian', title || ' ' || descr) @@ websearch_to_tsquery('russian', $1::VARCHAR)
    ORDER BY ts_rank(to_tsvector('russian', title || ' ' || descr), websearch_to_tsquery('russian', $1::VARCHAR)) DESC LIMIT 31";
-   // let sql_text = "SELECT id, title FROM nodes WHERE id > 0 AND (title ILIKE  OR descr ILIKE $1::VARCHAR)";
+
    let query = query_prepared(sql_text, &[&pattern]).await?;
 
    // Make chains from the found pairs to the root
@@ -317,7 +319,7 @@ pub async fn node_search(pattern: &String) -> Result<Vec<search::Chain>, String>
       res.push(chain(found).await?);
    }
 
-   Ok(res)
+   Ok(search::Search::new(res))
 }
 
 // ============================================================================

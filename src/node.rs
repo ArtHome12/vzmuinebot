@@ -72,14 +72,14 @@ pub struct UpdateNode {
    pub field: String,
 }
 
-// we will compare `Node`s by their `a` value only.
+// Compare Node's by id only.
 impl PartialEq for Node {
    fn eq(&self, other: &Self) -> bool { self.id == other.id }
 }
 
 impl Eq for Node {}
 
-// we will hash `Node`s by their `a` value only.
+// Hash by id value only.
 impl Hash for Node {
    fn hash<H: Hasher>(&self, h: &mut H) { self.id.hash(h); }
 }

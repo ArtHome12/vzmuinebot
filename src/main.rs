@@ -7,8 +7,6 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-#![allow(clippy::trivial_regex)]
-
 use std::{convert::Infallible, env, net::SocketAddr};
 use customer::Customer;
 use teloxide::{prelude::*, dispatching::update_listeners, types::User,};
@@ -108,14 +106,14 @@ async fn run() {
 
    let bot = Bot::from_env().auto_send();
 
-   // Настройки из переменных окружения
+   // Settings from environments
    let vars = environment::Vars::from_env(bot.clone()).await;
    match environment::VARS.set(vars) {
-      Ok(_) => environment::log_and_notify("Bot restarted").await,
+      Ok(_) => {environment::log("Bot restarted").await;},
       _ => log::info!("Something wrong with TELEGRAM_LOG_CHAT"),
    }
 
-   // Откроем БД
+   // Open database
    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL env variable missing");
 
    let connector = TlsConnector::builder()
@@ -129,7 +127,7 @@ async fn run() {
    let mgr = Manager::from_config(pg_config, connector, mgr_config);
    let pool: database::PoolAlias = Pool::new(mgr, 16);
 
-   // Протестируем соединение
+   // Test connection to database
    let test_pool = pool.clone();
    tokio::spawn(async move {
       if let Err(e) = test_pool.get().await {
@@ -137,7 +135,7 @@ async fn run() {
       }
    });
 
-   // Сохраним доступ к БД
+   // Save db clients pool
    match database::DB.set(pool) {
       Ok(_) => log::info!("Database connected"),
       _ => {
@@ -146,7 +144,7 @@ async fn run() {
       }
    }
 
-   // Проверим существование таблиц и если их нет, создадим
+   // Check and create tables
    if database::is_tables_exist().await {
       log::info!("Table restaurants exist, open existing data");
    } else {
