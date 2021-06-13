@@ -142,8 +142,18 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
             .await?;
          }
 
-         // Process general commands without search if restarted
-         crate::general::update(new_state, cx, ans, !state.restarted).await
+         // We have empty ans when returns from submode and need only to change markup
+         if ans.is_empty() {
+            let text = "Вы в главном меню";
+            cx.answer(text)
+            .reply_markup(main_menu_markup())
+            .await?;
+
+            next(new_state)
+         } else {
+            // Process general commands without search if restarted (to prevent search submode commands)
+            crate::general::update(new_state, cx, ans, !state.restarted).await
+         }
       }
       _ => {
          select_command(new_state, cx, ans).await

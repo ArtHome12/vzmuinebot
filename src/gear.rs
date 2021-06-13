@@ -107,7 +107,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
       if !state.stack.is_empty() {
          view(state, cx).await
       } else {
-         next(state.state) // exit to main menu
+         exit(cx).await
       }
    }
 
@@ -134,7 +134,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          view(state, cx).await
       }
 
-      Command::Exit => next(state.state), // exit to main menu
+      Command::Exit => exit(cx).await,
 
       Command::Return => do_return(state, cx).await,
 
@@ -278,9 +278,12 @@ pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> Tra
       let contact = env::admin_contact_info();
       let text = format!("Для доступа в режим ввода информации обратитесь к '{}' и сообщите ему свой id={}", contact, state.user_id);
       cx.answer(text).await?;
-      
-      next(state) // exit to main menu
+      exit(cx).await
    }
+}
+
+async fn exit(cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
+   crate::states::enter(StartState { restarted: false }, cx, String::default()).await
 }
 
 pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
@@ -294,20 +297,22 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    // Add descr if set
    let node = state.stack.last().unwrap();
    if node.descr.len() > 1 {
-      title = title + "\nОписание: " + node.descr.as_str();
+      title = title + "\n" + EditCmd::Descr.as_ref() + ": " + node.descr.as_str();
    }
 
    // Add price
    let price = node.price;
    if price > 0 {
-      title = format!("{}\nЦена: {}", title, env::price_with_unit(price));
+      title = format!("{}\n{}: {}", title, EditCmd::Price.as_ref(), env::price_with_unit(price));
    }
 
    // Add other info
-   title = format!("{}\n{}: {}, {}: {}\n{}: {}-{}", title,
+   title = format!("{}\n{}: {}, {}: {}\n{}: {}-{}\n{}: {}",
+      title,
       EditCmd::Enable.as_ref(), from_flag(node.enabled),
       EditCmd::Ban.as_ref(), from_flag(node.banned),
-      EditCmd::Time.as_ref(), node.time.0.format("%H:%M"), node.time.1.format("%H:%M")
+      EditCmd::Time.as_ref(), node.time.0.format("%H:%M"), node.time.1.format("%H:%M"),
+      EditCmd::Picture.as_ref(), if let Origin::None = node.picture { "отсутствует" } else  { "имеется" }
    );
 
    let info = state.stack
