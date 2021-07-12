@@ -92,6 +92,7 @@ impl Command {
    }
 }
 
+#[derive(Clone)]
 pub struct GearState {
    pub state: CommandState,
    stack: Vec<Node>, // from start to current displaying node
@@ -449,6 +450,7 @@ async fn send_advert(state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> Trans
 // ============================================================================
 // [Fields editing mode]
 // ============================================================================
+#[derive(Clone)]
 pub struct GearStateEditing {
    state: GearState,
    update: UpdateNode,

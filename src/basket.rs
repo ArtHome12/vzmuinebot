@@ -46,7 +46,7 @@ enum Command {
 }
 
 // Main commands
-#[derive(AsRefStr, EnumString, EnumMessage, EnumDefault)]
+#[derive(Clone, AsRefStr, EnumString, EnumMessage, EnumDefault)]
 enum EditCmd {
    #[strum(to_string = "Имя", message = "name")] // Button caption and db field name
    Name,
@@ -79,7 +79,7 @@ impl Command {
    }
 }
 
-
+#[derive(Clone)]
 pub struct BasketState {
    pub state: CommandState,
    pub customer: Customer,
@@ -236,6 +236,7 @@ fn order_markup(node_id: i32) -> InlineKeyboardMarkup {
 // ============================================================================
 // [Fields editing mode]
 // ============================================================================
+#[derive(Clone)]
 pub struct BasketStateEditing {
    state: BasketState,
    cmd: EditCmd,
