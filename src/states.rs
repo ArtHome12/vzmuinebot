@@ -23,7 +23,7 @@ use crate::basket::*;
 use crate::general::MessageState;
 
 // FSM states
-#[derive(Transition, From)]
+#[derive(Clone, Transition, From)]
 pub enum Dialogue {
    Start(StartState), // initial state
    Command(CommandState), // await for select menu item from bottom
@@ -106,6 +106,7 @@ pub fn kb_markup(keyboard: Vec<Vec<String>>) -> ReplyMarkup {
 }
 
 
+#[derive(Clone)]
 pub struct StartState {
    pub restarted: bool,
 }
@@ -171,6 +172,7 @@ pub fn main_menu_markup() -> ReplyMarkup {
    kb_markup(vec![commands])
 }
 
+#[derive(Clone)]
 pub struct CommandState {
    pub user_id: i64,
    pub is_admin: bool,

@@ -9,7 +9,7 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use strum::{AsRefStr, EnumString, };
 
-#[derive(AsRefStr, EnumString)]
+#[derive(Clone, AsRefStr, EnumString)]
 pub enum Delivery {
    #[strum(to_string = "Курьером")]
    Courier, // delivery by courier
@@ -17,6 +17,7 @@ pub enum Delivery {
    Pickup, // delivery by customer
 }
 
+#[derive(Clone)]
 pub struct Customer {
    pub name: String,
    pub contact: String,
