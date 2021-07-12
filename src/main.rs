@@ -166,7 +166,7 @@ async fn run() {
 
    Dispatcher::new(bot.clone())
    .messages_handler(DialogueDispatcher::new(|DialogueWithCx { cx, dialogue }| async move {
-      
+
       let res = handle_message(cx, dialogue.unwrap()).await;
 
       if let Err(e) = res {
