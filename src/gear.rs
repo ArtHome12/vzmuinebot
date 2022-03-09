@@ -558,7 +558,7 @@ async fn enter_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>) ->
       if let Some(old_id) = opt {
 
          let text = "Отправьте изображение (комментарии игнорируются) или нажмите / для отмены";
-         let photo = InputFile::FileId(old_id);
+         let photo = InputFile::file_id(old_id);
 
          cx.answer_photo(photo)
          .caption(text)

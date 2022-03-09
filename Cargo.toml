@@ -12,8 +12,8 @@ futures = "0.3.15"
 tokio = { version =  "1.8.1", features = ["rt-multi-thread", "macros"] }
 tokio-stream = "0.1.7"
 pretty_env_logger = "0.4.0"
-teloxide = { version = "0.5.0", features = ["auto-send"] }
-teloxide-macros = "0.4.1"
+teloxide = { version = "0.7.0", features = ["auto-send"] }
+teloxide-macros = "0.5.0"
 derive_more = "0.99.16"
 strum = { version = "0.24.0", features = ["derive"] }
 async-recursion = "1.0.0"
