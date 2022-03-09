@@ -16,7 +16,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::Filter;
 use reqwest::{StatusCode, Url};
-use deadpool_postgres::{Config, ManagerConfig, RecyclingMethod, Runtime};
+use deadpool_postgres::{Manager, ManagerConfig, RecyclingMethod, Pool};
 use tokio_postgres::NoTls;
 
 mod database;
@@ -127,11 +127,15 @@ async fn run() {
 
    // Open database
    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL env variable missing");
+   /* let mut pg_config = database_url.parse::<tokio_postgres::Config>().expect("DATABASE_URL env variable wrong");
+   pg_config.manager = Some(ManagerConfig { recycling_method: RecyclingMethod::Fast });
+   let pool = pg_config.create_pool(Some(Runtime::Tokio1), NoTls).unwrap(); */
 
-   let mut cfg = Config::new();
-   cfg.dbname = Some(database_url);
-   cfg.manager = Some(ManagerConfig { recycling_method: RecyclingMethod::Fast });
-   let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
+   let pg_config = database_url.parse::<tokio_postgres::Config>().expect("DATABASE_URL env variable wrong");
+   let mgr_config = ManagerConfig {recycling_method: RecyclingMethod::Fast};
+   let mgr = Manager::from_config(pg_config, NoTls, mgr_config);
+   let pool = Pool::builder(mgr).max_size(16).build().unwrap();
+
 
    // Test connection to database
    let test_pool = pool.clone();
