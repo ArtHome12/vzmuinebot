@@ -14,11 +14,10 @@ use teloxide::{prelude::*, dispatching::{update_listeners::{self, StatefulListen
 };
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use native_tls::{TlsConnector};
-use postgres_native_tls::MakeTlsConnector;
 use warp::Filter;
 use reqwest::{StatusCode, Url};
-use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
+use deadpool_postgres::{Config, ManagerConfig, RecyclingMethod, Runtime};
+use tokio_postgres::NoTls;
 
 mod database;
 mod environment;
@@ -129,16 +128,10 @@ async fn run() {
    // Open database
    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL env variable missing");
 
-   let connector = TlsConnector::builder()
-   // .add_root_certificate(cert)
-   .danger_accept_invalid_certs(true)
-   .build().unwrap();
-   let connector = MakeTlsConnector::new(connector);
-
-   let pg_config = database_url.parse::<tokio_postgres::Config>().expect("DATABASE_URL env variable wrong");
-   let mgr_config = ManagerConfig {recycling_method: RecyclingMethod::Fast};
-   let mgr = Manager::from_config(pg_config, connector, mgr_config);
-   let pool = Pool::new(mgr, 16);
+   let mut cfg = Config::new();
+   cfg.dbname = Some(database_url);
+   cfg.manager = Some(ManagerConfig { recycling_method: RecyclingMethod::Fast });
+   let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
 
    // Test connection to database
    let test_pool = pool.clone();
