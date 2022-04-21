@@ -115,6 +115,7 @@ pub async fn webhook<'a>(bot: AutoSend<Bot>) -> impl update_listeners::UpdateLis
 }
 
 async fn run() {
+   pretty_env_logger::init();
    log::info!("Starting...");
 
    let bot = Bot::from_env().auto_send();
