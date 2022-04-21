@@ -180,6 +180,23 @@ async fn run() {
           }),
    );
 
+   Dispatcher::builder(bot, handler)
+   // Here you specify initial dependencies that all handlers will receive; they can be
+   // database connections, configurations, and other auxiliary arguments. It is similar to
+   // `actix_web::Extensions`.
+   // .dependencies(dptree::deps![parameters])
+   // If no handler succeeded to handle an update, this closure will be called.
+   .default_handler(|upd| async move {
+       log::warn!("Unhandled update: {:?}", upd);
+   })
+   // If the dispatcher fails for some reason, execute this handler.
+   .error_handler(LoggingErrorHandler::with_custom_text(
+       "An error has occurred in the dispatcher",
+   ))
+   .build()
+   .setup_ctrlc_handler()
+   .dispatch()
+   .await;
 
    /* Dispatcher::new(bot.clone())
    .messages_handler(DialogueDispatcher::new(|DialogueWithCx { cx, dialogue }| async move {
