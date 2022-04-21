@@ -7,7 +7,6 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use teloxide_macros::teloxide;
 use teloxide::{prelude::*, types::ParseMode, };
 use strum::{AsRefStr, EnumString,};
 use std::str::FromStr;
@@ -63,7 +62,7 @@ pub struct MessageState {
 
 
 
-pub async fn update(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String, allow_search: bool) -> TransitionOut<Dialogue> {
+/* pub async fn update(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String, allow_search: bool) -> TransitionOut<Dialogue> {
    // Parse and handle commands
    let cmd = Command::parse(ans.as_str());
    match cmd {
@@ -133,4 +132,4 @@ async fn update_input(state: MessageState, cx: TransitionIn<AutoSend<Bot>>, ans:
    .await?;
    
    next(state.state)
-}
+} */

@@ -11,7 +11,7 @@ use chrono::{FixedOffset, NaiveDateTime, Utc,};
 use once_cell::sync::{OnceCell};
 use std::{env, };
 use teloxide::{
-   prelude::*,
+   prelude::*, types::{Recipient, ChatId,},
 };
 
 // Settings
@@ -20,7 +20,7 @@ pub static VARS: OnceCell<Vars> = OnceCell::new();
 // For send info to service chat
 #[derive(Clone)]
 struct ServiceChat {
-   id: i64,
+   recipient: Recipient,
    bot: AutoSend<Bot>,
 }
 
@@ -29,7 +29,7 @@ impl ServiceChat {
 
       // Prepare to send text
       let mut res = self.bot
-      .send_message(self.id, text)
+      .send_message(self.recipient.to_owned(), text)
       .disable_notification(true);
 
       // Quoted message
@@ -114,8 +114,9 @@ impl Vars {
       let chat = if let Ok(log_group_id_env) = env::var("LOG_GROUP_ID") {
          if let Ok(log_group_id) = log_group_id_env.parse::<i64>() {
             // Save id and bot
+            let id = ChatId(log_group_id);
             Some(ServiceChat {
-               id: log_group_id,
+               recipient: Recipient::Id(id),
                bot: service_bot,
             })
          } else {

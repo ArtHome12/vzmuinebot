@@ -7,10 +7,8 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use teloxide::{payloads::SendMessageSetters, types::ReplyMarkup};
-use teloxide_macros::teloxide;
-use teloxide::{prelude::*, RequestError,
-   types::{InputMedia, InputFile, InputMediaPhoto, ParseMode, }
+use teloxide::{prelude::*, RequestError, payloads::SendMessageSetters,
+   types::{InputMedia, InputFile, InputMediaPhoto, ParseMode, ReplyMarkup, }
 };
 use std::str::FromStr;
 use strum::{AsRefStr, EnumString, EnumMessage, };
@@ -98,8 +96,7 @@ pub struct GearState {
    stack: Vec<Node>, // from start to current displaying node
 }
 
-#[teloxide(subtransition)]
-async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
+/* async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
    async fn do_return(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
       // Extract current node from stack
       state.stack.pop().unwrap();
@@ -327,7 +324,7 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
    .await?;
 
    next(state)
-}
+} */
 
 fn markup(state: &GearState) -> ReplyMarkup {
    let mut row1 = vec![
@@ -372,7 +369,7 @@ struct TitleAndPicture {
    picture: String,
 }
 
-async fn send_advert(state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
+/* async fn send_advert(state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
 
    fn do_create_pair(node: &Node) -> Option<TitleAndPicture> {
       if let Origin::Own(id) = &node.picture {
@@ -446,7 +443,7 @@ async fn send_advert(state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> Trans
 
    // Stay in place
    return next(state);
-}
+} */
 // ============================================================================
 // [Fields editing mode]
 // ============================================================================
@@ -456,8 +453,7 @@ pub struct GearStateEditing {
    update: UpdateNode,
 }
 
-#[teloxide(subtransition)]
-async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
+/* async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
    async fn do_update(state: &mut GearStateEditing, ans: String) -> Result<String, String> {
       let res = if ans == String::from("/") {
          String::from("Отмена, значение не изменено")
@@ -584,5 +580,5 @@ async fn enter_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>) ->
    }
 
    next(state)
-}
+} */
 

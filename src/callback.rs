@@ -78,7 +78,7 @@ impl Command {
    }
 }
 
-pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
+/* pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
    async fn do_inc(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<&'static str, String> {
       // Increment amount in database and reload node
       let user_id = cx.update.from.id;
@@ -132,4 +132,4 @@ pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<()
    .map_err(|err| format!("inline::update {}", err))?;
 
    Ok(())
-}
+} */

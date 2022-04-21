@@ -11,6 +11,7 @@ use std::{convert::Infallible, env, net::SocketAddr};
 use customer::Customer;
 use teloxide::{prelude::*, dispatching::{update_listeners::{self, StatefulListener},
    stop_token::AsyncStopToken}, types::User,
+   dispatching::dialogue::InMemStorage,
 };
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -114,7 +115,6 @@ pub async fn webhook<'a>(bot: AutoSend<Bot>) -> impl update_listeners::UpdateLis
 }
 
 async fn run() {
-   teloxide::enable_logging!();
    log::info!("Starting...");
 
    let bot = Bot::from_env().auto_send();
@@ -164,7 +164,24 @@ async fn run() {
       log::info!("Table restaurants do not exist, create new tables: {}", database::is_success(database::create_tables().await));
    }
 
-   Dispatcher::new(bot.clone())
+   // Create handlers
+   let handler = Update::filter_message()
+   .enter_dialogue::<Message, InMemStorage<State>, State>()
+   .branch(
+      // Filtering allow you to filter updates by some condition.
+      dptree::filter(|msg: Message| {
+         msg.chat.is_private() && msg.from().is_some()
+      })
+          // An endpoint is the last update handler.
+          .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
+              log::info!("Received a message from a private chat.");
+              bot.send_message(msg.chat.id, "This is a private chat.").await?;
+              respond(())
+          }),
+   );
+
+
+   /* Dispatcher::new(bot.clone())
    .messages_handler(DialogueDispatcher::new(|DialogueWithCx { cx, dialogue }| async move {
 
       let res = handle_message(cx, dialogue.unwrap()).await;
@@ -182,10 +199,10 @@ async fn run() {
       webhook(bot).await,
       LoggingErrorHandler::with_custom_text("An error from the update listener"),
    )
-   .await;
+   .await; */
 }
 
-async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dialogue) -> TransitionOut<Dialogue> {
+/* async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dialogue) -> TransitionOut<Dialogue> {
 
    // Negative for chats, positive personal
    let chat_id = cx.update.chat_id();
@@ -269,7 +286,7 @@ async fn update_last_seen(user: &User) -> Result<(), String> {
       db::user_insert(user_id, name, contact).await?;
    }
    Ok(())
-}
+} */
 
 /* async fn handle_inline_query(rx: DispatcherHandlerRx<AutoSend<Bot>, InlineQuery>) {
    UnboundedReceiverStream::new(rx)

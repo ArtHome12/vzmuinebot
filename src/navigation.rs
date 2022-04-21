@@ -21,7 +21,7 @@ use crate::states::*;
 use crate::database as db;
 use crate::node::*;
 
-pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
+/* pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
 
    // Load root node with children
    let load_mode = match mode {
@@ -138,7 +138,7 @@ pub async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>,
          Ok(())
       }
    }
-}
+} */
 
 fn node_text(node: &Node) -> String {
 

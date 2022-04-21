@@ -8,7 +8,6 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use derive_more::From;
-use teloxide_macros::{Transition, teloxide, };
 use teloxide::{prelude::*, ApiError, RequestError,
    types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, }
 };
@@ -23,8 +22,8 @@ use crate::basket::*;
 use crate::general::MessageState;
 
 // FSM states
-#[derive(Clone, Transition, From)]
-pub enum Dialogue {
+#[derive(Clone, From)]
+pub enum State {
    Start(StartState), // initial state
    Command(CommandState), // await for select menu item from bottom
    Settings(GearState), // in settings menu
@@ -34,11 +33,17 @@ pub enum Dialogue {
    GeneralMessage(MessageState), // general commands, enter text of message to send
 }
 
-impl Default for Dialogue {
+impl Default for State {
    fn default() -> Self {
       Self::Start(StartState { restarted: true })
    }
 }
+
+// impl State {
+//    pub fn create_handler() -> UpdateHandler<Err> {
+//       Update::filter_message()
+//    }
+// }
 
 // Main menu
 #[derive(AsRefStr, EnumString)]
@@ -108,13 +113,12 @@ pub struct StartState {
    pub restarted: bool,
 }
 
-#[teloxide(subtransition)]
-async fn start(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: String,) -> TransitionOut<Dialogue> {
+/* async fn start(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: String,) -> TransitionOut<State> {
    enter(state, cx, _ans).await
 }
 
 #[async_recursion]
-pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
+pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<State> {
    // Extract user id
    let user = cx.update.from();
    if user.is_none() {
@@ -157,7 +161,7 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          select_command(new_state, cx, ans).await
       }
    }
-}
+} */
 
 pub fn main_menu_markup() -> ReplyMarkup {
    let commands = vec![
@@ -175,12 +179,11 @@ pub struct CommandState {
    pub is_admin: bool,
 }
 
-#[teloxide(subtransition)]
-async fn trans_select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
+/* async fn trans_select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<State> {
    select_command(state, cx, ans).await
 }
 
-async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<Dialogue> {
+async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<State> {
    // Parse and handle commands
    let cmd = Command::from_str(ans.as_str()).unwrap_or(Command::Unknown);
    match cmd {
@@ -190,4 +193,4 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
       Command::Basket => crate::basket::enter(state, cx).await,
       Command::Unknown => crate::general::update(state, cx, ans, true).await,
    }
-}
+} */

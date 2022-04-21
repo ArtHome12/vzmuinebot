@@ -7,12 +7,13 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use teloxide_macros::teloxide;
-use teloxide::{prelude::*,
+use teloxide::{prelude::*, dispatching::dialogue::InMemStorage,
    types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, 
       ParseMode, ButtonRequest, InlineKeyboardButton, InlineKeyboardMarkup,
    }
-};use std::str::FromStr;
+};
+use teloxide_macros::DialogueState;
+use std::str::FromStr;
 use strum::{AsRefStr, EnumString, EnumMessage, };
 use enum_default::EnumDefault;
 
@@ -30,6 +31,10 @@ use crate::general;
 // ============================================================================
 // [Main entry]
 // ============================================================================
+
+type MyDialogue = Dialogue<Command, InMemStorage<Command>>;
+type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
 // Main commands
 #[derive(AsRefStr, EnumString)]
 enum Command {
@@ -85,8 +90,7 @@ pub struct BasketState {
    pub customer: Customer,
 }
 
-#[teloxide(subtransition)]
-async fn update(state: BasketState, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
+/* async fn update(state: BasketState, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
 
    // Parse and handle commands
    let cmd = Command::parse(ans.as_str());
@@ -180,7 +184,7 @@ pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> Trans
    registration::show_tickets(state.state.user_id, cx).await?;
 
    next(state)
-}
+}*/
 
 pub fn make_owner_text(node: &node::Node, order: &orders::Order) -> String {
    // Prepare info about owner
@@ -242,8 +246,7 @@ pub struct BasketStateEditing {
    cmd: EditCmd,
 }
 
-#[teloxide(subtransition)]
-async fn update_edit(mut state: BasketStateEditing, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
+/*async fn update_edit(mut state: BasketStateEditing, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
    async fn do_update(state: &mut BasketStateEditing, ans: String) -> Result<String, String> {
       if ans == String::from("/") {
          return Ok(String::from("Отмена, значение не изменено"));
@@ -332,7 +335,7 @@ async fn enter_edit(state: BasketStateEditing, cx: TransitionIn<AutoSend<Bot>>) 
    .await?;
 
    next(state)
-}
+}*/
 
 fn delivery_markup() -> ReplyMarkup {
    kb_markup(vec![vec![
