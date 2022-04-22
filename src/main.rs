@@ -176,30 +176,36 @@ async fn run() {
       })
           // An endpoint is the last update handler.
           .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
-              log::info!("Received a message from a private chat.");
-              bot.send_message(msg.chat.id, "This is a private chat.").await?;
-              respond(())
+            environment::log("Point2").await;
+            bot.send_message(msg.chat.id, "This is a private chat.").await?;
+            respond(())
           }),
    );
 
-   Dispatcher::builder(bot, handler)
+   environment::log("Point1").await;
+
+   Dispatcher::builder(bot.clone(), handler)
    // Here you specify initial dependencies that all handlers will receive; they can be
    // database connections, configurations, and other auxiliary arguments. It is similar to
    // `actix_web::Extensions`.
    // .dependencies(dptree::deps![parameters])
    // If no handler succeeded to handle an update, this closure will be called.
    .default_handler(|upd| async move {
-       log::warn!("Unhandled update: {:?}", upd);
+      environment::log(&format!("main::Unhandled update: {:?}", upd)).await;
    })
    // If the dispatcher fails for some reason, execute this handler.
    .error_handler(LoggingErrorHandler::with_custom_text(
-       "An error has occurred in the dispatcher",
+       "main::An error has occurred in the dispatcher",
    ))
    .build()
    .setup_ctrlc_handler()
-   .dispatch()
+   .dispatch_with_listener(
+      webhook(bot).await,
+      LoggingErrorHandler::with_custom_text("main::An error from the update listener"),
+   )
    .await;
 
+   environment::log("Point3").await;
    /* Dispatcher::new(bot.clone())
    .messages_handler(DialogueDispatcher::new(|DialogueWithCx { cx, dialogue }| async move {
 

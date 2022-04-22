@@ -12,7 +12,7 @@ use teloxide::{prelude::*, dispatching::dialogue::InMemStorage,
       ParseMode, ButtonRequest, InlineKeyboardButton, InlineKeyboardMarkup,
    }
 };
-use teloxide_macros::DialogueState;
+
 use std::str::FromStr;
 use strum::{AsRefStr, EnumString, EnumMessage, };
 use enum_default::EnumDefault;
