@@ -121,7 +121,7 @@ async fn run() {
    let bot = Bot::from_env().auto_send();
 
    // Settings from environments
-/*    let vars = environment::Vars::from_env(bot.clone()).await;
+   let vars = environment::Vars::from_env(bot.clone()).await;
    match environment::VARS.set(vars) {
       Ok(_) => {environment::log("Bot restarted").await;},
       _ => log::info!("Something wrong with TELEGRAM_LOG_CHAT"),
@@ -182,7 +182,7 @@ async fn run() {
           }),
    );
 
-   Dispatcher::builder(bot, handler)
+/*   Dispatcher::builder(bot, handler)
    // Here you specify initial dependencies that all handlers will receive; they can be
    // database connections, configurations, and other auxiliary arguments. It is similar to
    // `actix_web::Extensions`.
