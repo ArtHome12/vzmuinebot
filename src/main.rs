@@ -121,7 +121,7 @@ async fn run() {
    let bot = Bot::from_env().auto_send();
 
    // Settings from environments
-   let vars = environment::Vars::from_env(bot.clone()).await;
+/*    let vars = environment::Vars::from_env(bot.clone()).await;
    match environment::VARS.set(vars) {
       Ok(_) => {environment::log("Bot restarted").await;},
       _ => log::info!("Something wrong with TELEGRAM_LOG_CHAT"),
@@ -133,7 +133,8 @@ async fn run() {
    let connector = TlsConnector::builder()
    // .add_root_certificate(cert)
    .danger_accept_invalid_certs(true)
-   .build().unwrap();
+   .build()
+   .unwrap();
    let connector = MakeTlsConnector::new(connector);
 
    let pg_config = database_url.parse::<tokio_postgres::Config>().expect("DATABASE_URL env variable wrong");
@@ -198,7 +199,7 @@ async fn run() {
    .setup_ctrlc_handler()
    .dispatch()
    .await;
-
+ */
    /* Dispatcher::new(bot.clone())
    .messages_handler(DialogueDispatcher::new(|DialogueWithCx { cx, dialogue }| async move {
 
