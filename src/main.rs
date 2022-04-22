@@ -168,7 +168,7 @@ async fn run() {
 
    // Create handlers
    let handler = Update::filter_message()
-   .enter_dialogue::<Message, InMemStorage<State>, State>()
+   // .enter_dialogue::<Message, InMemStorage<State>, State>()
    .branch(
       // Filtering allow you to filter updates by some condition.
       dptree::filter(|msg: Message| {
@@ -182,7 +182,7 @@ async fn run() {
           }),
    );
 
-/*   Dispatcher::builder(bot, handler)
+   Dispatcher::builder(bot, handler)
    // Here you specify initial dependencies that all handlers will receive; they can be
    // database connections, configurations, and other auxiliary arguments. It is similar to
    // `actix_web::Extensions`.
@@ -199,7 +199,7 @@ async fn run() {
    .setup_ctrlc_handler()
    .dispatch()
    .await;
- */
+
    /* Dispatcher::new(bot.clone())
    .messages_handler(DialogueDispatcher::new(|DialogueWithCx { cx, dialogue }| async move {
 
