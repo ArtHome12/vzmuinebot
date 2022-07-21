@@ -121,10 +121,6 @@ pub struct StartState {
 }
 
 async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, start_state: StartState) -> HandlerResult {
-
-   bot.send_message(msg.chat.id, "The bot will work in a few days.")
-   .await?;
-
    enter(bot, msg, dialogue, start_state, String::default())
    .await
 }
