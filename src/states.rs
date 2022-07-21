@@ -125,9 +125,8 @@ async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, start_sta
    bot.send_message(msg.chat.id, "The bot will work in a few days.")
    .await?;
 
-   // enter(bot, msg, dialogue)
-   // .await?;
-   Ok(())
+   enter(bot, msg, dialogue, start_state, String::default())
+   .await
 }
 
 /*
