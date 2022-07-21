@@ -4,22 +4,28 @@ Dialogue FSM. 14 May 2021.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
-Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
+Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use derive_more::From;
 use teloxide::{prelude::*, ApiError, RequestError,
-   types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, }
+   types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, User, },
+   dispatching::{dialogue::{self, InMemStorage}, UpdateHandler, },
 };
+
 use reqwest::StatusCode;
 use std::str::FromStr;
 use strum::{AsRefStr, EnumString,};
 use async_recursion::async_recursion;
 
 use crate::environment as env;
+use crate::database as db;
 use crate::gear::*;
 use crate::basket::*;
 use crate::general::MessageState;
+
+type MyDialogue = Dialogue<State, InMemStorage<State>>;
+type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
 // FSM states
 #[derive(Clone, From)]
@@ -95,14 +101,15 @@ pub fn flag_markup() -> ReplyMarkup {
 // Construct keyboard from strings
 pub fn kb_markup(keyboard: Vec<Vec<String>>) -> ReplyMarkup {
    let kb: Vec<Vec<KeyboardButton>> = keyboard.iter()
-   .map(|row| {
-      row.iter()
-      .map(|label| KeyboardButton::new(label))
-      .collect()
-   }).collect();
+      .map(|row| {
+         row.iter()
+         .map(|label| KeyboardButton::new(label))
+         .collect()
+      })
+      .collect();
 
    let markup = KeyboardMarkup::new(kb)
-   .resize_keyboard(true);
+      .resize_keyboard(true);
 
    ReplyMarkup::Keyboard(markup)
 }
@@ -113,11 +120,23 @@ pub struct StartState {
    pub restarted: bool,
 }
 
-/* async fn start(state: StartState, cx: TransitionIn<AutoSend<Bot>>, _ans: String,) -> TransitionOut<State> {
-   enter(state, cx, _ans).await
+/* async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue) -> HandlerResult {
+   enter(bot, msg, dialogue)
+      .await
 }
 
-#[async_recursion]
+// #[async_recursion]
+async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue) -> HandlerResult {
+   bot.send_message(msg.chat.id, "Let's start! What's your full name?").await?;
+   dialogue.update(State::ReceiveFullName).await?;
+
+   // Extract user id
+   let user = msg.from().unwrap()?;
+
+   Ok(())
+} */
+
+/* 
 pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<State> {
    // Extract user id
    let user = cx.update.from();
@@ -194,3 +213,69 @@ async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, an
       Command::Unknown => crate::general::update(state, cx, ans, true).await,
    }
 } */
+
+
+
+pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>> {
+
+   let message_handler = Update::filter_message()
+   .branch(
+      // Private message handler
+      dptree::filter(|msg: Message| {
+         msg.chat.is_private() && msg.from().is_some()
+      })
+      .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
+
+         // Insert new user or update his last seen time
+         let user = msg.from().unwrap();
+         update_last_seen(user)
+         .await
+         .map_err(|s| map_req_err(s))?;
+
+         bot.send_message(msg.chat.id, "The bot will work in a few days.")
+            .await?;
+
+         // For admin and regular users there is different interface
+         // dptree::filter(|msg: Message| {
+         //    msg.from().map(|user| env::is_admin_id(user.id.0)).unwrap_or_default()
+         // })
+         //    .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
+         //       bot.send_message(msg.chat.id, "This is admin.").await?;
+         //       respond(())
+         // })
+
+         Ok(())
+      }),
+   );
+ 
+   /* let callback_query_handler = Update::filter_callback_query().chain(
+       dptree::case![State::ReceiveProductChoice { full_name }]
+           .endpoint(receive_product_selection),
+   ); */
+
+   dialogue::enter::<Update, InMemStorage<State>, State, _>()
+   .branch(message_handler)
+   // .branch(callback_query_handler)
+}
+
+async fn update_last_seen(user: &User) -> Result<(), String> {
+   let user_id = user.id.0;
+   let successful = db::user_update_last_seen(user_id).await?;
+
+   // If unsuccessful, then there is no such user
+   if !successful {
+      // Collect info about the new user and store in database
+      let name = if let Some(last_name) = &user.last_name {
+         format!("{} {}", user.first_name, last_name)
+      } else {user.first_name.clone()};
+
+      let contact = if let Some(username) = &user.username {
+         format!(" @{}", username)
+      } else {String::from("-")};
+
+      db::user_insert(user_id, name, contact).await?;
+   }
+   Ok(())
+}
+
+

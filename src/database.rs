@@ -340,7 +340,8 @@ pub async fn user(user_id: i64) -> Result<Customer, String> {
 }
 
 // Update last seen field or return false if user doesn't exist
-pub async fn user_update_last_seen(user_id: i64) -> Result<bool, String> {
+pub async fn user_update_last_seen(user_id: u64) -> Result<bool, String> {
+   let user_id = user_id as i64;
    let sql_text = "UPDATE users SET last_seen = NOW() WHERE user_id=$1::BIGINT";
    let query = execute_prepared(sql_text, &[&user_id]).await?;
 
@@ -349,12 +350,13 @@ pub async fn user_update_last_seen(user_id: i64) -> Result<bool, String> {
 }
 
 // Store new user
-pub async fn user_insert(id: i64, name: String, contact: String) -> Result<(), String> {
+pub async fn user_insert(user_id: u64, name: String, contact: String) -> Result<(), String> {
+   let user_id = user_id as i64;
    let sql_text = "INSERT INTO users (user_id, user_name, contact, address, last_seen, pickup) VALUES ($1::BIGINT, $2::VARCHAR, $3::VARCHAR, '-', NOW(), FALSE)";
-   execute_one(sql_text, &[&id, &name, &contact]).await?;
+   execute_one(sql_text, &[&user_id, &name, &contact]).await?;
 
    // Notify about a new user
-   env::log(&format!("Новый пользователь id={}, {}, {}", id, name, contact)).await;
+   env::log(&format!("Новый пользователь id={}, {}, {}", user_id, name, contact)).await;
    Ok(())
 }
 
@@ -525,7 +527,8 @@ pub async fn order_delete_node(user_id: i64, node_id: i32) -> Result<(), String>
    Ok(())
 }
 
-pub async fn orders_delete(user_id: i64) -> Result<(), String> {
+pub async fn orders_delete(user_id: u64) -> Result<(), String> {
+   let user_id = user_id as i64;
    let text = "DELETE FROM orders WHERE user_id = $1::BIGINT OR amount < 1";
    execute_prepared(text, &[&user_id]).await?;
    Ok(())

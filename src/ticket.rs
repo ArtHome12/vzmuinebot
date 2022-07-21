@@ -97,9 +97,9 @@ impl Ticket {
    }
 
    fn button(&self, cmd: callback::Command) -> InlineKeyboardButton {
-      let title = cmd.get_message().unwrap();
+      let title = cmd.get_message().unwrap().to_string();
       let args = format!("{}{}", cmd.as_ref(), self.id);
-      InlineKeyboardButton::callback(title.into(), args)
+      InlineKeyboardButton::callback(title, args)
    }
 
    // Menu to cancel ticket at middle

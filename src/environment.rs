@@ -74,9 +74,9 @@ pub struct Vars {
    admin_contact_info: String,
 
    // User id of admins
-   admin_id1: i64,
-   admin_id2: i64,
-   admin_id3: i64,
+   admin_id1: u64,
+   admin_id2: u64,
+   admin_id3: u64,
 
    // Price suffix
    price_unit: String,
@@ -146,7 +146,7 @@ impl Vars {
          // User id of admins
          admin_id1: {
             match env::var("TELEGRAM_ADMIN_ID1") {
-               Ok(s) => match s.parse::<i64>() {
+               Ok(s) => match s.parse::<u64>() {
                      Ok(n) => n,
                      Err(e) => {
                         internal_log(chat.clone(), &format!("Something wrong with TELEGRAM_ADMIN_ID1: {}", e)).await;
@@ -163,7 +163,7 @@ impl Vars {
          admin_id2: {
             match env::var("TELEGRAM_ADMIN_ID2") {
                Ok(s) => if s.is_empty() {0} else {
-                  match s.parse::<i64>() {
+                  match s.parse::<u64>() {
                      Ok(n) => n,
                      Err(e) => {
                         internal_log(chat.clone(), &format!("Something wrong with TELEGRAM_ADMIN_ID2: {}", e)).await;
@@ -178,7 +178,7 @@ impl Vars {
          admin_id3: {
             match env::var("TELEGRAM_ADMIN_ID3") {
                Ok(s) => if s.is_empty() {0} else {
-                  match s.parse::<i64>() {
+                  match s.parse::<u64>() {
                      Ok(n) => n,
                      Err(e) => {
                         internal_log(chat.clone(), &format!("Something wrong with TELEGRAM_ADMIN_ID3: {}", e)).await;
@@ -247,7 +247,7 @@ pub fn time_zone_info() -> String {
 }
 
 // Checking that the user id is admin
-pub fn is_admin_id(user_id: i64) -> bool {
+pub fn is_admin_id(user_id: u64) -> bool {
    let vars = VARS.get().unwrap();
    user_id == vars.admin_id1 || user_id == vars.admin_id2 || user_id == vars.admin_id3
 }

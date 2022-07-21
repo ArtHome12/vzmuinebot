@@ -9,9 +9,13 @@ Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 
 use std::{convert::Infallible, env, net::SocketAddr};
 use customer::Customer;
-use teloxide::{prelude::*, dispatching::{update_listeners::{self, StatefulListener},
-   stop_token::AsyncStopToken}, types::User,
-   dispatching::dialogue::InMemStorage,
+use teloxide::{prelude::*, 
+   dispatching::{
+      update_listeners::{self, StatefulListener},
+      stop_token::AsyncStopToken,
+      dialogue::{self, GetChatId, InMemStorage},
+   },
+   types::User,
 };
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -166,30 +170,8 @@ async fn run() {
       log::info!("Table restaurants do not exist, create new tables: {}", database::is_success(database::create_tables().await));
    }
 
-   // Create handlers
-   let handler = Update::filter_message()
-   // .enter_dialogue::<Message, InMemStorage<State>, State>()
-   .branch(
-      // Filtering allow you to filter updates by some condition.
-      dptree::filter(|msg: Message| {
-         msg.chat.is_private() && msg.from().is_some()
-      })
-          // An endpoint is the last update handler.
-          .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
-            environment::log("Point2").await;
-            bot.send_message(msg.chat.id, "This is a private chat.").await?;
-            respond(())
-          }),
-   );
-
-   environment::log("Point1").await;
-
-   Dispatcher::builder(bot.clone(), handler)
-   // Here you specify initial dependencies that all handlers will receive; they can be
-   // database connections, configurations, and other auxiliary arguments. It is similar to
-   // `actix_web::Extensions`.
-   // .dependencies(dptree::deps![parameters])
-   // If no handler succeeded to handle an update, this closure will be called.
+   Dispatcher::builder(bot.clone(), states::schema())
+   .dependencies(dptree::deps![InMemStorage::<State>::new()])
    .default_handler(|upd| async move {
       environment::log(&format!("main::Unhandled update: {:?}", upd)).await;
    })
@@ -198,14 +180,12 @@ async fn run() {
        "main::An error has occurred in the dispatcher",
    ))
    .build()
-   .setup_ctrlc_handler()
    .dispatch_with_listener(
       webhook(bot).await,
       LoggingErrorHandler::with_custom_text("main::An error from the update listener"),
    )
    .await;
 
-   environment::log("Point3").await;
    /* Dispatcher::new(bot.clone())
    .messages_handler(DialogueDispatcher::new(|DialogueWithCx { cx, dialogue }| async move {
 
@@ -291,26 +271,6 @@ async fn handle_callback_query(rx: DispatcherHandlerRx<AutoSend<Bot>, CallbackQu
       }
    })
   .await;
-}
-
-async fn update_last_seen(user: &User) -> Result<(), String> {
-   let user_id = user.id;
-   let successful = db::user_update_last_seen(user_id).await?;
-
-   // If unsuccessful, then there is no such user
-   if !successful {
-      // Collect info about the new user and store in database
-      let name = if let Some(last_name) = &user.last_name {
-         format!("{} {}", user.first_name, last_name)
-      } else {user.first_name.clone()};
-
-      let contact = if let Some(username) = &user.username {
-         format!(" @{}", username)
-      } else {String::from("-")};
-
-      db::user_insert(user_id, name, contact).await?;
-   }
-   Ok(())
 } */
 
 /* async fn handle_inline_query(rx: DispatcherHandlerRx<AutoSend<Bot>, InlineQuery>) {
