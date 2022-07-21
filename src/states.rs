@@ -9,7 +9,7 @@ Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 
 use derive_more::From;
 use teloxide::{prelude::*, ApiError, RequestError,
-   types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, User, },
+   types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, User, UserId,},
    dispatching::{dialogue::{self, InMemStorage}, UpdateHandler, UpdateFilterExt, },
 };
 
@@ -142,13 +142,17 @@ async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue) -> Handle
    Ok(())
 } */
 
-/* 
-pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<State> {
+
+pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: StartState, ans: String,) -> HandlerResult {
+   let chat_id = msg.chat.id;
+
    // Extract user id
-   let user = cx.update.from();
+   let user = msg.from();
    if user.is_none() {
-      cx.answer("Error, no user").await?;
-      return next(StartState { restarted: false });
+      bot.send_message(chat_id, "Error, no user")
+      .await?;
+      dialogue.update(StartState { restarted: false }).await?;
+      return Ok(());
    }
 
    // For admin and regular users there is different interface
@@ -164,7 +168,7 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          // Report about a possible restart and loss of context
          if state.restarted {
             let text = "Извините, бот был перезапущен";
-            cx.answer(text)
+            bot.send_message(chat_id, text)
             .reply_markup(main_menu_markup())
             .await?;
          }
@@ -172,21 +176,23 @@ pub async fn enter(state: StartState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          // We have empty ans when returns from submode and need only to change markup
          if ans.is_empty() {
             let text = "Вы в главном меню";
-            cx.answer(text)
+            bot.send_message(chat_id, text)
             .reply_markup(main_menu_markup())
             .await?;
 
-            next(new_state)
+            dialogue.update(new_state).await?;
          } else {
             // Process general commands without search if restarted (to prevent search submode commands)
-            crate::general::update(new_state, cx, ans, !state.restarted).await
-         }
+/*             crate::general::update(new_state, cx, ans, !state.restarted).await
+ */         }
       }
       _ => {
-         select_command(new_state, cx, ans).await
-      }
+/*          select_command(new_state, cx, ans).await
+ */      }
    }
-} */
+
+   Ok(())
+}
 
 pub fn main_menu_markup() -> ReplyMarkup {
    let commands = vec![
@@ -200,7 +206,7 @@ pub fn main_menu_markup() -> ReplyMarkup {
 
 #[derive(Clone)]
 pub struct CommandState {
-   pub user_id: i64,
+   pub user_id: UserId,
    pub is_admin: bool,
 }
 

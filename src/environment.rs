@@ -11,7 +11,7 @@ use chrono::{FixedOffset, NaiveDateTime, Utc,};
 use once_cell::sync::{OnceCell};
 use std::{env, };
 use teloxide::{
-   prelude::*, types::{Recipient, ChatId,},
+   prelude::*, types::{Recipient, ChatId, UserId,},
 };
 
 // Settings
@@ -247,8 +247,9 @@ pub fn time_zone_info() -> String {
 }
 
 // Checking that the user id is admin
-pub fn is_admin_id(user_id: u64) -> bool {
+pub fn is_admin_id(user_id: UserId) -> bool {
    let vars = VARS.get().unwrap();
+   let user_id = user_id.0;
    user_id == vars.admin_id1 || user_id == vars.admin_id2 || user_id == vars.admin_id3
 }
 
