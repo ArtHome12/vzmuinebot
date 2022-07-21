@@ -10,7 +10,7 @@ Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 use derive_more::From;
 use teloxide::{prelude::*, ApiError, RequestError,
    types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, User, },
-   dispatching::{dialogue::{self, InMemStorage}, UpdateHandler, },
+   dispatching::{dialogue::{self, InMemStorage}, UpdateHandler, UpdateFilterExt, },
 };
 
 use reqwest::StatusCode;
@@ -120,11 +120,17 @@ pub struct StartState {
    pub restarted: bool,
 }
 
-/* async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue) -> HandlerResult {
-   enter(bot, msg, dialogue)
-      .await
+async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, start_state: StartState) -> HandlerResult {
+
+   bot.send_message(msg.chat.id, "The bot will work in a few days.")
+   .await?;
+
+   // enter(bot, msg, dialogue)
+   // .await?;
+   Ok(())
 }
 
+/*
 // #[async_recursion]
 async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue) -> HandlerResult {
    bot.send_message(msg.chat.id, "Let's start! What's your full name?").await?;
@@ -222,18 +228,19 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
    .branch(
       // Private message handler
       dptree::filter(|msg: Message| {
-         msg.chat.is_private() && msg.from().is_some()
+         msg.chat.is_private() // && msg.from().is_some() seems to be unnecessary
       })
-      .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
+      .branch(dptree::case![State::Start(start_state)].endpoint(start))
+
+
+      // .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
 
          // Insert new user or update his last seen time
-         let user = msg.from().unwrap();
-         update_last_seen(user)
-         .await
-         .map_err(|s| map_req_err(s))?;
+         // let user = msg.from();
+         // update_last_seen(user)
+         // .await
+         // .map_err(|s| map_req_err(s))?;
 
-         bot.send_message(msg.chat.id, "The bot will work in a few days.")
-            .await?;
 
          // For admin and regular users there is different interface
          // dptree::filter(|msg: Message| {
@@ -244,8 +251,8 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
          //       respond(())
          // })
 
-         Ok(())
-      }),
+      //    Ok(())
+      // })
    );
  
    /* let callback_query_handler = Update::filter_callback_query().chain(
@@ -258,7 +265,12 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
    // .branch(callback_query_handler)
 }
 
-async fn update_last_seen(user: &User) -> Result<(), String> {
+async fn update_last_seen(user: Option<&User>) -> Result<(), String> {
+   if user.is_none() {
+      return Err(String::from("states update_last_seen() user is none"));
+   }
+
+   let user = user.unwrap();
    let user_id = user.id.0;
    let successful = db::user_update_last_seen(user_id).await?;
 
