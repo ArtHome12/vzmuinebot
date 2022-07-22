@@ -31,7 +31,7 @@ pub type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 #[derive(Clone, From)]
 pub enum State {
    Start(StartState), // initial state
-   Command(CommandState), // await for select menu item from bottom
+   Command(MainState), // await for select menu item from bottom
    Settings(GearState), // in settings menu
    SettingsSubmode(GearStateEditing), // in settings menu edit field
    Basket(BasketState), // in basket menu
@@ -45,15 +45,21 @@ impl Default for State {
    }
 }
 
-// impl State {
-//    pub fn create_handler() -> UpdateHandler<Err> {
-//       Update::filter_message()
-//    }
-// }
+#[derive(Clone)]
+pub struct StartState {
+   pub restarted: bool,
+}
+
+#[derive(Clone)]
+pub struct MainState {
+   pub user_id: UserId,
+   pub is_admin: bool,
+}
+
 
 // Main menu
 #[derive(AsRefStr, EnumString)]
-enum Command {
+enum MainMenu {
    #[strum(to_string = "⚙")]
    Gear,  // settings menu
    #[strum(to_string = "🛒")]
@@ -65,6 +71,13 @@ enum Command {
    Unknown,
 }
 
+pub enum WorkTime {
+   All,  // show all nodes
+   Now,  // considering work time
+   AllFrom(i32), // like all but from the specified node id
+}
+
+
 pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>> {
 
    let message_handler = Update::filter_message()
@@ -73,8 +86,8 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
       dptree::filter(|msg: Message| {
          msg.chat.is_private() // && msg.from().is_some() seems to be unnecessary
       })
-      .branch(dptree::case![State::Start(start_state)].endpoint(start))
-      .branch(dptree::case![State::Command(command_state)].endpoint(command))
+      .branch(dptree::case![State::Start(state)].endpoint(start))
+      .branch(dptree::case![State::Command(state)].endpoint(command))
 
 
       // .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
@@ -109,68 +122,14 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
    // .branch(callback_query_handler)
 }
 
-// Convert for flag value
-pub fn to_flag(text: String) -> Result<bool, String> {
-   match text.as_str() {
-      "Вкл." => Ok(true),
-      "Выкл." => Ok(false),
-      _ => Err(format!("Ожидается Вкл. или Выкл., получили {}", text)),
-   }
-}
-
-pub fn from_flag(flag: bool) -> String {
-   if flag { String::from("Вкл.") }
-   else { String::from("Выкл.") }
-}
-
-pub fn map_req_err(s: String) -> RequestError {
-   RequestError::Api(ApiError::Unknown(s))
-}
-
-pub enum WorkTime {
-   All,  // show all nodes
-   Now,  // considering work time
-   AllFrom(i32), // like all but from the specified node id
-}
-
-// Frequently used menu
-pub fn cancel_markup() -> ReplyMarkup {
-   kb_markup(vec![vec![String::from("/")]])
-}
-
-pub fn flag_markup() -> ReplyMarkup {
-   kb_markup(vec![vec![from_flag(true), from_flag(false)]])
-}
-
-// Construct keyboard from strings
-pub fn kb_markup(keyboard: Vec<Vec<String>>) -> ReplyMarkup {
-   let kb: Vec<Vec<KeyboardButton>> = keyboard.iter()
-      .map(|row| {
-         row.iter()
-         .map(|label| KeyboardButton::new(label))
-         .collect()
-      })
-      .collect();
-
-   let markup = KeyboardMarkup::new(kb)
-      .resize_keyboard(true);
-
-   ReplyMarkup::Keyboard(markup)
-}
-
-
-#[derive(Clone)]
-pub struct StartState {
-   pub restarted: bool,
-}
 
 async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: StartState) -> HandlerResult {
-   command(bot, msg, dialogue, state, String::default())
+   command(bot, msg, dialogue, state)
    .await
 }
 
 // #[async_recursion]
-pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: StartState, ans: String,) -> HandlerResult {
+pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: StartState) -> HandlerResult {
    let chat_id = msg.chat.id;
 
    // Extract user id
@@ -185,17 +144,18 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
    // For admin and regular users there is different interface
    let user_id = user.unwrap().id;
    let is_admin = env::is_admin_id(user_id);
-   let new_state = CommandState { user_id, is_admin };
+   let new_state = MainState { user_id, is_admin };
 
    // Try to execute command and if it impossible notify about restart
-   let cmd = Command::from_str(ans.as_str()).unwrap_or(Command::Unknown);
+   let text = msg.text().unwrap_or_default();
+   let cmd = MainMenu::from_str(text).unwrap_or(MainMenu::Unknown);
    match cmd {
-      Command::Basket => {crate::basket::enter(bot, msg, dialogue, new_state).await;},
+      MainMenu::Basket => {crate::basket::enter(bot, msg, dialogue, new_state).await?;},
       // Command::All => crate::navigation::enter(new_state, WorkTime::All, cx).await,
       // Command::Now => crate::navigation::enter(new_state, WorkTime::Now, cx).await,
       // Command::Gear => crate::gear::enter(bot, msg, dialogue, new_state).await,
 
-      Command::Unknown => {
+      MainMenu::Unknown => {
 
          // Report about a possible restart and loss of context
          if state.restarted {
@@ -205,7 +165,7 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
             .await?;
          }
 
-         // We have empty ans when returns from submode and need only to change markup
+         /* // We have empty ans when returns from submode and need only to change markup
          if ans.is_empty() {
             let text = "Вы в главном меню";
             bot.send_message(chat_id, text)
@@ -214,12 +174,11 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
 
          } else {
             // Process general commands without search if restarted (to prevent search submode commands)
-/*             crate::general::update(new_state, cx, ans, !state.restarted).await*/
-         }
-         dialogue.update(new_state).await;
-      }
+            crate::general::update(new_state, cx, ans, !state.restarted).await*/
 
-      _ => {dialogue.update(new_state).await;}
+            dialogue.update(new_state).await?;
+         }
+      _ => {dialogue.update(new_state).await?;}
    };
 
    Ok(())
@@ -227,18 +186,12 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
 
 pub fn main_menu_markup() -> ReplyMarkup {
    let commands = vec![
-      String::from(Command::Basket.as_ref()),
-      String::from(Command::All.as_ref()),
-      String::from(Command::Now.as_ref()),
-      String::from(Command::Gear.as_ref()),
+      String::from(MainMenu::Basket.as_ref()),
+      String::from(MainMenu::All.as_ref()),
+      String::from(MainMenu::Now.as_ref()),
+      String::from(MainMenu::Gear.as_ref()),
    ];
    kb_markup(vec![commands])
-}
-
-#[derive(Clone)]
-pub struct CommandState {
-   pub user_id: UserId,
-   pub is_admin: bool,
 }
 
 
@@ -265,6 +218,50 @@ async fn update_last_seen(user: Option<&User>) -> Result<(), String> {
       db::user_insert(user_id, name, contact).await?;
    }
    Ok(())
+}
+
+
+// Convert for flag value
+pub fn to_flag(text: String) -> Result<bool, String> {
+   match text.as_str() {
+      "Вкл." => Ok(true),
+      "Выкл." => Ok(false),
+      _ => Err(format!("Ожидается Вкл. или Выкл., получили {}", text)),
+   }
+}
+
+pub fn from_flag(flag: bool) -> String {
+   if flag { String::from("Вкл.") }
+   else { String::from("Выкл.") }
+}
+
+pub fn map_req_err(s: String) -> RequestError {
+   RequestError::Api(ApiError::Unknown(s))
+}
+
+// Frequently used menu
+pub fn cancel_markup() -> ReplyMarkup {
+   kb_markup(vec![vec![String::from("/")]])
+}
+
+pub fn flag_markup() -> ReplyMarkup {
+   kb_markup(vec![vec![from_flag(true), from_flag(false)]])
+}
+
+// Construct keyboard from strings
+pub fn kb_markup(keyboard: Vec<Vec<String>>) -> ReplyMarkup {
+   let kb: Vec<Vec<KeyboardButton>> = keyboard.iter()
+      .map(|row| {
+         row.iter()
+         .map(|label| KeyboardButton::new(label))
+         .collect()
+      })
+      .collect();
+
+   let markup = KeyboardMarkup::new(kb)
+      .resize_keyboard(true);
+
+   ReplyMarkup::Keyboard(markup)
 }
 
 

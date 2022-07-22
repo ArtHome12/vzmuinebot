@@ -56,7 +56,7 @@ impl Command {
 
 #[derive(Clone)]
 pub struct MessageState {
-   pub state: CommandState,
+   pub state: MainState,
    pub receiver: i64,
 }
 

@@ -92,7 +92,7 @@ impl Command {
 
 #[derive(Clone)]
 pub struct GearState {
-   pub state: CommandState,
+   pub state: MainState,
    stack: Vec<Node>, // from start to current displaying node
 }
 

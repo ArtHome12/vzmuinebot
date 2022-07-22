@@ -83,11 +83,11 @@ impl Command {
 
 #[derive(Clone)]
 pub struct BasketState {
-   pub state: CommandState,
+   pub state: MainState,
    pub customer: Customer,
 }
 
-pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: CommandState) -> HandlerResult {
+pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
 
    // Load user info
    let customer = db::user(state.user_id.0 as i64).await
