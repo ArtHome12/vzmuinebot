@@ -74,7 +74,7 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
          msg.chat.is_private() // && msg.from().is_some() seems to be unnecessary
       })
       .branch(dptree::case![State::Start(start_state)].endpoint(start))
-      .branch(dptree::case![State::Command(start_state)].endpoint(command))
+      .branch(dptree::case![State::Command(command_state)].endpoint(command))
 
 
       // .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
@@ -164,8 +164,8 @@ pub struct StartState {
    pub restarted: bool,
 }
 
-async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, start_state: StartState) -> HandlerResult {
-   command(bot, msg, dialogue, start_state, String::default())
+async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: StartState) -> HandlerResult {
+   command(bot, msg, dialogue, state, String::default())
    .await
 }
 
