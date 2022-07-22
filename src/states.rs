@@ -24,8 +24,8 @@ use crate::gear::*;
 use crate::basket::*;
 use crate::general::MessageState;
 
-type MyDialogue = Dialogue<State, InMemStorage<State>>;
-type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
+pub type MyDialogue = Dialogue<State, InMemStorage<State>>;
+pub type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
 // FSM states
 #[derive(Clone, From)]
@@ -125,19 +125,7 @@ async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, start_sta
    .await
 }
 
-/*
 // #[async_recursion]
-async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue) -> HandlerResult {
-   bot.send_message(msg.chat.id, "Let's start! What's your full name?").await?;
-   dialogue.update(State::ReceiveFullName).await?;
-
-   // Extract user id
-   let user = msg.from().unwrap()?;
-
-   Ok(())
-} */
-
-
 pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: StartState, ans: String,) -> HandlerResult {
    let chat_id = msg.chat.id;
 
@@ -158,6 +146,11 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
    // Try to execute command and if it impossible notify about restart
    let cmd = Command::from_str(ans.as_str()).unwrap_or(Command::Unknown);
    match cmd {
+      Command::Basket => {crate::basket::enter(bot, msg, dialogue, new_state).await;},
+      // Command::All => crate::navigation::enter(new_state, WorkTime::All, cx).await,
+      // Command::Now => crate::navigation::enter(new_state, WorkTime::Now, cx).await,
+      // Command::Gear => crate::gear::enter(bot, msg, dialogue, new_state).await,
+
       Command::Unknown => {
 
          // Report about a possible restart and loss of context
@@ -175,16 +168,15 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
             .reply_markup(main_menu_markup())
             .await?;
 
-            dialogue.update(new_state).await?;
          } else {
             // Process general commands without search if restarted (to prevent search submode commands)
-/*             crate::general::update(new_state, cx, ans, !state.restarted).await
- */         }
+/*             crate::general::update(new_state, cx, ans, !state.restarted).await*/
+         }
+         dialogue.update(new_state).await;
       }
-      _ => {
-/*          select_command(new_state, cx, ans).await
- */      }
-   }
+
+      _ => {dialogue.update(new_state).await;}
+   };
 
    Ok(())
 }
@@ -204,23 +196,6 @@ pub struct CommandState {
    pub user_id: UserId,
    pub is_admin: bool,
 }
-
-/* async fn trans_select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<State> {
-   select_command(state, cx, ans).await
-}
-
-async fn select_command(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String,) -> TransitionOut<State> {
-   // Parse and handle commands
-   let cmd = Command::from_str(ans.as_str()).unwrap_or(Command::Unknown);
-   match cmd {
-      Command::Gear => crate::gear::enter(state, cx).await,
-      Command::All => crate::navigation::enter(state, WorkTime::All, cx).await,
-      Command::Now => crate::navigation::enter(state, WorkTime::Now, cx).await,
-      Command::Basket => crate::basket::enter(state, cx).await,
-      Command::Unknown => crate::general::update(state, cx, ans, true).await,
-   }
-} */
-
 
 
 pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>> {

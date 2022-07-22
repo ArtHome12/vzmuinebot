@@ -32,9 +32,6 @@ use crate::general;
 // [Main entry]
 // ============================================================================
 
-type MyDialogue = Dialogue<Command, InMemStorage<Command>>;
-type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
-
 // Main commands
 #[derive(AsRefStr, EnumString)]
 enum Command {
@@ -90,6 +87,64 @@ pub struct BasketState {
    pub customer: Customer,
 }
 
+pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: CommandState) -> HandlerResult {
+
+   // Load user info
+   let customer = db::user(state.user_id.0 as i64).await
+   .map_err(|s| map_req_err(s))?;
+
+   // Display
+   let state = BasketState { state, customer };
+   view(bot, msg, state).await
+}
+
+
+pub async fn view(bot: AutoSend<Bot>, msg: Message, state: BasketState) -> HandlerResult {
+   // Start with info about user
+   let info = format!("Ваши данные, {}:\nКонтакт для связи: {}\nСпособ доставки: {}",
+      state.customer.name,
+      state.customer.contact,
+      state.customer.delivery_desc()
+   );
+
+   // Load info about orders
+   let user_id = state.state.user_id;
+   let orders = db::orders(user_id.0 as i64).await
+   .map_err(|s| map_req_err(s))?;
+
+   // Announce
+   let basket_info = orders.basket_info();
+   let announce = if basket_info.orders_num == 0 {
+      String::from("Корзина пуста")
+   } else {
+      format!("В корзине {} поз., {} шт. на общую сумму {}",
+         basket_info.orders_num,
+         basket_info.items_num,
+         env::price_with_unit(basket_info.total_cost)
+      )
+   };
+   bot.send_message(msg.chat.id, format!("{}\n\n{}", info, announce))
+   .reply_markup(markup())
+   .await?;
+
+   // Messages by owners
+   for owner in orders.data {
+      let owner_id = owner.0.id;
+      let text = make_owner_text(&owner.0, &owner.1);
+
+      
+      bot.send_message(msg.chat.id, text)
+      .reply_markup(order_markup(owner_id))
+      .parse_mode(ParseMode::Html)
+      .await?;
+   }
+
+   // Show tickets (orders in process)
+   registration::show_tickets(bot, state.state.user_id).await?;
+
+   Ok(())
+}
+
 /* async fn update(state: BasketState, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
 
    // Parse and handle commands
@@ -129,62 +184,7 @@ pub struct BasketState {
    }
 }
 
-pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
-
-   // Load user info
-   let customer = db::user(state.user_id).await
-   .map_err(|s| map_req_err(s))?;
-
-   // Display
-   let state = BasketState { state, customer };
-   view(state, cx).await
-}
-
-pub async fn view(state: BasketState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
-   // Start with info about user
-   let info = format!("Ваши данные, {}:\nКонтакт для связи: {}\nСпособ доставки: {}",
-      state.customer.name,
-      state.customer.contact,
-      state.customer.delivery_desc()
-   );
-
-   // Load info about orders
-   let user_id = state.state.user_id;
-   let orders = db::orders(user_id)
-   .await
-   .map_err(|s| map_req_err(s))?;
-
-   // Announce
-   let basket_info = orders.basket_info();
-   let announce = if basket_info.orders_num == 0 {
-      String::from("Корзина пуста")
-   } else {
-      format!("В корзине {} поз., {} шт. на общую сумму {}",
-         basket_info.orders_num,
-         basket_info.items_num,
-         env::price_with_unit(basket_info.total_cost)
-      )
-   };
-   cx.answer(format!("{}\n\n{}", info, announce))
-   .reply_markup(markup())
-   .await?;
-
-   // Messages by owners
-   for owner in orders.data {
-      let owner_id = owner.0.id;
-      let text = make_owner_text(&owner.0, &owner.1);
-
-      cx.answer(text)
-      .reply_markup(order_markup(owner_id))
-      .parse_mode(ParseMode::Html)
-      .await?;
-   }
-
-   // Show tickets (orders in process)
-   registration::show_tickets(state.state.user_id, cx).await?;
-
-   next(state)
-}*/
+*/
 
 pub fn make_owner_text(node: &node::Node, order: &orders::Order) -> String {
    // Prepare info about owner

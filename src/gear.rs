@@ -96,7 +96,36 @@ pub struct GearState {
    stack: Vec<Node>, // from start to current displaying node
 }
 
-/* async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
+/* 
+pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: CommandState) -> HandlerResult {
+
+   // Define start node
+   let mode = if state.is_admin {
+      // Root node
+      db::LoadNode::Id(0)
+   } else {
+      // Find node for owner
+      db::LoadNode::Owner(state.user_id.0)
+   };
+
+   // Load node with children
+   let node = db::node(mode).await
+      .map_err(|s| map_req_err(s))?;
+
+   // Display
+   if node.is_some() {
+      let state = GearState { state, stack: vec![node.unwrap()] };
+      view(state, cx).await
+   } else {
+      let contact = env::admin_contact_info();
+      let text = format!("Для доступа в режим ввода информации обратитесь к '{}' и сообщите ему свой id={}", contact, state.user_id);
+      cx.answer(text).await?;
+      exit(cx).await
+   }
+}
+
+
+async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
    async fn do_return(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
       // Extract current node from stack
       state.stack.pop().unwrap();
@@ -250,33 +279,6 @@ pub struct GearState {
          // General commands handler - messaging, searching...
          general::update(state.state, cx, ans, true).await
       }
-   }
-}
-
-pub async fn enter(state: CommandState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
-
-   // Define start node
-   let mode = if state.is_admin {
-      // Root node
-      db::LoadNode::Id(0)
-   } else {
-      // Find node for owner
-      db::LoadNode::Owner(state.user_id)
-   };
-
-   // Load node with children
-   let node = db::node(mode).await
-      .map_err(|s| map_req_err(s))?;
-
-   // Display
-   if node.is_some() {
-      let state = GearState { state, stack: vec![node.unwrap()] };
-      view(state, cx).await
-   } else {
-      let contact = env::admin_contact_info();
-      let text = format!("Для доступа в режим ввода информации обратитесь к '{}' и сообщите ему свой id={}", contact, state.user_id);
-      cx.answer(text).await?;
-      exit(cx).await
    }
 }
 
