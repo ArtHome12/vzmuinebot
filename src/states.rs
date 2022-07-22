@@ -65,6 +65,50 @@ enum Command {
    Unknown,
 }
 
+pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>> {
+
+   let message_handler = Update::filter_message()
+   .branch(
+      // Private message handler
+      dptree::filter(|msg: Message| {
+         msg.chat.is_private() // && msg.from().is_some() seems to be unnecessary
+      })
+      .branch(dptree::case![State::Start(start_state)].endpoint(start))
+      .branch(dptree::case![State::Command(start_state)].endpoint(command))
+
+
+      // .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
+
+         // Insert new user or update his last seen time
+         // let user = msg.from();
+         // update_last_seen(user)
+         // .await
+         // .map_err(|s| map_req_err(s))?;
+
+
+         // For admin and regular users there is different interface
+         // dptree::filter(|msg: Message| {
+         //    msg.from().map(|user| env::is_admin_id(user.id.0)).unwrap_or_default()
+         // })
+         //    .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
+         //       bot.send_message(msg.chat.id, "This is admin.").await?;
+         //       respond(())
+         // })
+
+      //    Ok(())
+      // })
+   );
+ 
+   /* let callback_query_handler = Update::filter_callback_query().chain(
+       dptree::case![State::ReceiveProductChoice { full_name }]
+           .endpoint(receive_product_selection),
+   ); */
+
+   dialogue::enter::<Update, InMemStorage<State>, State, _>()
+   .branch(message_handler)
+   // .branch(callback_query_handler)
+}
+
 // Convert for flag value
 pub fn to_flag(text: String) -> Result<bool, String> {
    match text.as_str() {
@@ -121,12 +165,12 @@ pub struct StartState {
 }
 
 async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, start_state: StartState) -> HandlerResult {
-   enter(bot, msg, dialogue, start_state, String::default())
+   command(bot, msg, dialogue, start_state, String::default())
    .await
 }
 
 // #[async_recursion]
-pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: StartState, ans: String,) -> HandlerResult {
+pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: StartState, ans: String,) -> HandlerResult {
    let chat_id = msg.chat.id;
 
    // Extract user id
@@ -197,49 +241,6 @@ pub struct CommandState {
    pub is_admin: bool,
 }
 
-
-pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>> {
-
-   let message_handler = Update::filter_message()
-   .branch(
-      // Private message handler
-      dptree::filter(|msg: Message| {
-         msg.chat.is_private() // && msg.from().is_some() seems to be unnecessary
-      })
-      .branch(dptree::case![State::Start(start_state)].endpoint(start))
-
-
-      // .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
-
-         // Insert new user or update his last seen time
-         // let user = msg.from();
-         // update_last_seen(user)
-         // .await
-         // .map_err(|s| map_req_err(s))?;
-
-
-         // For admin and regular users there is different interface
-         // dptree::filter(|msg: Message| {
-         //    msg.from().map(|user| env::is_admin_id(user.id.0)).unwrap_or_default()
-         // })
-         //    .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
-         //       bot.send_message(msg.chat.id, "This is admin.").await?;
-         //       respond(())
-         // })
-
-      //    Ok(())
-      // })
-   );
- 
-   /* let callback_query_handler = Update::filter_callback_query().chain(
-       dptree::case![State::ReceiveProductChoice { full_name }]
-           .endpoint(receive_product_selection),
-   ); */
-
-   dialogue::enter::<Update, InMemStorage<State>, State, _>()
-   .branch(message_handler)
-   // .branch(callback_query_handler)
-}
 
 async fn update_last_seen(user: Option<&User>) -> Result<(), String> {
    if user.is_none() {
