@@ -100,9 +100,9 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
    .branch(message_handler)
    // .branch(callback_query_handler)
 
-   .chain(dptree::endpoint(|msg: Message| async move {
+   .chain(dptree::endpoint(|upd: Update| async move {
       // Insert new user or update his last seen time
-      let user = msg.from();
+      let user = upd.user();
       update_last_seen(user)
       .await?;
       Ok(())
