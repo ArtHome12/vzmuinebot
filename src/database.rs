@@ -352,7 +352,9 @@ pub async fn user_update_last_seen(user_id: u64) -> Result<bool, String> {
 // Store new user
 pub async fn user_insert(user_id: u64, name: String, contact: String) -> Result<(), String> {
    let user_id = user_id as i64;
-   let sql_text = "INSERT INTO users (user_id, user_name, contact, address, last_seen, pickup) VALUES ($1::BIGINT, $2::VARCHAR, $3::VARCHAR, '-', NOW(), FALSE)";
+   let sql_text = "INSERT INTO users (user_id, user_name, contact, address, last_seen, pickup) \
+      VALUES ($1::BIGINT, $2::VARCHAR, $3::VARCHAR, '-', NOW(), FALSE) \
+      ON CONFLICT (user_id) DO UPDATE SET user_name = $2::VARCHAR, contact = $3::VARCHAR, last_seen = NOW()";
    execute_one(sql_text, &[&user_id, &name, &contact]).await?;
 
    // Notify about a new user

@@ -99,14 +99,6 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
    dialogue::enter::<Update, InMemStorage<State>, State, _>()
    .branch(message_handler)
    // .branch(callback_query_handler)
-
-   .chain(dptree::endpoint(|upd: Update| async move {
-      // Insert new user or update his last seen time
-      let user = upd.user();
-      update_last_seen(user)
-      .await?;
-      Ok(())
-   }))
 }
 
 
@@ -121,8 +113,12 @@ async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: St
       return Ok(());
    }
 
-   let user_id = user.unwrap().id;
+   let user = user.unwrap();
+   let user_id = user.id;
    let new_state = MainState { prev_state: state, user_id, is_admin: false };
+
+   // Insert or update info about user
+   update_last_seen_full(user).await?;
 
    command(bot, msg, dialogue, new_state)
    .await
@@ -173,6 +169,9 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
       _ => {dialogue.update(new_state).await?;}
    };
 
+   // Update user last seen time
+   update_last_seen(user_id).await?;
+
    Ok(())
 }
 
@@ -187,28 +186,26 @@ pub fn main_menu_markup() -> ReplyMarkup {
 }
 
 
-async fn update_last_seen(user: Option<&User>) -> Result<(), String> {
-   if user.is_none() {
-      return Err(String::from("states update_last_seen() user is none"));
-   }
-
-   let user = user.unwrap();
+async fn update_last_seen_full(user: &User) -> Result<(), String> {
    let user_id = user.id.0;
-   let successful = db::user_update_last_seen(user_id).await?;
 
-   // If unsuccessful, then there is no such user
-   if !successful {
-      // Collect info about the new user and store in database
-      let name = if let Some(last_name) = &user.last_name {
-         format!("{} {}", user.first_name, last_name)
-      } else {user.first_name.clone()};
+   // Collect info about the new user and store in database
+   let name = if let Some(last_name) = &user.last_name {
+      format!("{} {}", user.first_name, last_name)
+   } else {user.first_name.clone()};
 
-      let contact = if let Some(username) = &user.username {
-         format!(" @{}", username)
-      } else {String::from("-")};
+   let contact = if let Some(username) = &user.username {
+      format!(" @{}", username)
+   } else {String::from("-")};
 
-      db::user_insert(user_id, name, contact).await?;
-   }
+   db::user_insert(user_id, name, contact).await?;
+   Ok(())
+}
+
+
+async fn update_last_seen(user_id: UserId) -> Result<(), String> {
+   let user_id = user_id.0;
+   db::user_update_last_seen(user_id).await?;
    Ok(())
 }
 
