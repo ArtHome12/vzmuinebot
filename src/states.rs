@@ -89,28 +89,6 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
       })
       .branch(dptree::case![State::Start(state)].endpoint(start))
       .branch(dptree::case![State::Command(state)].endpoint(command))
-
-
-      // .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
-
-         // Insert new user or update his last seen time
-         // let user = msg.from();
-         // update_last_seen(user)
-         // .await
-         // .map_err(|s| map_req_err(s))?;
-
-
-         // For admin and regular users there is different interface
-         // dptree::filter(|msg: Message| {
-         //    msg.from().map(|user| env::is_admin_id(user.id.0)).unwrap_or_default()
-         // })
-         //    .endpoint(|msg: Message, bot: AutoSend<Bot>| async move {
-         //       bot.send_message(msg.chat.id, "This is admin.").await?;
-         //       respond(())
-         // })
-
-      //    Ok(())
-      // })
    );
  
    /* let callback_query_handler = Update::filter_callback_query().chain(
@@ -121,6 +99,14 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
    dialogue::enter::<Update, InMemStorage<State>, State, _>()
    .branch(message_handler)
    // .branch(callback_query_handler)
+
+   .chain(dptree::endpoint(|user| async move {
+      // Insert new user or update his last seen time
+      // let user = dptree::;
+      update_last_seen(user)
+      .await?;
+      Ok(())
+   }))
 }
 
 
