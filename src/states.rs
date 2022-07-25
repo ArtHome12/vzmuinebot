@@ -124,14 +124,6 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
 
 
 async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: StartState) -> HandlerResult {
-   command(bot, msg, dialogue, state)
-   .await
-}
-
-// #[async_recursion]
-pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: StartState) -> HandlerResult {
-   let chat_id = msg.chat.id;
-
    // Extract user id
    let user = msg.from();
    if user.is_none() {
@@ -141,9 +133,19 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
       return Ok(());
    }
 
+   let new_state = MainState { user_id, is_admin: false };
+
+   command(bot, msg, dialogue, new_state)
+   .await
+}
+
+// #[async_recursion]
+pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
+   let chat_id = msg.chat.id;
+
    // For admin and regular users there is different interface
-   let user_id = user.unwrap().id;
-   let is_admin = env::is_admin_id(user_id);
+   let user_id = state.user_id;
+   let is_admin = env::is_admin_id(user_id); // reload permissions
    let new_state = MainState { user_id, is_admin };
 
    // Try to execute command and if it impossible notify about restart
