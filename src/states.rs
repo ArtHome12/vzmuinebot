@@ -52,6 +52,7 @@ pub struct StartState {
 
 #[derive(Clone)]
 pub struct MainState {
+   pub prev_state: StartState,
    pub user_id: UserId,
    pub is_admin: bool,
 }
@@ -127,13 +128,15 @@ async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: St
    // Extract user id
    let user = msg.from();
    if user.is_none() {
+      let chat_id = msg.chat.id;
       bot.send_message(chat_id, "Error, no user")
       .await?;
       dialogue.update(StartState { restarted: false }).await?;
       return Ok(());
    }
 
-   let new_state = MainState { user_id, is_admin: false };
+   let user_id = user.unwrap().id;
+   let new_state = MainState { prev_state: state, user_id, is_admin: false };
 
    command(bot, msg, dialogue, new_state)
    .await
@@ -146,7 +149,8 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
    // For admin and regular users there is different interface
    let user_id = state.user_id;
    let is_admin = env::is_admin_id(user_id); // reload permissions
-   let new_state = MainState { user_id, is_admin };
+   let prev_state = StartState { restarted: false };
+   let new_state = MainState { prev_state, user_id, is_admin };
 
    // Try to execute command and if it impossible notify about restart
    let text = msg.text().unwrap_or_default();
@@ -160,7 +164,7 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
       MainMenu::Unknown => {
 
          // Report about a possible restart and loss of context
-         if state.restarted {
+         if state.prev_state.restarted {
             let text = "Извините, бот был перезапущен";
             bot.send_message(chat_id, text)
             .reply_markup(main_menu_markup())
