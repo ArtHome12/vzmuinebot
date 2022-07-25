@@ -102,7 +102,6 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
 
    .chain(dptree::endpoint(|user| async move {
       // Insert new user or update his last seen time
-      panic!("here");
       update_last_seen(user)
       .await?;
       Ok(())
@@ -143,9 +142,9 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
    let cmd = MainMenu::from_str(text).unwrap_or(MainMenu::Unknown);
    match cmd {
       MainMenu::Basket => {crate::basket::enter(bot, msg, dialogue, new_state).await?;},
-      // Command::All => crate::navigation::enter(new_state, WorkTime::All, cx).await,
-      // Command::Now => crate::navigation::enter(new_state, WorkTime::Now, cx).await,
-      // Command::Gear => crate::gear::enter(bot, msg, dialogue, new_state).await,
+      MainMenu::All => {crate::navigation::enter(bot, msg, dialogue, new_state, WorkTime::All).await?;},
+      MainMenu::Now => {crate::navigation::enter(bot, msg, dialogue, new_state, WorkTime::Now).await?;},
+      // MainMenu::Gear => crate::gear::enter(bot, msg, dialogue, new_state).await,
 
       MainMenu::Unknown => {
 

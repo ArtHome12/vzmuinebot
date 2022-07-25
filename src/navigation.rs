@@ -21,7 +21,7 @@ use crate::states::*;
 use crate::database as db;
 use crate::node::*;
 
-/* pub async fn enter(state: CommandState, mode: WorkTime, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
+pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState, mode: WorkTime) -> HandlerResult {
 
    // Load root node with children
    let load_mode = match mode {
@@ -29,12 +29,12 @@ use crate::node::*;
       WorkTime::Now => db::LoadNode::EnabledNowId(0),
       WorkTime::AllFrom(id) => db::LoadNode::EnabledId(id),
    };
-   let node =  db::node(load_mode)
-   .await
-   .map_err(|s| map_req_err(s))?;
+   let node =  db::node(load_mode).await?;
+
+   let chat_id = msg.chat.id;
 
    if node.is_none() {
-      cx.answer("Ошибка, нет записей - обратитесь к администратору")
+      bot.send_message(chat_id, "Ошибка, нет записей - обратитесь к администратору")
       .await?;
    } else {
 
@@ -43,33 +43,26 @@ use crate::node::*;
       // Next check - picture
       match &node.picture {
          Origin::None => {
-            cx.answer("Ошибка, без картинки невозможно продолжить - обратитесь к администратору")
+            bot.send_message(chat_id, "Ошибка, без картинки невозможно продолжить - обратитесь к администратору")
             .await?;
          }
          Origin::Own(picture) | Origin::Inherited(picture) => {
 
-            // User needs to sync with basket
-            let user = &cx.update.from();
-            if user.is_none() {
-               cx.answer("Ошибка, нет пользователя - обратитесь к администратору")
-               .await?;
-            }
-            let user_id = user.unwrap().id;
-
             // Notify about time
             if matches!(mode, WorkTime::Now) {
                let now = env::current_date_time();
-               cx.answer(&format!("Заведения, открытые сейчас с учётом часового пояса {} ({}):", env::time_zone_info(), now.format("%H:%M")))
+               bot.send_message(chat_id, &format!("Заведения, открытые сейчас с учётом часового пояса {} ({}):", env::time_zone_info(), now.format("%H:%M")))
                .await?;
             }
 
             // All is ok, collect and display info
+            let user_id = state.user_id; // user needs to sync with basket
             let markup = markup(&node, mode, user_id)
             .await
             .map_err(|s| map_req_err(s))?;
             let text = node_text(&node);
 
-            cx.answer_photo(InputFile::file_id(picture))
+            bot.send_photo(chat_id, InputFile::file_id(picture))
             .caption(text)
             .reply_markup(markup)
             .parse_mode(ParseMode::Html)
@@ -79,10 +72,11 @@ use crate::node::*;
       }
    }
 
-   // Always stay in place
-   next(state)
+   Ok(())
 }
 
+
+/* 
 async fn msg(text: &str, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
    let user_id = cx.update.from.id;
    cx.requester.send_message(user_id, text)
@@ -167,7 +161,7 @@ fn node_text(node: &Node) -> String {
    res
 }
 
-async fn markup(node: &Node, mode: WorkTime, user_id: i64) -> Result<InlineKeyboardMarkup, String> {
+async fn markup(node: &Node, mode: WorkTime, user_id: UserId) -> Result<InlineKeyboardMarkup, String> {
 
    // Prepare command
    let pas = match mode {
@@ -194,7 +188,7 @@ async fn markup(node: &Node, mode: WorkTime, user_id: i64) -> Result<InlineKeybo
    // If price not null add button for basket with amount
    if node.price != 0 {
       // Display only title or title with amount
-      let amount = db::orders_amount(user_id, node.id).await?;
+      let amount = db::orders_amount(user_id.0 as i64, node.id).await?;
       let caption = if amount > 0 { format!("+🛒 ({})", amount) } else { String::from("+🛒") };
 
       let cmd = match mode {

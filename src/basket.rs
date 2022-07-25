@@ -83,23 +83,23 @@ impl Command {
 
 #[derive(Clone)]
 pub struct BasketState {
-   pub state: MainState,
+   pub prev_state: MainState,
    pub customer: Customer,
 }
 
 pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
 
    // Load user info
-   let customer = db::user(state.user_id.0 as i64).await
-   .map_err(|s| map_req_err(s))?;
+   let customer = db::user(state.user_id.0 as i64).await?;
 
    // Display
-   let state = BasketState { state, customer };
+   let state = BasketState { prev_state: state, customer };
+   dialogue.update(state.to_owned()).await?;
    view(bot, msg, state).await
 }
 
 
-pub async fn view(bot: AutoSend<Bot>, msg: Message, state: BasketState) -> HandlerResult {
+async fn view(bot: AutoSend<Bot>, msg: Message, state: BasketState) -> HandlerResult {
    // Start with info about user
    let info = format!("Ваши данные, {}:\nКонтакт для связи: {}\nСпособ доставки: {}",
       state.customer.name,
@@ -108,7 +108,7 @@ pub async fn view(bot: AutoSend<Bot>, msg: Message, state: BasketState) -> Handl
    );
 
    // Load info about orders
-   let user_id = state.state.user_id;
+   let user_id = state.prev_state.user_id;
    let orders = db::orders(user_id.0 as i64).await
    .map_err(|s| map_req_err(s))?;
 
@@ -140,7 +140,7 @@ pub async fn view(bot: AutoSend<Bot>, msg: Message, state: BasketState) -> Handl
    }
 
    // Show tickets (orders in process)
-   registration::show_tickets(bot, state.state.user_id).await?;
+   registration::show_tickets(bot, state.prev_state.user_id).await?;
 
    Ok(())
 }
