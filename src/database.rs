@@ -357,19 +357,20 @@ pub async fn user_insert(user_id: u64, name: String, contact: String) -> Result<
    let sql_text = "INSERT INTO users (user_id, user_name, contact, address, last_seen, pickup) \
       VALUES ($1::BIGINT, $2::VARCHAR, $3::VARCHAR, '-', NOW(), FALSE) \
       ON CONFLICT (user_id) DO UPDATE SET user_name = $2::VARCHAR, contact = $3::VARCHAR, last_seen = NOW() \
-      RETURNING xmax";
+      RETURNING (xmax = 0) AS inserted";
    // execute_one(sql_text, &[&user_id, &name, &contact]).await?;
 
    // Run query
    let query = client
-   .query(&sql_text, &[&user_id, &name, &contact])
+   .query(sql_text, &[&user_id, &name, &contact])
    .await
    .map_err(|err| format!("user_insert {} query: {}", sql_text, err))?;
 
    let len = query.len();
    if len == 1 {
       // Notify about a new user
-      if query[0].get(0) == 0 {
+      let inserted: bool = query[0].get(0);
+      if inserted {
          env::log(&format!("Новый пользователь id={}, {}, {}", user_id, name, contact)).await;
       }
 
