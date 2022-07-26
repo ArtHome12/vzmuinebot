@@ -7,7 +7,8 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use std::{convert::Infallible, env, net::SocketAddr};
+use std::{convert::Infallible, env, net::SocketAddr, fmt::Debug, future::Future, sync::Arc};
+use futures::future::BoxFuture;
 use customer::Customer;
 use teloxide::{prelude::*, 
    dispatching::{
@@ -16,6 +17,7 @@ use teloxide::{prelude::*,
       dialogue::{self, GetChatId, InMemStorage},
    },
    types::User,
+   error_handlers::ErrorHandler,
 };
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -107,9 +109,6 @@ pub async fn webhook<'a>(bot: AutoSend<Bot>) -> impl update_listeners::UpdateLis
    let server = warp::serve(server);
    let (_addr, fut) = server.bind_with_graceful_shutdown(addr, stop_flag);
 
-   // You might want to use serve.key_path/serve.cert_path methods here to
-   // setup a self-signed TLS certificate.
-
    tokio::spawn(fut);
    let stream = UnboundedReceiverStream::new(rx);
 
@@ -117,6 +116,20 @@ pub async fn webhook<'a>(bot: AutoSend<Bot>) -> impl update_listeners::UpdateLis
    
    StatefulListener::new((stream, stop_token), streamf, |state: &mut (_, AsyncStopToken)| state.1.clone())
 }
+
+struct MyErrorHandler {}
+impl<E> ErrorHandler<E> for MyErrorHandler
+where
+    E: Debug,
+{
+    fn handle_error(self: Arc<Self>, error: E) -> BoxFuture<'static, ()> {
+      let text =&format!("main::An error has occurred in the dispatcher:{:?}", error);
+      futures::executor::block_on(environment::log(text));
+      log::error!("{}", text);
+      Box::pin(async {})
+   }
+}
+
 
 async fn run() {
    pretty_env_logger::init();

@@ -374,7 +374,8 @@ pub async fn user_insert(user_id: u64, name: String, contact: String) -> Result<
          env::log(&format!("Новый пользователь id={}, {}, {}", user_id, name, contact)).await;
       }
 
-      Ok(())
+      // Ok(())
+      Err("тестовая ошибка".to_string())
    } else {
       Err(format!("user_insert {} returned {} records instead one", sql_text, len))
    }
@@ -733,7 +734,7 @@ pub async fn create_tables() -> bool {
 
          CREATE TABLE users (
             PRIMARY KEY (user_id),
-            user_id        INTEGER        NOT NULL,
+            user_id        BIGINT         NOT NULL,
             user_name      VARCHAR(100)   NOT NULL,
             contact        VARCHAR(100)   NOT NULL,
             address        VARCHAR(100)   NOT NULL,
