@@ -127,6 +127,7 @@ where
       // futures::executor::block_on(environment::log(text).await);
       log::error!("{}", text);
 
+      log::error!("here1");
       Box::pin(async move {environment::log(text).await});
       Box::pin(async {})
    }

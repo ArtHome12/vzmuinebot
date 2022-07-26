@@ -49,9 +49,14 @@ impl ServiceChat {
 
 // Send message to service chat without notification
 pub async fn log(text: &str) -> Option<i32> {
+   log::error!("here2");
    if let Some(chat) = &VARS.get().unwrap().chat {
-      chat.send(text, None).await
+      log::error!("here3");
+      chat.send(text, None).await;
+      log::error!("here4");
+      Some(0)
    } else {
+      log::error!("here5");
       None
    }
 }
