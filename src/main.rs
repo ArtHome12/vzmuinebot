@@ -124,8 +124,10 @@ where
 {
     fn handle_error(self: Arc<Self>, error: E) -> BoxFuture<'static, ()> {
       let text =&format!("main::An error has occurred in the dispatcher:{:?}", error);
-      futures::executor::block_on(environment::log(text));
+      // futures::executor::block_on(environment::log(text).await);
       log::error!("{}", text);
+
+      Box::pin(async move {environment::log(text).await});
       Box::pin(async {})
    }
 }
