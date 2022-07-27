@@ -128,7 +128,7 @@ async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: St
 
 pub async fn reload(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
 
-   dialogue.update(state);
+   dialogue.update(state).await?;
 
    let text = "Вы в главном меню";
    let chat_id = msg.chat.id;

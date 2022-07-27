@@ -157,10 +157,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
          view(bot, msg, state).await
       }
 
-      Command::Exit => {
-         dialogue.update(state.prev_state).await?;
-         crate::states::reload(bot, msg, dialogue, state.prev_state).await
-      }
+      Command::Exit => crate::states::reload(bot, msg, dialogue, state.prev_state).await,
 
       Command::Edit(cmd) => {
          let new_state = BasketStateEditing { prev_state: state, cmd };
