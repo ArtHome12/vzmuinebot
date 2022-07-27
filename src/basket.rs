@@ -161,7 +161,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
 
       Command::Edit(cmd) => {
          let new_state = BasketStateEditing { prev_state: state, cmd };
-         dialogue.update(new_state.to_owned());
+         dialogue.update(new_state.to_owned()).await?;
          enter_edit(bot, msg, dialogue, new_state).await
       }
 
