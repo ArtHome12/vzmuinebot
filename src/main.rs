@@ -142,7 +142,7 @@ async fn run() {
    let vars = environment::Vars::from_env(bot.clone()).await;
    match environment::VARS.set(vars) {
       Ok(_) => {environment::log("Bot restarted").await;},
-      _ => log::info!("Something wrong with TELEGRAM_LOG_CHAT"),
+      _ => log::info!("Something wrong with TELEGRAM_LdOG_CHAT"),
    }
 
    // Open database
@@ -190,9 +190,7 @@ async fn run() {
       environment::log(&format!("main::Unhandled update: {:?}", upd)).await;
    })
    // If the dispatcher fails for some reason, execute this handler.
-   .error_handler(LoggingErrorHandler::with_custom_text(
-       "main::An error has occurred in the dispatcher",
-   ))
+   .error_handler(Arc::new(MyErrorHandler{}))
    .build()
    .dispatch_with_listener(
       webhook(bot).await,
