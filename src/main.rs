@@ -123,13 +123,8 @@ where
     E: Debug,
 {
     fn handle_error(self: Arc<Self>, error: E) -> BoxFuture<'static, ()> {
-      let text = format!("main::An error has occurred in the dispatcher:{:?}", error);
-      // futures::executor::block_on(async {environment::log(&text).await});
+      let text = format!("main::handle_error: {:?}", error);
       log::error!("{}", text);
-
-      // tokio::spawn(async move {
-      //    Box::pin(async move {environment::log(&text).await});
-      // });
 
       let fut = async move {
          if environment::log(&text).await.is_none() {

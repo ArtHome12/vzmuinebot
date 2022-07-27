@@ -374,8 +374,7 @@ pub async fn user_insert(user_id: u64, name: String, contact: String) -> Result<
          env::log(&format!("Новый пользователь id={}, {}, {}", user_id, name, contact)).await;
       }
 
-      // Ok(())
-      Err("тестовая ошибка".to_string())
+      Ok(())
    } else {
       Err(format!("user_insert {} returned {} records instead one", sql_text, len))
    }
