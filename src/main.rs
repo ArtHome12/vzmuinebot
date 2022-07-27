@@ -132,7 +132,7 @@ where
       // });
 
       let fut = async move {
-         Box::pin(async move {environment::log(&text).await});
+         async move {environment::log(&text).await};
       };
 
       Box::pin(fut)
