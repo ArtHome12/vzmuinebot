@@ -45,12 +45,12 @@ impl Default for State {
    }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct StartState {
    pub restarted: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct MainState {
    pub prev_state: StartState,
    pub user_id: UserId,
@@ -89,6 +89,8 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
       })
       .branch(dptree::case![State::Start(state)].endpoint(start))
       .branch(dptree::case![State::Command(state)].endpoint(command))
+      .branch(dptree::case![State::Basket(state)].endpoint(crate::basket::update))
+      .branch(dptree::case![State::BasketSubmode(state)].endpoint(crate::basket::update_edit))
    );
  
    /* let callback_query_handler = Update::filter_callback_query().chain(
@@ -124,15 +126,35 @@ async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: St
    .await
 }
 
+pub async fn reload(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
+
+   dialogue.update(state);
+
+   let text = "Вы в главном меню";
+   let chat_id = msg.chat.id;
+   bot.send_message(chat_id, text)
+   .reply_markup(main_menu_markup())
+   .await?;
+   
+   Ok(())
+}
+
 // #[async_recursion]
 pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
    let chat_id = msg.chat.id;
 
    // For admin and regular users there is different interface
    let user_id = state.user_id;
-   let is_admin = env::is_admin_id(user_id); // reload permissions
-   let prev_state = StartState { restarted: false };
-   let new_state = MainState { prev_state, user_id, is_admin };
+   let new_state = MainState {
+      prev_state: StartState { restarted: false },
+      user_id,
+      is_admin: env::is_admin_id(user_id), // reload permissions every time
+   };
+
+   // Update FSM
+   if state != new_state {
+      dialogue.update(new_state.to_owned()).await?;
+   }
 
    // Try to execute command and if it impossible notify about restart
    let text = msg.text().unwrap_or_default();
@@ -151,22 +173,13 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
             bot.send_message(chat_id, text)
             .reply_markup(main_menu_markup())
             .await?;
-         }
-
-         /* // We have empty ans when returns from submode and need only to change markup
-         if ans.is_empty() {
-            let text = "Вы в главном меню";
-            bot.send_message(chat_id, text)
-            .reply_markup(main_menu_markup())
-            .await?;
-
          } else {
-            // Process general commands without search if restarted (to prevent search submode commands)
-            crate::general::update(new_state, cx, ans, !state.restarted).await*/
 
-            dialogue.update(new_state).await?;
+            // Process general commands without search if restarted (to prevent search submode commands)
+            crate::general::update(bot, dialogue, text, new_state, !state.prev_state.restarted).await?;
          }
-      _ => {dialogue.update(new_state).await?;}
+      }
+      _ => {}
    };
 
    // Update user last seen time

@@ -7,16 +7,14 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use std::{convert::Infallible, env, net::SocketAddr, fmt::Debug, future::Future, sync::Arc};
+use std::{convert::Infallible, env, net::SocketAddr, fmt::Debug, sync::Arc};
 use futures::future::BoxFuture;
-use customer::Customer;
 use teloxide::{prelude::*, 
    dispatching::{
       update_listeners::{self, StatefulListener},
       stop_token::AsyncStopToken,
-      dialogue::{self, GetChatId, InMemStorage},
+      dialogue::InMemStorage,
    },
-   types::User,
    error_handlers::ErrorHandler,
 };
 use tokio::sync::mpsc;
@@ -42,7 +40,6 @@ mod general;
 mod registration;
 mod search;
 use crate::states::*;
-use crate::database as db;
 
 // ============================================================================
 // [Run!]
@@ -202,26 +199,6 @@ async fn run() {
       LoggingErrorHandler::with_custom_text("main::An error from the update listener"),
    )
    .await;
-
-   /* Dispatcher::new(bot.clone())
-   .messages_handler(DialogueDispatcher::new(|DialogueWithCx { cx, dialogue }| async move {
-
-      let res = handle_message(cx, dialogue.unwrap()).await;
-
-      if let Err(e) = res {
-         environment::log(&format!("main::dialog:{}", e)).await;
-         DialogueStage::Exit
-      } else {
-         res.unwrap()
-      }
-   }))
-   .callback_queries_handler(handle_callback_query)
-   // .inline_queries_handler(handle_inline_query)
-   .dispatch_with_listener(
-      webhook(bot).await,
-      LoggingErrorHandler::with_custom_text("An error from the update listener"),
-   )
-   .await; */
 }
 
 /* async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dialogue) -> TransitionOut<Dialogue> {
@@ -288,17 +265,4 @@ async fn handle_callback_query(rx: DispatcherHandlerRx<AutoSend<Bot>, CallbackQu
       }
    })
   .await;
-} */
-
-/* async fn handle_inline_query(rx: DispatcherHandlerRx<AutoSend<Bot>, InlineQuery>) {
-   UnboundedReceiverStream::new(rx)
-   .for_each_concurrent(None, |cx| async move {
-      inline_handle_message(cx).await
-   })
-  .await;
-}
-
-pub async fn inline_handle_message(cx: UpdateWithCx<AutoSend<Bot>, InlineQuery>) {
-   let id = cx.update.id;
-   todo!();
 } */

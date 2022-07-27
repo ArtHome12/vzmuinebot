@@ -380,27 +380,29 @@ pub async fn user_insert(user_id: u64, name: String, contact: String) -> Result<
    }
 }
 
-async fn user_update_str(id: i64, new_val: &String, field: &str) -> Result<(), String> {
+async fn user_update_str(user_id: u64, new_val: &String, field: &str) -> Result<(), String> {
+   let user_id = user_id as i64;
    let text = format!("UPDATE users SET {} = $1::VARCHAR WHERE user_id=$2::BIGINT", field);
-   execute_one(text.as_str(), &[new_val, &id]).await
+   execute_one(text.as_str(), &[new_val, &user_id]).await
 }
 
-pub async fn user_update_name(id: i64, name: &String) -> Result<(), String> {
-   user_update_str(id, name, "user_name").await
+pub async fn user_update_name(user_id: u64, name: &String) -> Result<(), String> {
+   user_update_str(user_id, name, "user_name").await
 }
 
-pub async fn user_update_contact(id: i64, contact: &String) -> Result<(), String> {
-   user_update_str(id, contact, "contact").await
+pub async fn user_update_contact(user_id: u64, contact: &String) -> Result<(), String> {
+   user_update_str(user_id, contact, "contact").await
 }
 
-pub async fn user_update_address(id: i64, address: &String) -> Result<(), String> {
-   user_update_str(id, address, "address").await
+pub async fn user_update_address(user_id: u64, address: &String) -> Result<(), String> {
+   user_update_str(user_id, address, "address").await
 }
 
-pub async fn user_update_delivery(id: i64, delivery: &Delivery) -> Result<(), String> {
+pub async fn user_update_delivery(user_id: u64, delivery: &Delivery) -> Result<(), String> {
+   let user_id = user_id as i64;
    let text = "UPDATE users SET pickup = $1::BOOLEAN WHERE user_id=$2::BIGINT";
    let new_val = matches!(delivery, Delivery::Pickup);
-   execute_one(text, &[&new_val, &id]).await
+   execute_one(text, &[&new_val, &user_id]).await
 }
 
 // ============================================================================
@@ -541,7 +543,8 @@ pub async fn orders_amount_dec(user_id: i64, node_id: i32) -> Result<(), String>
    } else { Ok(()) }
 }
 
-pub async fn order_delete_node(user_id: i64, node_id: i32) -> Result<(), String> {
+pub async fn order_delete_node(user_id: u64, node_id: i32) -> Result<(), String> {
+   let user_id = user_id as i64;
    let text = "DELETE FROM orders WHERE user_id = $1::BIGINT AND node_id = $2::INTEGER";
    execute(text, &[&user_id, &node_id]).await?;
    Ok(())

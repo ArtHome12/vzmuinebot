@@ -109,8 +109,7 @@ async fn view(bot: AutoSend<Bot>, msg: Message, state: BasketState) -> HandlerRe
 
    // Load info about orders
    let user_id = state.prev_state.user_id;
-   let orders = db::orders(user_id.0 as i64).await
-   .map_err(|s| map_req_err(s))?;
+   let orders = db::orders(user_id.0 as i64).await?;
 
    // Announce
    let basket_info = orders.basket_info();
@@ -145,46 +144,43 @@ async fn view(bot: AutoSend<Bot>, msg: Message, state: BasketState) -> HandlerRe
    Ok(())
 }
 
-/* async fn update(state: BasketState, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
+pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: BasketState) -> HandlerResult {
 
+   let user_id = state.prev_state.user_id.0 as u64;
    // Parse and handle commands
-   let cmd = Command::parse(ans.as_str());
+   let text = msg.text().unwrap_or_default();
+   let cmd = Command::parse(text);
    match cmd {
       Command::Clear => {
-         db::orders_delete(state.state.user_id)
-         .await
-         .map_err(|s| map_req_err(s))?;
-
-         // Reload basket
-         enter(state.state, cx).await
+         // Remove all orders from database and update user screen
+         db::orders_delete(user_id).await;
+         view(bot, msg, state).await
       }
 
-      Command::Exit => crate::states::enter(StartState { restarted: false }, cx, String::default()).await,
+      Command::Exit => crate::states::reload(bot, msg, dialogue, state.prev_state).await,
 
-      Command::Edit(cmd) => enter_edit(BasketStateEditing { state, cmd }, cx).await,
+      Command::Edit(cmd) => {
+         let new_state = BasketStateEditing { prev_state: state, cmd };
+         dialogue.update(new_state.to_owned());
+         enter_edit(bot, msg, dialogue, new_state).await
+      }
 
       Command::Delete(node_id) => {
-         db::order_delete_node(state.state.user_id, node_id)
-         .await
-         .map_err(|s| map_req_err(s))?;
-
-         // Reload basket
-         enter(state.state, cx).await
+         // Remove the order from database and update user screen
+         db::order_delete_node(user_id, node_id).await;
+         view(bot, msg, state).await
       }
 
-      Command::Reload => enter(state.state, cx).await,
+      Command::Reload => view(bot, msg, state).await,
 
       Command::Unknown => {
-         cx.answer("Вы покидаете меню заказов")
-         .await?;
+         bot.send_message(msg.chat.id, "Вы покидаете меню заказов").await?;
 
          // General commands handler - messaging, searching...
-         general::update(state.state, cx, ans, true).await
+         general::update(bot, dialogue, text, state.prev_state, true).await
       }
    }
 }
-
-*/
 
 pub fn make_owner_text(node: &node::Node, order: &orders::Order) -> String {
    // Prepare info about owner
@@ -242,73 +238,24 @@ fn order_markup(node_id: i32) -> InlineKeyboardMarkup {
 // ============================================================================
 #[derive(Clone)]
 pub struct BasketStateEditing {
-   state: BasketState,
+   prev_state: BasketState,
    cmd: EditCmd,
 }
 
-/*async fn update_edit(mut state: BasketStateEditing, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
-   async fn do_update(state: &mut BasketStateEditing, ans: String) -> Result<String, String> {
-      if ans == String::from("/") {
-         return Ok(String::from("Отмена, значение не изменено"));
-      }
-
-      // Store new value
-      let user_id = state.state.state.user_id;
-      match state.cmd {
-         EditCmd::Name => {
-            db::user_update_name(user_id, &ans).await?;
-            state.state.customer.name = ans;
-         }
-         EditCmd::Contact => {
-            db::user_update_contact(user_id, &ans).await?;
-            state.state.customer.contact = ans;
-         }
-         EditCmd::Address => {
-            db::user_update_address(user_id, &ans).await?;
-            state.state.customer.address = ans;
-         }
-         EditCmd::Delivery => {
-            // Parse answer
-            let delivery = Delivery::from_str(ans.as_str());
-            if delivery.is_err() {
-               return Ok(String::from("Ошибка, способ доставки не изменён"));
-            }
-
-            let delivery = delivery.unwrap();
-            db::user_update_delivery(user_id, &delivery).await?;
-            state.state.customer.delivery = delivery;
-         }
-      }
-
-      Ok(String::from("Новое значение сохранено"))
-   }
-
-   // Report result
-   let info = do_update(&mut state, ans)
-   .await
-   .map_err(|s| map_req_err(s))?;
-
-   cx.answer(info)
-   .await?;
-
-   // Reload node
-   view(state.state, cx).await
-}
-
-async fn enter_edit(state: BasketStateEditing, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
-   let (info, markup) = match state.cmd {
-      EditCmd::Name => (format!("Пожалуйста, {}, укажите как курьер может к Вам обращаться или нажмите / для отмены", state.state.customer.name), cancel_markup()),
-      EditCmd::Contact => (format!("Если хотите дать возможность ресторатору связаться с вами напрямую, укажите контакты (текущее значение '{}') или нажмите / для отмены", state.state.customer.contact), cancel_markup()),
+async fn enter_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: BasketStateEditing) -> HandlerResult {
+   let (text, markup) = match state.cmd {
+      EditCmd::Name => (format!("Пожалуйста, {}, укажите как курьер может к Вам обращаться или нажмите / для отмены", state.prev_state.customer.name), cancel_markup()),
+      EditCmd::Contact => (format!("Если хотите дать возможность ресторатору связаться с вами напрямую, укажите контакты (текущее значение '{}') или нажмите / для отмены", state.prev_state.customer.contact), cancel_markup()),
       EditCmd::Address => {
-         let customer = &state.state.customer;
+         let customer = &state.prev_state.customer;
 
          // Form a description of the address with a possible display of the geolocation
          let addr_desc = match customer.location_id() {
             Ok(message_id) => {
                // Try to forward geolocation message from history
-               let from = cx.update.chat_id(); // from bot
-               let to = state.state.state.user_id; // to user
-               let res = cx.requester.forward_message(to, from, message_id).await;
+               let from = msg.chat.id; // from bot
+               let to = state.prev_state.prev_state.user_id; // to user
+               let res = bot.forward_message(to, from, message_id).await;
                match res {
                   Ok(_) => String::from("прежняя геопозиция в сообщении выше"),
                   Err(_) => String::from("сохранённая геопозиция больше недоступна"),
@@ -327,15 +274,52 @@ async fn enter_edit(state: BasketStateEditing, cx: TransitionIn<AutoSend<Bot>>) 
          addr_desc),
          address_markup())
       }
-      EditCmd::Delivery => (format!("Текущее значение '{}', выберите способ доставки", state.state.customer.delivery_desc()), delivery_markup()),
+      EditCmd::Delivery => (format!("Текущее значение '{}', выберите способ доставки", state.prev_state.customer.delivery_desc()), delivery_markup()),
    };
 
-   cx.answer(info)
+   bot.send_message(msg.chat.id, text)
    .reply_markup(markup)
    .await?;
 
-   next(state)
-}*/
+   Ok(())
+}
+
+pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: BasketStateEditing) -> HandlerResult {
+   async fn do_update(cmd: EditCmd, user_id: u64, ans: String) -> Result<String, String> {
+      if ans == String::from("/") {
+         return Ok(String::from("Отмена, значение не изменено"));
+      }
+
+      // Store new value
+      match cmd {
+         EditCmd::Name => db::user_update_name(user_id, &ans).await?,
+         EditCmd::Contact => db::user_update_contact(user_id, &ans).await?,
+         EditCmd::Address => db::user_update_address(user_id, &ans).await?,
+         EditCmd::Delivery => {
+            // Parse answer
+            let delivery = Delivery::from_str(ans.as_str());
+            if delivery.is_err() {
+               return Ok(String::from("Ошибка, способ доставки не изменён"));
+            }
+
+            let delivery = delivery.unwrap();
+            db::user_update_delivery(user_id, &delivery).await?;
+         }
+      }
+
+      Ok(String::from("Новое значение сохранено"))
+   }
+
+   // Report result
+   let ans = msg.text().unwrap_or_default().to_string();
+   let user_id = state.prev_state.prev_state.user_id.0 as u64;
+   let text = do_update(state.cmd, user_id, ans).await?;
+
+   bot.send_message(msg.chat.id, text).await?;
+
+   // Reload node
+   enter(bot, msg, dialogue, state.prev_state.prev_state).await
+}
 
 fn delivery_markup() -> ReplyMarkup {
    kb_markup(vec![vec![

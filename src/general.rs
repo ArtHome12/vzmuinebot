@@ -62,9 +62,9 @@ pub struct MessageState {
 
 
 
-/* pub async fn update(state: CommandState, cx: TransitionIn<AutoSend<Bot>>, ans: String, allow_search: bool) -> TransitionOut<Dialogue> {
+pub async fn update(bot: AutoSend<Bot>, dialogue: MyDialogue, text: &str, state: MainState, allow_search: bool) -> HandlerResult {
    // Parse and handle commands
-   let cmd = Command::parse(ans.as_str());
+/*   let cmd = Command::parse(ans.as_str());
    match cmd {
       Command::Start => {
          let text = "Добро пожаловать. Пожалуйста, нажмите на 'Все' для отображения полного списка, 'Открыто' для работающих сейчас (если панель с кнопками скрыта, раскройте её), либо отправьте текст для поиска.";
@@ -96,10 +96,11 @@ pub struct MessageState {
          .await?;
       },
    }
-   next(state)
+   next(state)*/
+   Ok(())
 }
 
-async fn enter_input(state: MessageState, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
+/*async fn enter_input(state: MessageState, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
    let text = "Введите сообщение для отправки (/ для отмены)";
    cx.answer(text)
    .reply_markup(cancel_markup())
