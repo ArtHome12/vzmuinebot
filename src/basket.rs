@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use teloxide::{prelude::*, dispatching::dialogue::InMemStorage,
+use teloxide::{prelude::*,
    types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, 
       ParseMode, ButtonRequest, InlineKeyboardButton, InlineKeyboardMarkup,
    }
@@ -153,21 +153,24 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
    match cmd {
       Command::Clear => {
          // Remove all orders from database and update user screen
-         db::orders_delete(user_id).await;
+         db::orders_delete(user_id).await?;
          view(bot, msg, state).await
       }
 
-      Command::Exit => crate::states::reload(bot, msg, dialogue, state.prev_state).await,
+      Command::Exit => {
+         dialogue.update(state.prev_state).await?;
+         crate::states::reload(bot, msg, dialogue, state.prev_state).await
+      }
 
       Command::Edit(cmd) => {
          let new_state = BasketStateEditing { prev_state: state, cmd };
          dialogue.update(new_state.to_owned()).await?;
-         enter_edit(bot, msg, dialogue, new_state).await
+         enter_edit(bot, msg, new_state).await
       }
 
       Command::Delete(node_id) => {
          // Remove the order from database and update user screen
-         db::order_delete_node(user_id, node_id).await;
+         db::order_delete_node(user_id, node_id).await?;
          view(bot, msg, state).await
       }
 
@@ -242,7 +245,7 @@ pub struct BasketStateEditing {
    cmd: EditCmd,
 }
 
-async fn enter_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: BasketStateEditing) -> HandlerResult {
+async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: BasketStateEditing) -> HandlerResult {
    let (text, markup) = match state.cmd {
       EditCmd::Name => (format!("Пожалуйста, {}, укажите как курьер может к Вам обращаться или нажмите / для отмены", state.prev_state.customer.name), cancel_markup()),
       EditCmd::Contact => (format!("Если хотите дать возможность ресторатору связаться с вами напрямую, укажите контакты (текущее значение '{}') или нажмите / для отмены", state.prev_state.customer.contact), cancel_markup()),

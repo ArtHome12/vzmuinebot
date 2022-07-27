@@ -45,12 +45,12 @@ impl Default for State {
    }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct StartState {
    pub restarted: bool,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct MainState {
    pub prev_state: StartState,
    pub user_id: UserId,
