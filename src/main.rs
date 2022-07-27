@@ -127,11 +127,15 @@ where
       // futures::executor::block_on(async {environment::log(&text).await});
       log::error!("here1{}", text);
 
-      tokio::spawn(async move {
-         Box::pin(async move {environment::log(&text).await});
-      });
+      // tokio::spawn(async move {
+      //    Box::pin(async move {environment::log(&text).await});
+      // });
 
-      Box::pin(async {})
+      let fut = async move {
+         Box::pin(async move {environment::log(&text).await});
+      };
+
+      Box::pin(fut)
    }
 }
 
