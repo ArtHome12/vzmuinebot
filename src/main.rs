@@ -168,7 +168,6 @@ async fn run() {
    // Test connection to database
    let test_pool = pool.clone();
    tokio::spawn(async move {
-      environment::log("Database connection check").await;
       if let Err(e) = test_pool.get().await {
          environment::log(&format!("Database connection error: {}", e)).await;
       }
