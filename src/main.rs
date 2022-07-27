@@ -125,14 +125,16 @@ where
     fn handle_error(self: Arc<Self>, error: E) -> BoxFuture<'static, ()> {
       let text = format!("main::An error has occurred in the dispatcher:{:?}", error);
       // futures::executor::block_on(async {environment::log(&text).await});
-      log::error!("here1{}", text);
+      log::error!("{}", text);
 
       // tokio::spawn(async move {
       //    Box::pin(async move {environment::log(&text).await});
       // });
 
-      let fut = async {
-         {environment::log("&text").await};
+      let fut = async move {
+         if environment::log(&text).await.is_none() {
+            log::info!("main::Unable to send message to the service chat");
+         };
       };
 
       Box::pin(fut)
