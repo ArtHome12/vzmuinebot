@@ -114,15 +114,15 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
    // Display
    if node.is_some() {
       let new_state = GearState { prev_state: state, stack: vec![node.unwrap()] };
-      dialogue.update(new_state.to_owned()).await?;
-      view(bot, msg, new_state).await
+      view(bot, msg, &new_state).await?;
+      dialogue.update(new_state).await?;
    } else {
       let contact = env::admin_contact_info();
       let text = format!("Для доступа в режим ввода информации обратитесь к '{}' и сообщите ему id={}", contact, state.user_id);
       let chat_id = msg.chat.id;
       bot.send_message(chat_id, text).await?;
-      Ok(())
    }
+   Ok(())
 }
 
 
@@ -135,11 +135,12 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
 
       // Go if there are still nodes left
       if !state.stack.is_empty() {
-         dialogue.update(new_state.to_owned()).await?;
-         view(bot, msg, new_state).await
+         view(bot, msg, &new_state).await?;
+         dialogue.update(new_state).await?
       } else {
-         crate::states::reload(bot, msg, dialogue, state.prev_state).await
+         crate::states::reload(bot, msg, dialogue, state.prev_state).await?
       }
+      Ok(())
    }
 
    // === main body
@@ -163,8 +164,9 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
          node.children.push(child);
 
          // Show
-         dialogue.update(new_state.to_owned()).await?;
-         view(bot, msg, new_state).await
+         view(bot, msg, &new_state).await?;
+         dialogue.update(new_state).await?;
+         Ok(())
       }
 
       Command::Exit => crate::states::reload(bot, msg, dialogue, state.prev_state).await,
@@ -188,17 +190,17 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
             // Push new node and show
             let mut new_state = state.clone();
             new_state.stack.push(node);
-            dialogue.update(new_state.to_owned()).await?;
-            view(bot, msg, new_state).await
+            view(bot, msg, &new_state).await?;
+            dialogue.update(new_state).await?;
          } else {
             let text = format!("Неверно указан номер записи '{}', нельзя перейти", index);
             bot.send_message(chat_id, text)
             .reply_markup(markup(&state))
             .await?;
-
-            // Stay in place
-            Ok(())
          }
+
+         // Stay in place
+         Ok(())
       }
 
       Command::Delete => {
@@ -275,8 +277,9 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
             prev_state: state,
             update: UpdateNode { kind, field, }
          };
-         dialogue.update(new_state.to_owned()).await?;
-         enter_edit(bot, msg, new_state).await
+         enter_edit(bot, msg, &new_state).await?;
+         dialogue.update(new_state).await?;
+         Ok(())
       }
 
       Command::Unknown => {
@@ -290,7 +293,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
 }
 
 
-async fn view(bot: AutoSend<Bot>, msg: Message, state: GearState) -> HandlerResult {
+async fn view(bot: AutoSend<Bot>, msg: Message, state: &GearState) -> HandlerResult {
 
    // Collect path from the beginning
    let mut title = state.stack
@@ -521,7 +524,7 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
          // If change in databse is successful, update the stack
          node.update(&state.update)?;
 
-         /* let len = stack.len();
+         let len = stack.len();
          if len > 1 {
             let parent = stack.get_mut(len - 2).unwrap();
             for child in &mut parent.children {
@@ -530,7 +533,7 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
                   break;
                }
             }
-         } */
+         }
 
          String::from("Новое значение сохранено")
       };
@@ -549,12 +552,12 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
    .await?;
 
    // Reload node
+   view(bot, msg, &new_state.prev_state).await?;
    dialogue.update(new_state.prev_state).await?;
-   state.prev_state.stack.last_mut().unwrap().title = String::from("hello");
-   view(bot, msg, state.prev_state).await
+   Ok(())
 }
 
-async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: GearStateEditing) -> HandlerResult {
+async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: &GearStateEditing) -> HandlerResult {
 
    async fn do_enter(bot: AutoSend<Bot>, chat_id: ChatId, text: String, markup : ReplyMarkup) -> HandlerResult {
       bot.send_message(chat_id, text)
