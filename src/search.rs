@@ -4,7 +4,7 @@ Search algorithms. 11 Jun 2021.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
-Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
+Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use crate::database as db;
@@ -63,7 +63,7 @@ impl Search {
 }
 
 
-pub async fn search(pattern: &String) -> Result<Vec<String>, String> {
+pub async fn search(pattern: &str) -> Result<Vec<String>, String> {
 
    fn chain_to_str(chain: &Chain) -> String {
       if chain.is_empty() {

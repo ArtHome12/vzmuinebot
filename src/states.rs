@@ -89,6 +89,7 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
       .branch(dptree::case![State::BasketSubmode(state)].endpoint(crate::basket::update_edit))
       .branch(dptree::case![State::Gear(state)].endpoint(crate::gear::update))
       .branch(dptree::case![State::GearSubmode(state)].endpoint(crate::gear::update_edit))
+      .branch(dptree::case![State::GeneralMessage(state)].endpoint(crate::general::update_input))
    );
  
    let callback_query_handler = Update::filter_callback_query().endpoint(callback);
@@ -171,7 +172,7 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
          } else {
 
             // Process general commands without search if restarted (to prevent search submode commands)
-            crate::general::update(bot, dialogue, text, new_state, !state.prev_state.restarted).await?;
+            crate::general::update(bot, msg, dialogue, new_state, !state.prev_state.restarted).await?;
          }
       }
    };

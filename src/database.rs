@@ -4,7 +4,7 @@ Database. 28 May 2020.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
-Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
+Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use std::collections::HashMap;
@@ -278,7 +278,7 @@ pub async fn node_update(id: i32, update: &UpdateNode) -> Result<(), String> {
 }
 
 
-pub async fn node_search(pattern: &String) -> Result<search::Search, String> {
+pub async fn node_search(pattern: &str) -> Result<search::Search, String> {
    
    async fn chain(found: search::IdTilePair) -> Result<search::Chain, String> {
       let sql_text = "WITH RECURSIVE cte AS (

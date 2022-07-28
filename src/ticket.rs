@@ -4,11 +4,11 @@ Ticket to placed order. 06 June 2021.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
-Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
+Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use strum::{AsRefStr, EnumString, EnumMessage};
-use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup,};
+use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup, ChatId};
 
 use crate::callback;
 use crate::node;
@@ -146,6 +146,6 @@ impl TicketWithOwners {
          InfoFor::Customer => (self.ticket.stage.get_message().unwrap(), self.owners.0),
          InfoFor::Owner => (self.ticket.stage.get_detailed_message().unwrap(), self.ticket.customer_id),
       };
-      format!("{}\nСообщение через бота {}{}", s, gen::Command::Message(0).as_ref(), id)
+      format!("{}\nСообщение через бота {}{}", s, gen::Command::Message(ChatId{0:0}).as_ref(), id)
    }
 }
