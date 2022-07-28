@@ -463,49 +463,49 @@ pub struct GearStateEditing {
    update: UpdateNode,
 }
 
-pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, mut state: GearStateEditing, ans: String) -> HandlerResult {
-   async fn do_update(state: &mut GearStateEditing, ans: String) -> Result<String, String> {
-      let res = if ans == String::from("/") {
+pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, mut state: GearStateEditing) -> HandlerResult {
+   async fn do_update(state: &mut GearStateEditing, input: String) -> Result<String, String> {
+      let res = if input == String::from("/") {
          String::from("Отмена, значение не изменено")
       } else {
          // Store new value
          state.update.kind = match state.update.kind {
-            UpdateKind::Text(_) => UpdateKind::Text(ans),
+            UpdateKind::Text(_) => UpdateKind::Text(input),
             UpdateKind::Picture(_) => {
                // Delete previous if new id too short
-               let id = if ans.len() >= 3 { Origin::Own(ans) } else { Origin::None };
+               let id = if input.len() >= 3 { Origin::Own(input) } else { Origin::None };
                UpdateKind::Picture(id)
             }
             UpdateKind::Flag(_) => {
-               let flag = to_flag(ans)?;
+               let flag = to_flag(input)?;
                UpdateKind::Flag(flag)
             }
             UpdateKind::Int(_) => {
-               let res = ans.parse::<i64>();
+               let res = input.parse::<i64>();
                if let Ok(int) = res {
                   UpdateKind::Int(int)
                } else {
-                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать в число, значение не изменено", ans))
+                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать в число, значение не изменено", input))
                }
             }
             UpdateKind::Time(_, _) => {
-               let part1 = ans.get(..5).unwrap_or_default();
-               let part2 = ans.get(6..).unwrap_or_default();
+               let part1 = input.get(..5).unwrap_or_default();
+               let part2 = input.get(6..).unwrap_or_default();
                let part1 = NaiveTime::parse_from_str(part1, "%H:%M");
                let part2 = NaiveTime::parse_from_str(part2, "%H:%M");
 
                if part1.is_ok() && part2.is_ok() {
                   UpdateKind::Time(part1.unwrap(), part2.unwrap())
                } else {
-                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать во время работы типа '07:00-21:00', значение не изменено", ans))
+                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать во время работы типа '07:00-21:00', значение не изменено", input))
                }
             }
             UpdateKind::Money(_) => {
-               let res = ans.parse::<usize>();
+               let res = input.parse::<usize>();
                if let Ok(int) = res {
                   UpdateKind::Money(int)
                } else {
-                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать в число, значение не изменено", ans))
+                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать в число, значение не изменено", input))
                }
             }
          };
@@ -540,7 +540,8 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, mut state: GearStateE
 
    // Report result
    let chat_id = msg.chat.id;
-   let text = do_update(&mut state, ans).await?;
+   let input = msg.text().unwrap_or_default().to_string();
+   let text = do_update(&mut state, input).await?;
 
    bot.send_message(chat_id, text)
    .await?;
