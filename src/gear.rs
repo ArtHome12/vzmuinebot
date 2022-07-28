@@ -126,15 +126,17 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
 }
 
 
-pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, mut state: GearState) -> HandlerResult {
+pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: GearState) -> HandlerResult {
 
-   async fn do_return(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, mut state: GearState) -> HandlerResult {
+   async fn do_return(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: GearState) -> HandlerResult {
       // Extract current node from stack
-      state.stack.pop().unwrap();
+      let mut new_state = state.clone();
+      new_state.stack.pop().unwrap();
 
       // Go if there are still nodes left
       if !state.stack.is_empty() {
-         view(bot, msg, state).await
+         dialogue.update(new_state.to_owned()).await?;
+         view(bot, msg, new_state).await
       } else {
          crate::states::reload(bot, msg, dialogue, state.prev_state).await
       }
@@ -150,7 +152,8 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, mut 
    match cmd {
       Command::Add => {
          // Extract current node from stack
-         let mut node = state.stack.pop().unwrap();
+         let mut new_state = state.clone();
+         let node = new_state.stack.last_mut().unwrap();
 
          // Store a new child node in database with updating id
          let mut child = Node::new(node.id);
@@ -158,9 +161,9 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, mut 
 
          // Update current node and push to stack
          node.children.push(child);
-         state.stack.push(node);
 
          // Show
+         dialogue.update(new_state.to_owned()).await?;
          view(bot, msg, state).await
       }
 
@@ -183,7 +186,9 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, mut 
             .unwrap();
 
             // Push new node and show
-            state.stack.push(node);
+            let mut new_state = state.clone();
+            new_state.stack.push(node);
+            dialogue.update(new_state.to_owned()).await?;
             view(bot, msg, state).await
          } else {
             let text = format!("Неверно указан номер записи '{}', нельзя перейти", index);
@@ -208,7 +213,8 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, mut 
          }
 
          // Peek current node from stack
-         let stack = &mut state.stack;
+         let mut new_state = state.clone();
+         let stack = &mut new_state.stack;
          let node = stack.last().unwrap();
 
          // Delete record if it has no children
@@ -233,6 +239,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, mut 
                parent.children.retain(|child| child.id != node_id);
             }
 
+            // Change dialogue state and go up 
             do_return(bot, msg, dialogue, state).await
          }
       }
