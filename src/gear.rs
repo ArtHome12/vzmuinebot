@@ -113,12 +113,12 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
 
    // Display
    if node.is_some() {
-      let state = GearState { prev_state: state, stack: vec![node.unwrap()] };
-      dialogue.update(state.to_owned()).await?;
-      view(bot, msg, state).await
+      let new_state = GearState { prev_state: state, stack: vec![node.unwrap()] };
+      dialogue.update(new_state.to_owned()).await?;
+      view(bot, msg, new_state).await
    } else {
       let contact = env::admin_contact_info();
-      let text = format!("Для доступа в режим ввода информации обратитесь к '{}' и сообщите ему свой id={}", contact, state.user_id);
+      let text = format!("Для доступа в режим ввода информации обратитесь к '{}' и сообщите ему id={}", contact, state.user_id);
       let chat_id = msg.chat.id;
       bot.send_message(chat_id, text).await?;
       Ok(())
@@ -164,7 +164,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
 
          // Show
          dialogue.update(new_state.to_owned()).await?;
-         view(bot, msg, state).await
+         view(bot, msg, new_state).await
       }
 
       Command::Exit => crate::states::reload(bot, msg, dialogue, state.prev_state).await,
@@ -189,7 +189,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
             let mut new_state = state.clone();
             new_state.stack.push(node);
             dialogue.update(new_state.to_owned()).await?;
-            view(bot, msg, state).await
+            view(bot, msg, new_state).await
          } else {
             let text = format!("Неверно указан номер записи '{}', нельзя перейти", index);
             bot.send_message(chat_id, text)
@@ -240,7 +240,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
             }
 
             // Change dialogue state and go up 
-            do_return(bot, msg, dialogue, state).await
+            do_return(bot, msg, dialogue, new_state).await
          }
       }
 
@@ -271,12 +271,12 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
          let field = String::from(cmd.get_message().unwrap());
 
          // Move to editing mode
-         let state = GearStateEditing {
+         let new_state = GearStateEditing {
             prev_state: state,
             update: UpdateNode { kind, field, }
          };
-         dialogue.update(state.to_owned()).await?;
-         enter_edit(bot, msg, state).await
+         dialogue.update(new_state.to_owned()).await?;
+         enter_edit(bot, msg, new_state).await
       }
 
       Command::Unknown => {
