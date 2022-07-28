@@ -115,8 +115,8 @@ pub async fn update(bot: AutoSend<Bot>, q: CallbackQuery) -> HandlerResult {
       Command::DecAmountNow(node_id) => do_dec(&bot, q, node_id, WorkTime::All).await?,
       Command::TicketMake(node_id) => registration::make_ticket(&bot, q, node_id).await?,
       Command::TicketCancel(node_id) => registration::cancel_ticket(&bot, q, node_id).await?,
-      Command::TicketNext(node_id) => registration::next_ticket(&bot, q, node_id).await?,
-      Command::TicketConfirm(node_id) => registration::confirm_ticket(&bot, q, node_id).await?,
+      Command::TicketNext(node_id) => registration::next_ticket(&bot, node_id).await?,
+      Command::TicketConfirm(node_id) => registration::confirm_ticket(&bot, node_id).await?,
       Command::Unknown => "Неизвестная команда",
    };
 

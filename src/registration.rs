@@ -240,12 +240,12 @@ pub async fn make_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32) ->
    };
 
    // Send messages with status to customer and owners
-   update_statuses(bot, q, t).await?;
+   update_statuses(bot, t).await?;
 
    Ok("Успешно")
 }
 
-async fn update_statuses(bot: &AutoSend<Bot>, q: CallbackQuery, mut t: TicketWithOwners) -> Result<(), String> {
+async fn update_statuses(bot: &AutoSend<Bot>, mut t: TicketWithOwners) -> Result<(), String> {
 
    // The status change for customer is mandatory
    t.ticket.cust_status_msg_id = update_status(bot, &mut t, Role::Customer).await?;
@@ -293,7 +293,7 @@ pub async fn cancel_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, ticket_id: i32
 
    let service_msg_id = t.ticket.service_msg_id;
    let stage = t.ticket.stage;
-   update_statuses(bot, q, t).await?;
+   update_statuses(bot, t).await?;
 
    // Send the status also to the service chat
    let status = stage.get_message().unwrap();
@@ -302,7 +302,7 @@ pub async fn cancel_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, ticket_id: i32
    Ok("Успешно")
 }
 
-pub async fn next_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) -> Result<&'static str, String> {
+pub async fn next_ticket(bot: &AutoSend<Bot>, ticket_id: i32) -> Result<&'static str, String> {
 
    // Load ticket and update status
    let mut t = db::ticket_with_owners(ticket_id).await?;
@@ -311,11 +311,11 @@ pub async fn next_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) 
       db::ticket_update_stage(t.ticket.id, t.ticket.stage).await?;
    }
 
-   update_statuses(bot, q, t).await?;
+   update_statuses(bot, t).await?;
    Ok("Успешно")
 }
 
-pub async fn confirm_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) -> Result<&'static str, String> {
+pub async fn confirm_ticket(bot: &AutoSend<Bot>, ticket_id: i32) -> Result<&'static str, String> {
 
    // Load ticket and update status
    let mut t = db::ticket_with_owners(ticket_id).await?;
@@ -323,7 +323,7 @@ pub async fn confirm_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, ticket_id: i3
    db::ticket_update_stage(t.ticket.id, t.ticket.stage).await?;
 
    let service_msg_id = t.ticket.service_msg_id;
-   update_statuses(bot, q, t).await?;
+   update_statuses(bot, t).await?;
 
    // Send the order also to the service chat
    let status = "Заказ успешно завершён";

@@ -268,7 +268,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, mut 
             prev_state: state,
             update: UpdateNode { kind, field, }
          };
-         dialogue.update(state.to_owned()).await;
+         dialogue.update(state.to_owned()).await?;
          enter_edit(bot, msg, state).await
       }
 
@@ -456,7 +456,7 @@ pub struct GearStateEditing {
    update: UpdateNode,
 }
 
-async fn update_edit(bot: AutoSend<Bot>, msg: Message, mut state: GearStateEditing, ans: String) -> HandlerResult {
+pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, mut state: GearStateEditing, ans: String) -> HandlerResult {
    async fn do_update(state: &mut GearStateEditing, ans: String) -> Result<String, String> {
       let res = if ans == String::from("/") {
          String::from("Отмена, значение не изменено")

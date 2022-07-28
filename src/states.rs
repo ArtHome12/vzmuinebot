@@ -30,8 +30,8 @@ pub type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 pub enum State {
    Start(StartState), // initial state
    Command(MainState), // await for select menu item from bottom
-   Settings(GearState), // in settings menu
-   SettingsSubmode(GearStateEditing), // in settings menu edit field
+   Gear(GearState), // in settings menu
+   GearSubmode(GearStateEditing), // in settings menu edit field
    Basket(BasketState), // in basket menu
    BasketSubmode(BasketStateEditing),
    GeneralMessage(MessageState), // general commands, enter text of message to send
@@ -89,6 +89,8 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
       .branch(dptree::case![State::Command(state)].endpoint(command))
       .branch(dptree::case![State::Basket(state)].endpoint(crate::basket::update))
       .branch(dptree::case![State::BasketSubmode(state)].endpoint(crate::basket::update_edit))
+      .branch(dptree::case![State::Gear(state)].endpoint(crate::gear::update))
+      .branch(dptree::case![State::GearSubmode(state)].endpoint(crate::gear::update_edit))
    );
  
    let callback_query_handler = Update::filter_callback_query().endpoint(callback);
