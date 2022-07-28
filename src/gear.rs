@@ -283,11 +283,11 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
       }
 
       Command::Unknown => {
-         let text = "Вы покидаете меню настроек";
-         bot.send_message(chat_id, text).await?;
-
-         // General commands handler - messaging, searching...
-         general::update(bot, dialogue, cmd_text, state.prev_state, true).await
+         let text = format!("Непонятно, к чему отнести {}. Выберите сначала команду из нижнего меню", cmd_text);
+         bot.send_message(chat_id, text)
+         .reply_markup(markup(&state))
+         .await?;
+         Ok(())
       }
    }
 }
