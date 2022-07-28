@@ -4,7 +4,7 @@ Main module. 21 May 2020.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
-Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
+Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use std::{convert::Infallible, env, net::SocketAddr, fmt::Debug, sync::Arc};

@@ -4,13 +4,13 @@ User interface with inline buttons. 27 May 2021.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
-Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
+Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide::{
    prelude::*,
    types::{InputFile, InlineKeyboardButton, InlineKeyboardMarkup,
-      CallbackQuery, ChatId, InputMedia, ParseMode, InputMediaPhoto,
+      CallbackQuery, InputMedia, ParseMode, InputMediaPhoto,
    },
 };
 use arraylib::iter::IteratorExt;
@@ -21,7 +21,7 @@ use crate::states::*;
 use crate::database as db;
 use crate::node::*;
 
-pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState, mode: WorkTime) -> HandlerResult {
+pub async fn enter(bot: AutoSend<Bot>, msg: Message, state: MainState, mode: WorkTime) -> HandlerResult {
 
    // Load root node with children
    let load_mode = match mode {
@@ -76,55 +76,61 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
 }
 
 
-/* 
-async fn msg(text: &str, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
-   let user_id = cx.update.from.id;
-   cx.requester.send_message(user_id, text)
+async fn msg(bot: AutoSend<Bot>, user_id: UserId, text: &str) -> Result<(), String> {
+   bot.send_message(user_id, text)
    .await
    .map_err(|err| format!("inline::msg {}", err))?;
    Ok(())
 }
 
-pub async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
+pub async fn view(bot: AutoSend<Bot>, q: CallbackQuery, node_id: i32, mode: WorkTime) -> Result<(), String> {
+
+   let user_id = q.from.id;
+
    // Load node from database
    let load_mode = match mode {
       WorkTime::All | WorkTime::AllFrom(_) => db::LoadNode::EnabledId(node_id),
       WorkTime::Now => db::LoadNode::EnabledNowId(node_id),
    };
-   let node =  db::node(load_mode)
-   .await?;
+   let node =  db::node(load_mode).await?;
    if node.is_none() {
-      msg("Ошибка, запись недействительна, начните заново", cx).await?;
+      msg(bot, user_id, "Ошибка, запись недействительна, начните заново").await?;
       return Ok(())
    }
 
    // Collect info
-   let user = &cx.update.from;
    let node = node.unwrap();
-   let markup = markup(&node, mode, user.id)
+   let markup = markup(&node, mode, user_id)
    .await?;
 
    let text = node_text(&node);
 
-   // Достаём chat_id
-   let message = cx.update.message.as_ref().unwrap();
-   let chat_id = ChatId::Id(message.chat_id());
-   let message_id = message.id;
+   // Message to modify
+   let message = q.message;
+   if message.is_none() {
+      msg(bot, user_id, "Ошибка, сообщение недействительно, начните заново").await?;
+      return Ok(())
+   }
+   // let chat_id = ChatId::Id(message.chat_id());
+   let message_id = message.unwrap().id;
 
    // Picture is mandatory
    match node.picture {
-      Origin::None => Err(String::from("navigation::view picture is none")),
+      Origin::None => {
+         msg(bot, user_id, "Ошибка, отсутствует картинка, она обязательна").await?;
+         return Ok(())
+      }
       Origin::Own(picture_id) | Origin::Inherited(picture_id) => {
 
-         // Приготовим структуру для редактирования
+         // Prepare data to edit
          let media = InputFile::file_id(picture_id);
          let media = InputMediaPhoto::new(media)
          .caption(text)
          .parse_mode(ParseMode::Html);
          let media = InputMedia::Photo(media);
 
-         // Отправляем изменения
-         cx.requester.edit_message_media(chat_id, message_id, media)
+         // Send data
+         bot.edit_message_media(user_id, message_id, media)
          .reply_markup(markup)
          .await
          .map_err(|err| format!("inline::view {}", err))?;
@@ -132,7 +138,7 @@ pub async fn view(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>,
          Ok(())
       }
    }
-} */
+}
 
 fn node_text(node: &Node) -> String {
 

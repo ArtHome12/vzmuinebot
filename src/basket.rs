@@ -90,7 +90,7 @@ pub struct BasketState {
 pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
 
    // Load user info
-   let customer = db::user(state.user_id.0 as i64).await?;
+   let customer = db::user(state.user_id.0).await?;
 
    // Display
    let state = BasketState { prev_state: state, customer };

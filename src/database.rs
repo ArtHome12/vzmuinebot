@@ -323,8 +323,9 @@ pub async fn node_search(pattern: &String) -> Result<search::Search, String> {
 // ============================================================================
 // [Users]
 // ============================================================================
-pub async fn user(user_id: i64) -> Result<Customer, String> {
+pub async fn user(user_id: u64) -> Result<Customer, String> {
    // Make query
+   let user_id = user_id as i64;
    let sql_text = "SELECT user_name, contact, address, pickup FROM users WHERE user_id=$1::BIGINT";
    let rows = query_prepared_one(sql_text, &[&user_id]).await?;
    let row = &rows[0];
@@ -491,7 +492,7 @@ pub async fn orders_amount(user_id: i64, node_id: i32) -> Result<usize, String> 
    Ok(res)
 }
 
-pub async fn orders_amount_inc(user_id: i64, node_id: i32) -> Result<(), String> {
+pub async fn orders_amount_inc(user_id: u64, node_id: i32) -> Result<(), String> {
    let query = "INSERT INTO orders as o (user_id, node_id, owner_node_id, amount) VALUES ($1::BIGINT, $2::INTEGER,
       (WITH RECURSIVE cte AS (
             SELECT id, parent, owner1 FROM nodes WHERE id = $2::INTEGER
@@ -510,6 +511,7 @@ pub async fn orders_amount_inc(user_id: i64, node_id: i32) -> Result<(), String>
    .map_err(|err| format!("amount_inc prepare: {}", err))?;
 
    // Run query
+   let user_id = user_id as i64;
    let query = client
    .execute(&statement, &[&user_id, &node_id])
    .await
@@ -521,7 +523,7 @@ pub async fn orders_amount_inc(user_id: i64, node_id: i32) -> Result<(), String>
    } else { Ok(()) }
 }
 
-pub async fn orders_amount_dec(user_id: i64, node_id: i32) -> Result<(), String> {
+pub async fn orders_amount_dec(user_id: u64, node_id: i32) -> Result<(), String> {
    let query = "UPDATE orders SET amount = amount - 1 WHERE user_id = $1::BIGINT AND node_id = $2::INTEGER";
 
    // Prepare query
@@ -532,6 +534,7 @@ pub async fn orders_amount_dec(user_id: i64, node_id: i32) -> Result<(), String>
    .map_err(|err| format!("amount_dec prepare: {}", err))?;
 
    // Run query
+   let user_id = user_id as i64;
    let query = client
    .execute(&statement, &[&user_id, &node_id])
    .await

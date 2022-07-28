@@ -13,10 +13,8 @@ use teloxide::{prelude::*, ApiError, RequestError,
    dispatching::{dialogue::{self, InMemStorage}, UpdateHandler, UpdateFilterExt, },
 };
 
-use reqwest::StatusCode;
 use std::str::FromStr;
 use strum::{AsRefStr, EnumString,};
-use async_recursion::async_recursion;
 
 use crate::environment as env;
 use crate::database as db;
@@ -93,14 +91,11 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
       .branch(dptree::case![State::BasketSubmode(state)].endpoint(crate::basket::update_edit))
    );
  
-   /* let callback_query_handler = Update::filter_callback_query().chain(
-       dptree::case![State::ReceiveProductChoice { full_name }]
-           .endpoint(receive_product_selection),
-   ); */
+   let callback_query_handler = Update::filter_callback_query().endpoint(crate::callback::update);
 
    dialogue::enter::<Update, InMemStorage<State>, State, _>()
    .branch(message_handler)
-   // .branch(callback_query_handler)
+   .branch(callback_query_handler)
 }
 
 
@@ -161,8 +156,8 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
    let cmd = MainMenu::from_str(text).unwrap_or(MainMenu::Unknown);
    match cmd {
       MainMenu::Basket => {crate::basket::enter(bot, msg, dialogue, new_state).await?;},
-      MainMenu::All => {crate::navigation::enter(bot, msg, dialogue, new_state, WorkTime::All).await?;},
-      MainMenu::Now => {crate::navigation::enter(bot, msg, dialogue, new_state, WorkTime::Now).await?;},
+      MainMenu::All => {crate::navigation::enter(bot, msg, new_state, WorkTime::All).await?;},
+      MainMenu::Now => {crate::navigation::enter(bot, msg, new_state, WorkTime::Now).await?;},
       // MainMenu::Gear => crate::gear::enter(bot, msg, dialogue, new_state).await,
 
       MainMenu::Unknown => {

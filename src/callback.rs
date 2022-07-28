@@ -4,7 +4,7 @@ Callback from inline button. 27 May 2021.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
-Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
+Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use strum::{AsRefStr, EnumString, EnumMessage, };
@@ -78,58 +78,55 @@ impl Command {
    }
 }
 
-/* pub async fn update(cx: UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<(), String> {
-   async fn do_inc(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<&'static str, String> {
+pub async fn update(bot: AutoSend<Bot>, q: CallbackQuery) -> HandlerResult {
+   async fn do_inc(bot: AutoSend<Bot>, q: CallbackQuery, node_id: i32, mode: WorkTime) -> Result<&'static str, String> {
       // Increment amount in database and reload node
-      let user_id = cx.update.from.id;
+      let user_id = q.from.id.0;
       db::orders_amount_inc(user_id, node_id).await?;
-      navigation::view(node_id, mode, &cx).await?;
+      navigation::view(bot, q, node_id, mode).await?;
       Ok("Добавлено")
    }
 
-   async fn do_dec(node_id: i32, mode: WorkTime, cx: &UpdateWithCx<AutoSend<Bot>, CallbackQuery>) -> Result<&'static str, String> {
+   async fn do_dec(bot: AutoSend<Bot>, q: CallbackQuery, node_id: i32, mode: WorkTime) -> Result<&'static str, String> {
       // Decrement amount in database and reload node
-      let user_id = cx.update.from.id;
+      let user_id = q.from.id.0;
       db::orders_amount_dec(user_id, node_id).await?;
-      navigation::view(node_id, mode, &cx).await?;
+      navigation::view(bot, q, node_id, mode).await?;
       Ok("Удалено")
    }
 
-   let query = &cx.update;
-   let query_id = &query.id;
+   let query_id = q.id.to_owned();
+   let bot2 = bot.clone();
 
    // Parse and process commands by receiving a message to send back
-   let cmd = Command::parse(
-      query.data.clone()
-      .unwrap_or(String::default())
-      .as_str()
-   );
+   let cmd = q.data.to_owned().unwrap_or_default();
+   let cmd = Command::parse(&cmd);
    let msg = match cmd {
       Command::Pass(node_id) => {
-         navigation::view(node_id, WorkTime::All, &cx).await?;
+         navigation::view(bot, q, node_id, WorkTime::All).await?;
          "Все заведения"
       }
       Command::PassNow(node_id) => {
-         navigation::view(node_id, WorkTime::Now, &cx).await?;
+         navigation::view(bot, q, node_id, WorkTime::Now).await?;
          "Открытые сейчас"
       }
-      Command::IncAmount(node_id) => do_inc(node_id, WorkTime::All, &cx).await?,
-      Command::IncAmountNow(node_id) => do_inc(node_id, WorkTime::Now, &cx).await?,
-      Command::DecAmount(node_id) => do_dec(node_id, WorkTime::All, &cx).await?,
-      Command::DecAmountNow(node_id) => do_dec(node_id, WorkTime::All, &cx).await?,
-      Command::TicketMake(node_id) => registration::make_ticket(&cx, node_id).await?,
-      Command::TicketCancel(node_id) => registration::cancel_ticket(&cx, node_id).await?,
-      Command::TicketNext(node_id) => registration::next_ticket(&cx, node_id).await?,
-      Command::TicketConfirm(node_id) => registration::confirm_ticket(&cx, node_id).await?,
+      Command::IncAmount(node_id) => do_inc(bot, q, node_id, WorkTime::All).await?,
+      Command::IncAmountNow(node_id) => do_inc(bot, q, node_id, WorkTime::Now).await?,
+      Command::DecAmount(node_id) => do_dec(bot, q, node_id, WorkTime::All).await?,
+      Command::DecAmountNow(node_id) => do_dec(bot, q, node_id, WorkTime::All).await?,
+      Command::TicketMake(node_id) => registration::make_ticket(bot, q, node_id).await?,
+      Command::TicketCancel(node_id) => registration::cancel_ticket(bot, q, node_id).await?,
+      Command::TicketNext(node_id) => registration::next_ticket(bot, q, node_id).await?,
+      Command::TicketConfirm(node_id) => registration::confirm_ticket(bot, q, node_id).await?,
       Command::Unknown => "Неизвестная команда",
    };
 
    // Отправляем ответ, который показывается во всплывающем окошке
-   cx.requester.answer_callback_query(query_id)
+   bot2.answer_callback_query(query_id)
    .text(msg)
    .send()
    .await
    .map_err(|err| format!("inline::update {}", err))?;
 
    Ok(())
-} */
+}

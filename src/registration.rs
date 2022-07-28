@@ -4,7 +4,7 @@ Registration orders. 07 Jun 2021.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
-Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
+Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide::{prelude::*, RequestError, payloads::SendMessageSetters,
@@ -27,7 +27,7 @@ use crate::states;
 type ResultMessage = Result<Message, String>;
 type Result3Id = Result<ThreeMsgId, String>;
 
-const VALID_USER_ID: i64 = 10_000;
+const VALID_USER_ID: u64 = 10_000;
 
 enum Role {
    Customer,
@@ -104,7 +104,7 @@ async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role
       Role::Owner3 => (t.owners.2, t.ticket.owners_msg_id.2, t.ticket.owners_status_msg_id.2),
    };
 
-   if recipient_id < VALID_USER_ID {
+   if recipient_id < VALID_USER_ID as i64 {
       return Ok(None);
    }
    let recipient = Recipient::Id(ChatId(recipient_id));
@@ -150,35 +150,37 @@ async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role
 }
 
 
-/* pub async fn make_ticket(cx: &Update, node_id: i32) -> Result<&'static str, String> {
+pub async fn make_ticket(bot: AutoSend<Bot>, q: CallbackQuery, node_id: i32) -> Result<&'static str, String> {
 
    // Load customer info
-   let user_id = cx.update.from.id;
-   let customer = db::user(user_id).await?;
+   let user_id = q.from.id;
+   let customer = db::user(user_id.0).await?;
 
    // Load owners node
    let node = db::node(db::LoadNode::EnabledIdNoChildren(node_id)).await?;
    let owners = if let Some(node) = node { node.owners } else { node::Owners::default() };
 
+   let reply_to_id = if let Some(msg) = &q.message { msg.id } else { 0 };
+
    // Check valid owner
-   if owners.0 < VALID_USER_ID && owners.1 < VALID_USER_ID && owners.2 < VALID_USER_ID {
+   if owners.0 < VALID_USER_ID as i64 && owners.1 < VALID_USER_ID as i64 && owners.2 < VALID_USER_ID as i64 {
       let text = "Заведение пока не подключено к боту, пожалуйста скопируйте ваш заказ отправьте по указанным контактным данным напрямую, после чего можно очистить корзину";
-      reply_msg(user_id, cx, text).await?;
+      reply_msg(bot, user_id, reply_to_id, text).await?;
       return Ok("Неудачно");
    }
 
    // Get source message text and id
-   let old_text = cx.update.message.clone()
-   .and_then(|f| f.text()
+   let ref_m = q.message.as_ref();
+   let old_text = ref_m.and_then(|f| f.text()
       .and_then(|f| Some(f.to_string()))
    );
    if old_text.is_none() {
       let text = "Не удаётся получить текст заказа, возможно слишком старое сообщение";
-      reply_msg(user_id, cx, text).await?;
+      reply_msg(bot, user_id, reply_to_id, text).await?;
       return Ok("Неудачно");
    }
    let old_text = old_text.unwrap();
-   let orig_msg_id = cx.update.message.clone().unwrap().id; // unwrap checked above
+   let orig_msg_id = ref_m.unwrap().id; // unwrap checked above
 
    // Check delivery address if not pickup
    if matches!(customer.delivery, Delivery::Courier) {
@@ -187,10 +189,10 @@ async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role
          true => {
             // Send to owner a message with the geographic location to make sure it's still available
             let message_id = customer.location_id().unwrap_or_default();
-            let res = forward_msg_to_owners(&owners, cx, message_id).await;
+            let res = forward_msg_to_owners(&bot, user_id, &owners, message_id).await;
             if let Err(err) = res {
                let text = format!("Недоступно сообщение с геопозицией, пожалуйста обновите адрес\n<i>{}</i>", err);
-               reply_msg(user_id, cx, &text).await?;
+               reply_msg(bot, user_id, reply_to_id, &text).await?;
                return Ok("Неудачно");
             }
          }
@@ -198,7 +200,7 @@ async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role
          false => {
             if customer.address.len() < 1 {
                let text = "Пожалуйста, введите адрес или переключитесь на самовывоз при помощи кнопок внизу.\nЭта информация будет сохранена для последующих заказов, при необходимости вы всегда сможете её изменить";
-               reply_msg(user_id, cx, text).await?;
+               reply_msg(bot, user_id, reply_to_id, &text).await?;
                return Ok("Неудачно");
             }
          }
@@ -211,7 +213,7 @@ async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role
    }
    let order_info = HASHTAG_REGEX.replace_all(&old_text, "").to_string();
 
-   let cust_msg_id = cx.requester.edit_message_text(user_id, orig_msg_id, &order_info)
+   let cust_msg_id = bot.edit_message_text(user_id, orig_msg_id, &order_info)
    .await
    .map_err(|err| format!("make_ticket edit_message user_id={} {}", user_id, err))?.id;
 
@@ -221,16 +223,16 @@ async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role
       customer.contact,
       customer.delivery_desc()
    );
-   send_msg_to_owners(&owners, cx, &customer_info).await?;
+   send_msg_to_owners(&bot, &owners, &customer_info).await?;
 
    // Forward edited message with order and save msg id
-   let owners_msg_id = forward_msg_to_owners(&owners, cx, orig_msg_id).await?;
+   let owners_msg_id = forward_msg_to_owners(&bot, user_id, &owners, orig_msg_id).await?;
 
    // Send the order also to the service chat
    let service_msg_id = env::log(&format!("{}\n---\n{}", customer_info, order_info)).await;
 
    // Delete data from orders and create ticket with owners
-   let ticket = db::ticket_form_orders(node_id, user_id, owners_msg_id, cust_msg_id, service_msg_id).await?;
+   let ticket = db::ticket_form_orders(node_id, user_id.0 as i64, owners_msg_id, cust_msg_id, service_msg_id).await?;
 
    let t = TicketWithOwners {
       ticket,
@@ -238,30 +240,30 @@ async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role
    };
 
    // Send messages with status to customer and owners
-   update_statuses(&cx, t).await?;
+   update_statuses(bot, q, t).await?;
 
    Ok("Успешно")
 }
 
-async fn update_statuses(cx: &Update, mut t: TicketWithOwners) -> Result<(), String> {
+async fn update_statuses(bot: AutoSend<Bot>, q: CallbackQuery, mut t: TicketWithOwners) -> Result<(), String> {
 
    // The status change for customer is mandatory
-   t.ticket.cust_status_msg_id = update_status(&cx.requester, &mut t, Role::Customer).await?;
+   t.ticket.cust_status_msg_id = update_status(&bot, &mut t, Role::Customer).await?;
 
    // Update status for owners, ignore fail
-   t.ticket.owners_status_msg_id.0 = update_status(&cx.requester, &mut t, Role::Owner1)
+   t.ticket.owners_status_msg_id.0 = update_status(&bot, &mut t, Role::Owner1)
    .await
    .ok()
    .flatten();
 
    // The same for owner 2
-   t.ticket.owners_status_msg_id.1 = update_status(&cx.requester, &mut t, Role::Owner2)
+   t.ticket.owners_status_msg_id.1 = update_status(&bot, &mut t, Role::Owner2)
    .await
    .ok()
    .flatten();
 
    // The same for owner 3
-   t.ticket.owners_status_msg_id.2 = update_status(&cx.requester, &mut t, Role::Owner3)
+   t.ticket.owners_status_msg_id.2 = update_status(&bot, &mut t, Role::Owner3)
    .await
    .ok()
    .flatten();
@@ -276,13 +278,13 @@ async fn update_statuses(cx: &Update, mut t: TicketWithOwners) -> Result<(), Str
    // Update status id on database
    db::ticket_update_status_messages(&t.ticket).await?;
    Ok(())
-} */
+}
 
-/* pub async fn cancel_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str, String> {
+pub async fn cancel_ticket(bot: AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) -> Result<&'static str, String> {
 
    // Load ticket and update status
    let mut t = db::ticket_with_owners(ticket_id).await?;
-   t.ticket.stage = if cx.update.from.id == t.ticket.customer_id {
+   t.ticket.stage = if q.from.id.0 as i64 == t.ticket.customer_id {
       Stage::CanceledByCustomer
    } else {
       Stage::CanceledByOwner
@@ -291,7 +293,7 @@ async fn update_statuses(cx: &Update, mut t: TicketWithOwners) -> Result<(), Str
 
    let service_msg_id = t.ticket.service_msg_id;
    let stage = t.ticket.stage;
-   update_statuses(cx, t).await?;
+   update_statuses(bot, q, t).await?;
 
    // Send the status also to the service chat
    let status = stage.get_message().unwrap();
@@ -300,7 +302,7 @@ async fn update_statuses(cx: &Update, mut t: TicketWithOwners) -> Result<(), Str
    Ok("Успешно")
 }
 
-pub async fn next_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str, String> {
+pub async fn next_ticket(bot: AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) -> Result<&'static str, String> {
 
    // Load ticket and update status
    let mut t = db::ticket_with_owners(ticket_id).await?;
@@ -309,11 +311,11 @@ pub async fn next_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str, St
       db::ticket_update_stage(t.ticket.id, t.ticket.stage).await?;
    }
 
-   update_statuses(cx, t).await?;
+   update_statuses(bot, q, t).await?;
    Ok("Успешно")
 }
 
-pub async fn confirm_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str, String> {
+pub async fn confirm_ticket(bot: AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) -> Result<&'static str, String> {
 
    // Load ticket and update status
    let mut t = db::ticket_with_owners(ticket_id).await?;
@@ -321,7 +323,7 @@ pub async fn confirm_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str,
    db::ticket_update_stage(t.ticket.id, t.ticket.stage).await?;
 
    let service_msg_id = t.ticket.service_msg_id;
-   update_statuses(cx, t).await?;
+   update_statuses(bot, q, t).await?;
 
    // Send the order also to the service chat
    let status = "Заказ успешно завершён";
@@ -330,58 +332,60 @@ pub async fn confirm_ticket(cx: &Update, ticket_id: i32) -> Result<&'static str,
    Ok("Успешно")
 }
 
-async fn reply_msg(receiver: i64, cx: &Update, text: &str) -> Result<(), String> {
-   let mut ans = cx.requester
-   .send_message(receiver, text)
+async fn reply_msg(bot: AutoSend<Bot>, receiver: UserId, reply_to_id: i32, text: &str) -> Result<(), String> {
+   let mut fut = bot.send_message(receiver, text)
    .parse_mode(ParseMode::Html);
 
-   if let Some(reply_to_id) = &cx.update.message {
-      ans = ans.reply_to_message_id(reply_to_id.id);
+   if reply_to_id != 0 {
+      fut = fut.reply_to_message_id(reply_to_id);
    }
 
-   ans.await
+   fut.await
    .map_err(|err| format!("registration::::send_msg for receiver={} {}", receiver, err))?;
    Ok(())
 }
 
-async fn send_msg(receiver: i64, cx: &Update, text: &str) -> ResultMessage {
-   let res = cx.requester
-   .send_message(receiver, text)
+
+async fn send_msg(bot: &AutoSend<Bot>, receiver: UserId, text: &str) -> ResultMessage {
+   let res = bot.send_message(receiver, text)
    .parse_mode(ParseMode::Html)
    .await
    .map_err(|err| format!("registration::::send_msg for receiver={} {}", receiver, err))?;
    Ok(res)
 }
 
-async fn forward_msg(receiver: i64, cx: &Update, message_id: i32) -> ResultMessage {
-   let from = &cx.update.message;
-   if from.is_none() {
-      Err(format!("registration::forward_msg none cx.update.message for receiver={}", receiver))
-   } else {
-      let from = from.clone().unwrap().chat_id();
-      let res = cx.requester.forward_message(receiver, from, message_id).await
-      .map_err(|err| format!("forward_msg {}", err))?;
-      Ok(res)
-   }
+async fn forward_msg(bot: &AutoSend<Bot>, from: UserId, receiver: UserId, message_id: i32) -> ResultMessage {
+   let res = bot.forward_message(receiver, from, message_id).await
+   .map_err(|err| format!("forward_msg {}", err))?;
+   Ok(res)
 }
 
-async fn send_msg_to_owners(owners: &node::Owners, cx: &Update, text: &str) -> Result3Id {
+fn owners_to_users(owners: &node::Owners) -> (UserId, UserId, UserId) {
+   let user1 = UserId(owners.0 as u64);
+   let user2 = UserId(owners.1 as u64);
+   let user3 = UserId(owners.2 as u64);
+   (user1, user2, user3)
+}
+
+async fn send_msg_to_owners(bot: &AutoSend<Bot>, owners: &node::Owners, text: &str) -> Result3Id {
    // Try to send to all owners
-   let owner1 = send_msg(owners.0, cx, text).await;
-   let owner2 = send_msg(owners.1, cx, text).await;
-   let owner3 = send_msg(owners.2, cx, text).await;
+   let users = owners_to_users(owners);
+   let msg1 = send_msg(bot, users.0, text).await;
+   let msg2 = send_msg(bot, users.1, text).await;
+   let msg3 = send_msg(bot, users.2, text).await;
 
    // Report an error from owner1 if there are no successful attempts
-   unwrap_msg_id(owner1, owner2, owner3)
+   unwrap_msg_id(msg1, msg2, msg3)
 }
 
-async fn forward_msg_to_owners(owners: &node::Owners, cx: &Update, message_id: i32) -> Result3Id {
+async fn forward_msg_to_owners(bot: &AutoSend<Bot>, from: UserId, owners: &node::Owners, message_id: i32) -> Result3Id {
    // Try to send to all owners
-   let owner1 = forward_msg(owners.0, cx, message_id).await;
-   let owner2 = forward_msg(owners.1, cx, message_id).await;
-   let owner3 = forward_msg(owners.2, cx, message_id).await;
+   let users = owners_to_users(owners);
+   let msg1 = forward_msg(bot, from, users.0, message_id).await;
+   let msg2 = forward_msg(bot, from, users.1, message_id).await;
+   let msg3 = forward_msg(bot, from, users.2, message_id).await;
    
-   unwrap_msg_id(owner1, owner2, owner3)
+   unwrap_msg_id(msg1, msg2, msg3)
 }
 
 fn unwrap_msg_id(msg1: ResultMessage, msg2: ResultMessage, msg3: ResultMessage) -> Result3Id {
@@ -397,5 +401,3 @@ fn unwrap_msg_id(msg1: ResultMessage, msg2: ResultMessage, msg3: ResultMessage) 
    );
    Ok(res)
 }
-
- */
