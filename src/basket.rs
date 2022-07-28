@@ -310,10 +310,20 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
       Ok(String::from("Новое значение сохранено"))
    }
 
+   // Input may be text or geolocation
+   let input = if let Some(input) = msg.text() {
+      input.to_string()
+   } else {
+      if let Some(_) = msg.location() {
+         Customer::make_location(msg.id)
+      } else {
+         String::default()
+      }
+   };
+
    // Report result
-   let ans = msg.text().unwrap_or_default().to_string();
    let user_id = state.prev_state.prev_state.user_id.0 as u64;
-   let text = do_update(state.cmd, user_id, ans).await?;
+   let text = do_update(state.cmd, user_id, input).await?;
 
    bot.send_message(msg.chat.id, text).await?;
 

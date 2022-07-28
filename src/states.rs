@@ -82,9 +82,7 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
    let message_handler = Update::filter_message()
    .branch(
       // Private message handler
-      dptree::filter(|msg: Message| {
-         msg.chat.is_private() // && msg.from().is_some() seems to be unnecessary
-      })
+      dptree::filter(|msg: Message| { msg.chat.is_private() })
       .branch(dptree::case![State::Start(state)].endpoint(start))
       .branch(dptree::case![State::Command(state)].endpoint(command))
       .branch(dptree::case![State::Basket(state)].endpoint(crate::basket::update))
