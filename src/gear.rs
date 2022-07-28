@@ -548,7 +548,7 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
    .await?;
 
    // Reload node
-   dialogue.update(new_state).await?;
+   dialogue.update(new_state.prev_state).await?;
    view(bot, msg, state.prev_state).await
 }
 
