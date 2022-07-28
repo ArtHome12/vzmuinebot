@@ -463,7 +463,7 @@ pub struct GearStateEditing {
    update: UpdateNode,
 }
 
-pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, mut state: GearStateEditing) -> HandlerResult {
+pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: GearStateEditing) -> HandlerResult {
    async fn do_update(state: &mut GearStateEditing, input: String) -> Result<String, String> {
       let res = if input == String::from("/") {
          String::from("Отмена, значение не изменено")
@@ -541,12 +541,14 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, mut state: GearStateE
    // Report result
    let chat_id = msg.chat.id;
    let input = msg.text().unwrap_or_default().to_string();
-   let text = do_update(&mut state, input).await?;
+   let mut new_state = state.clone();
+   let text = do_update(&mut new_state, input).await?;
 
    bot.send_message(chat_id, text)
    .await?;
 
    // Reload node
+   dialogue.update(new_state).await?;
    view(bot, msg, state.prev_state).await
 }
 
