@@ -520,9 +520,8 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
 
          // If change in databse is successful, update the stack
          node.update(&state.update)?;
-         node.title = String::from("hello");
 
-         let len = stack.len();
+         /* let len = stack.len();
          if len > 1 {
             let parent = stack.get_mut(len - 2).unwrap();
             for child in &mut parent.children {
@@ -531,7 +530,7 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
                   break;
                }
             }
-         }
+         } */
 
          String::from("Новое значение сохранено")
       };
@@ -551,6 +550,7 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
 
    // Reload node
    dialogue.update(new_state.prev_state).await?;
+   state.prev_state.stack.last_mut().unwrap().title = String::from("hello");
    view(bot, msg, state.prev_state).await
 }
 
