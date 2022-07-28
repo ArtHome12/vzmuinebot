@@ -76,14 +76,14 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, state: MainState, mode: Wor
 }
 
 
-async fn msg(bot: AutoSend<Bot>, user_id: UserId, text: &str) -> Result<(), String> {
+async fn msg(bot: &AutoSend<Bot>, user_id: UserId, text: &str) -> Result<(), String> {
    bot.send_message(user_id, text)
    .await
    .map_err(|err| format!("inline::msg {}", err))?;
    Ok(())
 }
 
-pub async fn view(bot: AutoSend<Bot>, q: CallbackQuery, node_id: i32, mode: WorkTime) -> Result<(), String> {
+pub async fn view(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32, mode: WorkTime) -> Result<(), String> {
 
    let user_id = q.from.id;
 

@@ -91,7 +91,7 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
       .branch(dptree::case![State::BasketSubmode(state)].endpoint(crate::basket::update_edit))
    );
  
-   let callback_query_handler = Update::filter_callback_query().endpoint(crate::callback::update);
+   let callback_query_handler = Update::filter_callback_query().endpoint(callback);
 
    dialogue::enter::<Update, InMemStorage<State>, State, _>()
    .branch(message_handler)
@@ -155,10 +155,10 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
    let text = msg.text().unwrap_or_default();
    let cmd = MainMenu::from_str(text).unwrap_or(MainMenu::Unknown);
    match cmd {
-      MainMenu::Basket => {crate::basket::enter(bot, msg, dialogue, new_state).await?;},
-      MainMenu::All => {crate::navigation::enter(bot, msg, new_state, WorkTime::All).await?;},
-      MainMenu::Now => {crate::navigation::enter(bot, msg, new_state, WorkTime::Now).await?;},
-      // MainMenu::Gear => crate::gear::enter(bot, msg, dialogue, new_state).await,
+      MainMenu::Basket => crate::basket::enter(bot, msg, dialogue, new_state).await?,
+      MainMenu::All => crate::navigation::enter(bot, msg, new_state, WorkTime::All).await?,
+      MainMenu::Now => crate::navigation::enter(bot, msg, new_state, WorkTime::Now).await?,
+      MainMenu::Gear => crate::gear::enter(bot, msg, dialogue, new_state).await?,
 
       MainMenu::Unknown => {
 
@@ -174,7 +174,6 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
             crate::general::update(bot, dialogue, text, new_state, !state.prev_state.restarted).await?;
          }
       }
-      _ => {}
    };
 
    // Update user last seen time
@@ -182,6 +181,18 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
 
    Ok(())
 }
+
+pub async fn callback(bot: AutoSend<Bot>, q: CallbackQuery) -> HandlerResult {
+   let user_id = q.from.id;
+
+   crate::callback::update(bot, q).await?;
+
+   // Update user last seen time
+   update_last_seen(user_id).await?;
+
+   Ok(())
+}
+
 
 pub fn main_menu_markup() -> ReplyMarkup {
    let commands = vec![

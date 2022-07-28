@@ -250,19 +250,4 @@ async fn run() {
    
    next(dialogue)
 }
-
-async fn handle_callback_query(rx: DispatcherHandlerRx<AutoSend<Bot>, CallbackQuery>) {
-  UnboundedReceiverStream::new(rx)
-  .for_each_concurrent(None, |cx| async move {
-
-      // Update user last seen time and process query
-      let user = &cx.update.from;
-      let res = update_last_seen(user).await
-      .and(callback::update(cx).await);
-
-      if let Err(err) = res {
-         environment::log(&format!("main::handle_callback_query:{}", err)).await;
-      }
-   })
-  .await;
-} */
+*/

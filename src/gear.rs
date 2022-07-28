@@ -4,10 +4,10 @@ Settings menu. 16 May 2021.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
-Copyright (c) 2020 by Artem Khomenko _mag12@yahoo.com.
+Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use teloxide::{prelude::*, RequestError, payloads::SendMessageSetters,
+use teloxide::{prelude::*, payloads::SendMessageSetters,
    types::{InputMedia, InputFile, InputMediaPhoto, ParseMode, ReplyMarkup, }
 };
 use std::str::FromStr;
@@ -92,12 +92,11 @@ impl Command {
 
 #[derive(Clone)]
 pub struct GearState {
-   pub state: MainState,
+   pub prev_state: MainState,
    stack: Vec<Node>, // from start to current displaying node
 }
 
-/* 
-pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: CommandState) -> HandlerResult {
+pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
 
    // Define start node
    let mode = if state.is_admin {
@@ -105,7 +104,7 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
       db::LoadNode::Id(0)
    } else {
       // Find node for owner
-      db::LoadNode::Owner(state.user_id.0)
+      db::LoadNode::Owner(state.user_id.0 as i64)
    };
 
    // Load node with children
@@ -114,34 +113,40 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
 
    // Display
    if node.is_some() {
-      let state = GearState { state, stack: vec![node.unwrap()] };
-      view(state, cx).await
+      let state = GearState { prev_state: state, stack: vec![node.unwrap()] };
+      dialogue.update(state.to_owned()).await?;
+      view(bot, msg, state).await
    } else {
       let contact = env::admin_contact_info();
       let text = format!("Для доступа в режим ввода информации обратитесь к '{}' и сообщите ему свой id={}", contact, state.user_id);
-      cx.answer(text).await?;
-      exit(cx).await
+      let chat_id = msg.chat.id;
+      bot.send_message(chat_id, text).await?;
+      Ok(())
    }
 }
 
 
-async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
-   async fn do_return(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
+pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, mut state: GearState) -> HandlerResult {
+
+   async fn do_return(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, mut state: GearState) -> HandlerResult {
       // Extract current node from stack
       state.stack.pop().unwrap();
 
       // Go if there are still nodes left
       if !state.stack.is_empty() {
-         view(state, cx).await
+         view(bot, msg, state).await
       } else {
-         exit(cx).await
+         crate::states::reload(bot, msg, dialogue, state.prev_state).await
       }
    }
 
    // === main body
 
+   let chat_id = msg.chat.id;
+
    // Parse and handle commands
-   let cmd = Command::parse(ans.as_str());
+   let cmd_text = msg.text().unwrap_or_default();
+   let cmd = Command::parse(cmd_text);
    match cmd {
       Command::Add => {
          // Extract current node from stack
@@ -149,21 +154,19 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
 
          // Store a new child node in database with updating id
          let mut child = Node::new(node.id);
-         db::node_insert(&mut child)
-         .await
-         .map_err(|s| map_req_err(s))?;
+         db::node_insert(&mut child).await?;
 
          // Update current node and push to stack
          node.children.push(child);
          state.stack.push(node);
 
          // Show
-         view(state, cx).await
+         view(bot, msg, state).await
       }
 
-      Command::Exit => exit(cx).await,
+      Command::Exit => crate::states::reload(bot, msg, dialogue, state.prev_state).await,
 
-      Command::Return => do_return(state, cx).await,
+      Command::Return => do_return(bot, msg, dialogue, state).await,
 
       Command::Pass(index) => {
          // Peek current node from stack
@@ -176,20 +179,20 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          if child.is_some() {
             // Load children
             let node = child.unwrap().clone(); // Clone child node as an independent element
-            let node = db::node(db::LoadNode::Children(node)).await
-            .map_err(|s| map_req_err(s))?
+            let node = db::node(db::LoadNode::Children(node)).await?
             .unwrap();
 
             // Push new node and show
             state.stack.push(node);
-            view(state, cx).await
+            view(bot, msg, state).await
          } else {
-            cx.answer(format!("Неверно указан номер записи '{}', нельзя перейти", index))
+            let text = format!("Неверно указан номер записи '{}', нельзя перейти", index);
+            bot.send_message(chat_id, text)
             .reply_markup(markup(&state))
             .await?;
 
             // Stay in place
-            next(state)
+            Ok(())
          }
       }
 
@@ -198,12 +201,10 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
 
          // Root/start node cannot to delete
          if len <= 1 {
-            cx.answer("Нельзя удалить начальный узел")
+            bot.send_message(chat_id, "Нельзя удалить начальный узел")
             .reply_markup(markup(&state))
             .await?;
-
-            // Stay in place
-            return next(state);
+            return Ok(())
          }
 
          // Peek current node from stack
@@ -213,21 +214,18 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          // Delete record if it has no children
          let children_num = node.children.len();
          if children_num > 0 {
-            cx.answer(format!("У записи '{}' есть {} дочерних, для защиты от случайного удаления большого объёма информации удалите сначала их", node.title, children_num))
+            let text = format!("У записи '{}' есть {} дочерних, для защиты от случайного удаления большого объёма информации удалите сначала их", node.title, children_num);
+            bot.send_message(chat_id, text)
             .reply_markup(markup(&state))
             .await?;
-
-            // Stay in place
-            next(state)
+            Ok(())
          } else {
             // Delete from database
             let node_id = node.id;
-            db::node_delete(node_id)
-            .await
-            .map_err(|s| map_req_err(s))?;
+            db::node_delete(node_id).await?;
 
-            cx.answer(format!("Запись '{}' удалена, переходим на уровень выше", node.title))
-            .await?;
+            let text = format!("Запись '{}' удалена, переходим на уровень выше", node.title);
+            bot.send_message(chat_id, text).await?;
 
             // Delete from stack
             if len > 1 {
@@ -235,7 +233,7 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
                parent.children.retain(|child| child.id != node_id);
             }
 
-            do_return(state, cx).await
+            do_return(bot, msg, dialogue, state).await
          }
       }
 
@@ -247,11 +245,12 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
          let kind = match cmd {
             EditCmd::Title => UpdateKind::Text(node.title.clone()),
             EditCmd::Descr => {
-               cx.answer("Подсказка - если в описании всего один символ, оно не отображается").await?;
+               let text = "Подсказка - если в описании всего один символ, оно не отображается";
+               bot.send_message(chat_id, text).await?;
                UpdateKind::Text(node.descr.clone())
             }
             EditCmd::Picture => UpdateKind::Picture(node.picture.clone()),
-            EditCmd::Advert => return send_advert(state, cx).await,
+            EditCmd::Advert => return send_advert(bot, msg, state).await,
             EditCmd::Enable => UpdateKind::Flag(node.enabled),
             EditCmd::Ban => UpdateKind::Flag(node.banned),
             EditCmd::Owner1 => UpdateKind::Int(node.owners.0),
@@ -266,27 +265,25 @@ async fn update(mut state: GearState, cx: TransitionIn<AutoSend<Bot>>, ans: Stri
 
          // Move to editing mode
          let state = GearStateEditing {
-            state,
+            prev_state: state,
             update: UpdateNode { kind, field, }
          };
-         enter_edit(state, cx).await
+         dialogue.update(state.to_owned()).await;
+         enter_edit(bot, msg, state).await
       }
 
       Command::Unknown => {
-         cx.answer("Вы покидаете меню настроек")
-         .await?;
+         let text = "Вы покидаете меню настроек";
+         bot.send_message(chat_id, text).await?;
 
          // General commands handler - messaging, searching...
-         general::update(state.state, cx, ans, true).await
+         general::update(bot, dialogue, cmd_text, state.prev_state, true).await
       }
    }
 }
 
-async fn exit(cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
-   crate::states::enter(StartState { restarted: false }, cx, String::default()).await
-}
 
-pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> TransitionOut<Dialogue> {
+async fn view(bot: AutoSend<Bot>, msg: Message, state: GearState) -> HandlerResult {
 
    // Collect path from the beginning
    let mut title = state.stack
@@ -315,18 +312,19 @@ pub async fn view(state: GearState, cx: TransitionIn<AutoSend<Bot>>,) -> Transit
       EditCmd::Picture.as_ref(), if let Origin::Own(_) = node.picture { "имеется" } else  { "отсутствует" }
    );
 
-   let info = state.stack
+   let text = state.stack
    .last().unwrap()
    .children.iter()
    .enumerate()
    .fold(title, |acc, n| format!("{}\n{}{} {}", acc, Command::Pass(0).as_ref(), n.0 + 1, n.1.title));
 
-   cx.answer(info)
+   let chat_id = msg.chat.id;
+   bot.send_message(chat_id, text)
    .reply_markup(markup(&state))
    .await?;
 
-   next(state)
-} */
+   Ok(())
+}
 
 fn markup(state: &GearState) -> ReplyMarkup {
    let mut row1 = vec![
@@ -353,7 +351,7 @@ fn markup(state: &GearState) -> ReplyMarkup {
 
    let mut keyboard = vec![row1, row2, row3];
 
-   if state.state.is_admin {
+   if state.prev_state.is_admin {
       let row_admin = vec![
          String::from(EditCmd::Ban.as_ref()),
          String::from(EditCmd::Owner1.as_ref()),
@@ -371,7 +369,7 @@ struct TitleAndPicture {
    picture: String,
 }
 
-/* async fn send_advert(state: GearState, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
+async fn send_advert(bot: AutoSend<Bot>, msg: Message, state: GearState) -> HandlerResult {
 
    fn do_create_pair(node: &Node) -> Option<TitleAndPicture> {
       if let Origin::Own(id) = &node.picture {
@@ -382,7 +380,9 @@ struct TitleAndPicture {
    }
 
    // === main body
-   cx.answer("Вы можете использовать для пересылки сообщение ниже или взять из него только ссылку, при открытии которой клиенты попадут сразу на эту запись").await?;
+   let chat_id = msg.chat.id;
+   let text = "Вы можете использовать для пересылки сообщение ниже или взять из него только ссылку, при открытии которой клиенты попадут сразу на эту запись";
+   bot.send_message(chat_id, text).await?;
 
    // Peek current node
    let node = state.stack.last().unwrap();
@@ -404,7 +404,7 @@ struct TitleAndPicture {
    let markup = markup(&state);
    match pictures.len() {
       0 => {
-         cx.answer(text)
+         bot.send_message(chat_id, text)
          .reply_markup(markup)
          .parse_mode(ParseMode::Html)
          .disable_web_page_preview(true)
@@ -412,7 +412,7 @@ struct TitleAndPicture {
       }
       1 => {
          let picture = &pictures[0].picture;
-         cx.answer_photo(InputFile::file_id(picture))
+         bot.send_photo(chat_id, InputFile::file_id(picture))
          .caption(text)
          .reply_markup(markup)
          .parse_mode(ParseMode::Html)
@@ -431,11 +431,11 @@ struct TitleAndPicture {
          });
       
          // Message with pictures
-         cx.answer_media_group(media_group)
+         bot.send_media_group(chat_id, media_group)
          .await?;
 
          // Text message
-         cx.answer(text)
+         bot.send_message(chat_id, text)
          .reply_markup(markup)
          .parse_mode(ParseMode::Html)
          .disable_web_page_preview(true)
@@ -443,19 +443,20 @@ struct TitleAndPicture {
       }
    }
 
-   // Stay in place
-   return next(state);
-} */
+   Ok(())
+}
+
+
 // ============================================================================
 // [Fields editing mode]
 // ============================================================================
 #[derive(Clone)]
 pub struct GearStateEditing {
-   state: GearState,
+   prev_state: GearState,
    update: UpdateNode,
 }
 
-/* async fn update_edit(mut state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>, ans: String) -> TransitionOut<Dialogue> {
+async fn update_edit(bot: AutoSend<Bot>, msg: Message, mut state: GearStateEditing, ans: String) -> HandlerResult {
    async fn do_update(state: &mut GearStateEditing, ans: String) -> Result<String, String> {
       let res = if ans == String::from("/") {
          String::from("Отмена, значение не изменено")
@@ -503,7 +504,7 @@ pub struct GearStateEditing {
          };
 
          // Peek current node
-         let node = state.state.stack.last_mut().unwrap();
+         let node = state.prev_state.stack.last_mut().unwrap();
 
          // Update database
          let node_id = node.id;
@@ -512,9 +513,9 @@ pub struct GearStateEditing {
          // If change in databse is successful, update the stack
          node.update(&state.update)?;
 
-         let len = state.state.stack.len();
+         let len = state.prev_state.stack.len();
          if len > 1 {
-            let parent = state.state.stack.get_mut(len - 2).unwrap();
+            let parent = state.prev_state.stack.get_mut(len - 2).unwrap();
             for child in &mut parent.children {
                if child.id == node_id {
                   child.update(&state.update)?;
@@ -531,40 +532,39 @@ pub struct GearStateEditing {
    // === main body
 
    // Report result
-   let info = do_update(&mut state, ans)
-   .await
-   .map_err(|s| map_req_err(s))?;
+   let chat_id = msg.chat.id;
+   let text = do_update(&mut state, ans).await?;
 
-   cx.answer(info)
+   bot.send_message(chat_id, text)
    .await?;
 
    // Reload node
-   view(state.state, cx).await
+   view(bot, msg, state.prev_state).await
 }
 
-async fn enter_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>) -> TransitionOut<Dialogue> {
+async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: GearStateEditing) -> HandlerResult {
 
-   async fn do_enter(text: String, markup : ReplyMarkup, cx: TransitionIn<AutoSend<Bot>>) -> Result<(), RequestError> {
-      cx.answer(text)
+   async fn do_enter(bot: AutoSend<Bot>, chat_id: ChatId, text: String, markup : ReplyMarkup) -> HandlerResult {
+      bot.send_message(chat_id, text)
       .reply_markup(markup)
       .await?;
       Ok(())
    }
 
-   async fn do_enter_picture(old_val: &Origin, cx: TransitionIn<AutoSend<Bot>>) -> Result<(), RequestError> {
+   async fn do_enter_picture(bot: AutoSend<Bot>, chat_id: ChatId, old_val: &Origin) -> HandlerResult {
       let opt: Option<String> = old_val.into();
       if let Some(old_id) = opt {
 
          let text = "Отправьте изображение (комментарии игнорируются) или нажмите / для отмены";
          let photo = InputFile::file_id(old_id);
 
-         cx.answer_photo(photo)
+         bot.send_photo(chat_id, photo)
          .caption(text)
          .reply_markup(cancel_markup())
          .await?;
       } else {
          let text = "Отправьте изображение (комментарии игнорируются) или нажмите / для отмены";
-         cx.answer(text)
+         bot.send_message(chat_id, text)
          .reply_markup(cancel_markup())
          .await?;
       }
@@ -572,15 +572,15 @@ async fn enter_edit(state: GearStateEditing, cx: TransitionIn<AutoSend<Bot>>) ->
    }
 
    // === main body
+   let chat_id = msg.chat.id;
    match &state.update.kind {
-      UpdateKind::Text(old_val) => do_enter(format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup(), cx).await?,
-      UpdateKind::Picture(old_val) => do_enter_picture(old_val, cx).await?,
-      UpdateKind::Flag(old_val) => do_enter(format!("Текущее значение '{}', выберите новое", from_flag(*old_val)), flag_markup(), cx).await?,
-      UpdateKind::Int(old_val) => do_enter(format!("Текущее значение user id='{}', введите новое или / для отмены", old_val), cancel_markup(), cx).await?,
-      UpdateKind::Time(open, close) => do_enter(format!("Текущее время '{}-{}', введите новое или / для отмены", open.format("%H:%M"), close.format("%H:%M")), cancel_markup(), cx).await?,
-      UpdateKind::Money(old_val) => do_enter(format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup(), cx).await?,
+      UpdateKind::Text(old_val) => do_enter(bot, chat_id, format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup()).await?,
+      UpdateKind::Picture(old_val) => do_enter_picture(bot, chat_id, old_val).await?,
+      UpdateKind::Flag(old_val) => do_enter(bot, chat_id, format!("Текущее значение '{}', выберите новое", from_flag(*old_val)), flag_markup()).await?,
+      UpdateKind::Int(old_val) => do_enter(bot, chat_id, format!("Текущее значение user id='{}', введите новое или / для отмены", old_val), cancel_markup()).await?,
+      UpdateKind::Time(open, close) => do_enter(bot, chat_id, format!("Текущее время '{}-{}', введите новое или / для отмены", open.format("%H:%M"), close.format("%H:%M")), cancel_markup()).await?,
+      UpdateKind::Money(old_val) => do_enter(bot, chat_id, format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup()).await?,
    }
 
-   next(state)
-} */
-
+   Ok(())
+}

@@ -150,7 +150,7 @@ async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role
 }
 
 
-pub async fn make_ticket(bot: AutoSend<Bot>, q: CallbackQuery, node_id: i32) -> Result<&'static str, String> {
+pub async fn make_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32) -> Result<&'static str, String> {
 
    // Load customer info
    let user_id = q.from.id;
@@ -245,25 +245,25 @@ pub async fn make_ticket(bot: AutoSend<Bot>, q: CallbackQuery, node_id: i32) -> 
    Ok("Успешно")
 }
 
-async fn update_statuses(bot: AutoSend<Bot>, q: CallbackQuery, mut t: TicketWithOwners) -> Result<(), String> {
+async fn update_statuses(bot: &AutoSend<Bot>, q: CallbackQuery, mut t: TicketWithOwners) -> Result<(), String> {
 
    // The status change for customer is mandatory
-   t.ticket.cust_status_msg_id = update_status(&bot, &mut t, Role::Customer).await?;
+   t.ticket.cust_status_msg_id = update_status(bot, &mut t, Role::Customer).await?;
 
    // Update status for owners, ignore fail
-   t.ticket.owners_status_msg_id.0 = update_status(&bot, &mut t, Role::Owner1)
+   t.ticket.owners_status_msg_id.0 = update_status(bot, &mut t, Role::Owner1)
    .await
    .ok()
    .flatten();
 
    // The same for owner 2
-   t.ticket.owners_status_msg_id.1 = update_status(&bot, &mut t, Role::Owner2)
+   t.ticket.owners_status_msg_id.1 = update_status(bot, &mut t, Role::Owner2)
    .await
    .ok()
    .flatten();
 
    // The same for owner 3
-   t.ticket.owners_status_msg_id.2 = update_status(&bot, &mut t, Role::Owner3)
+   t.ticket.owners_status_msg_id.2 = update_status(bot, &mut t, Role::Owner3)
    .await
    .ok()
    .flatten();
@@ -280,7 +280,7 @@ async fn update_statuses(bot: AutoSend<Bot>, q: CallbackQuery, mut t: TicketWith
    Ok(())
 }
 
-pub async fn cancel_ticket(bot: AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) -> Result<&'static str, String> {
+pub async fn cancel_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) -> Result<&'static str, String> {
 
    // Load ticket and update status
    let mut t = db::ticket_with_owners(ticket_id).await?;
@@ -302,7 +302,7 @@ pub async fn cancel_ticket(bot: AutoSend<Bot>, q: CallbackQuery, ticket_id: i32)
    Ok("Успешно")
 }
 
-pub async fn next_ticket(bot: AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) -> Result<&'static str, String> {
+pub async fn next_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) -> Result<&'static str, String> {
 
    // Load ticket and update status
    let mut t = db::ticket_with_owners(ticket_id).await?;
@@ -315,7 +315,7 @@ pub async fn next_ticket(bot: AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) -
    Ok("Успешно")
 }
 
-pub async fn confirm_ticket(bot: AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) -> Result<&'static str, String> {
+pub async fn confirm_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) -> Result<&'static str, String> {
 
    // Load ticket and update status
    let mut t = db::ticket_with_owners(ticket_id).await?;
@@ -332,7 +332,7 @@ pub async fn confirm_ticket(bot: AutoSend<Bot>, q: CallbackQuery, ticket_id: i32
    Ok("Успешно")
 }
 
-async fn reply_msg(bot: AutoSend<Bot>, receiver: UserId, reply_to_id: i32, text: &str) -> Result<(), String> {
+async fn reply_msg(bot: &AutoSend<Bot>, receiver: UserId, reply_to_id: i32, text: &str) -> Result<(), String> {
    let mut fut = bot.send_message(receiver, text)
    .parse_mode(ParseMode::Html);
 
