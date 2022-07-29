@@ -549,10 +549,9 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
       Some(text) => String::from(text),
       None => {
          env::log("here1").await;
-         let picture = msg.photo();
-         if let Some(sizes) = picture {
+         if let Some(photos) = msg.photo() {
             env::log("here2").await;
-            sizes[0].file_id.clone()
+            photos[0].file_id.to_owned()
          } else {
             env::log("here3").await;
             String::default()
