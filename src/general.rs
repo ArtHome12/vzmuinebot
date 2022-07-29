@@ -61,7 +61,7 @@ pub struct MessageState {
 
 
 
-pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState, allow_search: bool) -> HandlerResult {
+pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
    // Parse and handle commands
    let chat_id = msg.chat.id;
    let input = msg.text().unwrap_or_default();
@@ -79,18 +79,25 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
       Command::Goto(node_id)
       | Command::StartFrom(node_id) => return crate::navigation::enter(bot, msg, state, WorkTime::AllFrom(node_id)).await,
       
-      Command::Unknown => if allow_search {
-         let found = search::search(input).await
-         .map_err(|s| map_req_err(s))?;
+      Command::Unknown => {
+         let text = if input.is_empty() {
+            String::from("Текстовое сообщение, пожалуйста")
+         } else {
+            let found = search::search(input).await?;
+            if found.is_empty() {
+               format!("Поиск по {} не дал результатов", input)
+            } else {
+               // Add hint if too many founds
+               let hint = if found.len() > 30 { " <i>Показаны только первые 30 результатов, попробуйте уточнить запрос</i>" } else { "" };
 
-         // Add hint if too many founds
-         let hint = if found.len() > 30 { " <i>Показаны только первые 30 результатов, попробуйте уточнить запрос</i>" } else { "" };
+               found.iter()
+               .take(30)
+               .fold(format!("Результаты поиска по '{}'.{}\n", input, hint), |acc, v| {
+                  format!("{}\n{}", acc, v)
+               })
+            }
+         };
 
-         let text = found.iter()
-         .fold(format!("Результаты поиска по '{}'.{}\n", input, hint), |acc, v| {
-            format!("{}\n{}", acc, v)
-         });
-   
          bot.send_message(chat_id, text)
          .reply_markup(main_menu_markup())
          .parse_mode(ParseMode::Html)

@@ -543,7 +543,20 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
 
    // Report result
    let chat_id = msg.chat.id;
-   let input = msg.text().unwrap_or_default().to_string();
+
+   // Collect info about update, if no text there may be image id
+   let input = match msg.text() {
+      Some(text) => String::from(text),
+      None => {
+         let picture = msg.photo();
+         if let Some(sizes) = picture {
+            sizes[0].file_id.clone()
+         } else {
+            String::default()
+         }
+      }
+   };
+
    let mut new_state = state.clone();
    let text = do_update(&mut new_state, input).await?;
 

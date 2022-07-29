@@ -172,7 +172,7 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
          } else {
 
             // Process general commands without search if restarted (to prevent search submode commands)
-            crate::general::update(bot, msg, dialogue, new_state, !state.prev_state.restarted).await?;
+            crate::general::update(bot, msg, dialogue, new_state).await?;
          }
       }
    };

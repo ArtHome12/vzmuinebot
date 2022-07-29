@@ -177,7 +177,8 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
          bot.send_message(msg.chat.id, "Вы покидаете меню заказов").await?;
 
          // General commands handler - messaging, searching...
-         general::update(bot, msg, dialogue, state.prev_state, true).await
+         dialogue.update(state.prev_state).await?;
+         general::update(bot, msg, dialogue, state.prev_state).await
       }
    }
 }
