@@ -545,18 +545,17 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
    let chat_id = msg.chat.id;
 
    // Collect info about update, if no text there may be image id
-   let input = match msg.text() {
-      Some(text) => String::from(text),
-      None => {
+   let input = match state.update.kind {
+      UpdateKind::Picture(_) => {
          let picture = msg.photo();
          if let Some(sizes) = picture {
             sizes[0].file_id.clone()
          } else {
-            String::default()
+            String::from("/")
          }
       }
+      _ => msg.text().unwrap_or("/").to_string(),
    };
-   env::log(&format!("input={}", &input)).await;
 
    let mut new_state = state.clone();
    let text = do_update(&mut new_state, input).await?;
@@ -586,10 +585,19 @@ async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: &GearStateEditing) 
          let text = "Отправьте изображение (комментарии игнорируются) или нажмите / для отмены";
          let photo = InputFile::file_id(old_id);
 
-         bot.send_photo(chat_id, photo)
+         // Try to send photo
+         let res = bot.send_photo(chat_id, photo)
          .caption(text)
          .reply_markup(cancel_markup())
-         .await?;
+         .await;
+
+         // In case of error send message
+         if res.is_err() {
+            let text = format!("{} (прежнее изображение недоступно)", text);
+            bot.send_message(chat_id, text)
+            .reply_markup(cancel_markup())
+            .await?;
+         }
       } else {
          let text = "Отправьте изображение (комментарии игнорируются) или нажмите / для отмены";
          bot.send_message(chat_id, text)
