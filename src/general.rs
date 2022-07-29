@@ -85,7 +85,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
          } else {
             let found = search::search(input).await?;
             if found.is_empty() {
-               format!("Поиск по {} не дал результатов", input)
+               format!("Поиск по <b>'{}'</b> не дал результатов", input)
             } else {
                // Add hint if too many founds
                let hint = if found.len() > 30 { " <i>Показаны только первые 30 результатов, попробуйте уточнить запрос</i>" } else { "" };

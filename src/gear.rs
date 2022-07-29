@@ -556,6 +556,7 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
          }
       }
    };
+   env::log(&input).await;
 
    let mut new_state = state.clone();
    let text = do_update(&mut new_state, input).await?;
