@@ -545,11 +545,11 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
    let chat_id = msg.chat.id;
 
    // Collect info about update, if no text there may be image id
+   let str = format!("MessageKind={:?}", msg.kind);
+   env::log(&str).await;
    let input = match msg.text() {
       Some(text) => String::from(text),
       None => {
-         let str = format!("MessageKind={:?}", msg.kind);
-         env::log(&str).await;
          if let Some(photos) = msg.photo() {
             env::log("here2").await;
             photos[0].file_id.to_owned()
