@@ -548,15 +548,18 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
    let input = match msg.text() {
       Some(text) => String::from(text),
       None => {
+         env::log("here1").await;
          let picture = msg.photo();
          if let Some(sizes) = picture {
+            env::log("here2").await;
             sizes[0].file_id.clone()
          } else {
+            env::log("here3").await;
             String::default()
          }
       }
    };
-   env::log(&input).await;
+   env::log(&format!("input={}", &input)).await;
 
    let mut new_state = state.clone();
    let text = do_update(&mut new_state, input).await?;
