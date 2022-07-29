@@ -7,7 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use teloxide::{prelude::*, RequestError, payloads::SendMessageSetters,
+use teloxide::{prelude::*, payloads::SendMessageSetters,
    types::{CallbackQuery, ParseMode, Recipient, ChatId, UserId,}
 };
 use regex::Regex;
@@ -20,7 +20,6 @@ use crate::customer::*;
 use crate::node;
 use crate::ticket::*;
 use crate::environment as env;
-use crate::states;
 
 
 /* type Update = UpdateWithCx<AutoSend<Bot>, CallbackQuery>; */
@@ -36,10 +35,8 @@ enum Role {
    Owner3,
 }
 
-pub async fn show_tickets(bot: AutoSend<Bot>, user_id: UserId) -> Result<(), RequestError> {
-   let tickets = db::tickets(user_id.0 as i64)
-   .await
-   .map_err(|s| states::map_req_err(s))?;
+pub async fn show_tickets(bot: AutoSend<Bot>, user_id: UserId) -> Result<(), String> {
+   let tickets = db::tickets(user_id.0 as i64).await?;
 
    let user_id = user_id.0 as i64;
 
@@ -52,16 +49,14 @@ pub async fn show_tickets(bot: AutoSend<Bot>, user_id: UserId) -> Result<(), Req
       else if user_id == t.owners.2 { Role::Owner3 }
       else {
          let e = format!("registration::show_tickets user_id={}: unknown role", user_id);
-         return Err(states::map_req_err(e));
+         return Err(e);
       };
 
       // Update status - code like update_statuses()
       match role {
          Role::Customer => {
             t.ticket.cust_status_msg_id =
-               update_status(&bot, &mut t, Role::Customer).await
-               // The status change for customer is mandatory
-               .map_err(|err| states::map_req_err(format!("registration::show_tickets {}", err)))?
+               update_status(&bot, &mut t, Role::Customer).await?
          }
          Role::Owner1 => {
             t.ticket.owners_status_msg_id.0 =
@@ -87,9 +82,7 @@ pub async fn show_tickets(bot: AutoSend<Bot>, user_id: UserId) -> Result<(), Req
       }
 
       // Update status id on database
-      db::ticket_update_status_messages(&t.ticket)
-      .await
-      .map_err(|err| states::map_req_err(format!("registration::show_tickets {}", err)))?
+      db::ticket_update_status_messages(&t.ticket).await?
    }
 
    Ok(())

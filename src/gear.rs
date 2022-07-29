@@ -107,8 +107,7 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
    };
 
    // Load node with children
-   let node = db::node(mode).await
-      .map_err(|s| map_req_err(s))?;
+   let node = db::node(mode).await?;
 
    // Display
    if node.is_some() {

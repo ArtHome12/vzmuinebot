@@ -8,7 +8,7 @@ Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use derive_more::From;
-use teloxide::{prelude::*, ApiError, RequestError,
+use teloxide::{prelude::*,
    types::{ReplyMarkup, KeyboardButton, KeyboardMarkup, User, UserId,},
    dispatching::{dialogue::{self, InMemStorage}, UpdateHandler, UpdateFilterExt, },
 };
@@ -242,10 +242,6 @@ pub fn to_flag(text: String) -> Result<bool, String> {
 pub fn from_flag(flag: bool) -> String {
    if flag { String::from("Вкл.") }
    else { String::from("Выкл.") }
-}
-
-pub fn map_req_err(s: String) -> RequestError {
-   RequestError::Api(ApiError::Unknown(s))
 }
 
 // Frequently used menu

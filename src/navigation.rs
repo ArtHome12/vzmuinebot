@@ -34,7 +34,12 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, state: MainState, mode: Wor
    let chat_id = msg.chat.id;
 
    if node.is_none() {
-      bot.send_message(chat_id, "Ошибка, нет записей - обратитесь к администратору")
+      let text = match mode {
+         WorkTime::Now => "Открытых сейчас заведений нет",
+         _ => "Ошибка, нет записей - обратитесь к администратору",
+      };
+
+      bot.send_message(chat_id, text)
       .await?;
    } else {
 
@@ -57,9 +62,7 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, state: MainState, mode: Wor
 
             // All is ok, collect and display info
             let user_id = state.user_id; // user needs to sync with basket
-            let markup = markup(&node, mode, user_id)
-            .await
-            .map_err(|s| map_req_err(s))?;
+            let markup = markup(&node, mode, user_id).await?;
             let text = node_text(&node);
 
             bot.send_photo(chat_id, InputFile::file_id(picture))
