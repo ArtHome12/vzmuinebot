@@ -136,8 +136,9 @@ where
 
 async fn run() {
    // pretty_env_logger::init();
-   let mut builder = pretty_env_logger::formatted_builder();
+   let mut builder = env_logger::Builder::from_default_env();
    builder.target(env_logger::Target::Stdout);
+
    builder.init();
 
    log::info!("Starting...");
