@@ -135,12 +135,7 @@ where
 
 
 async fn run() {
-   // pretty_env_logger::init();
-   let mut builder = env_logger::Builder::from_default_env();
-   builder.target(env_logger::Target::Stdout);
-
-   builder.init();
-
+   pretty_env_logger::init();
    log::info!("Starting...");
 
    let bot = Bot::from_env().auto_send();
