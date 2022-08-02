@@ -708,86 +708,71 @@ pub async fn is_tables_exist() -> bool {
    }
 }
 
-pub async fn create_tables() -> bool {
-   let client = db_client().await;
-   if client.is_err() {return false;}
+pub async fn create_tables() -> Result<(), String> {
+   let client = db_client().await?;
 
-   let query = client.unwrap()
-   .batch_execute("CREATE TABLE nodes (
-         PRIMARY KEY (id),
-         id             SERIAL         NOT NULL,
-         parent         INTEGER        NOT NULL,
-         title          VARCHAR        NOT NULL,
-         descr          VARCHAR        NOT NULL,
-         picture        VARCHAR,
-         enabled        BOOLEAN        NOT NULL,
-         banned         BOOLEAN        NOT NULL,
-         owner1         BIGINT         NOT NULL,
-         owner2         BIGINT         NOT NULL,
-         owner3         BIGINT         NOT NULL,
-         open           TIME           NOT NULL,
-         close          TIME           NOT NULL,
-         price          INTEGER        NOT NULL);
+   client.batch_execute("CREATE TABLE nodes (
+      PRIMARY KEY (id),
+      id             SERIAL         NOT NULL,
+      parent         INTEGER        NOT NULL,
+      title          VARCHAR        NOT NULL,
+      descr          VARCHAR        NOT NULL,
+      picture        VARCHAR,
+      enabled        BOOLEAN        NOT NULL,
+      banned         BOOLEAN        NOT NULL,
+      owner1         BIGINT         NOT NULL,
+      owner2         BIGINT         NOT NULL,
+      owner3         BIGINT         NOT NULL,
+      open           TIME           NOT NULL,
+      close          TIME           NOT NULL,
+      price          INTEGER        NOT NULL);
 
-         ALTER TABLE nodes ADD COLUMN textsearchable_index_col tsvector
-            GENERATED ALWAYS AS (to_tsvector('russian', title || ' ' || descr)) STORED;
+      ALTER TABLE nodes ADD COLUMN textsearchable_index_col tsvector
+         GENERATED ALWAYS AS (to_tsvector('russian', title || ' ' || descr)) STORED;
 
-         CREATE INDEX textsearch_idx ON nodes USING GIN (textsearchable_index_col);
+      CREATE INDEX textsearch_idx ON nodes USING GIN (textsearchable_index_col);
 
-         INSERT INTO nodes (id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price)
-         VALUES (0, -1, 'Добро пожаловать', '-', '', true, false, 0, 0, 0, '00:00', '00:00', 0);
+      INSERT INTO nodes (id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price)
+      VALUES (0, -1, 'Добро пожаловать', '-', '', true, false, 0, 0, 0, '00:00', '00:00', 0);
 
-         CREATE TABLE users (
-            PRIMARY KEY (user_id),
-            user_id        BIGINT         NOT NULL,
-            user_name      VARCHAR(100)   NOT NULL,
-            contact        VARCHAR(100)   NOT NULL,
-            address        VARCHAR(100)   NOT NULL,
-            last_seen      TIMESTAMP      NOT NULL,
-            pickup         BOOLEAN        NOT NULL);
+      CREATE TABLE users (
+         PRIMARY KEY (user_id),
+         user_id        BIGINT         NOT NULL,
+         user_name      VARCHAR(100)   NOT NULL,
+         contact        VARCHAR(100)   NOT NULL,
+         address        VARCHAR(100)   NOT NULL,
+         last_seen      TIMESTAMP      NOT NULL,
+         pickup         BOOLEAN        NOT NULL);
 
-         CREATE TABLE orders (
-            PRIMARY KEY (user_id, node_id),
-            user_id        BIGINT         NOT NULL,
-            node_id        INTEGER        NOT NULL,
-            owner_node_id  INTEGER        NOT NULL,
-            amount         INTEGER        NOT NULL);
+      CREATE TABLE orders (
+         PRIMARY KEY (user_id, node_id),
+         user_id        BIGINT         NOT NULL,
+         node_id        INTEGER        NOT NULL,
+         owner_node_id  INTEGER        NOT NULL,
+         amount         INTEGER        NOT NULL);
 
-         CREATE TABLE tickets (
-            PRIMARY KEY (ticket_id),
-            ticket_id      SERIAL         NOT NULL,
-            node_id        INTEGER        NOT NULL,
-            customer       BIGINT         NOT NULL,
-            cust_msg_id    INTEGER        NOT NULL,
-            owner1_msg_id  INTEGER,
-            owner2_msg_id  INTEGER,
-            owner3_msg_id  INTEGER,
-            stage          CHAR           NOT NULL,
-            cust_status_msg_id      INTEGER,
-            owner1_status_msg_id    INTEGER,
-            owner2_status_msg_id    INTEGER,
-            owner3_status_msg_id    INTEGER,
-            service_msg_id          INTEGER);
+      CREATE TABLE tickets (
+         PRIMARY KEY (ticket_id),
+         ticket_id      SERIAL         NOT NULL,
+         node_id        INTEGER        NOT NULL,
+         customer       BIGINT         NOT NULL,
+         cust_msg_id    INTEGER        NOT NULL,
+         owner1_msg_id  INTEGER,
+         owner2_msg_id  INTEGER,
+         owner3_msg_id  INTEGER,
+         stage          CHAR           NOT NULL,
+         cust_status_msg_id            INTEGER,
+         owner1_status_msg_id          INTEGER,
+         owner2_status_msg_id          INTEGER,
+         owner3_status_msg_id          INTEGER,
+         service_msg_id                INTEGER);
    ")
-   .await;
- 
-   match query {
-      Ok(_) => true,
-      Err(e) => {
-         env::log(&format!("Error create_tables: {}", e)).await;
-         false
-       }
-   }
+   .await
+   .map_err(|e| format!("{}", e))?;
+   
+   Ok(())
 }
 
-// Convert bool to text
-pub fn is_success(flag : bool) -> &'static str {
-   if flag {
-      "успешно"
-  } else {
-      "ошибка"
-  }
-}
 
 // Обёртка, возвращает пул клиентов
 async fn db_client() -> Result<Client, String> {

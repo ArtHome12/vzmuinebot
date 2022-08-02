@@ -181,9 +181,15 @@ async fn run() {
 
    // Check and create tables
    if database::is_tables_exist().await {
-      log::info!("Table restaurants exist, open existing data");
+      log::info!("Table nodes exist, open existing data");
    } else {
-      log::info!("Table restaurants do not exist, create new tables: {}", database::is_success(database::create_tables().await));
+      log::info!("Table nodes do not exist, creating new tables");
+
+      let res = database::create_tables().await;
+      match res {
+         Ok(_) => log::info!("tables created"),
+         Err(e) => log::error!("main::run(): {}", e),
+      }
    }
 
    Dispatcher::builder(bot.clone(), states::schema())
