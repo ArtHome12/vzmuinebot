@@ -72,7 +72,8 @@ where T: ToString
    let res = res.and_then(|res| {
       match res.as_ref() {
          serde_json::Value::String(str_ref) => Ok(str_ref.clone()),
-         _ => Err(String::from("not a string")),
+         // _ => Err(String::from("not a string")),
+         _ => Err(format!("not a string {:?}", res.as_ref())),
       }
    });
 
