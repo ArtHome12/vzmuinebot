@@ -10,6 +10,7 @@ Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 
 use strum::{AsRefStr, EnumString, EnumMessage, };
 
-// enum Key {
+#[derive(AsRefStr, Debug)]
+enum Key {
 
-// }
+}

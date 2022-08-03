@@ -32,7 +32,7 @@ The person who deployed the bot is its administrator. Further:
 Tested on hosting heroku.com, demo sample in telegram @Muine_vzbot - https://t.me/Muine_vzbot
 To use the algorithm with another bot, you just need to specify a token.
 
-At the first start, the algorithm creates the necessary tables on its own, but the database must already exist. The following environment variables must be set:
+At the first start, the algorithm creates the necessary tables on its own, but the database must already exist. Postgres server must be version 12 or higher due to changes in the syntax for creating a full-text index. The following environment variables must be set:
 
 Connection to PostgeSQL database
 `DATABASE_URL=postgres://ciiqzyjmfs...`
@@ -49,7 +49,7 @@ Token from bot father
 For contact with you from caterers
 `CONTACT_INFO=@none`
 
-To identify you (up to three) as an admins - you can see your user_id when press button "Добавить"
+To identify you (up to three) as admins - you can see your user_id when press button with gear icon "⚙"
 `TELEGRAM_ADMIN_ID1=40966...`
 `TELEGRAM_ADMIN_ID2=` can be blank
 `TELEGRAM_ADMIN_ID3=`

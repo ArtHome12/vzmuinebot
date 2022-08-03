@@ -300,8 +300,8 @@ pub async fn node_search(pattern: &str) -> Result<search::Search, String> {
 
    // Make query
    let sql_text = "SELECT id, title FROM nodes WHERE id > 0 AND enabled AND NOT banned
-      AND to_tsvector('russian', title || ' ' || descr) @@ websearch_to_tsquery('russian', $1::VARCHAR)
-   ORDER BY ts_rank(to_tsvector('russian', title || ' ' || descr), websearch_to_tsquery('russian', $1::VARCHAR)) DESC LIMIT 31";
+      AND to_tsvector('english', title || ' ' || descr) @@ websearch_to_tsquery('english', $1::VARCHAR)
+   ORDER BY ts_rank(to_tsvector('english', title || ' ' || descr), websearch_to_tsquery('english', $1::VARCHAR)) DESC LIMIT 31";
 
    let query = query_prepared(sql_text, &[&pattern]).await?;
 
@@ -728,12 +728,12 @@ pub async fn create_tables() -> Result<(), String> {
       price          INTEGER        NOT NULL);
 
       ALTER TABLE nodes ADD COLUMN textsearchable_index_col tsvector
-         GENERATED ALWAYS AS (to_tsvector('russian', title || ' ' || descr)) STORED;
+         GENERATED ALWAYS AS (to_tsvector('english', title || ' ' || descr)) STORED;
 
       CREATE INDEX textsearch_idx ON nodes USING GIN (textsearchable_index_col);
 
       INSERT INTO nodes (id, parent, title, descr, picture, enabled, banned, owner1, owner2, owner3, open, close, price)
-      VALUES (0, -1, 'Добро пожаловать', '-', '', true, false, 0, 0, 0, '00:00', '00:00', 0);
+      VALUES (0, -1, 'Welcome', '-', '', true, false, 0, 0, 0, '00:00', '00:00', 0);
 
       CREATE TABLE users (
          PRIMARY KEY (user_id),
