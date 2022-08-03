@@ -26,6 +26,7 @@ use crate::node;
 use crate::orders;
 use crate::registration;
 use crate::general;
+use crate::loc::{loc, Key};
 
 
 // ============================================================================
@@ -87,7 +88,7 @@ pub struct BasketState {
    pub customer: Customer,
 }
 
-pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
+pub async fn enter<'a>(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
 
    // Load user info
    let customer = db::user(state.user_id.0).await?;
@@ -101,11 +102,13 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
 
 async fn view(bot: AutoSend<Bot>, msg: Message, state: BasketState) -> HandlerResult {
    // Start with info about user
-   let info = format!("Ваши данные, {}:\nКонтакт для связи: {}\nСпособ доставки: {}",
-      state.customer.name,
-      state.customer.contact,
-      state.customer.delivery_desc()
-   );
+   let args = [&state.customer.name, &state.customer.contact, &state.customer.delivery_desc()];
+   let info = loc(Key::BasketView1, "en", &args);
+   // let info = format!("Ваши данные, {}:\nКонтакт для связи: {}\nСпособ доставки: {}",
+   //    state.customer.name,
+   //    state.customer.contact,
+   //    state.customer.delivery_desc()
+   // );
 
    // Load info about orders
    let user_id = state.prev_state.user_id;

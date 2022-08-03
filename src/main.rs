@@ -24,6 +24,7 @@ use postgres_native_tls::MakeTlsConnector;
 use warp::Filter;
 use reqwest::{StatusCode, Url};
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
+use crate::states::*;
 
 mod database;
 mod environment;
@@ -39,7 +40,7 @@ mod ticket;
 mod general;
 mod registration;
 mod search;
-use crate::states::*;
+mod loc;
 
 // ============================================================================
 // [Run!]
@@ -190,6 +191,12 @@ async fn run() {
          Ok(_) => log::info!("tables created"),
          Err(e) => log::error!("main::run(): {}", e),
       }
+   }
+
+   // Data for localization
+   let loc = crate::loc::Loc::new();
+   if loc::LOC.set(loc).is_err() {
+      log::error!("main::run() loc set error")
    }
 
    Dispatcher::builder(bot.clone(), states::schema())

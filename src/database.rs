@@ -22,7 +22,7 @@ use crate::ticket;
 use crate::search;
 
 
-// Пул клиентов БД
+// Access to database
 pub static DB: OnceCell<Pool> = OnceCell::new();
 
 pub type Params<'a> = &'a[&'a(dyn ToSql + Sync)];
@@ -711,6 +711,7 @@ pub async fn is_tables_exist() -> bool {
 pub async fn create_tables() -> Result<(), String> {
    let client = db_client().await?;
 
+   // SELECT cfgname FROM pg_ts_config;
    client.batch_execute("CREATE TABLE nodes (
       PRIMARY KEY (id),
       id             SERIAL         NOT NULL,
