@@ -64,23 +64,28 @@ where T: ToString
 {
    let s = match LOC.get() {
       Some(s) => s,
-      _ => return String::from("loc::loc error"),
+      None => return String::from("loc::loc error"),
    };
 
-   let res = s.loc.localize_no_cache(&tag)
-      .map_err(|e| format!("{}", e));
-   let res = res.and_then(|res| {
-      match res.as_ref() {
-         serde_json::Value::String(str_ref) => Ok(str_ref.clone()),
-         // _ => Err(String::from("not a string")),
-         _ => Err(format!("not a string {:?}", res.as_ref())),
-      }
-   });
+   let res = match s.loc.localize_no_cache(&tag) {
+      Ok(cow) => cow,
+      Err(e) => return format!("{}", e),
+   };
 
-   match res {
-      Ok(res) => {
-         res
-      }
-      Err(e) => format!("{}: {}", key.as_ref(), e)
-   }
+   let res = match res.as_object() {
+      Some(map) => map,
+      None => return format!("loc: wrong json for '{}'", tag),
+   };
+
+   let res = match res.get(key.as_ref()) {
+      Some(data) => data,
+      None => return format!("loc: key '{}' not found", key.as_ref()),
+   };
+
+   let res = match res {
+      serde_json::Value::String(res) => res,
+      _ => return format!("loc: key '{}' not a string", key.as_ref()),
+   };
+
+   res.clone()
 }
