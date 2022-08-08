@@ -105,6 +105,9 @@ impl Locale {
       // Sorting for binary search
       langs.sort_by(|a, b| a.tag.cmp(&b.tag));
 
+      let info = langs.iter().fold(String::from("Loaded locale: "), |acc, l| format!("{} {}", acc, l.tag));
+      log::info!("{}", info);
+
       Self {langs, }
    }
 }
