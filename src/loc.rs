@@ -9,8 +9,9 @@ Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 
 
 use strum::{AsRefStr };
-use localize::Localizer;
+use walkdir::WalkDir;
 use once_cell::sync::{OnceCell};
+use std::fs;
 
 // Access to localize
 pub static LOC: OnceCell<Locale> = OnceCell::new();
@@ -50,14 +51,61 @@ pub enum Key {
 
 pub type LocaleTag = u32;
 
-pub struct Locale<'a> {
-   loc: Localizer<'a>,
+struct Lang {
+   tag: String,
+   map: serde_json::Map<String, serde_json::Value>,
 }
 
-impl<'a> Locale<'a> {
+pub struct Locale {
+   langs: Vec<Lang>,
+}
+
+impl Locale {
    pub fn new() -> Self {
-      let loc = Localizer::new("locales/").precache_all();
-      Self {loc}
+      let mut langs = vec![];
+
+      // Load "tag".json from directory
+      for entry in WalkDir::new("locales/").into_iter().filter_map(|e| e.ok()) {
+         if entry.file_type().is_file() && entry.file_name().to_string_lossy().ends_with(".json") {
+
+            // Extract filename as tag
+            let tag = entry.file_name()
+            .to_str()
+            .unwrap()
+            .split_once(".json")
+            .unwrap()
+            .0
+            .to_string();
+
+            // Open file
+            if let Ok(file) = fs::File::open(entry.path()) {
+               // Read data
+               if let Ok(data) = serde_json::from_reader(file) {
+                  // Get as JSON object
+                  let json: serde_json::Value = data;
+                  if let Some(map) = json.as_object() {
+                     // Store
+                     let lang = Lang {
+                        tag,
+                        map: map.to_owned(),
+                     };
+                     langs.push(lang);
+                  } else {
+                     log::error!("loc::new() wrong json '{}'", entry.path().display())
+                  }
+               } else {
+                  log::error!("loc::new() read error '{}'", entry.path().display())
+               }
+            } else {
+               log::error!("loc::new() open error '{}'", entry.path().display())
+            }
+         }
+      }
+
+      // Sorting for binary search
+      langs.sort_by(|a, b| a.tag.cmp(&b.tag));
+
+      Self {langs, }
    }
 }
 
@@ -69,15 +117,10 @@ where T: ToString
       None => return String::from("loc::loc error"),
    };
 
-   let res = match s.loc.localize_no_cache("en") {
-      Ok(cow) => cow,
-      Err(e) => return format!("{}", e),
-   };
-
-   let res = match res.as_object() {
-      Some(map) => map,
-      None => return format!("loc: wrong json for '{}'", tag),
-   };
+   if tag >= s.langs.len() as u32 {
+      return format!("loc::loc too big tag '{}' for langs '{}'", tag, s.langs.len())
+   }
+   let res = &s.langs[tag as usize].map;
 
    let res = match res.get(key.as_ref()) {
       Some(data) => data,
@@ -93,5 +136,18 @@ where T: ToString
 }
 
 pub fn tag(tag: Option<&str>) -> LocaleTag {
-   0
+   let tag = match tag {
+      Some(tag) => tag,
+      None => return 0,
+   };
+
+   match LOC.get() {
+      Some(s) => {
+         s.langs
+         .binary_search_by(|elem|
+            elem.tag.as_str().cmp(tag)
+         ).unwrap_or(0) as u32
+      },
+      None => 0u32,
+   }
 }

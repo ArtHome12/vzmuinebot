@@ -16,13 +16,6 @@ teloxide = { version = "0.10.1", features = ["auto-send"] }
 derive_more = "0.99.17"
 strum = { version = "0.24.1", features = ["derive"] }
 async-recursion = "1.0.0"
-
-# Used to setup a webhook
-warp = "0.3.2"
-reqwest = "0.11.11"
-serde_json = "1.0.82"
-
-# My
 smart-default = "0.6.0"
 parse-display = "0.5.5"
 enum-utils = "0.1.2"
@@ -33,7 +26,12 @@ arraylib = "0.3.0"
 enum_default = "0.2.5"
 regex = "1.6.0"
 lazy_static = "1.4.0"
-localize = "0.2.0"
+walkdir = "2"
+
+# Used to setup a webhook
+warp = "0.3.2"
+reqwest = "0.11.11"
+serde_json = "1.0.82"
 
 # Database
 once_cell = "1.13.0"
