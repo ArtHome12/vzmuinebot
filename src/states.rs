@@ -21,6 +21,7 @@ use crate::database as db;
 use crate::gear::*;
 use crate::basket::*;
 use crate::general::MessageState;
+use crate::loc::{tag};
 
 pub type MyDialogue = Dialogue<State, InMemStorage<State>>;
 pub type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
@@ -53,6 +54,7 @@ pub struct MainState {
    pub prev_state: StartState,
    pub user_id: UserId,
    pub is_admin: bool,
+   pub locale: u32,
 }
 
 
@@ -101,6 +103,11 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
 
 
 async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: StartState) -> HandlerResult {
+
+   // Determine the language of the user
+   let locale = msg.from().and_then(|user| user.language_code.as_deref());
+   let locale = tag(locale);
+
    // Extract user id
    let user = msg.from();
    if user.is_none() {
@@ -113,7 +120,7 @@ async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: St
 
    let user = user.unwrap();
    let user_id = user.id;
-   let new_state = MainState { prev_state: state, user_id, is_admin: false };
+   let new_state = MainState { prev_state: state, user_id, is_admin: false, locale };
 
    // Insert or update info about user
    update_last_seen_full(user).await?;
@@ -137,6 +144,10 @@ pub async fn reload(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
 
 // #[async_recursion]
 pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
+   // Determine the language of the user
+   let locale = msg.from().and_then(|user| user.language_code.as_deref());
+   let locale = tag(locale);
+
    let chat_id = msg.chat.id;
 
    // For admin and regular users there is different interface
@@ -145,6 +156,7 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
       prev_state: StartState { restarted: false },
       user_id,
       is_admin: env::is_admin_id(user_id), // reload permissions every time
+      locale,
    };
 
    // Update FSM

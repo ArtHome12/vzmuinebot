@@ -194,7 +194,7 @@ async fn run() {
    }
 
    // Data for localization
-   let loc = crate::loc::Loc::new();
+   let loc = crate::loc::Locale::new();
    if loc::LOC.set(loc).is_err() {
       log::error!("main::run() loc set error")
    }

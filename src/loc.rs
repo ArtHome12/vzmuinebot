@@ -8,12 +8,12 @@ Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 
-use strum::{AsRefStr, EnumString, EnumMessage, };
+use strum::{AsRefStr };
 use localize::Localizer;
 use once_cell::sync::{OnceCell};
 
 // Access to localize
-pub static LOC: OnceCell<Loc> = OnceCell::new();
+pub static LOC: OnceCell<Locale> = OnceCell::new();
 
 #[derive(AsRefStr, Debug)]
 pub enum Key {
@@ -48,18 +48,20 @@ pub enum Key {
    BasketAddressMarkup,
 }
 
-pub struct Loc<'a> {
+pub type LocaleTag = u32;
+
+pub struct Locale<'a> {
    loc: Localizer<'a>,
 }
 
-impl<'a> Loc<'a> {
+impl<'a> Locale<'a> {
    pub fn new() -> Self {
       let loc = Localizer::new("locales/").precache_all();
       Self {loc}
    }
 }
 
-pub fn loc<'a, T>(key: Key, tag: &'a str, args: &[&T]) -> String
+pub fn loc<'a, T>(key: Key, tag: LocaleTag, args: &[&T]) -> String
 where T: ToString
 {
    let s = match LOC.get() {
@@ -67,7 +69,7 @@ where T: ToString
       None => return String::from("loc::loc error"),
    };
 
-   let res = match s.loc.localize_no_cache(&tag) {
+   let res = match s.loc.localize_no_cache("en") {
       Ok(cow) => cow,
       Err(e) => return format!("{}", e),
    };
@@ -88,4 +90,8 @@ where T: ToString
    };
 
    res.clone()
+}
+
+pub fn tag(tag: Option<&str>) -> LocaleTag {
+   0
 }
