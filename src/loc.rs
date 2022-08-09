@@ -139,15 +139,12 @@ where T: std::fmt::Display
       _ => return format!("loc: key '{}' not a string", key.as_ref()),
    };
 
-   // If there are no arguments, just output the string
-   if args.is_empty() {
-      res.to_owned()
-   } else {
-      // Or substitute values
-      res.split("{}")
-      .zip(args.iter())
-      .fold(String::default(), |acc, part| format!("{}{}{}", acc, part.0, *part.1))
+   // If there are no arguments, just output the string or substitute values
+   let mut res = res.to_owned();
+   for arg in args.iter() {
+      res = res.replacen("{}", &arg.to_string(), 1);
    }
+   res
 }
 
 pub fn tag(tag: Option<&str>) -> LocaleTag {
