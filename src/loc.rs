@@ -143,8 +143,9 @@ pub fn tag(tag: Option<&str>) -> LocaleTag {
       Some(tag) => tag,
       None => return 0,
    };
+   log::info!("tag={}", tag);
 
-   match LOC.get() {
+   let res = match LOC.get() {
       Some(s) => {
          s.langs
          .binary_search_by(|elem|
@@ -152,5 +153,7 @@ pub fn tag(tag: Option<&str>) -> LocaleTag {
          ).unwrap_or(0) as u32
       },
       None => 0u32,
-   }
+   };
+   log::info!("res={}", res);
+   res
 }
