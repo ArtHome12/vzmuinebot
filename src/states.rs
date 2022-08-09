@@ -21,7 +21,7 @@ use crate::database as db;
 use crate::gear::*;
 use crate::basket::*;
 use crate::general::MessageState;
-use crate::loc::{tag};
+use crate::loc::{tag, LocaleTag, };
 
 pub type MyDialogue = Dialogue<State, InMemStorage<State>>;
 pub type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
@@ -54,7 +54,7 @@ pub struct MainState {
    pub prev_state: StartState,
    pub user_id: UserId,
    pub is_admin: bool,
-   pub locale: u32,
+   pub locale: LocaleTag,
 }
 
 
@@ -147,7 +147,6 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
    // Determine the language of the user
    let locale = msg.from().and_then(|user| user.language_code.as_deref());
    let locale = tag(locale);
-   log::info!("msg={:?}", msg);
 
    let chat_id = msg.chat.id;
 

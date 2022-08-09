@@ -58,6 +58,7 @@ struct Lang {
 
 pub struct Locale {
    langs: Vec<Lang>,
+   def_tag: u32,
 }
 
 impl Locale {
@@ -105,15 +106,18 @@ impl Locale {
       // Sorting for binary search
       langs.sort_by(|a, b| a.tag.cmp(&b.tag));
 
-      let info = langs.iter().fold(String::from("Loaded locale: "), |acc, l| format!("{} {}", acc, l.tag));
+      // After sort, store default locale
+      let def_tag = tag(Some("en"));
+
+      let info = langs.iter().fold(String::from("Loaded locale:"), |acc, l| format!("{} {}", acc, l.tag));
       log::info!("{}", info);
 
-      Self {langs, }
+      Self {langs, def_tag, }
    }
 }
 
 pub fn loc<'a, T>(key: Key, tag: LocaleTag, args: &[&T]) -> String
-where T: ToString
+where T: std::fmt::Display
 {
    let s = match LOC.get() {
       Some(s) => s,
@@ -135,25 +139,24 @@ where T: ToString
       _ => return format!("loc: key '{}' not a string", key.as_ref()),
    };
 
-   res.clone()
+   res.split("{}")
+   .zip(args.iter())
+   .fold(String::default(), |acc, part| format!("{}{}{}", acc, part.0, *part.1))
 }
 
 pub fn tag(tag: Option<&str>) -> LocaleTag {
+   let s = match LOC.get() {
+      Some(s) => s,
+      None => return 0u32,
+   };
+
    let tag = match tag {
       Some(tag) => tag,
-      None => return 0,
+      None => return s.def_tag,
    };
-   log::info!("tag={}", tag);
 
-   let res = match LOC.get() {
-      Some(s) => {
-         s.langs
-         .binary_search_by(|elem|
-            elem.tag.as_str().cmp(tag)
-         ).unwrap_or(0) as u32
-      },
-      None => 0u32,
-   };
-   log::info!("res={}", res);
-   res
+   s.langs
+   .binary_search_by(|elem|
+      elem.tag.as_str().cmp(tag)
+   ).unwrap_or(s.def_tag as usize) as u32
 }
