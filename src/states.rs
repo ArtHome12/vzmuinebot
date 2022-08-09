@@ -147,6 +147,7 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
    // Determine the language of the user
    let locale = msg.from().and_then(|user| user.language_code.as_deref());
    let locale = tag(locale);
+   log::info!("msg={:?}", msg);
 
    let chat_id = msg.chat.id;
 
