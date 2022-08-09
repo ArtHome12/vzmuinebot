@@ -141,7 +141,7 @@ where T: std::fmt::Display
 
    // If there are no arguments, just output the string
    if args.is_empty() {
-      res
+      res.to_owned()
    } else {
       // Or substitute values
       res.split("{}")
