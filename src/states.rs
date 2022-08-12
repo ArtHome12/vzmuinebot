@@ -13,15 +13,12 @@ use teloxide::{prelude::*,
    dispatching::{dialogue::{self, InMemStorage}, UpdateHandler, UpdateFilterExt, },
 };
 
-use std::str::FromStr;
-use strum::{AsRefStr, EnumString,};
-
 use crate::environment as env;
 use crate::database as db;
 use crate::gear::*;
-use crate::basket::*;
+use crate::cart::*;
 use crate::general::MessageState;
-use crate::loc::{tag, LocaleTag, };
+use crate::loc::*;
 
 pub type MyDialogue = Dialogue<State, InMemStorage<State>>;
 pub type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
@@ -33,8 +30,8 @@ pub enum State {
    Command(MainState), // await for select menu item from bottom
    Gear(GearState), // in settings menu
    GearSubmode(GearStateEditing), // in settings menu edit field
-   Basket(BasketState), // in basket menu
-   BasketSubmode(BasketStateEditing),
+   Cart(CartState), // in cart menu
+   CartSubmode(CartStateEditing),
    GeneralMessage(MessageState), // general commands, enter text of message to send
 }
 
@@ -54,22 +51,27 @@ pub struct MainState {
    pub prev_state: StartState,
    pub user_id: UserId,
    pub is_admin: bool,
-   pub locale: LocaleTag,
+   pub tag: LocaleTag,
 }
 
 
 // Main menu
-#[derive(AsRefStr, EnumString)]
 enum MainMenu {
-   #[strum(to_string = "⚙")]
-   Gear,  // settings menu
-   #[strum(to_string = "🛒")]
-   Basket,  // basket menu
-   #[strum(to_string = "Все")]
    All,  // show all items
-   #[strum(to_string = "Открыто")]
-   Now,  // show opened items
+   Gear,  // settings menu
+   Cart,  // cart menu
+   Open,  // show opened items
    Unknown,
+}
+
+impl MainMenu {
+   fn parse(s: &str, tag: LocaleTag) -> Self {
+      if s == loc(Key::StatesMainMenuAll, tag, &[]) { Self::All }
+      else if s == loc(Key::StatesMainMenuGear, tag, &[]) { Self::Gear }
+      else if s == loc(Key::StatesMainMenuCart, tag, &[]) { Self::Cart }
+      else if s == loc(Key::StatesMainMenuOpen, tag, &[]) { Self::Open }
+      else { Self::Unknown }
+   }
 }
 
 pub enum WorkTime {
@@ -87,8 +89,8 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
       dptree::filter(|msg: Message| { msg.chat.is_private() })
       .branch(dptree::case![State::Start(state)].endpoint(start))
       .branch(dptree::case![State::Command(state)].endpoint(command))
-      .branch(dptree::case![State::Basket(state)].endpoint(crate::basket::update))
-      .branch(dptree::case![State::BasketSubmode(state)].endpoint(crate::basket::update_edit))
+      .branch(dptree::case![State::Cart(state)].endpoint(crate::cart::update))
+      .branch(dptree::case![State::CartSubmode(state)].endpoint(crate::cart::update_edit))
       .branch(dptree::case![State::Gear(state)].endpoint(crate::gear::update))
       .branch(dptree::case![State::GearSubmode(state)].endpoint(crate::gear::update_edit))
       .branch(dptree::case![State::GeneralMessage(state)].endpoint(crate::general::update_input))
@@ -120,7 +122,7 @@ async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: St
 
    let user = user.unwrap();
    let user_id = user.id;
-   let new_state = MainState { prev_state: state, user_id, is_admin: false, locale };
+   let new_state = MainState { prev_state: state, user_id, is_admin: false, tag: locale };
 
    // Insert or update info about user
    update_last_seen_full(user).await?;
@@ -130,13 +132,14 @@ async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: St
 }
 
 pub async fn reload(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
+   let tag = state.tag;
 
    dialogue.update(state).await?;
 
    let text = "Вы в главном меню";
    let chat_id = msg.chat.id;
    bot.send_message(chat_id, text)
-   .reply_markup(main_menu_markup())
+   .reply_markup(main_menu_markup(tag))
    .await?;
    
    Ok(())
@@ -146,7 +149,7 @@ pub async fn reload(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
 pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
    // Determine the language of the user
    let locale = msg.from().and_then(|user| user.language_code.as_deref());
-   let locale = tag(locale);
+   let tag = tag(locale);
 
    let chat_id = msg.chat.id;
 
@@ -156,7 +159,7 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
       prev_state: StartState { restarted: false },
       user_id,
       is_admin: env::is_admin_id(user_id), // reload permissions every time
-      locale,
+      tag,
    };
 
    // Update FSM
@@ -166,11 +169,11 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
 
    // Try to execute command and if it impossible notify about restart
    let text = msg.text().unwrap_or_default();
-   let cmd = MainMenu::from_str(text).unwrap_or(MainMenu::Unknown);
+   let cmd = MainMenu::parse(text, tag);
    match cmd {
-      MainMenu::Basket => crate::basket::enter(bot, msg, dialogue, new_state).await?,
+      MainMenu::Cart => crate::cart::enter(bot, msg, dialogue, new_state).await?,
       MainMenu::All => crate::navigation::enter(bot, msg, new_state, WorkTime::All).await?,
-      MainMenu::Now => crate::navigation::enter(bot, msg, new_state, WorkTime::Now).await?,
+      MainMenu::Open => crate::navigation::enter(bot, msg, new_state, WorkTime::Now).await?,
       MainMenu::Gear => crate::gear::enter(bot, msg, dialogue, new_state).await?,
 
       MainMenu::Unknown => {
@@ -179,7 +182,7 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
          if state.prev_state.restarted {
             let text = "Извините, бот был перезапущен";
             bot.send_message(chat_id, text)
-            .reply_markup(main_menu_markup())
+            .reply_markup(main_menu_markup(tag))
             .await?;
          } else {
 
@@ -198,7 +201,11 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
 pub async fn callback(bot: AutoSend<Bot>, q: CallbackQuery) -> HandlerResult {
    let user_id = q.from.id;
 
-   crate::callback::update(bot, q).await?;
+   // Determine the language of the user
+   let locale = q.from.language_code.as_deref();
+   let tag = tag(locale);
+
+   crate::callback::update(bot, q, tag).await?;
 
    // Update user last seen time
    update_last_seen(user_id).await?;
@@ -207,12 +214,12 @@ pub async fn callback(bot: AutoSend<Bot>, q: CallbackQuery) -> HandlerResult {
 }
 
 
-pub fn main_menu_markup() -> ReplyMarkup {
+pub fn main_menu_markup(tag: LocaleTag) -> ReplyMarkup {
    let commands = vec![
-      String::from(MainMenu::Basket.as_ref()),
-      String::from(MainMenu::All.as_ref()),
-      String::from(MainMenu::Now.as_ref()),
-      String::from(MainMenu::Gear.as_ref()),
+      loc(Key::StatesMainMenuCart, tag, &[]),
+      loc(Key::StatesMainMenuAll, tag, &[]),
+      loc(Key::StatesMainMenuOpen, tag, &[]),
+      loc(Key::StatesMainMenuGear, tag, &[]),
    ];
    kb_markup(vec![commands])
 }
@@ -243,7 +250,7 @@ async fn update_last_seen(user_id: UserId) -> Result<(), String> {
 
 
 // Convert for flag value
-pub fn to_flag(text: String) -> Result<bool, String> {
+pub fn to_flag(text: &String) -> Result<bool, String> {
    match text.as_str() {
       "Вкл." => Ok(true),
       "Выкл." => Ok(false),
@@ -257,8 +264,8 @@ pub fn from_flag(flag: bool) -> String {
 }
 
 // Frequently used menu
-pub fn cancel_markup() -> ReplyMarkup {
-   kb_markup(vec![vec![String::from("/")]])
+pub fn cancel_markup(tag: LocaleTag) -> ReplyMarkup {
+   kb_markup(vec![vec![loc(Key::CommonCancel, tag, &[])]])
 }
 
 pub fn flag_markup() -> ReplyMarkup {

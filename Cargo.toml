@@ -1,6 +1,6 @@
 [package]
 name = "vzmuinebot"
-version = "0.9.6"
+version = "0.9.7"
 authors = ["Artem Khomenko <_mag12@yahoo.com>"]
 edition = "2018"
 
@@ -21,7 +21,6 @@ parse-display = "0.5.5"
 enum-utils = "0.1.2"
 chrono = "0.4.19"
 text_io = "0.1.10"
-# runtime-fmt = "0.4.1"
 arraylib = "0.3.0"
 enum_default = "0.2.5"
 regex = "1.6.0"

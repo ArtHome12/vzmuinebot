@@ -12,6 +12,7 @@ use strum::{AsRefStr,};
 
 use crate::states::*;
 use crate::search;
+use crate::loc::*;
 
 #[derive(AsRefStr)]
 pub enum Command {
@@ -63,14 +64,16 @@ pub struct MessageState {
 
 pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
    // Parse and handle commands
+   let tag = state.tag;
    let chat_id = msg.chat.id;
    let input = msg.text().unwrap_or_default();
    let cmd = Command::parse(input);
    match cmd {
       Command::Start => {
-         let text = "Добро пожаловать. Пожалуйста, нажмите на 'Все' для отображения полного списка, 'Открыто' для работающих сейчас (если панель с кнопками скрыта, раскройте её), либо отправьте текст для поиска.";
+         // "Welcome. Please click on 'All' to display the full list, 'Open' for those currently working (if the panel with buttons is hidden, expand it), or send a text to search."
+         let text = loc(Key::GeneralUpdate1, tag, &[]);
          bot.send_message(chat_id, text)
-         .reply_markup(main_menu_markup())
+         .reply_markup(main_menu_markup(tag))
          .await?;
       }
       
@@ -81,25 +84,35 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
       
       Command::Unknown => {
          let text = if input.is_empty() {
-            String::from("Текстовое сообщение, пожалуйста")
+            // Text message please
+            loc(Key::GeneralUpdate2, tag, &[])
          } else {
             let found = search::search(input).await?;
             if found.is_empty() {
-               format!("Поиск по <b>'{}'</b> не дал результатов", input)
+               // "Search for <b>'{}'</b> returned no results"
+               loc(Key::GeneralUpdate3, tag, &[&input])
             } else {
                // Add hint if too many founds
-               let hint = if found.len() > 30 { " <i>Показаны только первые 30 результатов, попробуйте уточнить запрос</i>" } else { "" };
+               let hint = if found.len() > 30 {
+                  // "<i>Only the first 30 results are shown, please try to refine your query</i>"
+                  loc(Key::GeneralUpdate4, tag, &[])
+               } else {
+                  String::default()
+               };
+
+               // "Search results for '{}'.{}\n"
+               let init =  loc(Key::GeneralUpdate5, tag, &[&input, &hint]);
 
                found.iter()
                .take(30)
-               .fold(format!("Результаты поиска по '{}'.{}\n", input, hint), |acc, v| {
+               .fold(init, |acc, v| {
                   format!("{}\n{}", acc, v)
                })
             }
          };
 
          bot.send_message(chat_id, text)
-         .reply_markup(main_menu_markup())
+         .reply_markup(main_menu_markup(tag))
          .parse_mode(ParseMode::Html)
          .await?;
       },
@@ -108,10 +121,14 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
 }
 
 async fn enter_input(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState, receiver: ChatId) -> HandlerResult {
+   let tag = state.tag;
    let chat_id = msg.chat.id;
-   let text = "Введите сообщение для отправки (/ для отмены)";
+
+   // "Enter a message to send (/ to cancel)"
+   let text = loc(Key::GeneralEnterInput, tag, &[]);
+
    bot.send_message(chat_id, text)
-   .reply_markup(cancel_markup())
+   .reply_markup(cancel_markup(tag))
    .await?;
 
    let new_state = MessageState {
@@ -124,27 +141,33 @@ async fn enter_input(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
 
 pub async fn update_input(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MessageState) -> HandlerResult {
 
+   let tag = state.prev_state.tag;
    let chat_id = msg.chat.id;
    let input = msg.text().unwrap_or_default();
 
-   let info = if input == String::from("/") {
-      "Отмена, сообщение не отправлено"
+   let info = if input == loc(Key::CommonCancel, tag, &[]) {
+      // "Cancel, message not sent"
+      loc(Key::GeneralUpdateInput1, tag, &[])
    } else {
       // Forward message to receiver
       let msg = bot.forward_message(state.receiver, msg.chat.id, msg.id).await?;
 
-      // Add info with qoute
-      let text = format!("Ответить {}{}", Command::Message(ChatId{0:0}).as_ref(), state.prev_state.user_id);
+      // Add info with qoute. "Reply {}{}"
+      let args: Args = &[&Command::Message(ChatId{0:0}).as_ref(),
+         &state.prev_state.user_id
+      ];
+      let text = loc(Key::GeneralUpdateInput2, tag, args);
       bot.send_message(state.receiver, &text)
       .reply_to_message_id(msg.id)
       .await?;
 
-      "Cообщение отправлено"
+      // "Message sent"
+      loc(Key::GeneralUpdateInput3, tag, &[])
    };
 
    // Report result and return to main menu
    bot.send_message(chat_id, info)
-   .reply_markup(main_menu_markup())
+   .reply_markup(main_menu_markup(tag))
    .await?;
 
    // Return to previous state

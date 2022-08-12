@@ -13,6 +13,7 @@ use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup, ChatId};
 use crate::callback;
 use crate::node;
 use crate::general as gen;
+use crate::loc::*;
 
 pub type ThreeMsgId = (Option<i32>, Option<i32>, Option<i32>);
 
@@ -73,14 +74,14 @@ pub struct TicketWithOwners {
 }
 
 impl Ticket {
-   pub fn make_markup(&self, info_for: InfoFor) -> Option<InlineKeyboardMarkup> {
+   pub fn make_markup(&self, info_for: InfoFor, tag: LocaleTag) -> Option<InlineKeyboardMarkup> {
       match info_for {
          InfoFor::Customer => {
             match self.stage {
                Stage::OwnersConfirmation
                | Stage::Cooking
-               | Stage::Delivery => Some(self.markup_cancel()),
-               Stage::CustomerConfirmation => Some(self.markup_confirm()),
+               | Stage::Delivery => Some(self.markup_cancel(tag)),
+               Stage::CustomerConfirmation => Some(self.markup_confirm(tag)),
                _ => None,
             }
          }
@@ -88,44 +89,44 @@ impl Ticket {
             match self.stage {
                Stage::OwnersConfirmation
                | Stage::Cooking
-               | Stage::Delivery => Some(self.markup_next()),
-               Stage::CustomerConfirmation => Some(self.markup_cancel()),
+               | Stage::Delivery => Some(self.markup_next(tag)),
+               Stage::CustomerConfirmation => Some(self.markup_cancel(tag)),
                _ => None,
             }
          }
       }
    }
 
-   fn button(&self, cmd: callback::Command) -> InlineKeyboardButton {
-      let title = cmd.get_message().unwrap().to_string();
+   fn button(&self, cmd: callback::Command, tag: LocaleTag) -> InlineKeyboardButton {
+      let title = cmd.buttton_caption(tag);
       let args = format!("{}{}", cmd.as_ref(), self.id);
       InlineKeyboardButton::callback(title, args)
    }
 
    // Menu to cancel ticket at middle
-   fn markup_cancel(&self) -> InlineKeyboardMarkup {
+   fn markup_cancel(&self, tag: LocaleTag) -> InlineKeyboardMarkup {
       let cmd = callback::Command::TicketCancel(0);
    
       InlineKeyboardMarkup::default()
-      .append_row(vec![self.button(cmd)])
+      .append_row(vec![self.button(cmd, tag)])
    }
 
    // Menu for customer to finish ticket
-   pub fn markup_confirm(&self) -> InlineKeyboardMarkup {
+   pub fn markup_confirm(&self, tag: LocaleTag) -> InlineKeyboardMarkup {
       let cancel = callback::Command::TicketCancel(0);
       let confirm = callback::Command::TicketConfirm(0);
 
       InlineKeyboardMarkup::default()
-      .append_row(vec![self.button(cancel), self.button(confirm)])
+      .append_row(vec![self.button(cancel, tag), self.button(confirm, tag)])
    }
 
    // Menu for owner to process ticket
-   pub fn markup_next(&self) -> InlineKeyboardMarkup {
+   pub fn markup_next(&self, tag: LocaleTag) -> InlineKeyboardMarkup {
       let cancel = callback::Command::TicketCancel(0);
       let next = callback::Command::TicketNext(0);
 
       InlineKeyboardMarkup::default()
-      .append_row(vec![self.button(cancel), self.button(next)])
+      .append_row(vec![self.button(cancel, tag), self.button(next, tag)])
    }
 
    // Go to the next stage if it possible

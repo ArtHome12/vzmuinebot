@@ -10,7 +10,7 @@ Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 use chrono::{NaiveTime};
 use std::hash::{Hash, Hasher};
 use crate::environment as env;
-
+use crate::loc::*;
 
 pub type Owners = (i64, i64, i64);
 
@@ -85,14 +85,14 @@ impl Hash for Node {
 }
 
 impl Node {
-   pub fn new(parent: i32) -> Self {
+   pub fn new(parent: i32, tag: LocaleTag) -> Self {
       let t = NaiveTime::from_hms(0, 0, 0);
 
       Self {
          id: 0,
          parent,
          children: Default::default(),
-         title: String::from("Новая запись"),
+         title: loc(Key::NodeDefName, tag, &[]),
          descr: String::from("-"),
          picture: Origin::None,
          enabled: false,

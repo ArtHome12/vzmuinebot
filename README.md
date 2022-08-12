@@ -13,7 +13,7 @@ Disclaimer. The picture below is taken from the movie "Бриллиантова�
  ### After pressing the inline button "Пример ресторана" (means "Restaurant example")
 ![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme3s.jpg)
 
-### In the basket
+### In the cart
 ![sheme](https://github.com/ArtHome12/vzmuinebot/blob/master/readme4s.jpg)
 
 ### Manager menu
@@ -62,6 +62,10 @@ To indicate the time zone
 
 Optional. To specify service chat id - you can see it after add bot to group and send command /chat (/chat@yourbotname)
 `LOG_GROUP_ID=-100123...`
+
+# Localization
+The language resources for the interface are in the locale folder, reads at the start of the bot. To support a new language, create a file similar to existing ones with short name of new language. Default locale is "en". The interface language is determined by information from the telegram server (User/language_code field).
+And please make a pull request.
 
 # Service chat
 The bot has the ability to send messages about some actions to a special service chat:

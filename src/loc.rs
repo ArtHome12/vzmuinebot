@@ -16,37 +16,126 @@ use std::fs;
 // Access to localize
 pub static LOC: OnceCell<Locale> = OnceCell::new();
 
-#[derive(AsRefStr, Debug)]
+#[derive(AsRefStr)]
 pub enum Key {
-   BasketCommandClear,
-   BasketCommandExit,
-   BasketCommandDelete,
-   BasketCommandReload,
-   BasketCommandEditName,
-   BasketCommandEditContact,
-   BasketCommandEditAddress,
-   BasketCommandEditDelivery,
-   BasketView1,
-   BasketView2,
-   BasketView3,
-   BasketUpdate,
-   BasketMakeOwnerText1,
-   BasketMakeOwnerText2,
-   BasketMakeOwnerText3,
-   BasketMakeOwnerText4,
-   BasketOrderMarkup,
-   BasketEnterEdit1,
-   BasketEnterEdit2,
-   BasketEnterEdit3,
-   BasketEnterEdit4,
-   BasketEnterEdit5,
-   BasketEnterEdit6,
-   BasketEnterEdit7,
-   BasketUpdateEdit1,
-   BasketUpdateEdit2,
-   BasketUpdateEdit3,
-   BasketUpdateEdit4,
-   BasketAddressMarkup,
+   CommonTimeFormat,
+   CommonCancel,
+   CommonEditCancel,
+   CommonEditConfirm,
+
+   CartCommandClear,
+   CartCommandExit,
+   CartCommandReload,
+   CartCommandEditName,
+   CartCommandEditContact,
+   CartCommandEditAddress,
+   CartCommandEditDelivery,
+   CartView1,
+   CartView2,
+   CartView3,
+   CartUpdate,
+   CartMakeOwnerText1,
+   CartMakeOwnerText2,
+   CartMakeOwnerText4,
+   CartOrderMarkup,
+   CartEnterEdit1,
+   CartEnterEdit2,
+   CartEnterEdit3,
+   CartEnterEdit4,
+   CartEnterEdit5,
+   CartEnterEdit6,
+   CartEnterEdit7,
+   CartUpdateEdit,
+   CartAddressMarkup,
+
+   CallbackCancel,
+   CallbackNext,
+   CallbackConfirm,
+   CallbackAdded,
+   CallbackRemoved,
+   CallbackAll,
+   CallbackOpen,
+
+   CustomerDeliveryCourier,
+   CustomerDeliveryPickup,
+   CustomerDeliveryDesk1,
+   CustomerDeliveryDesk2,
+   CustomerDeliveryDesk3,
+   CustomerDeliveryDesk4,
+
+   GearAdd,
+   GearDelete,
+   GearExit,
+   GearReturn,
+   GearEditTitle,
+   GearEditDescr,
+   GearEditPicture,
+   GearEditAdvert,
+   GearEditEnable,
+   GearEditBan,
+   GearEditOwner1,
+   GearEditOwner2,
+   GearEditOwner3,
+   GearEditTime,
+   GearEditPrice,
+   GearEnter,
+   GearUpdateGoto,
+   GearUpdateDelete1,
+   GearUpdateDelete2,
+   GearUpdateDelete3,
+   GearUpdateEdit,
+   GearUpdateUnknown,
+   GearView1,
+   GearView2,
+   GearSendAdvert,
+   GearUpdateEdit1,
+   GearUpdateEdit2,
+   GearEnterEdit1,
+   GearEnterEdit2,
+   GearEnterEdit3,
+   GearEnterEdit4,
+   GearEnterEdit5,
+
+   GeneralUpdate1,
+   GeneralUpdate2,
+   GeneralUpdate3,
+   GeneralUpdate4,
+   GeneralUpdate5,
+   GeneralEnterInput,
+   GeneralUpdateInput1,
+   GeneralUpdateInput2,
+   GeneralUpdateInput3,
+
+   NavigationEnter1,
+   NavigationEnter2,
+   NavigationEnter3,
+   NavigationEnter4,
+   NavigationView1,
+   NavigationView2,
+   NavigationView3,
+   NavigationNodeText1,
+   NavigationNodeText2,
+   NavigationMarkup1,
+   NavigationMarkup2,
+   NavigationMarkup3,
+   NavigationMarkup4,
+
+   NodeDefName,
+
+   RegUpdateStatus,
+   RegMakeTicket1,
+   RegMakeTicket2,
+   RegMakeTicket3,
+   RegMakeTicket4,
+   RegMakeTicket5,
+   RegMakeTicket6,
+   RegMakeTicket7,
+   RegConfirmTicket,
+
+   StatesMainMenuGear,
+   StatesMainMenuCart,
+   StatesMainMenuAll,
+   StatesMainMenuOpen,
 }
 
 pub type LocaleTag = u32;
@@ -62,7 +151,7 @@ pub struct Locale {
 }
 
 impl Locale {
-   pub fn new() -> Self {
+   pub fn new(def_tag: &str) -> Self {
       let mut langs = vec![];
 
       // Load "tag".json from directory
@@ -107,7 +196,7 @@ impl Locale {
       langs.sort_by(|a, b| a.tag.cmp(&b.tag));
 
       // After sort, store default locale
-      let def_tag = tag(Some("en"));
+      let def_tag = tag(Some(def_tag));
 
       let info = langs.iter().fold(String::from("Loaded locale:"), |acc, l| format!("{} {}", acc, l.tag));
       log::info!("{}", info);
@@ -116,8 +205,9 @@ impl Locale {
    }
 }
 
-pub fn loc<'a, T>(key: Key, tag: LocaleTag, args: &[&T]) -> String
-where T: std::fmt::Display
+pub type Args<'a> = &'a[&'a(dyn std::fmt::Display + Sync)];
+
+pub fn loc(key: Key, tag: LocaleTag, args: Args) -> String
 {
    let s = match LOC.get() {
       Some(s) => s,

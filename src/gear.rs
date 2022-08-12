@@ -10,81 +10,85 @@ Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 use teloxide::{prelude::*, payloads::SendMessageSetters,
    types::{InputMedia, InputFile, InputMediaPhoto, ParseMode, ReplyMarkup, }
 };
-use std::str::FromStr;
-use strum::{AsRefStr, EnumString, EnumMessage, };
+use strum::AsRefStr;
 use chrono::{NaiveTime};
-use enum_default::EnumDefault;
 
 use crate::states::*;
 use crate::database as db;
 use crate::node::*;
 use crate::environment as env;
+use crate::loc::*;
 
 
 // ============================================================================
 // [Main entry]
 // ============================================================================
 // Main commands
-#[derive(AsRefStr, EnumString)]
 enum Command {
-   #[strum(to_string = "Добавить")]
    Add, // add a new node
-   #[strum(to_string = "Удалить")]
    Delete, // delete node
-   #[strum(to_string = "Выход")]
    Exit, // return to start menu
-   #[strum(to_string = "Назад")]
    Return, // return to parent node
-   #[strum(to_string = "/pas")]
-   Pass(i32), // make the specified node active
+   Goto(i32), // make the specified node active
    Edit(EditCmd),
    Unknown,
 }
 
+const GOTO: &str = "/got";
+
 // Main commands
-#[derive(AsRefStr, EnumString, EnumMessage, EnumDefault)]
+#[derive(AsRefStr, )]
 enum EditCmd {
-   #[strum(to_string = "Название", message = "title")] // Button caption and db field name
+   #[strum(to_string = "title")] // DB field name
    Title,
-   #[strum(to_string = "Описание", message = "descr")]
+   #[strum(to_string = "descr")]
    Descr,
-   #[strum(to_string = "Картинка", message = "picture")]
+   #[strum(to_string = "picture")]
    Picture,
-   #[strum(to_string = "Реклама")]
    Advert,
-   #[strum(to_string = "Доступ", message = "enabled")]
+   #[strum(to_string = "enabled")]
    Enable,
-   #[strum(to_string = "Бан", message = "banned")]
+   #[strum(to_string = "banned")]
    Ban,
-   #[strum(to_string = "ID 1", message = "owner1")]
+   #[strum(to_string = "owner1")]
    Owner1,
-   #[strum(to_string = "ID 2", message = "owner2")]
+   #[strum(to_string = "owner2")]
    Owner2,
-   #[strum(to_string = "ID 3", message = "owner3")]
+   #[strum(to_string = "owner3")]
    Owner3,
-   #[strum(to_string = "Время", message = "time")] // really in db there open and close fields
+   #[strum(to_string = "time")] // really in db there open and close fields
    Time,
-   #[strum(to_string = "Цена", message = "price")]
+   #[strum(to_string = "price")]
    Price,
 }
 
 impl Command {
-   fn parse(s: &str) -> Self {
-      // Try as edit subcommand
-      if let Ok(edit) = EditCmd::from_str(s) {
-         Self::Edit(edit)
-      } else {
-         // Try as main command
-         Self::from_str(s)
-         .unwrap_or_else(|_| {
-            // Looking for the commands with arguments
-            if s.get(..4).unwrap_or_default() == Self::Pass(0).as_ref() {
-               let r_part = s.get(4..).unwrap_or_default();
-               Command::Pass(r_part.parse().unwrap_or_default())
-            } else {
-               Command::Unknown
-            }
-         })
+   fn parse(s: &str, tag: LocaleTag) -> Self {
+
+      // Try as command without arguments
+      if s == loc(Key::GearAdd, tag, &[]) { Self::Add }
+      else if s == loc(Key::GearDelete, tag, &[]) { Self::Delete }
+      else if s == loc(Key::GearExit, tag, &[]) { Self::Exit }
+      else if s == loc(Key::GearReturn, tag, &[]) { Self::Return }
+      else if s == loc(Key::GearEditTitle, tag, &[]) { Self::Edit(EditCmd::Title) }
+      else if s == loc(Key::GearEditDescr, tag, &[]) { Self::Edit(EditCmd::Descr) }
+      else if s == loc(Key::GearEditPicture, tag, &[]) { Self::Edit(EditCmd::Picture) }
+      else if s == loc(Key::GearEditAdvert, tag, &[]) { Self::Edit(EditCmd::Advert) }
+      else if s == loc(Key::GearEditEnable, tag, &[]) { Self::Edit(EditCmd::Enable) }
+      else if s == loc(Key::GearEditBan, tag, &[]) { Self::Edit(EditCmd::Ban) }
+      else if s == loc(Key::GearEditOwner1, tag, &[]) { Self::Edit(EditCmd::Owner1) }
+      else if s == loc(Key::GearEditOwner2, tag, &[]) { Self::Edit(EditCmd::Owner2) }
+      else if s == loc(Key::GearEditOwner3, tag, &[]) { Self::Edit(EditCmd::Owner3) }
+      else if s == loc(Key::GearEditTime, tag, &[]) { Self::Edit(EditCmd::Time) }
+      else if s == loc(Key::GearEditPrice, tag, &[]) { Self::Edit(EditCmd::Price) }
+      else {
+         // Looking for the commands with arguments
+         if s.get(..4).unwrap_or_default() == GOTO {
+            let r_part = s.get(4..).unwrap_or_default();
+            Command::Goto(r_part.parse().unwrap_or_default())
+         } else {
+            Command::Unknown
+         }
       }
    }
 }
@@ -116,7 +120,8 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
       dialogue.update(new_state).await?;
    } else {
       let contact = env::admin_contact_info();
-      let text = format!("Для доступа в режим ввода информации обратитесь к '{}' и сообщите ему id={}", contact, state.user_id);
+      // "To access the input mode, refer to '{}' and give it id={}"
+      let text = loc(Key::GearEnter, state.tag, &[&contact, &state.user_id]);
       let chat_id = msg.chat.id;
       bot.send_message(chat_id, text).await?;
    }
@@ -144,10 +149,11 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
    // === main body
 
    let chat_id = msg.chat.id;
+   let tag = state.prev_state.tag;
 
    // Parse and handle commands
    let cmd_text = msg.text().unwrap_or_default();
-   let cmd = Command::parse(cmd_text);
+   let cmd = Command::parse(cmd_text, tag);
    match cmd {
       Command::Add => {
          // Extract current node from stack
@@ -155,7 +161,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
          let node = new_state.stack.last_mut().unwrap();
 
          // Store a new child node in database with updating id
-         let mut child = Node::new(node.id);
+         let mut child = Node::new(node.id, tag);
          db::node_insert(&mut child).await?;
 
          // Update current node and push to stack
@@ -171,7 +177,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
 
       Command::Return => do_return(bot, msg, dialogue, state).await,
 
-      Command::Pass(index) => {
+      Command::Goto(index) => {
          // Peek current node from stack
          let node = state.stack.last().unwrap();
 
@@ -191,9 +197,10 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
             view(bot, msg, &new_state).await?;
             dialogue.update(new_state).await?;
          } else {
-            let text = format!("Неверно указан номер записи '{}', нельзя перейти", index);
+            // "Invalid position number '{}', cannot navigate"
+            let text = loc(Key::GearUpdateGoto, tag, &[&index]);
             bot.send_message(chat_id, text)
-            .reply_markup(markup(&state))
+            .reply_markup(markup(&state, tag))
             .await?;
          }
 
@@ -206,8 +213,10 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
 
          // Root/start node cannot to delete
          if len <= 1 {
-            bot.send_message(chat_id, "Нельзя удалить начальный узел")
-            .reply_markup(markup(&state))
+            // "Cannot delete start node"
+            let text = loc(Key::GearUpdateDelete1, tag, &[]);
+            bot.send_message(chat_id, text)
+            .reply_markup(markup(&state, tag))
             .await?;
             return Ok(())
          }
@@ -220,9 +229,10 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
          // Delete record if it has no children
          let children_num = node.children.len();
          if children_num > 0 {
-            let text = format!("У записи '{}' есть {} дочерних, для защиты от случайного удаления большого объёма информации удалите сначала их", node.title, children_num);
+            // "Record '{}' has {} children, to protect against accidental deletion of a large amount of information, delete them first"
+            let text = loc(Key::GearUpdateDelete2, tag, &[&node.title, &children_num]);
             bot.send_message(chat_id, text)
-            .reply_markup(markup(&state))
+            .reply_markup(markup(&state, tag))
             .await?;
             Ok(())
          } else {
@@ -230,7 +240,8 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
             let node_id = node.id;
             db::node_delete(node_id).await?;
 
-            let text = format!("Запись '{}' удалена, переходим на уровень выше", node.title);
+            // "Record '{}' removed, go one level up"
+            let text = loc(Key::GearUpdateDelete3, tag, &[&node.title]);
             bot.send_message(chat_id, text).await?;
 
             // Delete from stack
@@ -252,7 +263,8 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
          let kind = match cmd {
             EditCmd::Title => UpdateKind::Text(node.title.clone()),
             EditCmd::Descr => {
-               let text = "Подсказка - если в описании всего один символ, оно не отображается";
+               // "Hint - if the description has only one character, it is not displayed"
+               let text = loc(Key::GearUpdateEdit, tag, &[]);
                bot.send_message(chat_id, text).await?;
                UpdateKind::Text(node.descr.clone())
             }
@@ -268,7 +280,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
          };
 
          // Appropriate database field name
-         let field = String::from(cmd.get_message().unwrap());
+         let field = String::from(cmd.as_ref());
 
          // Move to editing mode
          let new_state = GearStateEditing {
@@ -281,9 +293,10 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
       }
 
       Command::Unknown => {
-         let text = format!("Непонятно, к чему отнести {}. Выберите сначала команду из нижнего меню", cmd_text);
+         // "It is not clear what to attribute '{}' to. Select a command from the bottom menu first"
+         let text = loc(Key::GearUpdateUnknown, tag, &[&cmd_text]);
          bot.send_message(chat_id, text)
-         .reply_markup(markup(&state))
+         .reply_markup(markup(&state, tag))
          .await?;
          Ok(())
       }
@@ -292,6 +305,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
 
 
 async fn view(bot: AutoSend<Bot>, msg: Message, state: &GearState) -> HandlerResult {
+   let tag = state.prev_state.tag;
 
    // Collect path from the beginning
    let mut title = state.stack
@@ -312,59 +326,67 @@ async fn view(bot: AutoSend<Bot>, msg: Message, state: &GearState) -> HandlerRes
    }
 
    // Add other info
+   let tf = loc(Key::CommonTimeFormat, tag, &[]);
    title = format!("{}\n{}: {}, {}: {}\n{}: {}-{}\n{}: {}",
       title,
-      EditCmd::Enable.as_ref(), from_flag(node.enabled),
-      EditCmd::Ban.as_ref(), from_flag(node.banned),
-      EditCmd::Time.as_ref(), node.time.0.format("%H:%M"), node.time.1.format("%H:%M"),
-      EditCmd::Picture.as_ref(), if let Origin::Own(_) = node.picture { "имеется" } else  { "отсутствует" }
+      loc(Key::GearEditEnable, tag, &[]), from_flag(node.enabled),
+      loc(Key::GearEditBan, tag, &[]), from_flag(node.banned),
+      loc(Key::GearEditTime, tag, &[]), node.time.0.format(&tf), node.time.1.format(&tf),
+      loc(Key::GearEditPicture, tag, &[]), if let Origin::Own(_) = node.picture {
+         // "available"
+         loc(Key::GearView1, tag, &[])
+      } else  {
+         // "missing"
+         loc(Key::GearView2, tag, &[])
+      }
    );
 
+   // List of subnodes width goto command
    let text = state.stack
    .last().unwrap()
    .children.iter()
    .enumerate()
-   .fold(title, |acc, n| format!("{}\n{}{} {}", acc, Command::Pass(0).as_ref(), n.0 + 1, n.1.title));
+   .fold(title, |acc, n| format!("{}\n{}{} {}", acc, GOTO, n.0 + 1, n.1.title));
 
    let chat_id = msg.chat.id;
    bot.send_message(chat_id, text)
-   .reply_markup(markup(&state))
+   .reply_markup(markup(&state, tag))
    .await?;
 
    Ok(())
 }
 
-fn markup(state: &GearState) -> ReplyMarkup {
+fn markup(state: &GearState, tag: LocaleTag) -> ReplyMarkup {
    let mut row1 = vec![
-      String::from(Command::Add.as_ref()),
-      String::from(EditCmd::Title.as_ref()),
-      String::from(EditCmd::Descr.as_ref()),
+      loc(Key::GearAdd, tag, &[]),
+      loc(Key::GearEditTitle, tag, &[]),
+      loc(Key::GearEditDescr, tag, &[]),
    ];
    let row2 = vec![
-      String::from(EditCmd::Enable.as_ref()),
-      String::from(EditCmd::Time.as_ref()),
-      String::from(EditCmd::Picture.as_ref()),
-      String::from(EditCmd::Advert.as_ref()),
+      loc(Key::GearEditEnable, tag, &[]),
+      loc(Key::GearEditTime, tag, &[]),
+      loc(Key::GearEditPicture, tag, &[]),
+      loc(Key::GearEditAdvert, tag, &[]),
    ];
    let mut row3 = vec![
-      String::from(Command::Exit.as_ref()),
+      loc(Key::GearExit, tag, &[]),
    ];
 
    // Condition-dependent menu items
    if state.stack.len() > 1 {
-      row1.insert(1, String::from(Command::Delete.as_ref()));
-      row3.push(String::from(EditCmd::Price.as_ref()));
-      row3.push(String::from(Command::Return.as_ref()));
+      row1.insert(1, loc(Key::GearDelete, tag, &[]));
+      row3.push(loc(Key::GearEditPrice, tag, &[]));
+      row3.push(loc(Key::GearReturn, tag, &[]));
    }
 
    let mut keyboard = vec![row1, row2, row3];
 
    if state.prev_state.is_admin {
       let row_admin = vec![
-         String::from(EditCmd::Ban.as_ref()),
-         String::from(EditCmd::Owner1.as_ref()),
-         String::from(EditCmd::Owner2.as_ref()),
-         String::from(EditCmd::Owner3.as_ref()),
+         loc(Key::GearEditBan, tag, &[]),
+         loc(Key::GearEditOwner1, tag, &[]),
+         loc(Key::GearEditOwner2, tag, &[]),
+         loc(Key::GearEditOwner3, tag, &[]),
       ];
       keyboard.insert(2, row_admin);
    }
@@ -388,8 +410,10 @@ async fn send_advert(bot: AutoSend<Bot>, msg: Message, state: GearState) -> Hand
    }
 
    // === main body
+   let tag = state.prev_state.tag;
    let chat_id = msg.chat.id;
-   let text = "Вы можете использовать для пересылки сообщение ниже или взять из него только ссылку, при открытии которой клиенты попадут сразу на эту запись";
+   // "You can use the message below for forwarding or take only a link from it, when opened, customers will go directly to this post"
+   let text = loc(Key::GearSendAdvert, tag, &[]);
    bot.send_message(chat_id, text).await?;
 
    // Peek current node
@@ -409,7 +433,7 @@ async fn send_advert(bot: AutoSend<Bot>, msg: Message, state: GearState) -> Hand
 
    // Three ways to send depending on the number of pictures
    let text = format!("{}\n{}\n{}{}", node.title_with_price(), node.descr, env::link(), node.id);
-   let markup = markup(&state);
+   let markup = markup(&state, tag);
    match pictures.len() {
       0 => {
          bot.send_message(chat_id, text)
@@ -465,20 +489,21 @@ pub struct GearStateEditing {
 }
 
 pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: GearStateEditing) -> HandlerResult {
-   async fn do_update(state: &mut GearStateEditing, input: String) -> Result<String, String> {
-      let res = if input == String::from("/") {
-         String::from("Отмена, значение не изменено")
+   async fn do_update(state: &mut GearStateEditing, input: String, tag: LocaleTag) -> Result<String, String> {
+      let res = if input == loc(Key::CommonCancel, tag, &[]) {
+         // "Cancel, value not changed"
+         loc(Key::CommonEditCancel, tag, &[])
       } else {
          // Store new value
          state.update.kind = match state.update.kind {
-            UpdateKind::Text(_) => UpdateKind::Text(input),
+            UpdateKind::Text(_) => UpdateKind::Text(input.to_owned()),
             UpdateKind::Picture(_) => {
                // Delete previous if new id too short
-               let id = if input.len() >= 3 { Origin::Own(input) } else { Origin::None };
+               let id = if input.len() >= 3 { Origin::Own(input.to_owned()) } else { Origin::None };
                UpdateKind::Picture(id)
             }
             UpdateKind::Flag(_) => {
-               let flag = to_flag(input)?;
+               let flag = to_flag(&input)?;
                UpdateKind::Flag(flag)
             }
             UpdateKind::Int(_) => {
@@ -486,19 +511,24 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
                if let Ok(int) = res {
                   UpdateKind::Int(int)
                } else {
-                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать в число, значение не изменено", input))
+                  // "Error, unable to convert '{}' to number, value not changed"
+                  let text = loc(Key::GearUpdateEdit1, tag, &[&input]);
+                  return Ok(text)
                }
             }
             UpdateKind::Time(_, _) => {
                let part1 = input.get(..5).unwrap_or_default();
                let part2 = input.get(6..).unwrap_or_default();
-               let part1 = NaiveTime::parse_from_str(part1, "%H:%M");
-               let part2 = NaiveTime::parse_from_str(part2, "%H:%M");
+               let fmt = loc(Key::CommonTimeFormat, tag, &[]);
+               let part1 = NaiveTime::parse_from_str(part1, &fmt);
+               let part2 = NaiveTime::parse_from_str(part2, &fmt);
 
                if part1.is_ok() && part2.is_ok() {
                   UpdateKind::Time(part1.unwrap(), part2.unwrap())
                } else {
-                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать во время работы типа '07:00-21:00', значение не изменено", input))
+                  // "Error, unable to convert '{}' while running type '07:00-21:00', value not changed"
+                  let text = loc(Key::GearUpdateEdit2, tag, &[&input]);
+                  return Ok(text)
                }
             }
             UpdateKind::Money(_) => {
@@ -506,7 +536,9 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
                if let Ok(int) = res {
                   UpdateKind::Money(int)
                } else {
-                  return Ok(format!("Ошибка, не удаётся '{}' преобразовать в число, значение не изменено", input))
+                  // "Error, unable to convert '{}' to number, value not changed"
+                  let text = loc(Key::GearUpdateEdit1, tag, &[&input]);
+                  return Ok(text)
                }
             }
          };
@@ -533,12 +565,14 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
             }
          }
 
-         String::from("Новое значение сохранено")
+         // "New value saved"
+         loc(Key::CommonEditConfirm, tag, &[&input])
       };
       Ok(res)
    }
 
    // === main body
+   let tag = state.prev_state.prev_state.tag;
 
    // Report result
    let chat_id = msg.chat.id;
@@ -550,14 +584,14 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
          if let Some(sizes) = picture {
             sizes[0].file_id.clone()
          } else {
-            String::from("/")
+            loc(Key::CommonCancel, tag, &[]) // "/"
          }
       }
-      _ => msg.text().unwrap_or("/").to_string(),
+      _ => msg.text().unwrap_or(&loc(Key::CommonCancel, tag, &[])).to_string(),
    };
 
    let mut new_state = state.clone();
-   let text = do_update(&mut new_state, input).await?;
+   let text = do_update(&mut new_state, input, tag).await?;
 
    bot.send_message(chat_id, text)
    .await?;
@@ -577,44 +611,69 @@ async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: &GearStateEditing) 
       Ok(())
    }
 
-   async fn do_enter_picture(bot: AutoSend<Bot>, chat_id: ChatId, old_val: &Origin) -> HandlerResult {
+   async fn do_enter_picture(bot: AutoSend<Bot>, chat_id: ChatId, old_val: &Origin, tag: LocaleTag) -> HandlerResult {
       let opt: Option<String> = old_val.into();
+
+      // "Submit an image (comments are ignored) or press / to cancel"
+      let text = loc(Key::GearEnterEdit1, tag, &[]);
+
       if let Some(old_id) = opt {
 
-         let text = "Отправьте изображение (комментарии игнорируются) или нажмите / для отмены";
          let photo = InputFile::file_id(old_id);
 
          // Try to send photo
          let res = bot.send_photo(chat_id, photo)
-         .caption(text)
-         .reply_markup(cancel_markup())
+         .caption(&text)
+         .reply_markup(cancel_markup(tag))
          .await;
 
          // In case of error send message
          if res.is_err() {
-            let text = format!("{} (прежнее изображение недоступно)", text);
+            // "{} (previous image not available)"
+            let text = loc(Key::GearEnterEdit2, tag, &[&text]);
             bot.send_message(chat_id, text)
-            .reply_markup(cancel_markup())
+            .reply_markup(cancel_markup(tag))
             .await?;
          }
       } else {
-         let text = "Отправьте изображение (комментарии игнорируются) или нажмите / для отмены";
          bot.send_message(chat_id, text)
-         .reply_markup(cancel_markup())
+         .reply_markup(cancel_markup(tag))
          .await?;
       }
       Ok(())
    }
 
    // === main body
+   let tag = state.prev_state.prev_state.tag;
    let chat_id = msg.chat.id;
    match &state.update.kind {
-      UpdateKind::Text(old_val) => do_enter(bot, chat_id, format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup()).await?,
-      UpdateKind::Picture(old_val) => do_enter_picture(bot, chat_id, old_val).await?,
-      UpdateKind::Flag(old_val) => do_enter(bot, chat_id, format!("Текущее значение '{}', выберите новое", from_flag(*old_val)), flag_markup()).await?,
-      UpdateKind::Int(old_val) => do_enter(bot, chat_id, format!("Текущее значение user id='{}', введите новое или / для отмены", old_val), cancel_markup()).await?,
-      UpdateKind::Time(open, close) => do_enter(bot, chat_id, format!("Текущее время '{}-{}', введите новое или / для отмены", open.format("%H:%M"), close.format("%H:%M")), cancel_markup()).await?,
-      UpdateKind::Money(old_val) => do_enter(bot, chat_id, format!("Текущее значение '{}', введите новое или / для отмены", old_val), cancel_markup()).await?,
+      UpdateKind::Text(old_val) => {
+         // "Current value '{}', enter new or / to cancel"
+         let text = loc(Key::GearEnterEdit3, tag, &[&old_val]);
+         do_enter(bot, chat_id, text, cancel_markup(tag)).await?
+      }
+      UpdateKind::Picture(old_val) => do_enter_picture(bot, chat_id, old_val, tag).await?,
+      UpdateKind::Flag(old_val) => {
+         // "Current value '{}', select new"
+         let text = loc(Key::GearEnterEdit4, tag, &[&from_flag(*old_val)]);
+         do_enter(bot, chat_id, text, flag_markup()).await?
+      }
+      UpdateKind::Int(old_val) => {
+         // "Current value '{}', enter new or / to cancel"
+         let text = loc(Key::GearEnterEdit3, tag, &[&old_val]);
+         do_enter(bot, chat_id, text, cancel_markup(tag)).await?
+      }
+      UpdateKind::Time(open, close) => {
+         // "Current time '{}-{}', enter new or / to cancel"
+         let fmt =  loc(Key::CommonTimeFormat, tag, &[]);
+         let text = loc(Key::GearEnterEdit5, tag, &[&open.format(&fmt), &close.format(&fmt)]);
+         do_enter(bot, chat_id, text, cancel_markup(tag)).await?
+      }
+      UpdateKind::Money(old_val) => {
+         // "Current value '{}', enter new or / to cancel"
+         let text = loc(Key::GearEnterEdit3, tag, &[&old_val]);
+         do_enter(bot, chat_id, text, cancel_markup(tag)).await?
+      }
    }
 
    Ok(())

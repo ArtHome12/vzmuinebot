@@ -20,8 +20,11 @@ use crate::environment as env;
 use crate::states::*;
 use crate::database as db;
 use crate::node::*;
+use crate::loc::*;
 
 pub async fn enter(bot: AutoSend<Bot>, msg: Message, state: MainState, mode: WorkTime) -> HandlerResult {
+
+   let tag = state.tag;
 
    // Load root node with children
    let load_mode = match mode {
@@ -35,8 +38,8 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, state: MainState, mode: Wor
 
    if node.is_none() {
       let text = match mode {
-         WorkTime::Now => "Открытых сейчас заведений нет",
-         _ => "Ошибка, нет записей - обратитесь к администратору",
+         WorkTime::Now => loc(Key::NavigationEnter1, tag, &[]), // "There is no currently open places"
+         _ => loc(Key::NavigationEnter2, tag, &[]), // "Error, no entries - contact administrator"
       };
 
       bot.send_message(chat_id, text)
@@ -48,7 +51,9 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, state: MainState, mode: Wor
       // Next check - picture
       match &node.picture {
          Origin::None => {
-            bot.send_message(chat_id, "Ошибка, без картинки невозможно продолжить - обратитесь к администратору")
+            // "Error, can't continue without picture - contact administrator"
+            let text = loc(Key::NavigationEnter3, tag, &[]);
+            bot.send_message(chat_id, text)
             .await?;
          }
          Origin::Own(picture) | Origin::Inherited(picture) => {
@@ -56,14 +61,17 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, state: MainState, mode: Wor
             // Notify about time
             if matches!(mode, WorkTime::Now) {
                let now = env::current_date_time();
-               bot.send_message(chat_id, &format!("Заведения, открытые сейчас с учётом часового пояса {} ({}):", env::time_zone_info(), now.format("%H:%M")))
+               // "Establishments currently open, taking into account the time zone {} ({}):"
+               let fmt = loc(Key::CommonTimeFormat, tag, &[]);
+               let text = loc(Key::NavigationEnter4, tag, &[&env::time_zone_info(), &now.format(&fmt)]);
+               bot.send_message(chat_id, text)
                .await?;
             }
 
             // All is ok, collect and display info
-            let user_id = state.user_id; // user needs to sync with basket
-            let markup = markup(&node, mode, user_id).await?;
-            let text = node_text(&node);
+            let user_id = state.user_id; // user needs to sync with cart
+            let markup = markup(&node, mode, user_id, tag).await?;
+            let text = node_text(&node, tag);
 
             bot.send_photo(chat_id, InputFile::file_id(picture))
             .caption(text)
@@ -86,7 +94,7 @@ async fn msg(bot: &AutoSend<Bot>, user_id: UserId, text: &str) -> Result<(), Str
    Ok(())
 }
 
-pub async fn view(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32, mode: WorkTime) -> Result<(), String> {
+pub async fn view(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32, mode: WorkTime, tag: LocaleTag) -> Result<(), String> {
 
    let user_id = q.from.id;
 
@@ -97,21 +105,25 @@ pub async fn view(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32, mode: Wor
    };
    let node =  db::node(load_mode).await?;
    if node.is_none() {
-      msg(bot, user_id, "Ошибка, запись недействительна, начните заново").await?;
+      // "Error, data deleted, start again"
+      let text = loc(Key::NavigationView1, tag, &[]);
+      msg(bot, user_id, &text).await?;
       return Ok(())
    }
 
    // Collect info
    let node = node.unwrap();
-   let markup = markup(&node, mode, user_id)
+   let markup = markup(&node, mode, user_id, tag)
    .await?;
 
-   let text = node_text(&node);
+   let text = node_text(&node, tag);
 
    // Message to modify
    let message = q.message;
    if message.is_none() {
-      msg(bot, user_id, "Ошибка, сообщение недействительно, начните заново").await?;
+      // "Error, update message is invalid, please start again"
+      let text = loc(Key::NavigationView2, tag, &[]);
+      msg(bot, user_id, &text).await?;
       return Ok(())
    }
    // let chat_id = ChatId::Id(message.chat_id());
@@ -120,7 +132,9 @@ pub async fn view(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32, mode: Wor
    // Picture is mandatory
    match node.picture {
       Origin::None => {
-         msg(bot, user_id, "Ошибка, отсутствует картинка, она обязательна").await?;
+         // "Error, there is no picture, it is required - contact the staff"
+         let text = loc(Key::NavigationView3, tag, &[]);
+         msg(bot, user_id, &text).await?;
          return Ok(())
       }
       Origin::Own(picture_id) | Origin::Inherited(picture_id) => {
@@ -143,7 +157,7 @@ pub async fn view(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32, mode: Wor
    }
 }
 
-fn node_text(node: &Node) -> String {
+fn node_text(node: &Node, tag: LocaleTag) -> String {
 
    let mut res = format!("<b>{}</b>", node.title);
 
@@ -154,23 +168,25 @@ fn node_text(node: &Node) -> String {
 
    // Display time only if it sets
    if node.is_time_set() {
-      res = format!("{}\nВремя работы: {}-{}",
-         res,
-         node.time.0.format("%H:%M"), node.time.1.format("%H:%M")
-      )
+      // "{}\nWorking time: {}-{}"
+      let fmt = loc(Key::CommonTimeFormat, tag, &[]);
+      let args: Args = &[
+         &res,
+         &node.time.0.format(&fmt),
+         &node.time.1.format(&fmt)
+      ];
+      res = loc(Key::NavigationNodeText1, tag, args);
    };
 
    if node.price != 0 {
-      res = format!("{}\nЦена: {}",
-         res,
-         env::price_with_unit(node.price)
-      )
+      // "{}\nPrice: {}"
+      res = loc(Key::NavigationNodeText2, tag, &[&res, &env::price_with_unit(node.price)])
    }
 
    res
 }
 
-async fn markup(node: &Node, mode: WorkTime, user_id: UserId) -> Result<InlineKeyboardMarkup, String> {
+async fn markup(node: &Node, mode: WorkTime, user_id: UserId, tag: LocaleTag) -> Result<InlineKeyboardMarkup, String> {
 
    // Prepare command
    let pas = match mode {
@@ -194,11 +210,16 @@ async fn markup(node: &Node, mode: WorkTime, user_id: UserId) -> Result<InlineKe
    .into_iter()
    .partition(|n| n.text.chars().count() > 21);
 
-   // If price not null add button for basket with amount
+   // If price not null add button for cart with amount
    if node.price != 0 {
       // Display only title or title with amount
       let amount = db::orders_amount(user_id.0 as i64, node.id).await?;
-      let caption = if amount > 0 { format!("+🛒 ({})", amount) } else { String::from("+🛒") };
+      // "+🛒 ({})", "+🛒"
+      let caption = if amount > 0 {
+         loc(Key::NavigationMarkup1, tag, &[&amount])
+      } else {
+         loc(Key::NavigationMarkup2, tag, &[])
+      };
 
       let cmd = match mode {
          WorkTime::All | WorkTime::AllFrom(_) => Command::IncAmount(0),
@@ -219,7 +240,7 @@ async fn markup(node: &Node, mode: WorkTime, user_id: UserId) -> Result<InlineKe
          };
          let cmd = String::from(cmd.as_ref());
          let button_dec = InlineKeyboardButton::callback(
-            String::from("-🛒"),
+            loc(Key::NavigationMarkup3, tag, &[]), // "-🛒"
             format!("{}{}", cmd, node.id)
          );
          short.push(button_dec);
@@ -246,7 +267,7 @@ async fn markup(node: &Node, mode: WorkTime, user_id: UserId) -> Result<InlineKe
    // Back button
    if node.id > 0 {
       let button_back = InlineKeyboardButton::callback(
-         String::from("⏪Назад"),
+         loc(Key::NavigationMarkup4, tag, &[]), // "⏪Back"
          format!("{}{}", pas, node.parent)
       );
       last_row.push(button_back);

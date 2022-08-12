@@ -32,7 +32,7 @@ mod node;
 mod states;
 mod gear;
 mod navigation;
-mod basket;
+mod cart;
 mod customer;
 mod orders;
 mod callback;
@@ -194,7 +194,7 @@ async fn run() {
    }
 
    // Data for localization
-   let loc = crate::loc::Locale::new();
+   let loc = crate::loc::Locale::new("en");
    if loc::LOC.set(loc).is_err() {
       log::error!("main::run() loc set error")
    }

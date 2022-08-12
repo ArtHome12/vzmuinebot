@@ -20,6 +20,7 @@ use crate::customer::*;
 use crate::node;
 use crate::ticket::*;
 use crate::environment as env;
+use crate::loc::*;
 
 
 /* type Update = UpdateWithCx<AutoSend<Bot>, CallbackQuery>; */
@@ -35,7 +36,7 @@ enum Role {
    Owner3,
 }
 
-pub async fn show_tickets(bot: AutoSend<Bot>, user_id: UserId) -> Result<(), String> {
+pub async fn show_tickets(bot: AutoSend<Bot>, user_id: UserId, tag: LocaleTag) -> Result<(), String> {
    let tickets = db::tickets(user_id.0 as i64).await?;
 
    let user_id = user_id.0 as i64;
@@ -56,25 +57,25 @@ pub async fn show_tickets(bot: AutoSend<Bot>, user_id: UserId) -> Result<(), Str
       match role {
          Role::Customer => {
             t.ticket.cust_status_msg_id =
-               update_status(&bot, &mut t, Role::Customer).await?
+               update_status(&bot, &mut t, Role::Customer, tag).await?
          }
          Role::Owner1 => {
             t.ticket.owners_status_msg_id.0 =
-               update_status(&bot, &mut t, Role::Owner1)
+               update_status(&bot, &mut t, Role::Owner1, tag)
                .await
                .ok()
                .flatten()
          }
          Role::Owner2 => {
             t.ticket.owners_status_msg_id.1 =
-               update_status(&bot, &mut t, Role::Owner2)
+               update_status(&bot, &mut t, Role::Owner2, tag)
                .await
                .ok()
                .flatten()
          }
          Role::Owner3 => {
             t.ticket.owners_status_msg_id.2 =
-               update_status(&bot, &mut t, Role::Owner3)
+               update_status(&bot, &mut t, Role::Owner3, tag)
                .await
                .ok()
                .flatten()
@@ -88,7 +89,7 @@ pub async fn show_tickets(bot: AutoSend<Bot>, user_id: UserId) -> Result<(), Str
    Ok(())
 }
 
-async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role) -> Result<Option<i32>, String> {
+async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role, tag: LocaleTag) -> Result<Option<i32>, String> {
    // Prepare data
    let (recipient_id, order_msg_id, status_msg_id) = match role {
       Role::Customer => (t.ticket.customer_id, Some(t.ticket.cust_msg_id), t.ticket.cust_status_msg_id),
@@ -108,7 +109,7 @@ async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role
       _ => InfoFor::Owner,
    };
    let text = t.stage_message(info_for);
-   let markup = t.ticket.make_markup(info_for);
+   let markup = t.ticket.make_markup(info_for, tag);
 
    // Not all owners can exist and, accordingly, there are no message codes
    if order_msg_id.is_none() {
@@ -123,7 +124,8 @@ async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role
 
       // Failure to delete a message is a normal situation, but fail notification is not
       if res.is_err() {
-         let text = "Невозможно удалить предыдущее сообщение со статусом заказа, возможно оно уже было удалено";
+         // "Unable to delete previous order status message, it may have already been deleted"
+         let text = loc(Key::RegUpdateStatus, tag, &[]);
          bot.send_message(recipient.to_owned(), text)
          .await
          .map_err(|err| format!("registration::update_status::delete old status user_id={}: {}", recipient_id, err))?;
@@ -143,7 +145,7 @@ async fn update_status(bot: &AutoSend<Bot>, t: &mut TicketWithOwners, role: Role
 }
 
 
-pub async fn make_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32) -> Result<&'static str, String> {
+pub async fn make_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32, tag: LocaleTag) -> Result<String, String> {
 
    // Load customer info
    let user_id = q.from.id;
@@ -157,9 +159,11 @@ pub async fn make_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32) ->
 
    // Check valid owner
    if owners.0 < VALID_USER_ID as i64 && owners.1 < VALID_USER_ID as i64 && owners.2 < VALID_USER_ID as i64 {
-      let text = "Заведение пока не подключено к боту, пожалуйста скопируйте ваш заказ отправьте по указанным контактным данным напрямую, после чего можно очистить корзину";
-      reply_msg(bot, user_id, reply_to_id, text).await?;
-      return Ok("Неудачно");
+      // "The place is not yet connected to the bot, please copy your order and send it directly to the specified contact details, after which you can empty the cart"
+      let text = loc(Key::RegMakeTicket1, tag, &[]);
+      reply_msg(bot, user_id, reply_to_id, &text).await?;
+      // "Unsuccessfully"
+      return Ok(loc(Key::RegMakeTicket2, tag, &[]));
    }
 
    // Get source message text and id
@@ -168,9 +172,11 @@ pub async fn make_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32) ->
       .and_then(|f| Some(f.to_string()))
    );
    if old_text.is_none() {
-      let text = "Не удаётся получить текст заказа, возможно слишком старое сообщение";
-      reply_msg(bot, user_id, reply_to_id, text).await?;
-      return Ok("Неудачно");
+      // "Unable to get order text, message may be too old"
+      let text = loc(Key::RegMakeTicket3, tag, &[]);
+      reply_msg(bot, user_id, reply_to_id, &text).await?;
+      // "Unsuccessfully"
+      return Ok(loc(Key::RegMakeTicket2, tag, &[]));
    }
    let old_text = old_text.unwrap();
    let orig_msg_id = ref_m.unwrap().id; // unwrap checked above
@@ -184,17 +190,21 @@ pub async fn make_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32) ->
             let message_id = customer.location_id().unwrap_or_default();
             let res = forward_msg_to_owners(&bot, user_id, &owners, message_id).await;
             if let Err(err) = res {
-               let text = format!("Недоступно сообщение с геопозицией, пожалуйста обновите адрес\n<i>{}</i>", err);
+               // "Location message unavailable, please update address\n<i>{}</i>"
+               let text = loc(Key::RegMakeTicket4, tag, &[&err]);
                reply_msg(bot, user_id, reply_to_id, &text).await?;
-               return Ok("Неудачно");
+               // "Unsuccessfully"
+               return Ok(loc(Key::RegMakeTicket2, tag, &[]));
             }
          }
 
          false => {
             if customer.address.len() < 1 {
-               let text = "Пожалуйста, введите адрес или переключитесь на самовывоз при помощи кнопок внизу.\nЭта информация будет сохранена для последующих заказов, при необходимости вы всегда сможете её изменить";
+               // "Please enter an address or switch to pickup using the buttons below.\nThis information will be saved for future orders, you can always change it if necessary"
+               let text = loc(Key::RegMakeTicket5, tag, &[]);
                reply_msg(bot, user_id, reply_to_id, &text).await?;
-               return Ok("Неудачно");
+               // "Unsuccessfully"
+               return Ok(loc(Key::RegMakeTicket2, tag, &[]));
             }
          }
       }
@@ -210,12 +220,12 @@ pub async fn make_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32) ->
    .await
    .map_err(|err| format!("make_ticket edit_message user_id={} {}", user_id, err))?.id;
 
-   // Send to owner info about customer
-   let customer_info = format!("Заказ от {}:\nКонтакт для связи: {}\nСпособ доставки: {}",
-      customer.name,
-      customer.contact,
-      customer.delivery_desc()
-   );
+   // Send to owner info about customer "Order from {}:\nContact for communication: {}\nDelivery method: {}"
+   let customer_info = loc(Key::RegMakeTicket6, tag, &[
+      &customer.name,
+      &customer.contact,
+      &customer.delivery_desc(tag)
+   ]);
    send_msg_to_owners(&bot, &owners, &customer_info).await?;
 
    // Forward edited message with order and save msg id
@@ -233,30 +243,31 @@ pub async fn make_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32) ->
    };
 
    // Send messages with status to customer and owners
-   update_statuses(bot, t).await?;
+   update_statuses(bot, t, tag).await?;
 
-   Ok("Успешно")
+   // "Successfully"
+   Ok(loc(Key::RegMakeTicket7, tag, &[]))
 }
 
-async fn update_statuses(bot: &AutoSend<Bot>, mut t: TicketWithOwners) -> Result<(), String> {
+async fn update_statuses(bot: &AutoSend<Bot>, mut t: TicketWithOwners, tag: LocaleTag) -> Result<(), String> {
 
    // The status change for customer is mandatory
-   t.ticket.cust_status_msg_id = update_status(bot, &mut t, Role::Customer).await?;
+   t.ticket.cust_status_msg_id = update_status(bot, &mut t, Role::Customer, tag).await?;
 
    // Update status for owners, ignore fail
-   t.ticket.owners_status_msg_id.0 = update_status(bot, &mut t, Role::Owner1)
+   t.ticket.owners_status_msg_id.0 = update_status(bot, &mut t, Role::Owner1, tag)
    .await
    .ok()
    .flatten();
 
    // The same for owner 2
-   t.ticket.owners_status_msg_id.1 = update_status(bot, &mut t, Role::Owner2)
+   t.ticket.owners_status_msg_id.1 = update_status(bot, &mut t, Role::Owner2, tag)
    .await
    .ok()
    .flatten();
 
    // The same for owner 3
-   t.ticket.owners_status_msg_id.2 = update_status(bot, &mut t, Role::Owner3)
+   t.ticket.owners_status_msg_id.2 = update_status(bot, &mut t, Role::Owner3, tag)
    .await
    .ok()
    .flatten();
@@ -273,7 +284,7 @@ async fn update_statuses(bot: &AutoSend<Bot>, mut t: TicketWithOwners) -> Result
    Ok(())
 }
 
-pub async fn cancel_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, ticket_id: i32) -> Result<&'static str, String> {
+pub async fn cancel_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, ticket_id: i32, tag: LocaleTag) -> Result<String, String> {
 
    // Load ticket and update status
    let mut t = db::ticket_with_owners(ticket_id).await?;
@@ -286,16 +297,17 @@ pub async fn cancel_ticket(bot: &AutoSend<Bot>, q: CallbackQuery, ticket_id: i32
 
    let service_msg_id = t.ticket.service_msg_id;
    let stage = t.ticket.stage;
-   update_statuses(bot, t).await?;
+   update_statuses(bot, t, tag).await?;
 
    // Send the status also to the service chat
    let status = stage.get_message().unwrap();
    env::log_reply(status, service_msg_id).await;
 
-   Ok("Успешно")
+   // "Successfully"
+   Ok(loc(Key::RegMakeTicket7, tag, &[]))
 }
 
-pub async fn next_ticket(bot: &AutoSend<Bot>, ticket_id: i32) -> Result<&'static str, String> {
+pub async fn next_ticket(bot: &AutoSend<Bot>, ticket_id: i32, tag: LocaleTag) -> Result<String, String> {
 
    // Load ticket and update status
    let mut t = db::ticket_with_owners(ticket_id).await?;
@@ -304,11 +316,12 @@ pub async fn next_ticket(bot: &AutoSend<Bot>, ticket_id: i32) -> Result<&'static
       db::ticket_update_stage(t.ticket.id, t.ticket.stage).await?;
    }
 
-   update_statuses(bot, t).await?;
-   Ok("Успешно")
+   update_statuses(bot, t, tag).await?;
+   // "Successfully"
+   Ok(loc(Key::RegMakeTicket7, tag, &[]))
 }
 
-pub async fn confirm_ticket(bot: &AutoSend<Bot>, ticket_id: i32) -> Result<&'static str, String> {
+pub async fn confirm_ticket(bot: &AutoSend<Bot>, ticket_id: i32, tag: LocaleTag) -> Result<String, String> {
 
    // Load ticket and update status
    let mut t = db::ticket_with_owners(ticket_id).await?;
@@ -316,13 +329,14 @@ pub async fn confirm_ticket(bot: &AutoSend<Bot>, ticket_id: i32) -> Result<&'sta
    db::ticket_update_stage(t.ticket.id, t.ticket.stage).await?;
 
    let service_msg_id = t.ticket.service_msg_id;
-   update_statuses(bot, t).await?;
+   update_statuses(bot, t, tag).await?;
 
-   // Send the order also to the service chat
-   let status = "Заказ успешно завершён";
-   env::log_reply(status, service_msg_id).await;
+   // Send the order also to the service chat "Order completed successfully"
+   let status = loc(Key::RegConfirmTicket, tag, &[]);
+   env::log_reply(&status, service_msg_id).await;
 
-   Ok("Успешно")
+   // "Successfully"
+   Ok(loc(Key::RegMakeTicket7, tag, &[]))
 }
 
 async fn reply_msg(bot: &AutoSend<Bot>, receiver: UserId, reply_to_id: i32, text: &str) -> Result<(), String> {

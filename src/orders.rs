@@ -24,7 +24,7 @@ impl NodeWithAmount {
 
 pub type Order = Vec<NodeWithAmount>;
 
-pub struct BasketInfo {
+pub struct CartInfo {
    pub orders_num: usize,
    pub items_num: usize,
    pub total_cost: usize,
@@ -41,8 +41,8 @@ impl Orders {
       }
    }
 
-   pub fn basket_info(&self) -> BasketInfo {
-      let mut res = BasketInfo {
+   pub fn cart_info(&self) -> CartInfo {
+      let mut res = CartInfo {
          orders_num: 0,
          items_num: 0,
          total_cost: 0

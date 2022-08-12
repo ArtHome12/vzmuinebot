@@ -1,6 +1,6 @@
 /* ===============================================================================
 Restaurant menu bot.
-Basket menu. 01 Jun 2021.
+Cart menu. 01 Jun 2021.
 ----------------------------------------------------------------------------
 Licensed under the terms of the GPL version 3.
 http://www.gnu.org/licenses/gpl-3.0.html
@@ -13,9 +13,6 @@ use teloxide::{prelude::*,
    }
 };
 
-use std::str::FromStr;
-use strum::{AsRefStr };
-
 use crate::states::*;
 use crate::database as db;
 use crate::customer::*;
@@ -25,7 +22,7 @@ use crate::node;
 use crate::orders;
 use crate::registration;
 use crate::general;
-use crate::loc::{loc, Key, LocaleTag};
+use crate::loc::*;
 
 
 // ============================================================================
@@ -43,32 +40,30 @@ enum Command {
    Unknown,
 }
 
+const DEL: &str = "/del";
+
 // Main commands
-#[derive(Copy, Clone, AsRefStr)]
+#[derive(Copy, Clone)]
 enum EditCmd {
-   #[strum(to_string = "name")] // Button caption and db field name
    Name,
-   #[strum(to_string = "contact")]
    Contact,
-   #[strum(to_string = "address")]
    Address,
-   #[strum(to_string = "delivery")]
    Delivery,
 }
 
 impl Command {
    fn parse(s: &str, tag: LocaleTag) -> Self {
       // Try as command without arguments
-      if s == loc::<char>(Key::BasketCommandClear, tag, &[]) { Self::Clear }
-      else if s == loc::<char>(Key::BasketCommandExit, tag, &[]) { Self::Exit }
-      else if s == loc::<char>(Key::BasketCommandReload, tag, &[]) { Self::Reload }
-      else if s == loc::<char>(Key::BasketCommandEditName, tag, &[]) { Self::Edit(EditCmd::Name) }
-      else if s == loc::<char>(Key::BasketCommandEditContact, tag, &[]) { Self::Edit(EditCmd::Contact) }
-      else if s == loc::<char>(Key::BasketCommandEditAddress, tag, &[]) { Self::Edit(EditCmd::Address) }
-      else if s == loc::<char>(Key::BasketCommandEditDelivery, tag, &[]) { Self::Edit(EditCmd::Delivery) }
+      if s == loc(Key::CartCommandClear, tag, &[]) { Self::Clear }
+      else if s == loc(Key::CartCommandExit, tag, &[]) { Self::Exit }
+      else if s == loc(Key::CartCommandReload, tag, &[]) { Self::Reload }
+      else if s == loc(Key::CartCommandEditName, tag, &[]) { Self::Edit(EditCmd::Name) }
+      else if s == loc(Key::CartCommandEditContact, tag, &[]) { Self::Edit(EditCmd::Contact) }
+      else if s == loc(Key::CartCommandEditAddress, tag, &[]) { Self::Edit(EditCmd::Address) }
+      else if s == loc(Key::CartCommandEditDelivery, tag, &[]) { Self::Edit(EditCmd::Delivery) }
       else {
          // Looking for the commands with arguments
-         if s.get(..4).unwrap_or_default() ==  loc::<char>(Key::BasketCommandDelete, tag, &[]) {
+         if s.get(..4).unwrap_or_default() == DEL {
             let r_part = s.get(4..).unwrap_or_default();
             Self::Delete(r_part.parse().unwrap_or_default())
          } else {
@@ -79,7 +74,7 @@ impl Command {
 }
 
 #[derive(Clone)]
-pub struct BasketState {
+pub struct CartState {
    pub prev_state: MainState,
    pub customer: Customer,
 }
@@ -90,36 +85,36 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
    let customer = db::user(state.user_id.0).await?;
 
    // Display
-   let state = BasketState { prev_state: state, customer };
+   let state = CartState { prev_state: state, customer };
    dialogue.update(state.to_owned()).await?;
    view(bot, msg, state).await
 }
 
 
-async fn view(bot: AutoSend<Bot>, msg: Message, state: BasketState) -> HandlerResult {
-   let tag = state.prev_state.locale;
+async fn view(bot: AutoSend<Bot>, msg: Message, state: CartState) -> HandlerResult {
+   let tag = state.prev_state.tag;
 
    // Start with info about user
    // "Your data, {}:\nContact for communication: {}\nDelivery method: {}"
-   let args = [&state.customer.name, &state.customer.contact, &state.customer.delivery_desc()];
-   let info = loc(Key::BasketView1, tag, &args);
+   let args: Args = &[&state.customer.name, &state.customer.contact, &state.customer.delivery_desc(tag)];
+   let info = loc(Key::CartView1, tag, args);
 
    // Load info about orders
    let user_id = state.prev_state.user_id;
    let orders = db::orders(user_id.0 as i64).await?;
 
    // Announce
-   let basket_info = orders.basket_info();
-   let announce = if basket_info.orders_num == 0 {
+   let cart_info = orders.cart_info();
+   let announce = if cart_info.orders_num == 0 {
       // "Cart is empty"
-      loc::<char>(Key::BasketView2, tag, &[])
+      loc(Key::CartView2, tag, &[])
    } else {
       // "In cart {} pos., {} pcs. for total cost {}"
-      let args = [&basket_info.orders_num.to_string(),
-         &basket_info.items_num.to_string(),
-         &env::price_with_unit(basket_info.total_cost)
+      let args: Args = &[&cart_info.orders_num,
+         &cart_info.items_num,
+         &env::price_with_unit(cart_info.total_cost)
       ];
-      loc(Key::BasketView3, tag, &args)
+      loc(Key::CartView3, tag, &args)
    };
    bot.send_message(msg.chat.id, format!("{}\n\n{}", info, announce))
    .reply_markup(markup(tag))
@@ -138,14 +133,14 @@ async fn view(bot: AutoSend<Bot>, msg: Message, state: BasketState) -> HandlerRe
    }
 
    // Show tickets (orders in process)
-   registration::show_tickets(bot, state.prev_state.user_id).await?;
+   registration::show_tickets(bot, state.prev_state.user_id, tag).await?;
 
    Ok(())
 }
 
-pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: BasketState) -> HandlerResult {
+pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: CartState) -> HandlerResult {
 
-   let tag = state.prev_state.locale;
+   let tag = state.prev_state.tag;
    let user_id = state.prev_state.user_id.0 as u64;
 
    // Parse and handle commands
@@ -161,7 +156,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
       Command::Exit => crate::states::reload(bot, msg, dialogue, state.prev_state).await,
 
       Command::Edit(cmd) => {
-         let new_state = BasketStateEditing { prev_state: state, cmd };
+         let new_state = CartStateEditing { prev_state: state, cmd };
          dialogue.update(new_state.to_owned()).await?;
          enter_edit(bot, msg, new_state).await
       }
@@ -176,7 +171,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
 
       Command::Unknown => {
          // "You are leaving the order menu"
-         let text = loc::<char>(Key::BasketUpdate, tag, &[]);
+         let text = loc(Key::CartUpdate, tag, &[]);
          bot.send_message(msg.chat.id, text).await?;
 
          // General commands handler - messaging, searching...
@@ -194,12 +189,12 @@ pub fn make_owner_text(node: &node::Node, order: &orders::Order, tag: LocaleTag)
 
    let time = if node.time.0 == node.time.1 {
       // "\nOpening hours: around the clock"
-      loc::<char>(Key::BasketMakeOwnerText1, tag, &[])
+      loc(Key::CartMakeOwnerText1, tag, &[])
    } else {
       // "\nOpening hours: {}-{}"
-      let open_time = loc(Key::BasketMakeOwnerText3, tag, &[&node.time.0]);
-      let close_time = loc(Key::BasketMakeOwnerText3, tag, &[&node.time.1]);
-      loc(Key::BasketMakeOwnerText2, tag, &[&open_time, &close_time])
+      let open_time = loc(Key::CommonTimeFormat, tag, &[&node.time.0]);
+      let close_time = loc(Key::CommonTimeFormat, tag, &[&node.time.1]);
+      loc(Key::CartMakeOwnerText2, tag, &[&open_time, &close_time])
    };
 
    // Info about items
@@ -208,15 +203,17 @@ pub fn make_owner_text(node: &node::Node, order: &orders::Order, tag: LocaleTag)
       let price = item.node.price;
       let amount = item.amount;
 
-      // "{}\n{}: {} x {} pcs. = {} /del{}"
-      let args = [&acc,
+      // "{}\n{}: {} x {} pcs. = {}"
+      let args: Args = &[&acc,
          &item.node.title,
-         &price.to_string(),
-         &amount.to_string(),
-         &env::price_with_unit(price * amount),
-         &item.node.id.to_string()
+         &price,
+         &amount,
+         &env::price_with_unit(price * amount)
       ];
-      loc(Key::BasketMakeOwnerText4, tag, &args)
+      let text = loc(Key::CartMakeOwnerText4, tag, args);
+
+      // Add del command
+      format!("{} /del{}", text, item.node.id)
    });
 
    node.title.clone() + descr.as_str() + time.as_str() + items.as_str()
@@ -224,15 +221,15 @@ pub fn make_owner_text(node: &node::Node, order: &orders::Order, tag: LocaleTag)
 
 fn markup(tag: LocaleTag) -> ReplyMarkup {
    let row1 = vec![
-      loc::<char>(Key::BasketCommandEditName, tag, &[]),
-      loc::<char>(Key::BasketCommandEditContact, tag, &[]),
-      loc::<char>(Key::BasketCommandEditAddress, tag, &[]),
-      loc::<char>(Key::BasketCommandEditDelivery, tag, &[]),
+      loc(Key::CartCommandEditName, tag, &[]),
+      loc(Key::CartCommandEditContact, tag, &[]),
+      loc(Key::CartCommandEditAddress, tag, &[]),
+      loc(Key::CartCommandEditDelivery, tag, &[]),
    ];
    let row2 = vec![
-      loc::<char>(Key::BasketCommandReload, tag, &[]),
-      loc::<char>(Key::BasketCommandClear, tag, &[]),
-      loc::<char>(Key::BasketCommandExit, tag, &[]),
+      loc(Key::CartCommandReload, tag, &[]),
+      loc(Key::CartCommandClear, tag, &[]),
+      loc(Key::CartCommandExit, tag, &[]),
    ];
 
    let keyboard = vec![row1, row2];
@@ -242,7 +239,7 @@ fn markup(tag: LocaleTag) -> ReplyMarkup {
 fn order_markup(node_id: i32, tag: LocaleTag) -> InlineKeyboardMarkup {
    let button = InlineKeyboardButton::callback(
       // "Checkout via bot"
-      loc::<char>(Key::BasketOrderMarkup, tag, &[]), 
+      loc(Key::CartOrderMarkup, tag, &[]), 
       format!("{}{}", cb::Command::TicketMake(0).as_ref(), node_id)
    );
    InlineKeyboardMarkup::default()
@@ -252,24 +249,24 @@ fn order_markup(node_id: i32, tag: LocaleTag) -> InlineKeyboardMarkup {
 // [Fields editing mode]
 // ============================================================================
 #[derive(Clone)]
-pub struct BasketStateEditing {
-   prev_state: BasketState,
+pub struct CartStateEditing {
+   prev_state: CartState,
    cmd: EditCmd,
 }
 
-async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: BasketStateEditing) -> HandlerResult {
+async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: CartStateEditing) -> HandlerResult {
 
-   let tag = state.prev_state.prev_state.locale;
+   let tag = state.prev_state.prev_state.tag;
 
    let (text, markup) = match state.cmd {
       EditCmd::Name => {
          // "Please {} indicate how the courier can contact you or press / to cancel"
-         (loc(Key::BasketEnterEdit1, tag, &[&state.prev_state.customer.name]), cancel_markup())
+         (loc(Key::CartEnterEdit1, tag, &[&state.prev_state.customer.name]), cancel_markup(tag))
       }
       EditCmd::Contact => 
       {
          // "If you want to allow staff to contact you directly, enter contacts (current value is '{}') or press / to cancel"
-         (loc(Key::BasketEnterEdit2, tag, &[&state.prev_state.customer.contact]), cancel_markup())
+         (loc(Key::CartEnterEdit2, tag, &[&state.prev_state.customer.contact]), cancel_markup(tag))
       }
       EditCmd::Address => {
          let customer = &state.prev_state.customer;
@@ -282,25 +279,25 @@ async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: BasketStateEditing)
                let to = state.prev_state.prev_state.user_id; // to user
                let res = bot.forward_message(to, from, message_id).await;
                match res {
-                  Ok(_) => loc::<char>(Key::BasketEnterEdit3, tag, &[]), // "previous location in the post above"
-                  Err(_) => loc::<char>(Key::BasketEnterEdit4, tag, &[]), // "saved location is no longer available"
+                  Ok(_) => loc(Key::CartEnterEdit3, tag, &[]), // "previous location in the post above"
+                  Err(_) => loc(Key::CartEnterEdit4, tag, &[]), // "saved location is no longer available"
                }
             }
             Err(()) => {
                if customer.is_location() {
-                  loc::<char>(Key::BasketEnterEdit4, tag, &[]) // "saved location is no longer available"
+                  loc(Key::CartEnterEdit4, tag, &[]) // "saved location is no longer available"
                } else {
-                  loc(Key::BasketEnterEdit5, tag, &[&customer.address]) // "current address '{}'"
+                  loc(Key::CartEnterEdit5, tag, &[&customer.address]) // "current address '{}'"
                }
             }
          };
 
          // "Enter the delivery address or point on the map (/ to cancel), {}. You can also send an arbitrary point or even broadcast its change, to do this, press the paperclip 📎 and select a geolocation."
-         (loc(Key::BasketEnterEdit6, tag, &[&addr_desc]), address_markup(tag))
+         (loc(Key::CartEnterEdit6, tag, &[&addr_desc]), address_markup(tag))
       }
       EditCmd::Delivery => {
          // "Current value is '{}', select delivery method"
-         (loc(Key::BasketEnterEdit7, tag, &[&state.prev_state.customer.delivery_desc()]), delivery_markup())
+         (loc(Key::CartEnterEdit7, tag, &[&state.prev_state.customer.delivery_desc(tag)]), delivery_markup(tag))
       }
    };
 
@@ -311,12 +308,12 @@ async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: BasketStateEditing)
    Ok(())
 }
 
-pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: BasketStateEditing) -> HandlerResult {
+pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: CartStateEditing) -> HandlerResult {
    async fn do_update(cmd: EditCmd, user_id: u64, ans: String, tag: LocaleTag) -> Result<String, String> {
-      let cancel_command = loc::<char>(Key::BasketUpdateEdit1, tag, &[]); // "/"
+      let cancel_command = loc(Key::CommonCancel, tag, &[]); // "/"
       if ans == cancel_command {
          // "Cancel, value not changed",
-         return Ok(loc::<char>(Key::BasketUpdateEdit2, tag, &[]));
+         return Ok(loc(Key::CommonEditCancel, tag, &[]));
       }
 
       // Store new value
@@ -326,10 +323,10 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
          EditCmd::Address => db::user_update_address(user_id, &ans).await?,
          EditCmd::Delivery => {
             // Parse answer
-            let delivery = Delivery::from_str(ans.as_str());
+            let delivery = Delivery::from_str(ans.as_str(), tag);
             if delivery.is_err() {
                // "Error, delivery method not changed"
-               return Ok(loc::<char>(Key::BasketUpdateEdit3, tag, &[]));
+               return Ok(loc(Key::CartUpdateEdit, tag, &[]));
             }
 
             let delivery = delivery.unwrap();
@@ -338,10 +335,10 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
       }
 
       // "New value saved"
-      Ok(loc::<char>(Key::BasketUpdateEdit4, tag, &[]))
+      Ok(loc(Key::CommonEditConfirm, tag, &[]))
    }
 
-   let tag = state.prev_state.prev_state.locale;
+   let tag = state.prev_state.prev_state.tag;
 
    // Input may be text or geolocation
    let input = if let Some(input) = msg.text() {
@@ -364,17 +361,17 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
    enter(bot, msg, dialogue, state.prev_state.prev_state).await
 }
 
-fn delivery_markup() -> ReplyMarkup {
+fn delivery_markup(tag: LocaleTag) -> ReplyMarkup {
    kb_markup(vec![vec![
-      String::from(Delivery::Courier.as_ref()),
-      String::from(Delivery::Pickup.as_ref())
+      String::from(Delivery::Courier.to_string(tag)),
+      String::from(Delivery::Pickup.to_string(tag))
    ]])
 }
 
 fn address_markup(tag: LocaleTag) -> ReplyMarkup {
    let kb = vec![
-      KeyboardButton::new(loc::<char>(Key::BasketAddressMarkup, tag, &[])).request(ButtonRequest::Location), // "Geolocation"
-      KeyboardButton::new(loc::<char>(Key::BasketUpdateEdit1, tag, &[])), // "/"
+      KeyboardButton::new(loc(Key::CartAddressMarkup, tag, &[])).request(ButtonRequest::Location), // "Geolocation"
+      KeyboardButton::new(loc(Key::CommonCancel, tag, &[])), // "/"
    ];
 
    let markup = KeyboardMarkup::new(vec![kb])

@@ -7,14 +7,27 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use strum::{AsRefStr, EnumString, };
+use crate::loc::*;
 
-#[derive(Clone, AsRefStr, EnumString)]
+#[derive(Clone)]
 pub enum Delivery {
-   #[strum(to_string = "Курьером")]
    Courier, // delivery by courier
-   #[strum(to_string = "Самовывоз")]
    Pickup, // delivery by customer
+}
+
+impl Delivery {
+   pub fn from_str(s: &str, tag: LocaleTag) -> Result<Self, ()> {
+      if s == loc(Key::CustomerDeliveryCourier, tag, &[]) { Ok(Self::Courier) }
+      else if s == loc(Key::CustomerDeliveryPickup, tag, &[]) { Ok(Self::Pickup) }
+      else { Err(()) }
+   }
+
+   pub fn to_string(&self, tag: LocaleTag) -> String {
+      match self {
+         Self::Courier => loc(Key::CustomerDeliveryCourier, tag, &[]),
+         Self::Pickup => loc(Key::CustomerDeliveryPickup, tag, &[]),
+      }
+   }
 }
 
 #[derive(Clone)]
@@ -26,18 +39,22 @@ pub struct Customer {
 }
 
 impl Customer {
-   pub fn delivery_desc(&self) -> String {
+   pub fn delivery_desc(&self, tag: LocaleTag) -> String {
       match self.delivery {
          Delivery::Courier => {
             if self.address.len() <= 1 {
-               String::from("для доставки курьером задайте адрес или выберите самовывоз")
+               // "for delivery by courier, enter the address or choose pickup"
+               loc(Key::CustomerDeliveryDesk1, tag, &[])
             } else if self.is_location() {
-               String::from("курьером на геопозицию")
+               // "courier for geolocation"
+               loc(Key::CustomerDeliveryDesk2, tag, &[])
             } else {
-               format!("курьером по адресу: {}", self.address)
+               // "courier to the address: {}"
+               loc(Key::CustomerDeliveryDesk3, tag, &[&self.address])
             }
          }
-         Delivery::Pickup => String::from("самовывоз"),
+         // "pickup"
+         Delivery::Pickup => loc(Key::CustomerDeliveryDesk4, tag, &[]),
       }
    }
 

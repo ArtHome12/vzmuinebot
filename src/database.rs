@@ -372,7 +372,7 @@ pub async fn user_insert(user_id: u64, name: String, contact: String) -> Result<
       // Notify about a new user
       let inserted: bool = query[0].get(0);
       if inserted {
-         env::log(&format!("Новый пользователь id={}, {}, {}", user_id, name, contact)).await;
+         env::log(&format!("New user id={}, {}, {}", user_id, name, contact)).await;
       }
 
       Ok(())
