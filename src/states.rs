@@ -205,7 +205,17 @@ pub async fn callback(bot: AutoSend<Bot>, q: CallbackQuery) -> HandlerResult {
    let locale = q.from.language_code.as_deref();
    let tag = tag(locale);
 
-   crate::callback::update(bot, q, tag).await?;
+   let res = crate::callback::update(bot.to_owned(), q.to_owned(), tag).await;
+
+   // Inform user about possible error
+   if let Err(e) = res {
+      // Sending a response that is shown in a pop-up window
+      bot.answer_callback_query(q.id)
+      .text(format!("{}", e))
+      .await
+      .map_err(|err| format!("inline::update {}", err))?;
+      return Err(e);
+   }
 
    // Update user last seen time
    update_last_seen(user_id).await?;

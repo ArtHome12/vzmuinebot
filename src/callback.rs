@@ -129,10 +129,9 @@ pub async fn update(bot: AutoSend<Bot>, q: CallbackQuery, tag: LocaleTag) -> Han
       Command::Unknown => format!("callback::update unknowm command {}", input),
    };
 
-   // Отправляем ответ, который показывается во всплывающем окошке
+   // Sending a response that is shown in a pop-up window
    bot.answer_callback_query(query_id)
    .text(msg)
-   .send()
    .await
    .map_err(|err| format!("inline::update {}", err))?;
 
