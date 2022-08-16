@@ -207,13 +207,19 @@ pub async fn callback(bot: AutoSend<Bot>, q: CallbackQuery) -> HandlerResult {
 
    let res = crate::callback::update(bot.to_owned(), q.to_owned(), tag).await;
 
-   // Inform user about possible error
+   // Notify user about possible error
    if let Err(e) = res {
       // Sending a response that is shown in a pop-up window
+      let text = loc(Key::StatesCallback, tag, &[]); // "Error, start over"
       bot.answer_callback_query(q.id)
       .text(format!("{}", e))
       .await
       .map_err(|err| format!("inline::update {}", err))?;
+
+      // Send full text of error
+      bot.send_message(q.from.id, format!("{}\n{}", text, e)).await?;
+
+      // For default handler
       return Err(e);
    }
 

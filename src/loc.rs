@@ -136,6 +136,7 @@ pub enum Key {
    StatesMainMenuCart,
    StatesMainMenuAll,
    StatesMainMenuOpen,
+   StatesCallback,
 }
 
 pub type LocaleTag = u32;

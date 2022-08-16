@@ -117,6 +117,7 @@
    "StatesMainMenuCart": "🛒",
    "StatesMainMenuAll": "Все",
    "StatesMainMenuOpen": "Открыто",
+   "StatesCallback": "Ошибка, начните сначала",
 
    "last": ""
 }

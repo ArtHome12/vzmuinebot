@@ -117,6 +117,7 @@
    "StatesMainMenuCart": "🛒",
    "StatesMainMenuAll": "All",
    "StatesMainMenuOpen": "Open",
+   "StatesCallback": "Error, start over",
 
    "last": ""
 }
