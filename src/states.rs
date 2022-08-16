@@ -212,9 +212,9 @@ pub async fn callback(bot: AutoSend<Bot>, q: CallbackQuery) -> HandlerResult {
       // Sending a response that is shown in a pop-up window
       let text = loc(Key::StatesCallback, tag, &[]); // "Error, start over"
       bot.answer_callback_query(q.id)
-      .text(format!("{}", e))
+      .text(&text)
       .await
-      .map_err(|err| format!("inline::update {}", err))?;
+      .map_err(|err| format!("inline::update {} {}", text, err))?;
 
       // Send full text of error
       bot.send_message(q.from.id, format!("{}\n{}", text, e)).await?;
