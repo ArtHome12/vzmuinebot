@@ -7,6 +7,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
+use teloxide::types::{MessageId,};
 use crate::loc::*;
 
 #[derive(Clone)]
@@ -58,18 +59,22 @@ impl Customer {
       }
    }
 
-   pub fn make_location(location_id: i32) -> String {
-      format!("Location{}", location_id)
+   pub fn make_location(location_id: MessageId) -> String {
+      format!("Location{}", location_id.0)
    }
 
    pub fn is_location(&self) -> bool {
       self.address.starts_with("Location")
    }
 
-   pub fn location_id(&self) -> Result<i32, ()> {
+   pub fn location_id(&self) -> Result<MessageId, ()> {
       if self.is_location() {
          self.address.get(8..)
-         .and_then(|s| s.parse::<i32>().ok())
+         .and_then(
+            |s| s.parse::<i32>()
+            .ok()
+            .map(|id| MessageId(id))
+         )
          .ok_or(())
       } else {
          Err(())

@@ -99,7 +99,7 @@ pub struct GearState {
    stack: Vec<Node>, // from start to current displaying node
 }
 
-pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
+pub async fn enter(bot: Bot, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
 
    // Define start node
    let mode = if state.is_admin {
@@ -107,7 +107,7 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
       db::LoadNode::Id(0)
    } else {
       // Find node for owner
-      db::LoadNode::Owner(state.user_id.0 as i64)
+      db::LoadNode::Owner(state.user_id)
    };
 
    // Load node with children
@@ -129,9 +129,9 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
 }
 
 
-pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: GearState) -> HandlerResult {
+pub async fn update(bot: Bot, msg: Message, dialogue: MyDialogue, state: GearState) -> HandlerResult {
 
-   async fn do_return(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: GearState) -> HandlerResult {
+   async fn do_return(bot: Bot, msg: Message, dialogue: MyDialogue, state: GearState) -> HandlerResult {
       // Extract current node from stack
       let mut new_state = state.clone();
       new_state.stack.pop().unwrap();
@@ -272,9 +272,9 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
             EditCmd::Advert => return send_advert(bot, msg, state).await,
             EditCmd::Enable => UpdateKind::Flag(node.enabled),
             EditCmd::Ban => UpdateKind::Flag(node.banned),
-            EditCmd::Owner1 => UpdateKind::Int(node.owners.0),
-            EditCmd::Owner2 => UpdateKind::Int(node.owners.1),
-            EditCmd::Owner3 => UpdateKind::Int(node.owners.2),
+            EditCmd::Owner1 => UpdateKind::User(node.owners.0),
+            EditCmd::Owner2 => UpdateKind::User(node.owners.1),
+            EditCmd::Owner3 => UpdateKind::User(node.owners.2),
             EditCmd::Time => UpdateKind::Time(node.time.0, node.time.1),
             EditCmd::Price => UpdateKind::Money(node.price),
          };
@@ -304,7 +304,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
 }
 
 
-async fn view(bot: AutoSend<Bot>, msg: Message, state: &GearState) -> HandlerResult {
+async fn view(bot: Bot, msg: Message, state: &GearState) -> HandlerResult {
    let tag = state.prev_state.tag;
 
    // Collect path from the beginning
@@ -399,7 +399,7 @@ struct TitleAndPicture {
    picture: String,
 }
 
-async fn send_advert(bot: AutoSend<Bot>, msg: Message, state: GearState) -> HandlerResult {
+async fn send_advert(bot: Bot, msg: Message, state: GearState) -> HandlerResult {
 
    fn do_create_pair(node: &Node) -> Option<TitleAndPicture> {
       if let Origin::Own(id) = &node.picture {
@@ -488,7 +488,7 @@ pub struct GearStateEditing {
    update: UpdateNode,
 }
 
-pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: GearStateEditing) -> HandlerResult {
+pub async fn update_edit(bot: Bot, msg: Message, dialogue: MyDialogue, state: GearStateEditing) -> HandlerResult {
    async fn do_update(state: &mut GearStateEditing, input: String, tag: LocaleTag) -> Result<String, String> {
       let res = if input == loc(Key::CommonCancel, tag, &[]) {
          // "Cancel, value not changed"
@@ -506,10 +506,10 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
                let flag = to_flag(&input)?;
                UpdateKind::Flag(flag)
             }
-            UpdateKind::Int(_) => {
-               let res = input.parse::<i64>();
-               if let Ok(int) = res {
-                  UpdateKind::Int(int)
+            UpdateKind::User(_) => {
+               let res = input.parse::<u64>();
+               if let Ok(owner) = res {
+                  UpdateKind::User(UserId(owner))
                } else {
                   // "Error, unable to convert '{}' to number, value not changed"
                   let text = loc(Key::GearUpdateEdit1, tag, &[&input]);
@@ -582,7 +582,7 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
       UpdateKind::Picture(_) => {
          let picture = msg.photo();
          if let Some(sizes) = picture {
-            sizes[0].file_id.clone()
+            sizes[0].file.id.clone()
          } else {
             loc(Key::CommonCancel, tag, &[]) // "/"
          }
@@ -602,16 +602,16 @@ pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue,
    Ok(())
 }
 
-async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: &GearStateEditing) -> HandlerResult {
+async fn enter_edit(bot: Bot, msg: Message, state: &GearStateEditing) -> HandlerResult {
 
-   async fn do_enter(bot: AutoSend<Bot>, chat_id: ChatId, text: String, markup : ReplyMarkup) -> HandlerResult {
+   async fn do_enter(bot: Bot, chat_id: ChatId, text: String, markup : ReplyMarkup) -> HandlerResult {
       bot.send_message(chat_id, text)
       .reply_markup(markup)
       .await?;
       Ok(())
    }
 
-   async fn do_enter_picture(bot: AutoSend<Bot>, chat_id: ChatId, old_val: &Origin, tag: LocaleTag) -> HandlerResult {
+   async fn do_enter_picture(bot: Bot, chat_id: ChatId, old_val: &Origin, tag: LocaleTag) -> HandlerResult {
       let opt: Option<String> = old_val.into();
 
       // "Submit an image (comments are ignored) or press / to cancel"
@@ -658,7 +658,7 @@ async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: &GearStateEditing) 
          let text = loc(Key::GearEnterEdit4, tag, &[&from_flag(*old_val)]);
          do_enter(bot, chat_id, text, flag_markup()).await?
       }
-      UpdateKind::Int(old_val) => {
+      UpdateKind::User(old_val) => {
          // "Current value '{}', enter new or / to cancel"
          let text = loc(Key::GearEnterEdit3, tag, &[&old_val]);
          do_enter(bot, chat_id, text, cancel_markup(tag)).await?

@@ -70,7 +70,7 @@
    "GearView2": "missing",
    "GearSendAdvert": "You can use the message below for forwarding or take only a link from it, when opened, customers will go directly to this post",
    "GearUpdateEdit1": "Error, unable to convert '{}' to number, value not changed",
-   "GearUpdateEdit2": "Error, unable to convert '{}' while running type '07:00-21:00', value not changed",
+   "GearUpdateEdit2": "Error, unable to convert '{}' working hours like '07:00-21:00', value not changed",
    "GearEnterEdit1": "Submit an image (comments are ignored) or press / to cancel",
    "GearEnterEdit2": "{} (previous image not available)",
    "GearEnterEdit3": "Current value '{}', enter new or / to cancel",
@@ -118,6 +118,22 @@
    "StatesMainMenuAll": "All",
    "StatesMainMenuOpen": "Open",
    "StatesCallback": "Error, start again",
+
+   "TicketOwner1": "Waiting for confirmation of acceptance of the order for work",
+   "TicketCustomer1": "Confirm the start of order processing",
+   "TicketOwner2": "In progress",
+   "TicketCustomer2": "In progress. Confirm that the order is ready for pickup",
+   "TicketOwner3": "Done, delivery in progress",
+   "TicketCustomer3": "In the process of delivery. Confirm delivery of the order to the customer",
+   "TicketOwner4": "Confirm receipt and close order",
+   "TicketCustomer4": "Order delivered, waiting for customer confirmation",
+   "TicketOwner5": "Completed",
+   "TicketCustomer5": "Completed",
+   "TicketOwner6": "Canceled by customer",
+   "TicketCustomer6": "Canceled by customer",
+   "TicketOwner7": "Canceled at the place's initiative",
+   "TicketCustomer7": "Canceled at the place's initiative",
+   "TicketMessage": "{}\nMessage via bot {}{}",
 
    "last": ""
 }

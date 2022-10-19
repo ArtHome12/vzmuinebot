@@ -9,10 +9,34 @@ Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 
 use chrono::{NaiveTime};
 use std::hash::{Hash, Hasher};
+use teloxide::types::UserId;
+
 use crate::environment as env;
 use crate::loc::*;
 
-pub type Owners = (i64, i64, i64);
+#[derive(Clone)]
+pub struct Owners (pub UserId, pub UserId, pub UserId);
+
+impl Owners {
+
+   pub const VALID_USER_ID: u64 = 10_000;
+
+   pub fn from_int(own1: i64, own2: i64, own3: i64) -> Self {
+      Self {
+         0: UserId(own1 as u64),
+         1: UserId(own2 as u64),
+         2: UserId(own3 as u64)
+      }
+   }
+   
+   pub fn default() -> Owners {
+      Owners::from_int(0, 0, 0)
+   }
+   
+   pub fn has_valid_owner(&self) -> bool {
+      self.0.0 > Owners::VALID_USER_ID || self.1.0 > Owners::VALID_USER_ID || self.2.0 > Owners::VALID_USER_ID
+   }
+}
 
 #[derive(Clone)]
 pub struct Node {
@@ -61,7 +85,7 @@ pub enum UpdateKind {
    Text(String),
    Picture(Origin),
    Flag(bool),
-   Int(i64),
+   User(UserId),
    Time(NaiveTime, NaiveTime),
    Money(usize),
 }
@@ -97,7 +121,7 @@ impl Node {
          picture: Origin::None,
          enabled: false,
          banned: false,
-         owners: Default::default(),
+         owners: Owners::from_int(0, 0, 0),
          time: (t, t),
          price: 0,
       }
@@ -123,9 +147,9 @@ impl Node {
          else { Err(String::from("node::update type bool mismatch")) }
       }
 
-      fn check_int(kind: &UpdateKind) -> Result<i64, String> {
-         if let UpdateKind::Int(res) = kind { Ok(*res) }
-         else { Err(String::from("node::update type int mismatch")) }
+      fn check_owner(kind: &UpdateKind) -> Result<UserId, String> {
+         if let UpdateKind::User(res) = kind { Ok(*res) }
+         else { Err(String::from("node::update type user mismatch")) }
       }
 
       fn check_time(kind: &UpdateKind) -> Result<(NaiveTime, NaiveTime), String> {
@@ -144,9 +168,9 @@ impl Node {
          "picture" => self.picture = check_picture(&info.kind)?,
          "enabled" => self.enabled = check_bool(&info.kind)?,
          "banned" => self.banned = check_bool(&info.kind)?,
-         "owner1" => self.owners.0 = check_int(&info.kind)?,
-         "owner2" => self.owners.1 = check_int(&info.kind)?,
-         "owner3" => self.owners.2 = check_int(&info.kind)?,
+         "owner1" => self.owners.0 = check_owner(&info.kind)?,
+         "owner2" => self.owners.1 = check_owner(&info.kind)?,
+         "owner3" => self.owners.2 = check_owner(&info.kind)?,
          "time" => self.time = check_time(&info.kind)?,
          "price" => self.price = check_money(&info.kind)?,
          _ => return Err(format!("node::update unknown field {}", info.field)),

@@ -11,7 +11,7 @@ use chrono::{FixedOffset, NaiveDateTime, Utc,};
 use once_cell::sync::{OnceCell};
 use std::{env, };
 use teloxide::{
-   prelude::*, types::{Recipient, ChatId, UserId,},
+   prelude::*, types::{Recipient, ChatId, UserId, MessageId},
 };
 
 // Settings
@@ -21,11 +21,11 @@ pub static VARS: OnceCell<Vars> = OnceCell::new();
 #[derive(Clone)]
 struct ServiceChat {
    recipient: Recipient,
-   bot: AutoSend<Bot>,
+   bot: Bot,
 }
 
 impl ServiceChat {
-   async fn send(&self, text: &str, reply_to: Option<i32>) -> Option<i32> {
+   async fn send(&self, text: &str, reply_to: Option<MessageId>) -> Option<MessageId> {
 
       // Prepare to send text
       let mut res = self.bot
@@ -48,7 +48,7 @@ impl ServiceChat {
 }
 
 // Send message to service chat without notification
-pub async fn log(text: &str) -> Option<i32> {
+pub async fn log(text: &str) -> Option<MessageId> {
    if let Some(chat) = &VARS.get().unwrap().chat {
       chat.send(text, None).await
    } else {
@@ -56,7 +56,7 @@ pub async fn log(text: &str) -> Option<i32> {
    }
 }
 
-pub async fn log_reply(text: &str, reply_to: Option<i32>) -> Option<i32> {
+pub async fn log_reply(text: &str, reply_to: Option<MessageId>) -> Option<MessageId> {
    if let Some(chat) = &VARS.get().unwrap().chat {
       chat.send(text, reply_to).await
    } else {
@@ -89,7 +89,7 @@ pub struct Vars {
 }
 
 impl Vars {
-   pub async fn from_env(service_bot: AutoSend<Bot>) -> Self {
+   pub async fn from_env(service_bot: Bot) -> Self {
 
       async fn internal_log(chat: Option<ServiceChat>, text: &str) {
          if let Some(c) = chat {c.send(text, None).await;}

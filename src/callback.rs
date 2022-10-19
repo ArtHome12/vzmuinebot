@@ -87,8 +87,8 @@ impl Command {
    }
 }
 
-pub async fn update(bot: AutoSend<Bot>, q: CallbackQuery, tag: LocaleTag) -> HandlerResult {
-   async fn do_inc(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32, mode: WorkTime, tag: LocaleTag) -> Result<String, String> {
+pub async fn update(bot: Bot, q: CallbackQuery, tag: LocaleTag) -> HandlerResult {
+   async fn do_inc(bot: &Bot, q: CallbackQuery, node_id: i32, mode: WorkTime, tag: LocaleTag) -> Result<String, String> {
       // Increment amount in database and reload node
       let user_id = q.from.id.0;
       db::orders_amount_inc(user_id, node_id).await?;
@@ -96,7 +96,7 @@ pub async fn update(bot: AutoSend<Bot>, q: CallbackQuery, tag: LocaleTag) -> Han
       Ok(loc(Key::CallbackAdded, tag, &[]))
    }
 
-   async fn do_dec(bot: &AutoSend<Bot>, q: CallbackQuery, node_id: i32, mode: WorkTime, tag: LocaleTag) -> Result<String, String> {
+   async fn do_dec(bot: &Bot, q: CallbackQuery, node_id: i32, mode: WorkTime, tag: LocaleTag) -> Result<String, String> {
       // Decrement amount in database and reload node
       let user_id = q.from.id.0;
       db::orders_amount_dec(user_id, node_id).await?;

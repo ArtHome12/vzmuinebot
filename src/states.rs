@@ -104,7 +104,7 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
 }
 
 
-async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: StartState) -> HandlerResult {
+async fn start(bot: Bot, msg: Message, dialogue: MyDialogue, state: StartState) -> HandlerResult {
 
    // Determine the language of the user
    let locale = msg.from().and_then(|user| user.language_code.as_deref());
@@ -131,7 +131,7 @@ async fn start(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: St
    .await
 }
 
-pub async fn reload(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
+pub async fn reload(bot: Bot, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
    let tag = state.tag;
 
    dialogue.update(state).await?;
@@ -146,7 +146,7 @@ pub async fn reload(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
 }
 
 // #[async_recursion]
-pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
+pub async fn command(bot: Bot, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
    // Determine the language of the user
    let locale = msg.from().and_then(|user| user.language_code.as_deref());
    let tag = tag(locale);
@@ -198,7 +198,7 @@ pub async fn command(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
    Ok(())
 }
 
-pub async fn callback(bot: AutoSend<Bot>, q: CallbackQuery) -> HandlerResult {
+pub async fn callback(bot: Bot, q: CallbackQuery) -> HandlerResult {
    let user_id = q.from.id;
 
    // Determine the language of the user

@@ -137,6 +137,22 @@ pub enum Key {
    StatesMainMenuAll,
    StatesMainMenuOpen,
    StatesCallback,
+
+   TicketOwner1,
+   TicketCustomer1,
+   TicketOwner2,
+   TicketCustomer2,
+   TicketOwner3,
+   TicketCustomer3,
+   TicketOwner4,
+   TicketCustomer4,
+   TicketOwner5,
+   TicketCustomer5,
+   TicketOwner6,
+   TicketCustomer6,
+   TicketOwner7,
+   TicketCustomer7,
+   TicketMessage,
 }
 
 pub type LocaleTag = u32;

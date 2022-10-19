@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use once_cell::sync::{OnceCell};
 use deadpool_postgres::{Pool, Client, };
 use tokio_postgres::{types::ToSql, Row, };
+use teloxide::types::{MessageId, UserId,};
 use async_recursion::async_recursion;
 use std::str::FromStr;
 
@@ -32,7 +33,7 @@ pub type Params<'a> = &'a[&'a(dyn ToSql + Sync)];
 // ============================================================================
 
 pub enum LoadNode {
-   Owner(i64), // load first node with this owner
+   Owner(UserId), // load first node with this owner
    Id(i32), // load node with specified id
    EnabledId(i32), // like Id but without disabled
    EnabledIdNoChildren(i32), // like EnabledId but without children
@@ -91,7 +92,7 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
          picture,
          enabled: row.get(5),
          banned: row.get(6),
-         owners: (row.get(7), row.get(8), row.get(9)),
+         owners: Owners::from_int(row.get(7), row.get(8), row.get(9)),
          time: (row.get(10), row.get(11)),
          price: row.get::<usize, i32>(12) as usize,
       }
@@ -108,7 +109,7 @@ pub async fn node(mode: LoadNode) -> Result<Option<Node>, String> {
    let part_children = "parent = $1::BIGINT";
 
    let where_tuple = match &mode {
-      LoadNode::Owner(user_id) =>  (part_owner.to_string(), *user_id),
+      LoadNode::Owner(user_id) =>  (part_owner.to_string(), user_id.0 as i64),
       LoadNode::Id(id) => (part_id.to_string(), *id as i64),
       LoadNode::EnabledId(id)
       | LoadNode::EnabledIdNoChildren(id) => (format!("{} {}", part_id, part_enabled), *id as i64),
@@ -199,15 +200,18 @@ pub async fn node_insert(node: &mut Node) -> Result<(), String> {
 
    let picture: Option<String> = (&node.picture).into();
    let i32_price = node.price as i32;
+   let owner1 = node.owners.0.0 as i64;
+   let owner2 = node.owners.1.0 as i64;
+   let owner3 = node.owners.2.0 as i64;
    let params: Params = &[&node.parent,
       &node.title,
       &node.descr,
       &picture,
       &node.enabled,
       &node.banned,
-      &node.owners.0,
-      &node.owners.1,
-      &node.owners.2,
+      &owner1,
+      &owner2,
+      &owner3,
       &node.time.0,
       &node.time.1,
       &i32_price];
@@ -261,9 +265,10 @@ pub async fn node_update(id: i32, update: &UpdateNode) -> Result<(), String> {
          let text = format!("UPDATE nodes SET {} = $1::BOOLEAN WHERE id=$2::INTEGER", update.field);
          execute_one(text.as_str(), &[new_val, &id]).await
       }
-      UpdateKind::Int(new_val) => {
+      UpdateKind::User(new_val) => {
          let text = format!("UPDATE nodes SET {} = $1::BIGINT WHERE id=$2::INTEGER", update.field);
-         execute_one(text.as_str(), &[new_val, &id]).await
+         let new_val = new_val.0 as i64;
+         execute_one(text.as_str(), &[&new_val, &id]).await
       }
       UpdateKind::Time(open, close) => {
          let text = "UPDATE nodes SET open = $1::TIME, close = $2::TIME WHERE id=$3::INTEGER";
@@ -578,7 +583,7 @@ pub async fn tickets(user_id: i64) -> Result<Vec<ticket::TicketWithOwners>, Stri
    Ok(res)
 }
 
-pub async fn ticket_form_orders(node_id: i32, user_id: i64, owners_msg_id: ticket::ThreeMsgId, cust_msg_id: i32, service_msg_id: Option<i32>) -> Result<ticket::Ticket, String> {
+pub async fn ticket_form_orders(node_id: i32, user_id: UserId, owners_msg_id: ticket::ThreeMsgId, cust_msg_id: MessageId, service_msg_id: Option<MessageId>) -> Result<ticket::Ticket, String> {
 
    // Prepare query
 
@@ -597,7 +602,7 @@ pub async fn ticket_form_orders(node_id: i32, user_id: i64, owners_msg_id: ticke
    .map_err(|err| format!("order_to_ticket delete prepare customer_id={}, owner_node_id={}: {}", user_id, node_id, err))?;
 
    trans
-   .execute(&statement, &[&user_id, &node_id])
+   .execute(&statement, &[&(user_id.0 as i64), &node_id])
    .await
    .map_err(|err| format!("order_to_ticket delete execute customer_id={}, node_id={}: {}", user_id, node_id, err))?;
 
@@ -611,8 +616,12 @@ pub async fn ticket_form_orders(node_id: i32, user_id: i64, owners_msg_id: ticke
    .await
    .map_err(|err| format!("order_to_ticket insert prepare customer_id={}, node_id={}: {}", user_id, node_id, err))?;
 
+   // Convert from MessageId to i32
+   let owners_id = ticket::three_msg_id_to_int(&owners_msg_id);
+   let service_id = service_msg_id.map(|id| id.0);
+
    let query = trans
-   .query(&statement, &[&node_id, &user_id, &cust_msg_id, &owners_msg_id.0, &owners_msg_id.1, &owners_msg_id.2, &service_msg_id])
+   .query(&statement, &[&node_id, &(user_id.0 as i64), &cust_msg_id.0, &owners_id.0, &owners_id.1, &owners_id.2, &service_id])
    .await
    .map_err(|err| format!("order_to_ticket insert query customer_id={}, node_id={}: {}", user_id, node_id, err))?;
 
@@ -645,9 +654,13 @@ pub async fn ticket_form_orders(node_id: i32, user_id: i64, owners_msg_id: ticke
 
 pub async fn ticket_update_status_messages(ticket: &ticket::Ticket) -> Result<(), String>
 {
+   // Convert from MessageId to i32
+   let owners_id = ticket::three_msg_id_to_int(&ticket.owners_status_msg_id);
+   let cust_id = ticket.cust_status_msg_id.map(|id| id.0);
+
    let text = "UPDATE tickets SET cust_status_msg_id = $1::INTEGER, owner1_status_msg_id = $2::INTEGER, owner2_status_msg_id = $3::INTEGER, owner3_status_msg_id = $4::INTEGER
    WHERE ticket_id = $5::INTEGER";
-   execute_prepared_one(text, &[&ticket.cust_status_msg_id, &ticket.owners_status_msg_id.0, &ticket.owners_status_msg_id.1, &ticket.owners_status_msg_id.2, &ticket.id]).await?;
+   execute_prepared_one(text, &[&cust_id, &owners_id.0, &owners_id.1, &owners_id.2, &ticket.id]).await?;
    Ok(())
 }
 
@@ -674,17 +687,17 @@ pub fn ticket_from_db(row: &Row) -> ticket::TicketWithOwners {
    let ticket = ticket::Ticket {
       id: row.get(0),
       node_id: row.get(1),
-      customer_id: row.get(2),
-      cust_msg_id: row.get(3),
-      owners_msg_id: (row.get(4), row.get(5), row.get(6)),
+      customer_id: UserId(row.get::<usize, i64>(2) as u64),
+      cust_msg_id: MessageId (row.get(3)),
+      owners_msg_id: ticket::three_option_to_msg_id(row.get(4), row.get(5), row.get(6)),
       stage: ticket::Stage::from_str(row.get(7)).unwrap(),
-      cust_status_msg_id: row.get(8),
-      owners_status_msg_id: (row.get(9), row.get(10), row.get(11)),
-      service_msg_id: row.get(12),
+      cust_status_msg_id: ticket::option_to_msg_id(row.get(8)),
+      owners_status_msg_id: ticket::three_option_to_msg_id(row.get(9), row.get(10), row.get(11)),
+      service_msg_id: ticket::option_to_msg_id(row.get(12)),
    };
 
    // Create owners part and return item
-   let owners: Owners = (row.get(13), row.get(14), row.get(15));
+   let owners: Owners = Owners::from_int(row.get(13), row.get(14), row.get(15));
    ticket::TicketWithOwners { ticket, owners }
 }
 

@@ -35,9 +35,9 @@ impl Command {
          let l_part = s.get(..4).unwrap_or_default();
          let r_part = s.get(4..).unwrap_or_default();
 
-         if l_part == Self::Message(ChatId{0:0}).as_ref() {
+         if l_part == Self::Message(ChatId(0)).as_ref() {
             let id = r_part.parse().unwrap_or_default();
-            Command::Message(ChatId { 0: id })
+            Command::Message(ChatId(id))
          } else if l_part == Self::Goto(0).as_ref() {
             Command::Goto(r_part.parse().unwrap_or_default())
          } else {
@@ -62,7 +62,7 @@ pub struct MessageState {
 
 
 
-pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
+pub async fn update(bot: Bot, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
    // Parse and handle commands
    let tag = state.tag;
    let chat_id = msg.chat.id;
@@ -120,7 +120,7 @@ pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, stat
    Ok(())
 }
 
-async fn enter_input(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState, receiver: ChatId) -> HandlerResult {
+async fn enter_input(bot: Bot, msg: Message, dialogue: MyDialogue, state: MainState, receiver: ChatId) -> HandlerResult {
    let tag = state.tag;
    let chat_id = msg.chat.id;
 
@@ -139,7 +139,7 @@ async fn enter_input(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, sta
    Ok(())
 }
 
-pub async fn update_input(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MessageState) -> HandlerResult {
+pub async fn update_input(bot: Bot, msg: Message, dialogue: MyDialogue, state: MessageState) -> HandlerResult {
 
    let tag = state.prev_state.tag;
    let chat_id = msg.chat.id;
@@ -153,7 +153,7 @@ pub async fn update_input(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue
       let msg = bot.forward_message(state.receiver, msg.chat.id, msg.id).await?;
 
       // Add info with qoute. "Reply {}{}"
-      let args: Args = &[&Command::Message(ChatId{0:0}).as_ref(),
+      let args: Args = &[&Command::Message(ChatId(0)).as_ref(),
          &state.prev_state.user_id
       ];
       let text = loc(Key::GeneralUpdateInput2, tag, args);

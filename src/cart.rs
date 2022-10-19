@@ -79,7 +79,7 @@ pub struct CartState {
    pub customer: Customer,
 }
 
-pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
+pub async fn enter(bot: Bot, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
 
    // Load user info
    let customer = db::user(state.user_id.0).await?;
@@ -91,7 +91,7 @@ pub async fn enter(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state
 }
 
 
-async fn view(bot: AutoSend<Bot>, msg: Message, state: CartState) -> HandlerResult {
+async fn view(bot: Bot, msg: Message, state: CartState) -> HandlerResult {
    let tag = state.prev_state.tag;
 
    // Start with info about user
@@ -138,7 +138,7 @@ async fn view(bot: AutoSend<Bot>, msg: Message, state: CartState) -> HandlerResu
    Ok(())
 }
 
-pub async fn update(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: CartState) -> HandlerResult {
+pub async fn update(bot: Bot, msg: Message, dialogue: MyDialogue, state: CartState) -> HandlerResult {
 
    let tag = state.prev_state.tag;
    let user_id = state.prev_state.user_id.0 as u64;
@@ -254,7 +254,7 @@ pub struct CartStateEditing {
    cmd: EditCmd,
 }
 
-async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: CartStateEditing) -> HandlerResult {
+async fn enter_edit(bot: Bot, msg: Message, state: CartStateEditing) -> HandlerResult {
 
    let tag = state.prev_state.prev_state.tag;
 
@@ -308,7 +308,7 @@ async fn enter_edit(bot: AutoSend<Bot>, msg: Message, state: CartStateEditing) -
    Ok(())
 }
 
-pub async fn update_edit(bot: AutoSend<Bot>, msg: Message, dialogue: MyDialogue, state: CartStateEditing) -> HandlerResult {
+pub async fn update_edit(bot: Bot, msg: Message, dialogue: MyDialogue, state: CartStateEditing) -> HandlerResult {
    async fn do_update(cmd: EditCmd, user_id: u64, ans: String, tag: LocaleTag) -> Result<String, String> {
       let cancel_command = loc(Key::CommonCancel, tag, &[]); // "/"
       if ans == cancel_command {

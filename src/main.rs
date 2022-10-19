@@ -7,22 +7,19 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use std::{convert::Infallible, env, net::SocketAddr, fmt::Debug, sync::Arc};
+use std::{env, fmt::Debug, sync::Arc};
 use futures::future::BoxFuture;
+
 use teloxide::{prelude::*, 
    dispatching::{
-      update_listeners::{self, StatefulListener},
-      stop_token::AsyncStopToken,
+      update_listeners::{webhooks},
       dialogue::InMemStorage,
    },
    error_handlers::ErrorHandler,
 };
-use tokio::sync::mpsc;
-use tokio_stream::wrappers::UnboundedReceiverStream;
 use native_tls::{TlsConnector};
 use postgres_native_tls::MakeTlsConnector;
-use warp::Filter;
-use reqwest::{StatusCode, Url};
+use reqwest::{Url};
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use crate::states::*;
 
@@ -50,70 +47,6 @@ async fn main() {
    run().await;
 }
 
-async fn handle_rejection(error: warp::Rejection) -> Result<impl warp::Reply, Infallible> {
-   log::error!("Cannot process the request due to: {:?}", error);
-   Ok(StatusCode::INTERNAL_SERVER_ERROR)
-}
-
-pub async fn webhook<'a>(bot: AutoSend<Bot>) -> impl update_listeners::UpdateListener<Infallible> {
-   // Heroku auto defines a port value
-   let teloxide_token = env::var("TELOXIDE_TOKEN").expect("TELOXIDE_TOKEN env variable missing");
-   let port: u16 = env::var("PORT")
-      .expect("PORT env variable missing")
-      .parse()
-      .expect("PORT value to be integer");
-   // Heroku host example .: "heroku-ping-pong-bot.herokuapp.com"
-   let host = env::var("HOST").expect("have HOST env variable");
-   let path = format!("bot{}", teloxide_token);
-   let url =  Url::parse(&format!("https://{}/{}", host, path))
-   .unwrap();
-
-   bot.set_webhook(url)
-      .send()
-      .await
-      .expect("Cannot setup a webhook");
-
-   let (tx, rx) = mpsc::unbounded_channel();
-
-   let server = warp::post()
-      .and(warp::path(path))
-      .and(warp::body::json())
-      .map(move |json: serde_json::Value| {
-         let try_parse = match serde_json::from_str(&json.to_string()) {
-               Ok(update) => Ok(update),
-               Err(error) => {
-                  log::error!(
-                     "Cannot parse an update.\nError: {:?}\nValue: {}\n\
-                     This is a bug in teloxide, please open an issue here: \
-                     https://github.com/teloxide/teloxide/issues.",
-                     error,
-                     json
-                  );
-                  Err(error)
-               }
-         };
-         if let Ok(update) = try_parse {
-               tx.send(Ok(update))
-               .expect("Cannot send an incoming update from the webhook")
-         }
-
-         StatusCode::OK
-      })
-      .recover(handle_rejection);
-
-   let (stop_token, stop_flag) = AsyncStopToken::new_pair();
-
-   let addr = format!("0.0.0.0:{}", port).parse::<SocketAddr>().unwrap();
-   let server = warp::serve(server);
-   let (_addr, fut) = server.bind_with_graceful_shutdown(addr, stop_flag);
-
-   tokio::spawn(fut);
-   let stream = UnboundedReceiverStream::new(rx);
-
-   fn streamf<S, T>(state: &mut (S, T)) -> &mut S { &mut state.0 }
-   
-   StatefulListener::new((stream, stop_token), streamf, |state: &mut (_, AsyncStopToken)| state.1.clone())
-}
 
 struct MyErrorHandler {}
 impl<E> ErrorHandler<E> for MyErrorHandler
@@ -139,7 +72,7 @@ async fn run() {
    pretty_env_logger::init();
    log::info!("Starting...");
 
-   let bot = Bot::from_env().auto_send();
+   let bot = Bot::from_env();
 
    // Settings from environments
    let vars = environment::Vars::from_env(bot.clone()).await;
@@ -199,6 +132,26 @@ async fn run() {
       log::error!("main::run() loc set error")
    }
 
+   let teloxide_token = env::var("TELOXIDE_TOKEN").expect("TELOXIDE_TOKEN env variable missing");
+
+   // Heroku auto defines a port value
+   let port: u16 = env::var("PORT")
+      .expect("PORT env variable missing")
+      .parse()
+      .expect("PORT value to be integer");
+
+   // Heroku host example .: "heroku-ping-pong-bot.herokuapp.com"
+   let host = env::var("HOST").expect("have HOST env variable");
+   let path = format!("bot{}", teloxide_token);
+   let url =  Url::parse(&format!("https://{}/{}", host, path))
+      .unwrap();
+
+   let addr = ([0, 0, 0, 0], port).into();
+
+   let update_listener = webhooks::axum(bot.clone(), webhooks::Options::new(addr, url))
+      .await
+      .expect("Couldn't setup webhook");
+
    Dispatcher::builder(bot.clone(), states::schema())
    .dependencies(dptree::deps![InMemStorage::<State>::new()])
    .default_handler(|upd| async move {
@@ -208,13 +161,13 @@ async fn run() {
    .error_handler(Arc::new(MyErrorHandler{}))
    .build()
    .dispatch_with_listener(
-      webhook(bot).await,
+      update_listener,
       LoggingErrorHandler::with_custom_text("main::An error from the update listener"),
    )
    .await;
 }
 
-/* async fn handle_message(cx: UpdateWithCx<AutoSend<Bot>, Message>, dialogue: Dialogue) -> TransitionOut<Dialogue> {
+/* async fn handle_message(cx: UpdateWithCx<Bot, Message>, dialogue: Dialogue) -> TransitionOut<Dialogue> {
 
    // Negative for chats, positive personal
    let chat_id = cx.update.chat_id();
