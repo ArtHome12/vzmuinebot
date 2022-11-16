@@ -94,8 +94,9 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
       .branch(dptree::case![State::Gear(state)].endpoint(crate::gear::update))
       .branch(dptree::case![State::GearSubmode(state)].endpoint(crate::gear::update_edit))
       .branch(dptree::case![State::GeneralMessage(state)].endpoint(crate::general::update_input))
-   );
- 
+   )
+   .branch(dptree::entry().endpoint(chat_message_handler));
+
    let callback_query_handler = Update::filter_callback_query().endpoint(callback);
 
    dialogue::enter::<Update, InMemStorage<State>, State, _>()
@@ -194,6 +195,23 @@ pub async fn command(bot: Bot, msg: Message, dialogue: MyDialogue, state: MainSt
 
    // Update user last seen time
    update_last_seen(user_id).await?;
+
+   Ok(())
+}
+
+pub async fn chat_message_handler(bot: Bot, msg: Message) -> HandlerResult {
+
+   // For chat messages react only command for printout group id (need for identify service chat)
+   if let Some(input) = msg.text() {
+      match input.get(..5).unwrap_or_default() {
+         "/chat" => {
+            let chat_id = msg.chat.id;
+            let text = format!("Chat id={}", chat_id);
+            bot.send_message(chat_id, text).await?;
+         }
+         _ => (),
+      }
+   }
 
    Ok(())
 }
