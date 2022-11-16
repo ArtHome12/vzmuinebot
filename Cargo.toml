@@ -1,6 +1,6 @@
 [package]
 name = "vzmuinebot"
-version = "0.9.7"
+version = "0.9.8"
 authors = ["Artem Khomenko <_mag12@yahoo.com>"]
 edition = "2018"
 
@@ -12,7 +12,7 @@ futures = "0.3.21"
 tokio = { version =  "1.20.0", features = ["rt-multi-thread", "macros"] }
 tokio-stream = "0.1.9"
 pretty_env_logger = "0.4.0"
-teloxide = { version = "0.11.0", features = ["auto-send", "webhooks", "webhooks-axum"] }
+teloxide = { version = "0.11.1", features = ["auto-send", "webhooks", "webhooks-axum"] }
 derive_more = "0.99.17"
 strum = { version = "0.24.1", features = ["derive"] }
 async-recursion = "1.0.0"

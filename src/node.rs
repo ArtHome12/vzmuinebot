@@ -110,7 +110,7 @@ impl Hash for Node {
 
 impl Node {
    pub fn new(parent: i32, tag: LocaleTag) -> Self {
-      let t = NaiveTime::from_hms(0, 0, 0);
+      let t = NaiveTime::from_hms_opt(0, 0, 0).unwrap_or_default();
 
       Self {
          id: 0,
@@ -179,7 +179,7 @@ impl Node {
    }
 
    pub fn is_time_set(&self) -> bool {
-      let zero = NaiveTime::from_hms(0, 0, 0);
+      let zero = NaiveTime::from_hms_opt(0, 0, 0).unwrap_or_default();
       self.time.0 != zero || self.time.1 != zero
    }
 

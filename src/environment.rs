@@ -82,7 +82,7 @@ pub struct Vars {
    price_unit: String,
 
    // Time zone, UTC
-   time_zone: FixedOffset,
+   time_zone: Option<FixedOffset>,
 
    // Link for open node from /start http://t.me/{bot name} ?start=
    link: String,
@@ -205,15 +205,15 @@ impl Vars {
          time_zone: {
             match env::var("TIME_ZONE") {
                Ok(s) => match s.parse::<i32>() {
-                     Ok(n) => FixedOffset::east(n * 3600),
+                     Ok(n) => FixedOffset::east_opt(n * 3600),
                      Err(e) => {
                         internal_log(chat.clone(), &format!("Something wrong with TIME_ZONE: {}", e)).await;
-                        FixedOffset::east(0)
+                        FixedOffset::east_opt(0)
                      }
                }
                Err(e) => {
                   internal_log(chat.clone(), &format!("Something wrong with TIME_ZONE: {}", e)).await;
-                  FixedOffset::east(0)
+                  FixedOffset::east_opt(0)
                }
             }
          },
@@ -231,18 +231,25 @@ pub fn admin_contact_info() -> String {
 
 // Current local time
 pub fn current_date_time() -> NaiveDateTime {
-   let our_timezone = VARS.get().unwrap().time_zone;
-   Utc::now().with_timezone(&our_timezone).naive_local()
+   match VARS.get().unwrap().time_zone {
+      Some(our_timezone) => Utc::now().with_timezone(&our_timezone).naive_local(),
+      _ => Utc::now().naive_local(),
+   }
 }
 
 // String with info about time zone
 pub fn time_zone_info() -> String {
-   // Часовой пояс
-   let our_timezone = VARS.get().unwrap().time_zone.local_minus_utc() / 3600;
-   if our_timezone > 0 {
-      format!("UTC+{}", our_timezone)
-   } else {
-      format!("UTC{}", our_timezone)
+   // Time zone
+   match VARS.get().unwrap().time_zone {
+      Some(tz) => {
+         let our_timezone = tz.local_minus_utc() / 3600;
+         if our_timezone > 0 {
+            format!("UTC+{}", our_timezone)
+         } else {
+            format!("UTC{}", our_timezone)
+         }
+      }
+      None => format!("UTC")
    }
 }
 
