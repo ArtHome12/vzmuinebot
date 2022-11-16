@@ -118,6 +118,11 @@
    "StatesMainMenuAll": "Все",
    "StatesMainMenuOpen": "Открыто",
    "StatesCallback": "Ошибка, начните заново",
+   "StatesMainMenu": "Вы в главном меню",
+   "StatesBotRestarted": "Извините, бот был перезапущен",
+   "StatesWrongSwitch": "Ожидается Вкл. или Выкл., получили {}",
+   "StatesOn": "Вкл.",
+   "StatesOff": "Выкл.",
 
    "TicketOwner1": "Ожидание подтверждения приёма заказа в работу",
    "TicketCustomer1": "Подтвердите начало обработки заказа",

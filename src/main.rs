@@ -154,9 +154,9 @@ async fn run() {
 
    Dispatcher::builder(bot.clone(), states::schema())
    .dependencies(dptree::deps![InMemStorage::<State>::new()])
-   .default_handler(|upd| async move {
-      environment::log(&format!("main::Unhandled update: {:?}", upd)).await;
-   })
+   // .default_handler(|upd| async move {
+   //    environment::log(&format!("main::Unhandled update: {:?}", upd)).await;
+   // })
    // If the dispatcher fails for some reason, execute this handler.
    .error_handler(Arc::new(MyErrorHandler{}))
    .build()
@@ -166,6 +166,7 @@ async fn run() {
    )
    .await;
 }
+
 
 /* async fn handle_message(cx: UpdateWithCx<Bot, Message>, dialogue: Dialogue) -> TransitionOut<Dialogue> {
 

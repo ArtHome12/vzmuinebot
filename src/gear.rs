@@ -329,8 +329,8 @@ async fn view(bot: Bot, msg: Message, state: &GearState) -> HandlerResult {
    let tf = loc(Key::CommonTimeFormat, tag, &[]);
    title = format!("{}\n{}: {}, {}: {}\n{}: {}-{}\n{}: {}",
       title,
-      loc(Key::GearEditEnable, tag, &[]), from_flag(node.enabled),
-      loc(Key::GearEditBan, tag, &[]), from_flag(node.banned),
+      loc(Key::GearEditEnable, tag, &[]), from_flag(node.enabled, tag),
+      loc(Key::GearEditBan, tag, &[]), from_flag(node.banned, tag),
       loc(Key::GearEditTime, tag, &[]), node.time.0.format(&tf), node.time.1.format(&tf),
       loc(Key::GearEditPicture, tag, &[]), if let Origin::Own(_) = node.picture {
          // "available"
@@ -503,7 +503,7 @@ pub async fn update_edit(bot: Bot, msg: Message, dialogue: MyDialogue, state: Ge
                UpdateKind::Picture(id)
             }
             UpdateKind::Flag(_) => {
-               let flag = to_flag(&input)?;
+               let flag = to_flag(&input, tag)?;
                UpdateKind::Flag(flag)
             }
             UpdateKind::User(_) => {
@@ -655,8 +655,8 @@ async fn enter_edit(bot: Bot, msg: Message, state: &GearStateEditing) -> Handler
       UpdateKind::Picture(old_val) => do_enter_picture(bot, chat_id, old_val, tag).await?,
       UpdateKind::Flag(old_val) => {
          // "Current value '{}', select new"
-         let text = loc(Key::GearEnterEdit4, tag, &[&from_flag(*old_val)]);
-         do_enter(bot, chat_id, text, flag_markup()).await?
+         let text = loc(Key::GearEnterEdit4, tag, &[&from_flag(*old_val, tag)]);
+         do_enter(bot, chat_id, text, flag_markup(tag)).await?
       }
       UpdateKind::User(old_val) => {
          // "Current value '{}', enter new or / to cancel"

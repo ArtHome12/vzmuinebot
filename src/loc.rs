@@ -137,6 +137,11 @@ pub enum Key {
    StatesMainMenuAll,
    StatesMainMenuOpen,
    StatesCallback,
+   StatesMainMenu,
+   StatesBotRestarted,
+   StatesWrongSwitch,
+   StatesOn,
+   StatesOff,
 
    TicketOwner1,
    TicketCustomer1,

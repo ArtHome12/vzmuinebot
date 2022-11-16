@@ -118,6 +118,11 @@
    "StatesMainMenuAll": "All",
    "StatesMainMenuOpen": "Open",
    "StatesCallback": "Error, start again",
+   "StatesMainMenu": "You are in the main menu",
+   "StatesBotRestarted": "Sorry, the bot has been restarted",
+   "StatesWrongSwitch": "Expected On or Off, got {}",
+   "StatesOn": "On",
+   "StatesOff": "Off",
 
    "TicketOwner1": "Waiting for confirmation of acceptance of the order for work",
    "TicketCustomer1": "Confirm the start of order processing",

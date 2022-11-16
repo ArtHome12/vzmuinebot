@@ -136,7 +136,7 @@ pub async fn reload(bot: Bot, msg: Message, dialogue: MyDialogue, state: MainSta
 
    dialogue.update(state).await?;
 
-   let text = "Вы в главном меню";
+   let text =  loc(Key::StatesMainMenu, tag, &[]); // You are in the main menu
    let chat_id = msg.chat.id;
    bot.send_message(chat_id, text)
    .reply_markup(main_menu_markup(tag))
@@ -180,7 +180,7 @@ pub async fn command(bot: Bot, msg: Message, dialogue: MyDialogue, state: MainSt
 
          // Report about a possible restart and loss of context
          if state.prev_state.restarted {
-            let text = "Извините, бот был перезапущен";
+            let text =  loc(Key::StatesBotRestarted, tag, &[]); // Sorry, the bot has been restarted
             bot.send_message(chat_id, text)
             .reply_markup(main_menu_markup(tag))
             .await?;
@@ -266,17 +266,19 @@ async fn update_last_seen(user_id: UserId) -> Result<(), String> {
 
 
 // Convert for flag value
-pub fn to_flag(text: &String) -> Result<bool, String> {
-   match text.as_str() {
-      "Вкл." => Ok(true),
-      "Выкл." => Ok(false),
-      _ => Err(format!("Ожидается Вкл. или Выкл., получили {}", text)),
+pub fn to_flag(text: &String, tag: LocaleTag) -> Result<bool, String> {
+   if text == &loc(Key::StatesOn, tag, &[]) { // On
+      Ok(true)
+   } else if text == &loc(Key::StatesOff, tag, &[]) { // Off
+      Ok(false)
+   } else {
+      Err(loc(Key::StatesWrongSwitch, tag, &[text])) // Expected On or Off, got {}
    }
 }
 
-pub fn from_flag(flag: bool) -> String {
-   if flag { String::from("Вкл.") }
-   else { String::from("Выкл.") }
+pub fn from_flag(flag: bool, tag: LocaleTag) -> String {
+   if flag { loc(Key::StatesOn, tag, &[]) } // On
+   else { loc(Key::StatesOff, tag, &[]) } // Off
 }
 
 // Frequently used menu
@@ -284,8 +286,8 @@ pub fn cancel_markup(tag: LocaleTag) -> ReplyMarkup {
    kb_markup(vec![vec![loc(Key::CommonCancel, tag, &[])]])
 }
 
-pub fn flag_markup() -> ReplyMarkup {
-   kb_markup(vec![vec![from_flag(true), from_flag(false)]])
+pub fn flag_markup(tag: LocaleTag) -> ReplyMarkup {
+   kb_markup(vec![vec![from_flag(true, tag), from_flag(false, tag)]])
 }
 
 // Construct keyboard from strings
