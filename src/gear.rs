@@ -452,16 +452,10 @@ async fn send_advert(bot: Bot, msg: Message, state: GearState) -> HandlerResult 
       }
       _ => {
          let media_group = pictures.iter()
-         .map(|f| {
-            let photo = InputMediaPhoto {
-               media : InputFile::file_id(f.picture.clone()), 
-               caption: Some(f.title.clone()),
-               parse_mode: None,
-               caption_entities: None,
-               has_spoiler: true,
-            };
-            InputMedia::Photo(photo)
-         });
+         .map(|f|
+            InputMediaPhoto::new(InputFile::file_id(&f.picture))
+            .caption(&f.title))
+         .map(InputMedia::Photo);
       
          // Message with pictures
          bot.send_media_group(chat_id, media_group)
