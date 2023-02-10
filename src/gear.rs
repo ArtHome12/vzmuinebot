@@ -458,6 +458,7 @@ async fn send_advert(bot: Bot, msg: Message, state: GearState) -> HandlerResult 
                caption: Some(f.title.clone()),
                parse_mode: None,
                caption_entities: None,
+               has_spoiler: true,
             };
             InputMedia::Photo(photo)
          });

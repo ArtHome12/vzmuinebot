@@ -12,12 +12,12 @@ futures = "0.3.25"
 tokio = { version =  "1.21.2", features = ["rt-multi-thread", "macros"] }
 tokio-stream = "0.1.11"
 pretty_env_logger = "0.4.0"
-teloxide = { version = "0.11.1", features = ["webhooks-axum"] }
+teloxide = { version = "0.12.0", features = ["webhooks-axum"] }
 derive_more = "0.99.17"
 strum = { version = "0.24.1", features = ["derive"] }
 async-recursion = "1.0.0"
 smart-default = "0.6.0"
-parse-display = "0.6.0"
+parse-display = "0.8.0"
 enum-utils = "0.1.2"
 chrono = "0.4.23"
 text_io = "0.1.12"
@@ -29,7 +29,7 @@ walkdir = "2"
 
 # Used to setup a webhook
 warp = "0.3.3"
-reqwest = "0.11.12"
+reqwest = "0.11.13"
 serde_json = "1.0.87"
 
 # Database
