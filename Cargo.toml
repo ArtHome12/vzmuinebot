@@ -2,39 +2,39 @@
 name = "vzmuinebot"
 version = "0.9.8"
 authors = ["Artem Khomenko <_mag12@yahoo.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 log = "0.4.17"
-futures = "0.3.25"
-tokio = { version =  "1.21.2", features = ["rt-multi-thread", "macros"] }
-tokio-stream = "0.1.11"
+futures = "0.3.26"
+tokio = { version =  "1.26.0", features = ["rt-multi-thread", "macros"] }
+tokio-stream = "0.1.12"
 pretty_env_logger = "0.4.0"
-teloxide = { version = "0.12.0", features = ["webhooks-axum"] }
+teloxide = { version = "0.12.2", features = ["webhooks-axum"] }
 derive_more = "0.99.17"
 strum = { version = "0.24.1", features = ["derive"] }
-async-recursion = "1.0.0"
+async-recursion = "1.0.2"
 smart-default = "0.6.0"
 parse-display = "0.8.0"
 enum-utils = "0.1.2"
 chrono = "0.4.23"
 text_io = "0.1.12"
 arraylib = "0.3.0"
-enum_default = "0.2.5"
-regex = "1.7.0"
+enum_default = "0.2.6"
+regex = "1.7.1"
 lazy_static = "1.4.0"
-walkdir = "2"
+walkdir = "2.3.2"
 
 # Used to setup a webhook
 warp = "0.3.3"
-reqwest = "0.11.13"
-serde_json = "1.0.87"
+reqwest = "0.11.14"
+serde_json = "1.0.93"
 
 # Database
-once_cell = "1.16.0"
+once_cell = "1.17.1"
 tokio-postgres = { version = "0.7.7", features = ["with-chrono-0_4"] }
-deadpool-postgres = "0.10.3"
+deadpool-postgres = "0.10.5"
 postgres-native-tls = "0.5.0"
 native-tls = "0.2.11"
