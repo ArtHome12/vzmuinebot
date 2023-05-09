@@ -261,7 +261,7 @@ async fn markup(node: &Node, mode: WorkTime, user_id: UserId, tag: LocaleTag) ->
    .fold(InlineKeyboardMarkup::default(), |acc, item| acc.append_row(vec![item]));
 
    // Short by two
-   let mut markup = short.into_iter().array_chunks::<[_; 2]>()
+   let mut markup = IteratorExt::array_chunks::<[_; 2]>(short.into_iter())
    .fold(markup, |acc, [left, right]| acc.append_row(vec![left, right]));
 
    // Back button
