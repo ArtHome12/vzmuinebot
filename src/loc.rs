@@ -8,9 +8,9 @@ Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 
-use strum::{AsRefStr };
+use strum::AsRefStr;
 use walkdir::WalkDir;
-use once_cell::sync::{OnceCell};
+use once_cell::sync::OnceCell;
 use std::fs;
 
 // Access to localize
