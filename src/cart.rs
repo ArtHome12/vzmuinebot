@@ -375,7 +375,7 @@ fn address_markup(tag: LocaleTag) -> ReplyMarkup {
    ];
 
    let markup = KeyboardMarkup::new(vec![kb])
-   .resize_keyboard(true);
+   .resize_keyboard();
 
    ReplyMarkup::Keyboard(markup)
 }

@@ -8,7 +8,7 @@ Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use teloxide::{prelude::*, payloads::SendMessageSetters,
-   types::{CallbackQuery, ParseMode, Recipient, ChatId, UserId, MessageId}
+   types::{CallbackQuery, ParseMode, Recipient, ChatId, UserId, MessageId, ReplyParameters}
 };
 use regex::Regex;
 use lazy_static::lazy_static;
@@ -129,7 +129,7 @@ async fn update_status(bot: &Bot, t: &mut TicketWithOwners, role: Role, tag: Loc
 
    // Quote order message with current stage and commands. The receiver's validity is guaranteed in the previous step
    let mut res = bot.send_message(recipient, text)
-   .reply_to_message_id(order_msg_id.unwrap());
+   .reply_parameters(ReplyParameters::new(order_msg_id.unwrap()));
 
    if let Some(markup) = markup { res = res.reply_markup(markup) }
 
@@ -150,7 +150,7 @@ pub async fn make_ticket(bot: &Bot, q: CallbackQuery, node_id: i32, tag: LocaleT
    let node = db::node(db::LoadNode::EnabledIdNoChildren(node_id)).await?;
    let owners = if let Some(node) = node { node.owners } else { node::Owners::default() };
 
-   let reply_to_id = if let Some(msg) = &q.message { msg.id } else { MessageId(0) };
+   let reply_to_id = if let Some(msg) = &q.message { msg.id() } else { MessageId(0) };
 
    // Check valid owner
    if !owners.has_valid_owner() {
@@ -162,10 +162,12 @@ pub async fn make_ticket(bot: &Bot, q: CallbackQuery, node_id: i32, tag: LocaleT
    }
 
    // Get source message text and id
-   let ref_m = q.message.as_ref();
-   let old_text = ref_m.and_then(|f| f.text()
-      .and_then(|f| Some(f.to_string()))
-   );
+   let ref_m = q.message.as_ref()
+      .and_then(|f| f.regular_message());
+   let old_text = ref_m
+      .and_then(|f| f.text())
+      .and_then(|f| Some(f.to_string()));
+
    if old_text.is_none() {
       // "Unable to get order text, message may be too old"
       let text = loc(Key::RegMakeTicket3, tag, &[]);
@@ -339,7 +341,7 @@ async fn reply_msg(bot: &Bot, receiver: UserId, reply_to_id: MessageId, text: &s
    .parse_mode(ParseMode::Html);
 
    if reply_to_id.0 != 0 {
-      fut = fut.reply_to_message_id(reply_to_id);
+      fut = fut.reply_parameters(ReplyParameters::new(reply_to_id));
    }
 
    fut.await

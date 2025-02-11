@@ -8,10 +8,10 @@ Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use chrono::{FixedOffset, NaiveDateTime, Utc,};
-use once_cell::sync::{OnceCell};
-use std::{env, };
+use once_cell::sync::OnceCell;
+use std::env;
 use teloxide::{
-   prelude::*, types::{Recipient, ChatId, UserId, MessageId},
+   prelude::*, types::{ChatId, MessageId, Recipient, ReplyParameters, UserId},
 };
 
 // Settings
@@ -34,7 +34,7 @@ impl ServiceChat {
 
       // Quoted message
       if let Some(reply_to) = reply_to {
-         res = res.reply_to_message_id(reply_to);
+         res = res.reply_parameters(ReplyParameters::new(reply_to));
       }
    
       match res.await {

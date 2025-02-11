@@ -7,8 +7,8 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use teloxide::{prelude::*, types::ParseMode, };
-use strum::{AsRefStr,};
+use teloxide::{prelude::*, types::{ParseMode, ReplyParameters, }};
+use strum::AsRefStr;
 
 use crate::states::*;
 use crate::search;
@@ -158,7 +158,7 @@ pub async fn update_input(bot: Bot, msg: Message, dialogue: MyDialogue, state: M
       ];
       let text = loc(Key::GeneralUpdateInput2, tag, args);
       bot.send_message(state.receiver, &text)
-      .reply_to_message_id(msg.id)
+      .reply_parameters(ReplyParameters::new(msg.id))
       .await?;
 
       // "Message sent"

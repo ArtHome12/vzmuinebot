@@ -7,11 +7,10 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2020-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use teloxide::{prelude::*, payloads::SendMessageSetters,
-   types::{InputMedia, InputFile, InputMediaPhoto, ParseMode, ReplyMarkup, }
+use teloxide::{payloads::SendMessageSetters, prelude::*, types::{InputFile, InputMedia, InputMediaPhoto, LinkPreviewOptions, ParseMode, ReplyMarkup }
 };
 use strum::AsRefStr;
-use chrono::{NaiveTime};
+use chrono::NaiveTime;
 
 use crate::states::*;
 use crate::database as db;
@@ -434,12 +433,20 @@ async fn send_advert(bot: Bot, msg: Message, state: GearState) -> HandlerResult 
    // Three ways to send depending on the number of pictures
    let text = format!("{}\n{}\n{}{}", node.title_with_price(), node.descr, env::link(), node.id);
    let markup = markup(&state, tag);
+   let link_options = LinkPreviewOptions {
+      is_disabled: true,
+      url: None,
+      prefer_small_media: false,
+      prefer_large_media: false,
+      show_above_text: false,
+   };
+   
    match pictures.len() {
       0 => {
          bot.send_message(chat_id, text)
          .reply_markup(markup)
          .parse_mode(ParseMode::Html)
-         .disable_web_page_preview(true)
+         .link_preview_options(link_options)
          .await?;
       }
       1 => {
@@ -465,7 +472,7 @@ async fn send_advert(bot: Bot, msg: Message, state: GearState) -> HandlerResult 
          bot.send_message(chat_id, text)
          .reply_markup(markup)
          .parse_mode(ParseMode::Html)
-         .disable_web_page_preview(true)
+         .link_preview_options(link_options)
          .await?;
       }
    }

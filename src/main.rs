@@ -11,15 +11,13 @@ use std::{env, fmt::Debug, sync::Arc};
 use futures::future::BoxFuture;
 
 use teloxide::{prelude::*, 
-   dispatching::{
-      update_listeners::{webhooks},
-      dialogue::InMemStorage,
-   },
+   dispatching::dialogue::InMemStorage,
    error_handlers::ErrorHandler,
+   update_listeners::webhooks,
 };
-use native_tls::{TlsConnector};
+use native_tls::TlsConnector;
 use postgres_native_tls::MakeTlsConnector;
-use reqwest::{Url};
+use reqwest::Url;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use crate::states::*;
 

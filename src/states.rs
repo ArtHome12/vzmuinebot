@@ -108,11 +108,11 @@ pub fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'stat
 async fn start(bot: Bot, msg: Message, dialogue: MyDialogue, state: StartState) -> HandlerResult {
 
    // Determine the language of the user
-   let locale = msg.from().and_then(|user| user.language_code.as_deref());
+   let locale = msg.from.as_ref().and_then(|user| user.language_code.as_deref());
    let locale = tag(locale);
 
    // Extract user id
-   let user = msg.from();
+   let user = msg.from.as_ref();
    if user.is_none() {
       let chat_id = msg.chat.id;
       bot.send_message(chat_id, "Error, no user")
@@ -149,7 +149,7 @@ pub async fn reload(bot: Bot, msg: Message, dialogue: MyDialogue, state: MainSta
 // #[async_recursion]
 pub async fn command(bot: Bot, msg: Message, dialogue: MyDialogue, state: MainState) -> HandlerResult {
    // Determine the language of the user
-   let locale = msg.from().and_then(|user| user.language_code.as_deref());
+   let locale = msg.from.as_ref().and_then(|user| user.language_code.as_deref());
    let tag = tag(locale);
 
    let chat_id = msg.chat.id;
@@ -319,7 +319,7 @@ pub fn kb_markup(keyboard: Vec<Vec<String>>) -> ReplyMarkup {
       .collect();
 
    let markup = KeyboardMarkup::new(kb)
-      .resize_keyboard(true);
+      .resize_keyboard();
 
    ReplyMarkup::Keyboard(markup)
 }

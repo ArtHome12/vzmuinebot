@@ -12,8 +12,8 @@ futures = "0.3.28"
 tokio = { version =  "1.35.1", features = ["rt-multi-thread", "macros"] }
 tokio-stream = "0.1.14"
 pretty_env_logger = "0.5.0"
-teloxide = { version = "0.12.2", features = ["webhooks-axum"] }
-derive_more = "2.0.1"
+teloxide = { version = "0.13.0", features = ["webhooks-axum"] }
+derive_more = { version = "2.0.1", features = ["from"] }
 strum = { version = "0.27.0", features = ["derive"] }
 async-recursion = "1.0.5"
 smart-default = "0.7.1"

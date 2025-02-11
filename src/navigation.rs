@@ -127,7 +127,7 @@ pub async fn view(bot: &Bot, q: CallbackQuery, node_id: i32, mode: WorkTime, tag
       return Ok(())
    }
    // let chat_id = ChatId::Id(message.chat_id());
-   let message_id = message.unwrap().id;
+   let message_id = message.unwrap().id();
 
    // Picture is mandatory
    match node.picture {
